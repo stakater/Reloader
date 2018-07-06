@@ -1,0 +1,35 @@
+package: .
+import:
+- package: github.com/openshift/origin
+  version: v1.3.0
+  subpackages:
+  - pkg/client
+- package: github.com/spf13/cobra
+- package: github.com/spf13/pflag
+- package: k8s.io/kubernetes
+  version: 52492b4bff99ef3b8ca617d385a3ff0612f9402d
+  repo: git://github.com/openshift/kubernetes.git
+  vcs: git
+  subpackages:
+  - pkg/api
+  - pkg/api/resource
+  - pkg/api/unversioned
+  - pkg/client/unversioned
+  - pkg/fields
+  - pkg/kubectl/cmd
+  - pkg/kubectl/cmd/util
+  - pkg/labels
+  - pkg/runtime
+  - pkg/util
+- package: github.com/opencontainers/runc
+  version: v0.0.7
+  subpackages:
+  - libcontainer
+- package: github.com/imdario/mergo
+  version: 6633656539c1639d9d78127b7d47c622b5d7b6dc
+- package: github.com/Sirupsen/logrus
+  version: aaf92c95712104318fc35409745f1533aa5ff327
+- package: github.com/docker/distribution
+  version: 559433598c7be9d30d6cfc5cad5b5dfdb686725c
+  repo: git://github.com/openshift/docker-distribution.git
+  vcs: git
