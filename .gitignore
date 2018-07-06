@@ -6,5 +6,4 @@ release
 out/
 _gopath/
 .DS_Store
-build
 vendor
