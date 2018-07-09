@@ -1,5 +1,5 @@
 FROM scratch
 
-ENTRYPOINT ["/reloader"]
+ENTRYPOINT ["/Reloader"]
 
-COPY ./reloader /
+COPY ./Reloader /
