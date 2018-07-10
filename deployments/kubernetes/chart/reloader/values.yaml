@@ -12,7 +12,3 @@ reloader:
     name: stakater/reloader
     tag: "1.0.0"
     pullPolicy: IfNotPresent
-  controllers:
-    - type: pods
-
-  configFilePath: /configs/config.yaml

@@ -26,17 +26,8 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: metadata.namespace
-        - name: CONFIG_FILE_PATH
-          value: {{ .Values.reloader.configFilePath }}
         image: "{{ .Values.reloader.image.name }}:{{ .Values.reloader.image.tag }}"
         imagePullPolicy: {{ .Values.reloader.image.pullPolicy }}
         name: {{ template "name" . }}
-        volumeMounts:
-        - mountPath: /configs
-          name: config-volume
       serviceAccountName: {{ template "name" . }}
-      volumes:
-      - configMap:
-          name: {{ template "name" . }}
-        name: config-volume
               

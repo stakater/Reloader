@@ -7,7 +7,6 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/apimachinery/pkg/util/runtime"
 	informerruntime "k8s.io/apimachinery/pkg/runtime"
-	"github.com/stakater/Reloader/internal/pkg/config"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/util/wait"
 	errorHandler "k8s.io/apimachinery/pkg/util/runtime"
@@ -33,10 +32,10 @@ type Event struct {
 // Controller for checking events
 type Controller struct {
 	client        kubernetes.Interface
-	indexer          cache.Indexer
-	queue            workqueue.RateLimitingInterface
-	informer         cache.Controller
-	controllerConfig config.Controller
+	indexer       cache.Indexer
+	queue         workqueue.RateLimitingInterface
+	informer      cache.Controller
+	resource	  string
 
 	stopCh chan struct{}
 }
@@ -44,16 +43,16 @@ type Controller struct {
 // NewController for initializing a Controller
 func NewController(
 	client kubernetes.Interface,
-	controllerConfig config.Controller, objType informerruntime.Object) (*Controller, error) {
+	resource string, objType informerruntime.Object) (*Controller, error) {
 
 	c := Controller{
-		client:        client,
-		controllerConfig: controllerConfig,
-		stopCh: make(chan struct{}),
+		client:   client,
+		resource: resource,
+		stopCh:   make(chan struct{}),
 	}
 
 	queue := workqueue.NewRateLimitingQueue(workqueue.DefaultControllerRateLimiter())
-	listWatcher := cache.NewListWatchFromClient(client.CoreV1().RESTClient(), controllerConfig.Type, AllNamespaces, fields.Everything())
+	listWatcher := cache.NewListWatchFromClient(client.CoreV1().RESTClient(), resource, AllNamespaces, fields.Everything())
 
 	indexer, informer := cache.NewIndexerInformer(listWatcher, objType, 0, cache.ResourceEventHandlerFuncs {
 		AddFunc:    c.Add,
@@ -98,7 +97,7 @@ func (c *Controller) Delete(obj interface{}) {
 //Run function for controller which handles the queue
 func (c *Controller) Run(threadiness int, stopCh chan struct{}) {
 
-	logrus.Infof("Starting Controller for type ", c.controllerConfig.Type)
+	logrus.Infof("Starting Controller for type ", c.resource)
 	defer errorHandler.HandleCrash()
 
 	// Let the workers stop when we are done
@@ -117,7 +116,7 @@ func (c *Controller) Run(threadiness int, stopCh chan struct{}) {
 	}
 
 	<-stopCh
-	logrus.Infof("Stopping Controller for type ", c.controllerConfig.Type)
+	logrus.Infof("Stopping Controller for type ", c.resource)
 }
 
 func (c *Controller) runWorker() {
