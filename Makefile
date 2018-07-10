@@ -6,7 +6,7 @@ BUILDER ?= reloader-builder
 BINARY ?= Reloader
 DOCKER_IMAGE ?= stakater/reloader
 # Default value "dev"
-DOCKER_TAG ?= dev
+DOCKER_TAG ?= 1.0.0
 REPOSITORY = ${DOCKER_IMAGE}:${DOCKER_TAG}
 
 VERSION=$(shell cat .version)
@@ -47,6 +47,6 @@ push: ## push the latest Docker image to DockerHub
 	docker push $(REPOSITORY)
 
 apply:
-	kubectl apply -f deployments/manifests/
+	kubectl apply -f deployments/manifests/ -n temp-reloader
 
 deploy: binary-image push apply
