@@ -13,10 +13,10 @@ import (
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/workqueue"
 	"github.com/sirupsen/logrus"
+	"github.com/stakater/Reloader/internal/pkg/actions"
 )
 
 const (
-	updateOnChangeAnnotation = "reloader.stakater.com.io/update-on-change"
 	// AllNamespaces as our controller will be looking for events in all namespaces
 	AllNamespaces = "temp-reloader"
 )
@@ -36,6 +36,7 @@ type Controller struct {
 	queue         workqueue.RateLimitingInterface
 	informer      cache.Controller
 	resource	  string
+	Actions       []actions.Action
 
 	stopCh chan struct{}
 }
@@ -153,20 +154,18 @@ func (c *Controller) takeAction(event Event) error {
 		logrus.Infof("Error in Action")
 	} else {
 		logrus.Infof("Detected changes in object %s", obj)
-		/*logrus.Infof("Resource block not found, performing actions")
 		// process events based on its type
-		for index, action := range c.Actions {
-			gllogrusog.Infof("Performing '%s' action for controller of type '%s'", c.controllerConfig.Actions[index].Name, c.controllerConfig.Type)
+		for _, action := range c.Actions {
+			logrus.Infof("Performing '%s' action for controller of type '%s'", event.eventType, c.resource)
 			switch event.eventType {
 			case "create":
-				action.ObjectCreated(obj)
+				action.ObjectCreated(obj, c.client)
 			case "update":
-				//TODO: Figure how to pass old and new object
-				action.ObjectUpdated(obj, nil)
+				action.ObjectUpdated(obj, c.client)
 			case "delete":
 				action.ObjectDeleted(obj)
 			}
-		}*/
+		}
 	}
 	return nil
 }
