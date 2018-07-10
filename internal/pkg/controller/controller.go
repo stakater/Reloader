@@ -18,7 +18,7 @@ import (
 const (
 	updateOnChangeAnnotation = "reloader.stakater.com.io/update-on-change"
 	// AllNamespaces as our controller will be looking for events in all namespaces
-	AllNamespaces = ""
+	AllNamespaces = "temp-reloader"
 )
 
 // Event indicate the informerEvent
