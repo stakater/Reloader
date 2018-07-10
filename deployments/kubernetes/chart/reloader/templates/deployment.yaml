@@ -2,23 +2,23 @@ apiVersion: extensions/v1beta1
 kind: Deployment
 metadata:
   annotations:
-    configmap.fabric8.io/update-on-change: {{ template "name" . }}
+    configmap.fabric8.io/update-on-change: {{ template "reloader-name" . }}
   labels:
-{{ include "labels.stakater" . | indent 4 }}
-{{ include "labels.chart" . | indent 4 }}
-  name: {{ template "name" . }}
+{{ include "reloader-labels.stakater" . | indent 4 }}
+{{ include "reloader-labels.chart" . | indent 4 }}
+  name: {{ template "reloader-name" . }}
 spec:
   replicas: 1
   revisionHistoryLimit: 2
   selector:
     matchLabels:
-{{ include "labels.selector" . | indent 6 }}
+{{ include "reloader-labels.selector" . | indent 6 }}
   template:
     metadata:
       annotations:
-        configmap.fabric8.io/update-on-change: {{ template "name" . }}
+        configmap.fabric8.io/update-on-change: {{ template "reloader-name" . }}
       labels:
-{{ include "labels.selector" . | indent 8 }}
+{{ include "reloader-labels.selector" . | indent 8 }}
     spec:
       containers:
       - env:
@@ -28,6 +28,6 @@ spec:
               fieldPath: metadata.namespace
         image: "{{ .Values.reloader.image.name }}:{{ .Values.reloader.image.tag }}"
         imagePullPolicy: {{ .Values.reloader.image.pullPolicy }}
-        name: {{ template "name" . }}
-      serviceAccountName: {{ template "name" . }}
+        name: {{ template "reloader-name" . }}
+      serviceAccountName: {{ template "reloader-name" . }}
               

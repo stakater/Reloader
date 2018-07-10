@@ -2,7 +2,7 @@
 {{/*
 Expand the name of the chart.
 */}}
-{{- define "name" -}}
+{{- define "reloader-name" -}}
 {{- default .Chart.Name .Values.nameOverride | trunc 63 | trimSuffix "-" | lower -}}
 {{- end -}}
 
@@ -10,23 +10,23 @@ Expand the name of the chart.
 Create a default fully qualified app name.
 We truncate at 63 chars because some Kubernetes name fields are limited to this (by the DNS naming spec).
 */}}
-{{- define "fullname" -}}
+{{- define "reloader-fullname" -}}
 {{- $name := default .Chart.Name .Values.nameOverride -}}
 {{- printf "%s-%s" .Release.Name $name | trunc 63 | trimSuffix "-" -}}
 {{- end -}}
 
-{{- define "labels.selector" -}}
-app: {{ template "name" . }}
+{{- define "reloader-labels.selector" -}}
+app: {{ template "reloader-name" . }}
 group: {{ .Values.reloader.labels.group }}
 provider: {{ .Values.reloader.labels.provider }}
 {{- end -}}
 
-{{- define "labels.stakater" -}}
-{{ template "labels.selector" . }}
+{{- define "reloader-labels.stakater" -}}
+{{ template "reloader-labels.selector" . }}
 version: {{ .Values.reloader.labels.version }}
 {{- end -}}
 
-{{- define "labels.chart" -}}
+{{- define "reloader-labels.chart" -}}
 chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
 release: {{ .Release.Name | quote }}
 heritage: {{ .Release.Service | quote }}
