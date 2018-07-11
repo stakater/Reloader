@@ -1,10 +1,13 @@
 package cmd
 
 import (
+	"os"
+
 	"github.com/spf13/cobra"
 	"github.com/stakater/Reloader/internal/pkg/controller"
 	"github.com/stakater/Reloader/pkg/kube"
 	"github.com/sirupsen/logrus"
+	"k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 func NewReloaderCommand() *cobra.Command {
@@ -18,6 +21,11 @@ func NewReloaderCommand() *cobra.Command {
 
 func startReloader(cmd *cobra.Command, args []string) {
 	logrus.Info("Starting Reloader")
+	currentNamespace := os.Getenv("KUBERNETES_NAMESPACE")
+	if len(currentNamespace) == 0 {
+		currentNamespace = v1.NamespaceAll
+		logrus.Infof("Warning: KUBERNETES_NAMESPACE is unset, will detect changes in all namespaces.")
+	}
 
 	// create the clientset
 	clientset, err := kube.GetClient()
@@ -25,8 +33,8 @@ func startReloader(cmd *cobra.Command, args []string) {
 		logrus.Fatal(err)
 	}
 
-	for k, v := range kube.ResourceMap {
-		c, err := controller.NewController(clientset, k, v)
+	for k := range kube.ResourceMap {
+		c, err := controller.NewController(clientset, k, currentNamespace)
 		if err != nil {
 			logrus.Fatalf("%s", err)
 		}

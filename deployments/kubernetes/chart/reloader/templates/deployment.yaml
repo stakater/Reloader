@@ -1,8 +1,6 @@
 apiVersion: extensions/v1beta1
 kind: Deployment
 metadata:
-  annotations:
-    configmap.fabric8.io/update-on-change: {{ template "reloader-name" . }}
   labels:
 {{ include "reloader-labels.stakater" . | indent 4 }}
 {{ include "reloader-labels.chart" . | indent 4 }}
@@ -15,8 +13,6 @@ spec:
 {{ include "reloader-labels.selector" . | indent 6 }}
   template:
     metadata:
-      annotations:
-        configmap.fabric8.io/update-on-change: {{ template "reloader-name" . }}
       labels:
 {{ include "reloader-labels.selector" . | indent 8 }}
     spec:

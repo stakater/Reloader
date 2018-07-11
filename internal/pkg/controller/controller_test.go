@@ -10,7 +10,7 @@ import (
 )
 
 var (
-	client, _     = kube.GetClient()
+	client, err     = kube.GetClient()
 	configmapNamePrefix = "testconfigmap-reloader"
 	letters       = []rune("abcdefghijklmnopqrstuvwxyz")
 )
