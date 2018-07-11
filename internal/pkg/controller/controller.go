@@ -161,13 +161,15 @@ func (c *Controller) takeAction(event Event) error {
 		logrus.Infof("Detected changes in object %s", obj)
 		// process events based on its type
 		logrus.Infof("Performing '%s' action for controller of type '%s'", event.eventType, c.resource)
-		switch event.eventType {
-			case "create":
-				ObjectCreated(obj, c.client)
-			case "update":
-				ObjectUpdated(obj, c.client)
-			case "delete":
-				ObjectDeleted(obj)
+		if c.resource == "configMaps" {
+			switch event.eventType {
+				case "create":
+					ObjectCreated(obj, c.client)
+				case "update":
+					ObjectUpdated(obj, c.client)
+				case "delete":
+					ObjectDeleted(obj)
+			}
 		}
 	}
 	return nil
