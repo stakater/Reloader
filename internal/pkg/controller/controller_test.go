@@ -56,7 +56,7 @@ func TestControllerForUpdatingConfigmapShouldUpdateDeployment(t *testing.T) {
 	logrus.Infof("Updating Configmap %q.\n", configmap.GetObjectMeta().GetName())
 	configmap, err = configmapClient.Get(configmapName, metav1.GetOptions{})
 	if err != nil {
-
+		logrus.Infof("Error while getting configmap %v", err)
 	}
 	configmap = updateConfigmap(namespace, configmapName)
 	_, updateErr := configmapClient.Update(configmap)
@@ -64,12 +64,16 @@ func TestControllerForUpdatingConfigmapShouldUpdateDeployment(t *testing.T) {
 	// TODO: Add functionality to verify reloader functionality here
 
 	if updateErr != nil {
-		controller.client.CoreV1().ConfigMaps(namespace).Delete(configmapName, &metav1.DeleteOptions{})
+		error := controller.client.CoreV1().ConfigMaps(namespace).Delete(configmapName, &metav1.DeleteOptions{})
+		logrus.Infof("Error while deleting the configmap %v", error)
 		panic(updateErr)
 	}
 	time.Sleep(10 * time.Second)
 	logrus.Infof("Deleting Configmap %q.\n", configmap.GetObjectMeta().GetName())
-	controller.client.CoreV1().ConfigMaps(namespace).Delete(configmapName, &metav1.DeleteOptions{})
+	error := controller.client.CoreV1().ConfigMaps(namespace).Delete(configmapName, &metav1.DeleteOptions{})
+	if error != nil {
+		logrus.Infof("Error while deleting the configmap %v", error)
+	}
 	time.Sleep(15 * time.Second)
 }
 
@@ -101,7 +105,7 @@ func TestControllerForUpdatingSecretShouldUpdateDeployment(t *testing.T) {
 	logrus.Infof("Updating Secret %q.\n", secret.GetObjectMeta().GetName())
 	secret, err = secretClient.Get(secretName, metav1.GetOptions{})
 	if err != nil {
-
+		logrus.Infof("Error while getting secret %v", err)
 	}
 	secret = updateSecret(namespace, secretName)
 	_, updateErr := secretClient.Update(secret)
@@ -109,12 +113,16 @@ func TestControllerForUpdatingSecretShouldUpdateDeployment(t *testing.T) {
 	// TODO: Add functionality to verify reloader functionality here
 
 	if updateErr != nil {
-		controller.client.CoreV1().Secrets(namespace).Delete(secretName, &metav1.DeleteOptions{})
+		error := controller.client.CoreV1().Secrets(namespace).Delete(secretName, &metav1.DeleteOptions{})
+		logrus.Infof("Error while deleting the secret %v", error)
 		panic(updateErr)
 	}
 	time.Sleep(10 * time.Second)
 	logrus.Infof("Deleting Secret %q.\n", secret.GetObjectMeta().GetName())
-	controller.client.CoreV1().Secrets(namespace).Delete(secretName, &metav1.DeleteOptions{})
+	error := controller.client.CoreV1().Secrets(namespace).Delete(secretName, &metav1.DeleteOptions{})
+	if error != nil {
+		logrus.Infof("Error while deleting the secret %v", error)
+	}
 	time.Sleep(15 * time.Second)
 }
 
