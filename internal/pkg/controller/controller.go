@@ -1,36 +1,35 @@
 package controller
 
 import (
-	"time"
 	"fmt"
-	
-	
-	"k8s.io/client-go/kubernetes"
-	"k8s.io/apimachinery/pkg/util/runtime"
+	"time"
+
+	"github.com/sirupsen/logrus"
+	"github.com/stakater/Reloader/internal/pkg/upgrader"
+	"github.com/stakater/Reloader/pkg/kube"
 	"k8s.io/apimachinery/pkg/fields"
-	"k8s.io/apimachinery/pkg/util/wait"
+	"k8s.io/apimachinery/pkg/util/runtime"
 	errorHandler "k8s.io/apimachinery/pkg/util/runtime"
+	"k8s.io/apimachinery/pkg/util/wait"
+	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/workqueue"
-	"github.com/sirupsen/logrus"
-	"github.com/stakater/Reloader/pkg/kube"
-	"github.com/stakater/Reloader/internal/pkg/upgrader"
 )
 
 // Event indicate the informerEvent
 type Event struct {
-	key          string
-	eventType    string
+	key       string
+	eventType string
 }
 
 // Controller for checking events
 type Controller struct {
-	client        kubernetes.Interface
-	indexer       cache.Indexer
-	queue         workqueue.RateLimitingInterface
-	informer      cache.Controller
-	resource	  string
-	namespace     string
+	client    kubernetes.Interface
+	indexer   cache.Indexer
+	queue     workqueue.RateLimitingInterface
+	informer  cache.Controller
+	resource  string
+	namespace string
 }
 
 // NewController for initializing a Controller
@@ -38,15 +37,15 @@ func NewController(
 	client kubernetes.Interface, resource string, namespace string) (*Controller, error) {
 
 	c := Controller{
-		client:   client,
-		resource: resource,
+		client:    client,
+		resource:  resource,
 		namespace: namespace,
 	}
 
 	queue := workqueue.NewRateLimitingQueue(workqueue.DefaultControllerRateLimiter())
 	listWatcher := cache.NewListWatchFromClient(client.CoreV1().RESTClient(), resource, namespace, fields.Everything())
-	
-	indexer, informer := cache.NewIndexerInformer(listWatcher, kube.ResourceMap[resource], 0, cache.ResourceEventHandlerFuncs {
+
+	indexer, informer := cache.NewIndexerInformer(listWatcher, kube.ResourceMap[resource], 0, cache.ResourceEventHandlerFuncs{
 		AddFunc:    c.Add,
 		UpdateFunc: c.Update,
 	}, cache.Indexers{})
@@ -144,10 +143,10 @@ func (c *Controller) takeAction(event Event) error {
 		u, _ := upgrader.NewUpgrader(c.client, c.resource)
 		if c.resource == "configMaps" {
 			switch event.eventType {
-				case "create":
-					u.ObjectCreated(obj)
-				case "update":
-					u.ObjectUpdated(obj)
+			case "create":
+				u.ObjectCreated(obj)
+			case "update":
+				u.ObjectUpdated(obj)
 			}
 		}
 	}

@@ -3,13 +3,14 @@ package cmd
 import (
 	"os"
 
+	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/stakater/Reloader/internal/pkg/controller"
 	"github.com/stakater/Reloader/pkg/kube"
-	"github.com/sirupsen/logrus"
 	"k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+// NewReloaderCommand starts the reloader controller
 func NewReloaderCommand() *cobra.Command {
 	cmds := &cobra.Command{
 		Use:   "reloader",

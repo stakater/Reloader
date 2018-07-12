@@ -17,7 +17,7 @@ const (
 )
 
 // Upgrader will upgrade the relevent deployment, deamonset and deamonset.
-type Upgrader struct{
+type Upgrader struct {
 	client       kubernetes.Interface
 	resourceType string
 }
@@ -32,8 +32,8 @@ func NewUpgrader(client kubernetes.Interface, resourceType string) (*Upgrader, e
 }
 
 // ObjectCreated Detects if the configmap or secret has been created
-func (u *Upgrader)ObjectCreated(obj interface{}) {
-	message := u.resourceType+": `" + obj.(*v1.ConfigMap).Name + "`has been created in Namespace: `" + obj.(*v1.ConfigMap).Namespace + "`"
+func (u *Upgrader) ObjectCreated(obj interface{}) {
+	message := u.resourceType + ": `" + obj.(*v1.ConfigMap).Name + "`has been created in Namespace: `" + obj.(*v1.ConfigMap).Namespace + "`"
 	logrus.Infof(message)
 	err := rollingUpgradeDeployments(obj, u.client)
 	if err != nil {
@@ -42,8 +42,8 @@ func (u *Upgrader)ObjectCreated(obj interface{}) {
 }
 
 // ObjectUpdated Detects if the configmap or secret has been updated
-func (u *Upgrader)ObjectUpdated(oldObj interface{}) {
-	message := u.resourceType+": `" + oldObj.(*v1.ConfigMap).Name + "`has been updated in Namespace: `" + oldObj.(*v1.ConfigMap).Namespace + "`"
+func (u *Upgrader) ObjectUpdated(oldObj interface{}) {
+	message := u.resourceType + ": `" + oldObj.(*v1.ConfigMap).Name + "`has been updated in Namespace: `" + oldObj.(*v1.ConfigMap).Namespace + "`"
 	logrus.Infof(message)
 	err := rollingUpgradeDeployments(oldObj, u.client)
 	if err != nil {
@@ -58,7 +58,7 @@ func rollingUpgradeDeployments(oldObj interface{}, client kubernetes.Interface) 
 	configMapName := oldObj.(*v1.ConfigMap).Name
 	configMapVersion := convertConfigMapToToken(oldObj.(*v1.ConfigMap))
 
-	deployments, err := client.AppsV1().Deployments(ns).List(meta_v1.ListOptions{})
+	deployments, err := client.Apps().Deployments(ns).List(meta_v1.ListOptions{})
 	if err != nil {
 		return errors.Wrap(err, "failed to list deployments")
 	}
@@ -79,7 +79,7 @@ func rollingUpgradeDeployments(oldObj interface{}, client kubernetes.Interface) 
 				updateContainers(containers, annotationValue, configMapVersion)
 
 				// update the deployment
-				_, err := client.AppsV1().Deployments(ns).Update(&d)
+				_, err := client.Apps().Deployments(ns).Update(&d)
 				if err != nil {
 					return errors.Wrap(err, "update deployment failed")
 				}
