@@ -16,11 +16,13 @@ const (
 	updateOnChangeAnnotation = "reloader.stakater.com/update-on-change"
 )
 
+// Upgrader will upgrade the relevent deployment, deamonset and deamonset.
 type Upgrader struct{
 	client       kubernetes.Interface
 	resourceType string
 }
 
+// NewUpgrader Initializes the Upgrader
 func NewUpgrader(client kubernetes.Interface, resourceType string) (*Upgrader, error) {
 	u := Upgrader{
 		client:       client,
