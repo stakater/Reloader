@@ -7,12 +7,13 @@ metadata:
   name: {{ template "reloader-name" . }}
 ---
 apiVersion: rbac.authorization.k8s.io/v1beta1
-kind: ClusterRole
+kind: Role
 metadata:
   labels: 
 {{ include "reloader-labels.stakater" . | indent 4 }}
 {{ include "reloader-labels.chart" . | indent 4 }}
   name: {{ template "reloader-name" . }}-role
+  namespace: {{ .Release.Namespace }}
 rules:
   - apiGroups:
       - ""
@@ -25,15 +26,16 @@ rules:
       - watch
 ---
 apiVersion: rbac.authorization.k8s.io/v1beta1
-kind: ClusterRoleBinding
+kind: RoleBinding
 metadata:
   labels: 
 {{ include "reloader-labels.stakater" . | indent 4 }}
 {{ include "reloader-labels.chart" . | indent 4 }}
   name: {{ template "reloader-name" . }}-role-binding
+  namespace: {{ .Release.Namespace }}
 roleRef:
   apiGroup: rbac.authorization.k8s.io
-  kind: ClusterRole
+  kind: Role
   name: {{ template "reloader-name" . }}-role
 subjects:
   - kind: ServiceAccount

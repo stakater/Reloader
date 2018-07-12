@@ -14,6 +14,7 @@ import (
 var (
 	client, err         = kube.GetClient()
 	configmapNamePrefix = "testconfigmap-reloader"
+	secretNamePrefix = "testsecret-reloader"
 	letters             = []rune("abcdefghijklmnopqrstuvwxyz")
 )
 
@@ -72,6 +73,51 @@ func TestControllerForUpdatingConfigmapShouldUpdateDeployment(t *testing.T) {
 	time.Sleep(15 * time.Second)
 }
 
+func TestControllerForUpdatingSecretShouldUpdateDeployment(t *testing.T) {
+	namespace := "test-reloader-secrets"
+	createNamespace(t, namespace)
+	defer deleteNamespace(t, namespace)
+
+	controller, err := NewController(client, "secrets", namespace)
+	if err != nil {
+		logrus.Infof("Unable to create NewController error = %v", err)
+		return
+	}
+	stop := make(chan struct{})
+	defer close(stop)
+	go controller.Run(1, stop)
+	time.Sleep(10 * time.Second)
+
+	secretName := secretNamePrefix + "-update-" + randSeq(5)
+	secretClient := client.CoreV1().Secrets(namespace)
+	secret := initSecret(namespace, secretName)
+	secret, err = secretClient.Create(secret)
+	if err != nil {
+		panic(err)
+	}
+	logrus.Infof("Created Secret %q.\n", secret.GetObjectMeta().GetName())
+	time.Sleep(10 * time.Second)
+
+	logrus.Infof("Updating Secret %q.\n", secret.GetObjectMeta().GetName())
+	secret, err = secretClient.Get(secretName, metav1.GetOptions{})
+	if err != nil {
+
+	}
+	secret = updateSecret(namespace, secretName)
+	_, updateErr := secretClient.Update(secret)
+
+	// TODO: Add functionality to verify reloader functionality here
+
+	if updateErr != nil {
+		controller.client.CoreV1().Secrets(namespace).Delete(secretName, &metav1.DeleteOptions{})
+		panic(updateErr)
+	}
+	time.Sleep(10 * time.Second)
+	logrus.Infof("Deleting Secret %q.\n", secret.GetObjectMeta().GetName())
+	controller.client.CoreV1().Secrets(namespace).Delete(secretName, &metav1.DeleteOptions{})
+	time.Sleep(15 * time.Second)
+}
+
 func initConfigmap(namespace string, configmapName string) *v1.ConfigMap {
 	return &v1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
@@ -80,6 +126,17 @@ func initConfigmap(namespace string, configmapName string) *v1.ConfigMap {
 			Labels:    map[string]string{"firstLabel": "temp"},
 		},
 		Data: map[string]string{"test.url": "www.google.com"},
+	}
+}
+
+func initSecret(namespace string, secretName string) *v1.Secret {
+	return &v1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      secretName,
+			Namespace: namespace,
+			Labels:    map[string]string{"firstLabel": "temp"},
+		},
+		Data: map[string][]byte{"test.url": []byte("dGVzdFNlY3JldEVuY29kaW5nRm9yUmVsb2FkZXI=")},
 	}
 }
 
@@ -109,5 +166,16 @@ func updateConfigmap(namespace string, configmapName string) *v1.ConfigMap {
 			Labels:    map[string]string{"firstLabel": "temp"},
 		},
 		Data: map[string]string{"test.url": "www.stakater.com"},
+	}
+}
+
+func updateSecret(namespace string, secretName string) *v1.Secret {
+	return &v1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      secretName,
+			Namespace: namespace,
+			Labels:    map[string]string{"firstLabel": "temp"},
+		},
+		Data: map[string][]byte{"test.url": []byte("dGVzdFVwZGF0ZWRTZWNyZXRFbmNvZGluZ0ZvclJlbG9hZGVy")},
 	}
 }
