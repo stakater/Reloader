@@ -8,13 +8,14 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/stakater/Reloader/pkg/kube"
 	"k8s.io/api/core/v1"
+	"k8s.io/api/extensions/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 var (
-	client, err         = kube.GetClient()
+	client, _           = kube.GetClient()
 	configmapNamePrefix = "testconfigmap-reloader"
-	secretNamePrefix = "testsecret-reloader"
+	secretNamePrefix    = "testsecret-reloader"
 	letters             = []rune("abcdefghijklmnopqrstuvwxyz")
 )
 
@@ -48,10 +49,12 @@ func TestControllerForUpdatingConfigmapShouldUpdateDeployment(t *testing.T) {
 	configmap := initConfigmap(namespace, configmapName)
 	configmap, err = configmapClient.Create(configmap)
 	if err != nil {
+		logrus.Infof("Error detected %s.\n", err)
 		panic(err)
 	}
 	logrus.Infof("Created Configmap %q.\n", configmap.GetObjectMeta().GetName())
 	time.Sleep(10 * time.Second)
+	createDeployement(configmapName, namespace)
 
 	logrus.Infof("Updating Configmap %q.\n", configmap.GetObjectMeta().GetName())
 	configmap, err = configmapClient.Get(configmapName, metav1.GetOptions{})
@@ -75,6 +78,17 @@ func TestControllerForUpdatingConfigmapShouldUpdateDeployment(t *testing.T) {
 		logrus.Infof("Error while deleting the configmap %v", error)
 	}
 	time.Sleep(15 * time.Second)
+}
+
+func createDeployement(deploymentName string, namespace string) {
+	deploymentClient := client.Extensions().Deployments(namespace)
+	deployment := initDeployment(namespace, deploymentName)
+	deployment, error := deploymentClient.Create(deployment)
+	if error != nil {
+		panic(error)
+	}
+	//time.Sleep(10 * time.Second)
+	logrus.Infof("Created Deployment %q.\n", deployment.GetObjectMeta().GetName())
 }
 
 func TestControllerForUpdatingSecretShouldUpdateDeployment(t *testing.T) {
@@ -134,6 +148,43 @@ func initConfigmap(namespace string, configmapName string) *v1.ConfigMap {
 			Labels:    map[string]string{"firstLabel": "temp"},
 		},
 		Data: map[string]string{"test.url": "www.google.com"},
+	}
+}
+
+func initDeployment(namespace string, deploymentName string) *v1beta1.Deployment {
+	replicaset := int32(1)
+	return &v1beta1.Deployment{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:        deploymentName,
+			Namespace:   namespace,
+			Labels:      map[string]string{"firstLabel": "temp"},
+			Annotations: map[string]string{"reloader.stakater.com/update-on-change": deploymentName},
+		},
+		Spec: v1beta1.DeploymentSpec{
+			Replicas: &replicaset,
+			Strategy: v1beta1.DeploymentStrategy{
+				Type: v1beta1.RollingUpdateDeploymentStrategyType,
+			},
+			Template: v1.PodTemplateSpec{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{"secondLabel": "temp"},
+				},
+				Spec: v1.PodSpec{
+					Containers: []v1.Container{
+						v1.Container{
+							Image: "tutum/hello-world",
+							Name:  deploymentName,
+							Env: []v1.EnvVar{
+								v1.EnvVar{
+									Name:  "BUCKET_NAME",
+									Value: "test",
+								},
+							},
+						},
+					},
+				},
+			},
+		},
 	}
 }
 

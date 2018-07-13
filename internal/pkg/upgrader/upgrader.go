@@ -58,7 +58,7 @@ func rollingUpgradeDeployments(oldObj interface{}, client kubernetes.Interface) 
 	configMapName := oldObj.(*v1.ConfigMap).Name
 	configMapVersion := convertConfigMapToToken(oldObj.(*v1.ConfigMap))
 
-	deployments, err := client.Apps().Deployments(ns).List(meta_v1.ListOptions{})
+	deployments, err := client.ExtensionsV1beta1().Deployments(ns).List(meta_v1.ListOptions{})
 	if err != nil {
 		return errors.Wrap(err, "failed to list deployments")
 	}
@@ -79,7 +79,7 @@ func rollingUpgradeDeployments(oldObj interface{}, client kubernetes.Interface) 
 				updateContainers(containers, annotationValue, configMapVersion)
 
 				// update the deployment
-				_, err := client.Apps().Deployments(ns).Update(&d)
+				_, err := client.ExtensionsV1beta1().Deployments(ns).Update(&d)
 				if err != nil {
 					return errors.Wrap(err, "update deployment failed")
 				}

@@ -8,5 +8,5 @@ import (
 // ResourceMap are resources from where changes are going to be detected
 var ResourceMap = map[string]runtime.Object{
 	"configMaps": &v1.ConfigMap{},
-	"secrets": &v1.Secret{},
+	"secrets":    &v1.Secret{},
 }

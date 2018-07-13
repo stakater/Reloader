@@ -10,7 +10,7 @@ We would like to watch if some change happens in `ConfigMap` and `Secret` object
 
 ## Solution
 
-Reloader can watch any changes in `ConfigMap` and `Secret` objects and then performs rolling upgrades on their associated `Deployments`, `Deamonsets` and `Statefulsets` and updating these dynamically.  
+Reloader can watch any changes in `ConfigMap` and `Secret` objects and update or recreate Pods for their associated `Deployments`, `Deamonsets` and `Statefulsets`. In this way Pods can get the latest changes in `ConfigMap` or `Secret` objects.
 
 **NOTE:** This controller has been inspired from [configmapController](https://github.com/fabric8io/configmapcontroller)
 
