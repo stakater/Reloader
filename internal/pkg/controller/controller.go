@@ -14,6 +14,7 @@ import (
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/workqueue"
 )
+
 // ResourceUpdated contains new or updated objects
 type ResourceUpdated struct {
 	newObj interface{}
@@ -126,7 +127,7 @@ func (c *Controller) takeAction(resourceUpdated ResourceUpdated) error {
 	} else {
 		logrus.Infof("Detected changes in object %s", newObj)
 		// process events based on its type
-		if(oldObj == nil){
+		if oldObj == nil {
 			logrus.Infof("Performing 'Added' action for controller of type '%s'", c.resource)
 		} else {
 			logrus.Infof("Performing 'Updated' action for controller of type '%s'", c.resource)
