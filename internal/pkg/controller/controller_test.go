@@ -71,7 +71,7 @@ func TestControllerForUpdatingConfigmapShouldUpdateDeployment(t *testing.T) {
 	}
 	time.Sleep(10 * time.Second)
 	logrus.Infof("Deleting Deployment %q.\n", deployment.GetObjectMeta().GetName())
-	deploymentError := controller.client.Extensions().Deployments(namespace).Delete(configmapName, &metav1.DeleteOptions{})
+	deploymentError := controller.client.ExtensionsV1beta1().Deployments(namespace).Delete(configmapName, &metav1.DeleteOptions{})
 	if deploymentError != nil {
 		logrus.Infof("Error while deleting the configmap %v", deploymentError)
 	}
@@ -84,7 +84,7 @@ func TestControllerForUpdatingConfigmapShouldUpdateDeployment(t *testing.T) {
 }
 
 func createDeployement(deploymentName string, namespace string) *v1beta1.Deployment {
-	deploymentClient := client.Extensions().Deployments(namespace)
+	deploymentClient := client.ExtensionsV1beta1().Deployments(namespace)
 	deployment := initDeployment(namespace, deploymentName)
 	deployment, error := deploymentClient.Create(deployment)
 	if error != nil {
