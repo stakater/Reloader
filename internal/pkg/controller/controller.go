@@ -5,7 +5,6 @@ import (
 	"time"
 
 	"github.com/sirupsen/logrus"
-	"github.com/stakater/Reloader/internal/pkg/upgrader"
 	"github.com/stakater/Reloader/pkg/kube"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/util/runtime"
@@ -15,11 +14,10 @@ import (
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/workqueue"
 )
-
-// Event indicate the informerEvent
-type Event struct {
-	key       string
-	eventType string
+// ResourceUpdated contains new or updated objects
+type ResourceUpdated struct {
+	newObj interface{}
+	oldObj interface{}
 }
 
 // Controller for checking events
@@ -57,26 +55,17 @@ func NewController(
 
 // Add function to add a 'create' event to the queue in case of creating a pod
 func (c *Controller) Add(obj interface{}) {
-	key, err := cache.MetaNamespaceKeyFunc(obj)
-	var event Event
-
-	if err == nil {
-		event.key = key
-		event.eventType = "create"
-		c.queue.Add(event)
-	}
+	c.queue.Add(ResourceUpdated{
+		newObj: obj,
+	})
 }
 
 // Update function to add an 'update' event to the queue in case of updating a pod
 func (c *Controller) Update(old interface{}, new interface{}) {
-	key, err := cache.MetaNamespaceKeyFunc(new)
-	var event Event
-
-	if err == nil {
-		event.key = key
-		event.eventType = "update"
-		c.queue.Add(event)
-	}
+	c.queue.Add(ResourceUpdated{
+		newObj: new,
+		oldObj: old,
+	})
 }
 
 //Run function for controller which handles the queue
@@ -111,43 +100,36 @@ func (c *Controller) runWorker() {
 
 func (c *Controller) processNextItem() bool {
 	// Wait until there is a new item in the working queue
-	event, quit := c.queue.Get()
+	resourceUpdated, quit := c.queue.Get()
 	if quit {
 		return false
 	}
 	// Tell the queue that we are done with processing this key. This unblocks the key for other workers
 	// This allows safe parallel processing because two events with the same key are never processed in
 	// parallel.
-	defer c.queue.Done(event)
+	defer c.queue.Done(resourceUpdated)
 
 	// Invoke the method containing the business logic
-	err := c.takeAction(event.(Event))
+	err := c.takeAction(resourceUpdated.(ResourceUpdated))
 	// Handle the error if something went wrong during the execution of the business logic
-	c.handleErr(err, event)
+	c.handleErr(err, resourceUpdated)
 	return true
 }
 
 // main business logic that acts bassed on the event or key
-func (c *Controller) takeAction(event Event) error {
+func (c *Controller) takeAction(resourceUpdated ResourceUpdated) error {
 
-	obj, _, err := c.indexer.GetByKey(event.key)
-	if err != nil {
-		logrus.Infof("Fetching object with key %s from store failed with %v", event.key, err)
-	}
-	if obj == nil {
+	newObj := resourceUpdated.newObj
+	oldObj := resourceUpdated.oldObj
+	if newObj == nil {
 		logrus.Infof("Error in Action")
 	} else {
-		logrus.Infof("Detected changes in object %s", obj)
+		logrus.Infof("Detected changes in object %s", newObj)
 		// process events based on its type
-		logrus.Infof("Performing '%s' action for controller of type '%s'", event.eventType, c.resource)
-		u, _ := upgrader.NewUpgrader(c.client, c.resource)
-		if c.resource == "configMaps" {
-			switch event.eventType {
-			case "create":
-				u.ObjectCreated(obj)
-			case "update":
-				u.ObjectUpdated(obj)
-			}
+		if(oldObj == nil){
+			logrus.Infof("Performing 'Added' action for controller of type '%s'", c.resource)
+		} else {
+			logrus.Infof("Performing 'Updated' action for controller of type '%s'", c.resource)
 		}
 	}
 	return nil

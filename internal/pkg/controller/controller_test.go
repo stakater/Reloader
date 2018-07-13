@@ -54,7 +54,7 @@ func TestControllerForUpdatingConfigmapShouldUpdateDeployment(t *testing.T) {
 	}
 	logrus.Infof("Created Configmap %q.\n", configmap.GetObjectMeta().GetName())
 	time.Sleep(10 * time.Second)
-	createDeployement(configmapName, namespace)
+	deployment := createDeployement(configmapName, namespace)
 
 	logrus.Infof("Updating Configmap %q.\n", configmap.GetObjectMeta().GetName())
 	configmap, err = configmapClient.Get(configmapName, metav1.GetOptions{})
@@ -72,6 +72,8 @@ func TestControllerForUpdatingConfigmapShouldUpdateDeployment(t *testing.T) {
 		panic(updateErr)
 	}
 	time.Sleep(10 * time.Second)
+	logrus.Infof("Deleting Deployment %q.\n", deployment.GetObjectMeta().GetName())
+	controller.client.Extensions().Deployments(namespace).Delete(configmapName, &metav1.DeleteOptions{});
 	logrus.Infof("Deleting Configmap %q.\n", configmap.GetObjectMeta().GetName())
 	error := controller.client.CoreV1().ConfigMaps(namespace).Delete(configmapName, &metav1.DeleteOptions{})
 	if error != nil {
@@ -80,7 +82,7 @@ func TestControllerForUpdatingConfigmapShouldUpdateDeployment(t *testing.T) {
 	time.Sleep(15 * time.Second)
 }
 
-func createDeployement(deploymentName string, namespace string) {
+func createDeployement(deploymentName string, namespace string) *v1beta1.Deployment {
 	deploymentClient := client.Extensions().Deployments(namespace)
 	deployment := initDeployment(namespace, deploymentName)
 	deployment, error := deploymentClient.Create(deployment)
@@ -89,6 +91,7 @@ func createDeployement(deploymentName string, namespace string) {
 	}
 	//time.Sleep(10 * time.Second)
 	logrus.Infof("Created Deployment %q.\n", deployment.GetObjectMeta().GetName())
+	return deployment
 }
 
 func TestControllerForUpdatingSecretShouldUpdateDeployment(t *testing.T) {
