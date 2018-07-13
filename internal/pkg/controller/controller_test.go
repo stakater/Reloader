@@ -171,11 +171,11 @@ func initDeployment(namespace string, deploymentName string) *v1beta1.Deployment
 				},
 				Spec: v1.PodSpec{
 					Containers: []v1.Container{
-						v1.Container{
+						{
 							Image: "tutum/hello-world",
 							Name:  deploymentName,
 							Env: []v1.EnvVar{
-								v1.EnvVar{
+								{
 									Name:  "BUCKET_NAME",
 									Value: "test",
 								},
