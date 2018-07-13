@@ -8,7 +8,7 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 )
 
-// gets the client for k8s, if ~/.kube/config exists so get that config else incluster config
+// GetClient gets the client for k8s, if ~/.kube/config exists so get that config else incluster config
 func GetClient() (*kubernetes.Clientset, error) {
 	var config *rest.Config
 	var err error
@@ -19,8 +19,14 @@ func GetClient() (*kubernetes.Clientset, error) {
 	//If file exists so use that config settings
 	if _, err := os.Stat(kubeconfigPath); err == nil {
 		config, err = clientcmd.BuildConfigFromFlags("", kubeconfigPath)
+		if err != nil {
+			return nil, err
+		}
 	} else { //Use Incluster Configuration
 		config, err = rest.InClusterConfig()
+		if err != nil {
+			return nil, err
+		}
 	}
 	if err != nil {
 		return nil, err
