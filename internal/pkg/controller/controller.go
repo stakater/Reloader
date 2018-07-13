@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/sirupsen/logrus"
+	"github.com/stakater/Reloader/internal/pkg/handler"
 	"github.com/stakater/Reloader/pkg/kube"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/util/runtime"
@@ -15,19 +16,12 @@ import (
 	"k8s.io/client-go/util/workqueue"
 )
 
-// ResourceUpdated contains new or updated objects
-type ResourceUpdated struct {
-	newObj interface{}
-	oldObj interface{}
-}
-
 // Controller for checking events
 type Controller struct {
 	client    kubernetes.Interface
 	indexer   cache.Indexer
 	queue     workqueue.RateLimitingInterface
 	informer  cache.Controller
-	resource  string
 	namespace string
 }
 
@@ -37,7 +31,6 @@ func NewController(
 
 	c := Controller{
 		client:    client,
-		resource:  resource,
 		namespace: namespace,
 	}
 
@@ -47,6 +40,7 @@ func NewController(
 	indexer, informer := cache.NewIndexerInformer(listWatcher, kube.ResourceMap[resource], 0, cache.ResourceEventHandlerFuncs{
 		AddFunc:    c.Add,
 		UpdateFunc: c.Update,
+		DeleteFunc: c.Delete,
 	}, cache.Indexers{})
 	c.indexer = indexer
 	c.informer = informer
@@ -54,25 +48,31 @@ func NewController(
 	return &c, nil
 }
 
-// Add function to add a 'create' event to the queue in case of creating a pod
+// Add function to add a 'create' event to the queue in case of creating a resource
 func (c *Controller) Add(obj interface{}) {
-	c.queue.Add(ResourceUpdated{
-		newObj: obj,
+	c.queue.Add(handler.ResourceCreatedHandler{
+		NewResource: obj,
 	})
 }
 
-// Update function to add an 'update' event to the queue in case of updating a pod
+// Update function to add an 'update' event to the queue in case of updating a resource
 func (c *Controller) Update(old interface{}, new interface{}) {
-	c.queue.Add(ResourceUpdated{
-		newObj: new,
-		oldObj: old,
+	c.queue.Add(handler.ResourceUpdatedHandler{
+		NewResource: new,
+		OldResource: old,
 	})
+}
+
+// Delete function to add an 'update' event to the queue in case of deleting a resource
+func (c *Controller) Delete(old interface{}) {
+	// TODO Added this function for future usecase
+	logrus.Infof("Deleted resource has been added to queue")
 }
 
 //Run function for controller which handles the queue
 func (c *Controller) Run(threadiness int, stopCh chan struct{}) {
 
-	logrus.Infof("Starting Controller for type ", c.resource)
+	logrus.Infof("Starting Controller")
 	defer errorHandler.HandleCrash()
 
 	// Let the workers stop when we are done
@@ -91,7 +91,7 @@ func (c *Controller) Run(threadiness int, stopCh chan struct{}) {
 	}
 
 	<-stopCh
-	logrus.Infof("Stopping Controller for type ", c.resource)
+	logrus.Infof("Stopping Controller")
 }
 
 func (c *Controller) runWorker() {
@@ -101,39 +101,20 @@ func (c *Controller) runWorker() {
 
 func (c *Controller) processNextItem() bool {
 	// Wait until there is a new item in the working queue
-	resourceUpdated, quit := c.queue.Get()
+	resourceHandler, quit := c.queue.Get()
 	if quit {
 		return false
 	}
 	// Tell the queue that we are done with processing this key. This unblocks the key for other workers
 	// This allows safe parallel processing because two events with the same key are never processed in
 	// parallel.
-	defer c.queue.Done(resourceUpdated)
+	defer c.queue.Done(resourceHandler)
 
 	// Invoke the method containing the business logic
-	err := c.takeAction(resourceUpdated.(ResourceUpdated))
+	err := resourceHandler.(handler.ResourceHandler).Handle()
 	// Handle the error if something went wrong during the execution of the business logic
-	c.handleErr(err, resourceUpdated)
+	c.handleErr(err, resourceHandler)
 	return true
-}
-
-// main business logic that acts bassed on the event or key
-func (c *Controller) takeAction(resourceUpdated ResourceUpdated) error {
-
-	newObj := resourceUpdated.newObj
-	oldObj := resourceUpdated.oldObj
-	if newObj == nil {
-		logrus.Infof("Error in Action")
-	} else {
-		logrus.Infof("Detected changes in object %s", newObj)
-		// process events based on its type
-		if oldObj == nil {
-			logrus.Infof("Performing 'Added' action for controller of type '%s'", c.resource)
-		} else {
-			logrus.Infof("Performing 'Updated' action for controller of type '%s'", c.resource)
-		}
-	}
-	return nil
 }
 
 // handleErr checks if an error happened and makes sure we will retry later.

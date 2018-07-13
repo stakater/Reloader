@@ -12,12 +12,12 @@ import (
 
 // NewReloaderCommand starts the reloader controller
 func NewReloaderCommand() *cobra.Command {
-	cmds := &cobra.Command{
+	cmd := &cobra.Command{
 		Use:   "reloader",
 		Short: "A watcher for your Kubernetes cluster",
 		Run:   startReloader,
 	}
-	return cmds
+	return cmd
 }
 
 func startReloader(cmd *cobra.Command, args []string) {
