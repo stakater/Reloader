@@ -32,7 +32,7 @@ func randSeq(n int) string {
 func TestControllerForUpdatingConfigmapShouldUpdateDeployment(t *testing.T) {
 	client, err := kube.GetClient()
 	if err != nil {
-		logrus.Infof("Unable to create Kubernetes client error = %v", err)
+		logrus.Errorf("Unable to create Kubernetes client error = %v", err)
 		return
 	}
 	namespace := "test-reloader"
@@ -41,7 +41,7 @@ func TestControllerForUpdatingConfigmapShouldUpdateDeployment(t *testing.T) {
 
 	controller, err := NewController(client, "configMaps", namespace)
 	if err != nil {
-		logrus.Infof("Unable to create NewController error = %v", err)
+		logrus.Errorf("Unable to create NewController error = %v", err)
 		return
 	}
 	stop := make(chan struct{})
@@ -103,7 +103,7 @@ func createDeployement(deploymentName string, namespace string, client kubernete
 func TestControllerForUpdatingSecretShouldUpdateDeployment(t *testing.T) {
 	client, err := kube.GetClient()
 	if err != nil {
-		logrus.Infof("Unable to create Kubernetes client error = %v", err)
+		logrus.Errorf("Unable to create Kubernetes client error = %v", err)
 		return
 	}
 	namespace := "test-reloader-secrets"
@@ -112,7 +112,7 @@ func TestControllerForUpdatingSecretShouldUpdateDeployment(t *testing.T) {
 
 	controller, err := NewController(client, "secrets", namespace)
 	if err != nil {
-		logrus.Infof("Unable to create NewController error = %v", err)
+		logrus.Errorf("Unable to create NewController error = %v", err)
 		return
 	}
 	stop := make(chan struct{})
