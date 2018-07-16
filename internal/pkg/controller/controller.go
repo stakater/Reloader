@@ -48,22 +48,22 @@ func NewController(
 	return &c, nil
 }
 
-// Add function to add a 'create' event to the queue in case of creating a resource
+// Add function to add a new object to the queue in case of creating a resource
 func (c *Controller) Add(obj interface{}) {
 	c.queue.Add(handler.ResourceCreatedHandler{
-		NewResource: obj,
+		Resource: obj,
 	})
 }
 
-// Update function to add an 'update' event to the queue in case of updating a resource
+// Update function to add an old object and a new object to the queue in case of updating a resource
 func (c *Controller) Update(old interface{}, new interface{}) {
 	c.queue.Add(handler.ResourceUpdatedHandler{
-		NewResource: new,
+		Resource:    new,
 		OldResource: old,
 	})
 }
 
-// Delete function to add an 'update' event to the queue in case of deleting a resource
+// Delete function to add an object to the queue in case of deleting a resource
 func (c *Controller) Delete(old interface{}) {
 	// TODO Added this function for future usecase
 	logrus.Infof("Deleted resource has been added to queue")

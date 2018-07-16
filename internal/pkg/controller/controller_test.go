@@ -10,10 +10,10 @@ import (
 	"k8s.io/api/core/v1"
 	"k8s.io/api/extensions/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes"
 )
 
 var (
-	client, _           = kube.GetClient()
 	configmapNamePrefix = "testconfigmap-reloader"
 	secretNamePrefix    = "testsecret-reloader"
 	letters             = []rune("abcdefghijklmnopqrstuvwxyz")
@@ -30,9 +30,14 @@ func randSeq(n int) string {
 
 // Creating a Controller to do a rolling upgrade upon updating the configmap or secret
 func TestControllerForUpdatingConfigmapShouldUpdateDeployment(t *testing.T) {
+	client, err := kube.GetClient()
+	if err != nil {
+		logrus.Infof("Unable to create Kubernetes client error = %v", err)
+		return
+	}
 	namespace := "test-reloader"
-	createNamespace(t, namespace)
-	defer deleteNamespace(t, namespace)
+	createNamespace(t, namespace, client)
+	defer deleteNamespace(t, namespace, client)
 
 	controller, err := NewController(client, "configMaps", namespace)
 	if err != nil {
@@ -52,7 +57,7 @@ func TestControllerForUpdatingConfigmapShouldUpdateDeployment(t *testing.T) {
 	}
 	logrus.Infof("Created Configmap %q.\n", configmapName)
 	time.Sleep(10 * time.Second)
-	deployment := createDeployement(configmapName, namespace)
+	deployment := createDeployement(configmapName, namespace, client)
 
 	logrus.Infof("Updating Configmap %q.\n", configmapName)
 	_, err = configmapClient.Get(configmapName, metav1.GetOptions{})
@@ -84,7 +89,7 @@ func TestControllerForUpdatingConfigmapShouldUpdateDeployment(t *testing.T) {
 	time.Sleep(15 * time.Second)
 }
 
-func createDeployement(deploymentName string, namespace string) *v1beta1.Deployment {
+func createDeployement(deploymentName string, namespace string, client kubernetes.Interface) *v1beta1.Deployment {
 	deploymentClient := client.ExtensionsV1beta1().Deployments(namespace)
 	deployment := initDeployment(namespace, deploymentName)
 	deployment, err := deploymentClient.Create(deployment)
@@ -96,9 +101,14 @@ func createDeployement(deploymentName string, namespace string) *v1beta1.Deploym
 }
 
 func TestControllerForUpdatingSecretShouldUpdateDeployment(t *testing.T) {
+	client, err := kube.GetClient()
+	if err != nil {
+		logrus.Infof("Unable to create Kubernetes client error = %v", err)
+		return
+	}
 	namespace := "test-reloader-secrets"
-	createNamespace(t, namespace)
-	defer deleteNamespace(t, namespace)
+	createNamespace(t, namespace, client)
+	defer deleteNamespace(t, namespace, client)
 
 	controller, err := NewController(client, "secrets", namespace)
 	if err != nil {
@@ -203,7 +213,7 @@ func initSecret(namespace string, secretName string) *v1.Secret {
 	}
 }
 
-func createNamespace(t *testing.T, namespace string) {
+func createNamespace(t *testing.T, namespace string, client kubernetes.Interface) {
 	_, err := client.CoreV1().Namespaces().Create(&v1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: namespace}})
 	if err != nil {
 		t.Error("Failed to create namespace for testing", err)
@@ -212,7 +222,7 @@ func createNamespace(t *testing.T, namespace string) {
 	}
 }
 
-func deleteNamespace(t *testing.T, namespace string) {
+func deleteNamespace(t *testing.T, namespace string, client kubernetes.Interface) {
 	err := client.CoreV1().Namespaces().Delete(namespace, &metav1.DeleteOptions{})
 	if err != nil {
 		t.Error("Failed to delete namespace that was created for testing", err)
