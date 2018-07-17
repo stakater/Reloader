@@ -1,0 +1,14 @@
+package: github.com/stakater/Reloader
+import:
+- package: k8s.io/api
+  version: kubernetes-1.8.0
+- package: k8s.io/apimachinery
+  version: kubernetes-1.8.0
+- package: k8s.io/client-go
+  version: 5.0.0
+- package: github.com/spf13/cobra
+  version: 0.0.3
+- package: github.com/spf13/pflag
+  version: 1.0.1
+- package: github.com/sirupsen/logrus
+  version: 1.0.5

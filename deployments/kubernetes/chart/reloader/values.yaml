@@ -1,0 +1,14 @@
+# Generated from deployments/kubernetes/templates/chart/values.yaml.tmpl
+
+kubernetes:
+  host: https://kubernetes.default
+
+reloader:
+  labels:
+    provider: stakater
+    group: com.stakater.platform
+    version: 0.0.1
+  image:
+    name: stakater/reloader
+    tag: "0.0.1"
+    pullPolicy: IfNotPresent
