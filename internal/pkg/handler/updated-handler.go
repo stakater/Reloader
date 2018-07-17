@@ -1,10 +1,10 @@
 package handler
 
 import (
+	"io"
 	"sort"
 	"strings"
 	"crypto/sha1"
-	"strconv"
 	"bytes"
 
 	"github.com/sirupsen/logrus"
@@ -271,9 +271,8 @@ func convertConfigmapToSHA(cm *v1.ConfigMap) string {
 		values = append(values, k+"="+v)
 	}
 	sort.Strings(values)
-	bytes := []byte(strings.Join(values, ";"))
-	sha := generateSHA(bytes)
-	logrus.Infof("SHA for configmap data: %s", sha)
+	sha := generateSHA(strings.Join(values, ";"))
+	logrus.Infof("SHA for configmap data: %x", sha)
 	return sha
 }
 
@@ -284,17 +283,14 @@ func convertSecretToSHA(se *v1.Secret) string {
 		values = append(values, k+"="+string(v[:]))
 	}
 	sort.Strings(values)
-	bytes := []byte(strings.Join(values, ";"))
-	sha := generateSHA(bytes)
-	logrus.Infof("SHA for secret data: %s", sha)
+	sha := generateSHA(strings.Join(values, ";"))
+	logrus.Infof("SHA for secret data: %x", sha)
 	return sha
 }
 
-func generateSHA(bytes []byte) string {
+func generateSHA(data string) string {
 	hasher := sha1.New()
-	sha, err := hasher.Write(bytes)
-	if err != nil {
-		logrus.Fatalf("Error while generating SHA hash of data %v", err)
-	}
-	return strconv.Itoa(sha)
+	io.WriteString(hasher, data)
+	sha := hasher.Sum(nil)
+	return string(sha[:])
 }
