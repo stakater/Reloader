@@ -66,7 +66,7 @@ func (c *Controller) Update(old interface{}, new interface{}) {
 // Delete function to add an object to the queue in case of deleting a resource
 func (c *Controller) Delete(old interface{}) {
 	// TODO Added this function for future usecase
-	logrus.Infof("Deleted resource has been added to queue")
+	logrus.Infof("Deleted resource has been detected but no further implementation found to take action")
 }
 
 //Run function for controller which handles the queue
@@ -129,7 +129,7 @@ func (c *Controller) handleErr(err error, key interface{}) {
 
 	// This controller retries 5 times if something goes wrong. After that, it stops trying.
 	if c.queue.NumRequeues(key) < 5 {
-		logrus.Infof("Error syncing events %v: %v", key, err)
+		logrus.Errorf("Error syncing events %v: %v", key, err)
 
 		// Re-enqueue the key rate limited. Based on the rate limiter on the
 		// queue and the re-enqueue history, the key will be processed later again.

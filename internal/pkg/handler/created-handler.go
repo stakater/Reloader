@@ -22,7 +22,7 @@ func (r ResourceCreatedHandler) Handle() error {
 		} else if _, ok := r.Resource.(*v1.Secret); ok {
 			logrus.Infof("Performing 'Added' action for resource of type 'secret'")
 		} else {
-			logrus.Infof("Invalid resource")
+			logrus.Warnf("Invalid resource: Resource should be 'Secret' or 'Configmap' but found %v", r.Resource)
 		}
 	}
 	return nil
