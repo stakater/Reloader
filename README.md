@@ -2,11 +2,11 @@
 
 ## WHY NAME RELOADER
 
-In english language, Reloader is a thing/tool that can reload certain stuff. So refereig to that meaning relaoder can reload
+In english language, Reloader is a thing/tool that can reload certain stuff. So referring to that meaning reloader can reload
 
 ## Problem
 
-We would like to watch if some change happens in `ConfigMap` and `Secret` objects and then perform certain upgrade on relavent `Deployment`, `Deamonset` and `Statefulset`
+We would like to watch if some change happens in `ConfigMap` and `Secret` objects and then perform certain upgrade on relevant `Deployment`, `Deamonset` and `Statefulset`
 
 ## Solution
 
@@ -21,10 +21,20 @@ For a `Deployment` called `foo` have a `ConfigMap` called `foo`. Then add this a
 ```yaml
 metadata:
   annotations:
-    reloader.stakater.com/update-on-change: "foo"
+    reloader.stakater.com/configmap.update-on-change: "foo"
 ```
 
-Then, providing `Reloader` is running, whenever you edit the `ConfigMap` called `foo` the Reloader will update the `Deployment` by adding the environment variable:
+OR
+
+For a `Deployment` called `foo` have a `Secret` called `foo`. Then add this annotation to your `Deployment`
+
+```yaml
+metadata:
+  annotations:
+    reloader.stakater.com/secret.update-on-change: "foo"
+```
+
+Then, providing `Reloader` is running, whenever you edit the `ConfigMap` or `Secret` called `foo` the Reloader will update the `Deployment` by adding the environment variable:
 
 ```
 STAKATER_FOO_REVISION=${reloaderRevision}

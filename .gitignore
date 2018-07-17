@@ -6,4 +6,5 @@ release
 out/
 _gopath/
 .DS_Store
+.vscode
 vendor
