@@ -172,7 +172,7 @@ func initDeployment(namespace string, deploymentName string) *v1beta1.Deployment
 			Name:        deploymentName,
 			Namespace:   namespace,
 			Labels:      map[string]string{"firstLabel": "temp"},
-			Annotations: map[string]string{"reloader.stakater.com/update-on-change": deploymentName},
+			Annotations: map[string]string{"reloader.stakater.com/configmap.update-on-change": deploymentName},
 		},
 		Spec: v1beta1.DeploymentSpec{
 			Replicas: &replicaset,

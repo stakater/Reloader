@@ -1,17 +1,17 @@
 package handler
 
 import (
+	"bytes"
+	"crypto/sha1"
 	"io"
 	"sort"
 	"strings"
-	"crypto/sha1"
-	"bytes"
 
 	"github.com/sirupsen/logrus"
 	"github.com/stakater/Reloader/pkg/kube"
 	"k8s.io/api/core/v1"
-	"k8s.io/client-go/kubernetes"
 	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes"
 )
 
 const (
@@ -50,7 +50,7 @@ func (r ResourceUpdatedHandler) Handle() error {
 	return nil
 }
 
-func rollingUpgrade(r ResourceUpdatedHandler, resourceType string, rollingUpgradeType string){
+func rollingUpgrade(r ResourceUpdatedHandler, resourceType string, rollingUpgradeType string) {
 	client, err := kube.GetClient()
 	if err != nil {
 		logrus.Fatalf("Unable to create Kubernetes client error = %v", err)
@@ -92,7 +92,7 @@ func rollingUpgradeForDeployment(client kubernetes.Interface, r ResourceUpdatedH
 		containers := d.Spec.Template.Spec.Containers
 		// match deployments with the correct annotation
 		annotationValue := d.ObjectMeta.Annotations[updateOnChangeAnnotation]
-		
+
 		if annotationValue != "" {
 			values := strings.Split(annotationValue, ",")
 			matches := false
@@ -120,7 +120,6 @@ func rollingUpgradeForDeployment(client kubernetes.Interface, r ResourceUpdatedH
 	}
 	return nil
 }
-
 
 func rollingUpgradeForDaemonSets(client kubernetes.Interface, r ResourceUpdatedHandler, namespace string, name string, sshData string, envName string) error {
 	daemonSets, err := client.ExtensionsV1beta1().DaemonSets(namespace).List(meta_v1.ListOptions{})
@@ -181,7 +180,7 @@ func rollingUpgradeForStatefulSets(client kubernetes.Interface, r ResourceUpdate
 		containers := d.Spec.Template.Spec.Containers
 		// match statefulSets with the correct annotation
 		annotationValue := d.ObjectMeta.Annotations[updateOnChangeAnnotation]
-		
+
 		if annotationValue != "" {
 			values := strings.Split(annotationValue, ",")
 			matches := false
