@@ -15,7 +15,9 @@ import (
 )
 
 const (
-	updateOnChangeAnnotation = "reloader.stakater.com/update-on-change"
+	configmapUpdateOnChangeAnnotation = "reloader.stakater.com/configmap.update-on-change"
+	// Adding seperate annotation to differentiate between configmap and secret
+	secretUpdateOnChangeAnnotation = "reloader.stakater.com/secret.update-on-change"
 )
 
 // ResourceUpdatedHandler contains updated objects
@@ -42,7 +44,7 @@ func (r ResourceUpdatedHandler) Handle() error {
 			rollingUpgrade(r, "secrets", "daemonsets")
 			rollingUpgrade(r, "secrets", "statefulSets")
 		} else {
-			logrus.Warnf("Invalid resource: Resource should be 'Secret' or 'Configmap' but found %v", r.Resource)
+			logrus.Warnf("Invalid resource: Resource should be 'Secret' or 'Configmap' but found, %v", r.Resource)
 		}
 	}
 	return nil
@@ -80,10 +82,17 @@ func rollingUpgradeForDeployment(client kubernetes.Interface, r ResourceUpdatedH
 	if err != nil {
 		logrus.Fatalf("Failed to list deployments %v", err)
 	}
+	var updateOnChangeAnnotation string
+	if envName == "_CONFIGMAP" {
+		updateOnChangeAnnotation = configmapUpdateOnChangeAnnotation
+	} else if envName == "_SECRET" {
+		updateOnChangeAnnotation = secretUpdateOnChangeAnnotation
+	}
 	for _, d := range deployments.Items {
 		containers := d.Spec.Template.Spec.Containers
 		// match deployments with the correct annotation
 		annotationValue := d.ObjectMeta.Annotations[updateOnChangeAnnotation]
+		
 		if annotationValue != "" {
 			values := strings.Split(annotationValue, ",")
 			matches := false
@@ -94,7 +103,7 @@ func rollingUpgradeForDeployment(client kubernetes.Interface, r ResourceUpdatedH
 				}
 			}
 			if matches {
-				updated := updateContainers(containers, annotationValue, sshData, envName)
+				updated := updateContainers(containers, name, sshData, envName)
 
 				if !updated {
 					logrus.Warnf("Rolling upgrade did not happen")
@@ -118,10 +127,17 @@ func rollingUpgradeForDaemonSets(client kubernetes.Interface, r ResourceUpdatedH
 	if err != nil {
 		logrus.Fatalf("Failed to list daemonSets %v", err)
 	}
+	var updateOnChangeAnnotation string
+	if envName == "_CONFIGMAP" {
+		updateOnChangeAnnotation = configmapUpdateOnChangeAnnotation
+	} else if envName == "_SECRET" {
+		updateOnChangeAnnotation = secretUpdateOnChangeAnnotation
+	}
 	for _, d := range daemonSets.Items {
 		containers := d.Spec.Template.Spec.Containers
 		// match daemonSets with the correct annotation
 		annotationValue := d.ObjectMeta.Annotations[updateOnChangeAnnotation]
+
 		if annotationValue != "" {
 			values := strings.Split(annotationValue, ",")
 			matches := false
@@ -132,7 +148,7 @@ func rollingUpgradeForDaemonSets(client kubernetes.Interface, r ResourceUpdatedH
 				}
 			}
 			if matches {
-				updated := updateContainers(containers, annotationValue, sshData, envName)
+				updated := updateContainers(containers, name, sshData, envName)
 
 				if !updated {
 					logrus.Warnf("Rolling upgrade did not happen")
@@ -155,10 +171,17 @@ func rollingUpgradeForStatefulSets(client kubernetes.Interface, r ResourceUpdate
 	if err != nil {
 		logrus.Fatalf("Failed to list statefulSets %v", err)
 	}
+	var updateOnChangeAnnotation string
+	if envName == "_CONFIGMAP" {
+		updateOnChangeAnnotation = configmapUpdateOnChangeAnnotation
+	} else if envName == "_SECRET" {
+		updateOnChangeAnnotation = secretUpdateOnChangeAnnotation
+	}
 	for _, d := range statefulSets.Items {
 		containers := d.Spec.Template.Spec.Containers
 		// match statefulSets with the correct annotation
 		annotationValue := d.ObjectMeta.Annotations[updateOnChangeAnnotation]
+		
 		if annotationValue != "" {
 			values := strings.Split(annotationValue, ",")
 			matches := false
@@ -169,7 +192,7 @@ func rollingUpgradeForStatefulSets(client kubernetes.Interface, r ResourceUpdate
 				}
 			}
 			if matches {
-				updated := updateContainers(containers, annotationValue, sshData, envName)
+				updated := updateContainers(containers, name, sshData, envName)
 
 				if !updated {
 					logrus.Warnf("Rolling upgrade did not happen")
@@ -187,42 +210,41 @@ func rollingUpgradeForStatefulSets(client kubernetes.Interface, r ResourceUpdate
 	return nil
 }
 
-func updateContainers(containers []v1.Container, annotationValue, sshData string, resourceType string) bool {
-	// we can have multiple resourceTypes to update
+func updateContainers(containers []v1.Container, annotationValue string, sshData string, resourceType string) bool {
 	updated := false
-	resourceTypes := strings.Split(annotationValue, ",")
-	for _, nameToUpdate := range resourceTypes {
-		envar := "STAKATER_" + convertToEnvVarName(nameToUpdate) + resourceType
+	envar := "STAKATER_" + convertToEnvVarName(annotationValue) + resourceType
+	logrus.Infof("Generated environment variable: %s", envar)
 
-		for i := range containers {
-			envs := containers[i].Env
-			matched := false
-			for j := range envs {
-				if envs[j].Name == envar {
-					matched = true
-					if envs[j].Value != sshData {
-						logrus.Infof("Updating %s to %s", envar, sshData)
-						envs[j].Value = sshData
-						updated = true
-					}
+	for i := range containers {
+		envs := containers[i].Env
+		matched := false
+		for j := range envs {
+			if envs[j].Name == envar {
+				matched = true
+				logrus.Infof("%s environment variable found")
+				if envs[j].Value != sshData {
+					logrus.Infof("Updating %s to %s", envar, sshData)
+					envs[j].Value = sshData
+					updated = true
 				}
 			}
-			// if no existing env var exists lets create one
-			if !matched {
-				e := v1.EnvVar{
-					Name:  envar,
-					Value: sshData,
-				}
-				containers[i].Env = append(containers[i].Env, e)
-				updated = true
+		}
+		// if no existing env var exists lets create one
+		if !matched {
+			e := v1.EnvVar{
+				Name:  envar,
+				Value: sshData,
 			}
+			containers[i].Env = append(containers[i].Env, e)
+			updated = true
+			logrus.Infof("%s environment variable does not found so creating a new one")
 		}
 	}
 	return updated
 }
 
 // convertToEnvVarName converts the given text into a usable env var
-// removing any special chars with '_'
+// removing any special chars with '_' and transforming text to upper case
 func convertToEnvVarName(text string) string {
 	var buffer bytes.Buffer
 	upper := strings.ToUpper(text)
@@ -243,6 +265,7 @@ func convertToEnvVarName(text string) string {
 }
 
 func convertConfigmapToSHA(cm *v1.ConfigMap) string {
+	logrus.Infof("Generating SHA for configmap data")
 	values := []string{}
 	for k, v := range cm.Data {
 		values = append(values, k+"="+v)
@@ -250,10 +273,12 @@ func convertConfigmapToSHA(cm *v1.ConfigMap) string {
 	sort.Strings(values)
 	bytes := []byte(strings.Join(values, ";"))
 	sha := generateSHA(bytes)
+	logrus.Infof("SHA for configmap data: %s", sha)
 	return sha
 }
 
 func convertSecretToSHA(se *v1.Secret) string {
+	logrus.Infof("Generating SHA for secret data")
 	values := []string{}
 	for k, v := range se.Data {
 		values = append(values, k+"="+string(v[:]))
@@ -261,6 +286,7 @@ func convertSecretToSHA(se *v1.Secret) string {
 	sort.Strings(values)
 	bytes := []byte(strings.Join(values, ";"))
 	sha := generateSHA(bytes)
+	logrus.Infof("SHA for secret data: %s", sha)
 	return sha
 }
 
