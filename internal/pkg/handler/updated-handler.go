@@ -42,7 +42,7 @@ func (r ResourceUpdatedHandler) Handle() error {
 			rollingUpgrade(r, "secrets", "daemonsets")
 			rollingUpgrade(r, "secrets", "statefulSets")
 		} else {
-			logrus.Infof("Invalid resource")
+			logrus.Warnf("Invalid resource: Resource should be 'Secret' or 'Configmap' but found %v", r.Resource)
 		}
 	}
 	return nil

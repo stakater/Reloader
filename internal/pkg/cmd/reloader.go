@@ -25,7 +25,7 @@ func startReloader(cmd *cobra.Command, args []string) {
 	currentNamespace := os.Getenv("KUBERNETES_NAMESPACE")
 	if len(currentNamespace) == 0 {
 		currentNamespace = v1.NamespaceAll
-		logrus.Infof("Warning: KUBERNETES_NAMESPACE is unset, will detect changes in all namespaces.")
+		logrus.Warnf("KUBERNETES_NAMESPACE is unset, will detect changes in all namespaces.")
 	}
 
 	// create the clientset

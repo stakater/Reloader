@@ -11,4 +11,4 @@ import:
 - package: github.com/spf13/pflag
   version: 1.0.1
 - package: github.com/sirupsen/logrus
-  version: ~1.0.3
+  version: 1.0.5
