@@ -1,13 +1,10 @@
 package handler
 
 import (
-	"bytes"
-	"crypto/sha1"
-	"io"
-	"sort"
 	"strings"
 
 	"github.com/sirupsen/logrus"
+	helper "github.com/stakater/Reloader/internal/pkg/helper"
 	"github.com/stakater/Reloader/pkg/kube"
 	"k8s.io/api/core/v1"
 	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -16,7 +13,7 @@ import (
 
 const (
 	configmapUpdateOnChangeAnnotation = "reloader.stakater.com/configmap.update-on-change"
-	// Adding seperate annotation to differentiate between configmap and secret
+	// Adding separate annotation to differentiate between configmap and secret
 	secretUpdateOnChangeAnnotation = "reloader.stakater.com/secret.update-on-change"
 )
 
@@ -59,12 +56,12 @@ func rollingUpgrade(r ResourceUpdatedHandler, resourceType string, rollingUpgrad
 	if resourceType == "configmaps" {
 		namespace = r.Resource.(*v1.ConfigMap).Namespace
 		name = r.Resource.(*v1.ConfigMap).Name
-		sshData = convertConfigmapToSHA(r.Resource.(*v1.ConfigMap))
+		sshData = helper.ConvertConfigmapToSHA(r.Resource.(*v1.ConfigMap))
 		envName = "_CONFIGMAP"
 	} else if resourceType == "secrets" {
 		namespace = r.Resource.(*v1.Secret).Namespace
 		name = r.Resource.(*v1.Secret).Name
-		sshData = convertSecretToSHA(r.Resource.(*v1.Secret))
+		sshData = helper.ConvertSecretToSHA(r.Resource.(*v1.Secret))
 		envName = "_SECRET"
 	}
 
@@ -211,7 +208,7 @@ func rollingUpgradeForStatefulSets(client kubernetes.Interface, r ResourceUpdate
 
 func updateContainers(containers []v1.Container, annotationValue string, sshData string, resourceType string) bool {
 	updated := false
-	envar := "STAKATER_" + convertToEnvVarName(annotationValue) + resourceType
+	envar := "STAKATER_" + helper.ConvertToEnvVarName(annotationValue) + resourceType
 	logrus.Infof("Generated environment variable: %s", envar)
 
 	for i := range containers {
@@ -220,7 +217,7 @@ func updateContainers(containers []v1.Container, annotationValue string, sshData
 		for j := range envs {
 			if envs[j].Name == envar {
 				matched = true
-				logrus.Infof("%s environment variable found")
+				logrus.Infof("%s environment variable found", envar)
 				if envs[j].Value != sshData {
 					logrus.Infof("Updating %s to %s", envar, sshData)
 					envs[j].Value = sshData
@@ -236,60 +233,8 @@ func updateContainers(containers []v1.Container, annotationValue string, sshData
 			}
 			containers[i].Env = append(containers[i].Env, e)
 			updated = true
-			logrus.Infof("%s environment variable does not found so creating a new one")
+			logrus.Infof("%s environment variable does not found, creating a new env with value %s", envar, sshData)
 		}
 	}
 	return updated
-}
-
-// convertToEnvVarName converts the given text into a usable env var
-// removing any special chars with '_' and transforming text to upper case
-func convertToEnvVarName(text string) string {
-	var buffer bytes.Buffer
-	upper := strings.ToUpper(text)
-	lastCharValid := false
-	for i := 0; i < len(upper); i++ {
-		ch := upper[i]
-		if (ch >= 'A' && ch <= 'Z') || (ch >= '0' && ch <= '9') {
-			buffer.WriteString(string(ch))
-			lastCharValid = true
-		} else {
-			if lastCharValid {
-				buffer.WriteString("_")
-			}
-			lastCharValid = false
-		}
-	}
-	return buffer.String()
-}
-
-func convertConfigmapToSHA(cm *v1.ConfigMap) string {
-	logrus.Infof("Generating SHA for configmap data")
-	values := []string{}
-	for k, v := range cm.Data {
-		values = append(values, k+"="+v)
-	}
-	sort.Strings(values)
-	sha := generateSHA(strings.Join(values, ";"))
-	logrus.Infof("SHA for configmap data: %x", sha)
-	return sha
-}
-
-func convertSecretToSHA(se *v1.Secret) string {
-	logrus.Infof("Generating SHA for secret data")
-	values := []string{}
-	for k, v := range se.Data {
-		values = append(values, k+"="+string(v[:]))
-	}
-	sort.Strings(values)
-	sha := generateSHA(strings.Join(values, ";"))
-	logrus.Infof("SHA for secret data: %x", sha)
-	return sha
-}
-
-func generateSHA(data string) string {
-	hasher := sha1.New()
-	io.WriteString(hasher, data)
-	sha := hasher.Sum(nil)
-	return string(sha[:])
 }
