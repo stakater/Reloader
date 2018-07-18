@@ -66,15 +66,15 @@ func rollingUpgrade(r ResourceUpdatedHandler, resourceType string, rollingUpgrad
 	}
 
 	if rollingUpgradeType == "deployments" {
-		rollingUpgradeForDeployment(client, r, namespace, name, sshData, envName)
+		rollingUpgradeForDeployment(client, namespace, name, sshData, envName)
 	} else if rollingUpgradeType == "daemonsets" {
-		rollingUpgradeForDaemonSets(client, r, namespace, name, sshData, envName)
+		rollingUpgradeForDaemonSets(client, namespace, name, sshData, envName)
 	} else if rollingUpgradeType == "statefulSets" {
-		rollingUpgradeForStatefulSets(client, r, namespace, name, sshData, envName)
+		rollingUpgradeForStatefulSets(client, namespace, name, sshData, envName)
 	}
 }
 
-func rollingUpgradeForDeployment(client kubernetes.Interface, r ResourceUpdatedHandler, namespace string, name string, sshData string, envName string) error {
+func rollingUpgradeForDeployment(client kubernetes.Interface, namespace string, name string, sshData string, envName string) error {
 	deployments, err := client.ExtensionsV1beta1().Deployments(namespace).List(meta_v1.ListOptions{})
 	if err != nil {
 		logrus.Fatalf("Failed to list deployments %v", err)
@@ -118,11 +118,12 @@ func rollingUpgradeForDeployment(client kubernetes.Interface, r ResourceUpdatedH
 	return nil
 }
 
-func rollingUpgradeForDaemonSets(client kubernetes.Interface, r ResourceUpdatedHandler, namespace string, name string, sshData string, envName string) error {
+func rollingUpgradeForDaemonSets(client kubernetes.Interface, namespace string, name string, sshData string, envName string) error {
 	daemonSets, err := client.ExtensionsV1beta1().DaemonSets(namespace).List(meta_v1.ListOptions{})
 	if err != nil {
 		logrus.Fatalf("Failed to list daemonSets %v", err)
 	}
+
 	var updateOnChangeAnnotation string
 	if envName == "_CONFIGMAP" {
 		updateOnChangeAnnotation = configmapUpdateOnChangeAnnotation
@@ -162,7 +163,7 @@ func rollingUpgradeForDaemonSets(client kubernetes.Interface, r ResourceUpdatedH
 	return nil
 }
 
-func rollingUpgradeForStatefulSets(client kubernetes.Interface, r ResourceUpdatedHandler, namespace string, name string, sshData string, envName string) error {
+func rollingUpgradeForStatefulSets(client kubernetes.Interface, namespace string, name string, sshData string, envName string) error {
 	statefulSets, err := client.AppsV1beta1().StatefulSets(namespace).List(meta_v1.ListOptions{})
 	if err != nil {
 		logrus.Fatalf("Failed to list statefulSets %v", err)
