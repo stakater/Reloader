@@ -5,7 +5,7 @@ import (
 	"time"
 
 	"github.com/sirupsen/logrus"
-	helper "github.com/stakater/Reloader/internal/pkg/helper"
+	"github.com/stakater/Reloader/internal/pkg/helper"
 	"github.com/stakater/Reloader/pkg/kube"
 	"k8s.io/api/extensions/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"

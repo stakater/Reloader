@@ -8,7 +8,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/stakater/Reloader/internal/pkg/controller"
 	"github.com/stakater/Reloader/internal/pkg/handler"
-	helper "github.com/stakater/Reloader/internal/pkg/helper"
+	"github.com/stakater/Reloader/internal/pkg/helper"
 	"github.com/stakater/Reloader/pkg/kube"
 	v1_beta1 "k8s.io/api/apps/v1beta1"
 	"k8s.io/api/extensions/v1beta1"
