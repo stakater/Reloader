@@ -30,47 +30,41 @@ func (r ResourceUpdatedHandler) Handle() error {
 	} else {
 		logrus.Infof("Detected changes in object %s", r.Resource)
 		// process resource based on its type
-		if _, ok := r.Resource.(*v1.ConfigMap); ok {
-			logrus.Infof("Performing 'Updated' action for resource of type 'configmap'")
-			rollingUpgrade(r, "configmaps", "deployments")
-			rollingUpgrade(r, "configmaps", "daemonsets")
-			rollingUpgrade(r, "configmaps", "statefulSets")
-		} else if _, ok := r.Resource.(*v1.Secret); ok {
-			logrus.Infof("Performing 'Updated' action for resource of type 'secret'")
-			rollingUpgrade(r, "secrets", "deployments")
-			rollingUpgrade(r, "secrets", "daemonsets")
-			rollingUpgrade(r, "secrets", "statefulSets")
-		} else {
-			logrus.Warnf("Invalid resource: Resource should be 'Secret' or 'Configmap' but found, %v", r.Resource)
-		}
+		rollingUpgrade(r, "deployments")
+		rollingUpgrade(r, "daemonsets")
+		rollingUpgrade(r, "statefulSets")
 	}
 	return nil
 }
 
-func rollingUpgrade(r ResourceUpdatedHandler, resourceType string, rollingUpgradeType string) {
+func rollingUpgrade(r ResourceUpdatedHandler, rollingUpgradeType string) {
 	client, err := kube.GetClient()
 	if err != nil {
 		logrus.Fatalf("Unable to create Kubernetes client error = %v", err)
 	}
-	var namespace, name, shaData, envName string
-	if resourceType == "configmaps" {
+	var namespace, name, shaData, envNamePostfix string
+	if _, ok := r.Resource.(*v1.ConfigMap); ok {
+		logrus.Infof("Performing 'Updated' action for resource of type 'configmap'")
 		namespace = r.Resource.(*v1.ConfigMap).Namespace
 		name = r.Resource.(*v1.ConfigMap).Name
 		shaData = helper.ConvertConfigmapToSHA(r.Resource.(*v1.ConfigMap))
-		envName = "_CONFIGMAP"
-	} else if resourceType == "secrets" {
+		envNamePostfix = "_CONFIGMAP"
+	} else if _, ok := r.Resource.(*v1.Secret); ok {
+		logrus.Infof("Performing 'Updated' action for resource of type 'secret'")
 		namespace = r.Resource.(*v1.Secret).Namespace
 		name = r.Resource.(*v1.Secret).Name
 		shaData = helper.ConvertSecretToSHA(r.Resource.(*v1.Secret))
-		envName = "_SECRET"
+		envNamePostfix = "_SECRET"
+	} else {
+			logrus.Warnf("Invalid resource: Resource should be 'Secret' or 'Configmap' but found, %v", r.Resource)
 	}
 
 	if rollingUpgradeType == "deployments" {
-		RollingUpgradeForDeployment(client, namespace, name, shaData, envName)
+		RollingUpgradeForDeployment(client, namespace, name, shaData, envNamePostfix)
 	} else if rollingUpgradeType == "daemonsets" {
-		RollingUpgradeForDaemonSets(client, namespace, name, shaData, envName)
+		RollingUpgradeForDaemonSets(client, namespace, name, shaData, envNamePostfix)
 	} else if rollingUpgradeType == "statefulSets" {
-		RollingUpgradeForStatefulSets(client, namespace, name, shaData, envName)
+		RollingUpgradeForStatefulSets(client, namespace, name, shaData, envNamePostfix)
 	}
 }
 
