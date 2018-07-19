@@ -52,32 +52,33 @@ func rollingUpgrade(r ResourceUpdatedHandler, resourceType string, rollingUpgrad
 	if err != nil {
 		logrus.Fatalf("Unable to create Kubernetes client error = %v", err)
 	}
-	var namespace, name, sshData, envName string
+	var namespace, name, shaData, envName string
 	if resourceType == "configmaps" {
 		namespace = r.Resource.(*v1.ConfigMap).Namespace
 		name = r.Resource.(*v1.ConfigMap).Name
-		sshData = helper.ConvertConfigmapToSHA(r.Resource.(*v1.ConfigMap))
+		shaData = helper.ConvertConfigmapToSHA(r.Resource.(*v1.ConfigMap))
 		envName = "_CONFIGMAP"
 	} else if resourceType == "secrets" {
 		namespace = r.Resource.(*v1.Secret).Namespace
 		name = r.Resource.(*v1.Secret).Name
-		sshData = helper.ConvertSecretToSHA(r.Resource.(*v1.Secret))
+		shaData = helper.ConvertSecretToSHA(r.Resource.(*v1.Secret))
 		envName = "_SECRET"
 	}
 
 	if rollingUpgradeType == "deployments" {
-		rollingUpgradeForDeployment(client, namespace, name, sshData, envName)
+		RollingUpgradeForDeployment(client, namespace, name, shaData, envName)
 	} else if rollingUpgradeType == "daemonsets" {
-		rollingUpgradeForDaemonSets(client, namespace, name, sshData, envName)
+		RollingUpgradeForDaemonSets(client, namespace, name, shaData, envName)
 	} else if rollingUpgradeType == "statefulSets" {
-		rollingUpgradeForStatefulSets(client, namespace, name, sshData, envName)
+		RollingUpgradeForStatefulSets(client, namespace, name, shaData, envName)
 	}
 }
 
-func rollingUpgradeForDeployment(client kubernetes.Interface, namespace string, name string, sshData string, envName string) error {
+// RollingUpgradeForDeployment upgrades the deployment if there is any change in configmap or secret data
+func RollingUpgradeForDeployment(client kubernetes.Interface, namespace string, name string, shaData string, envName string) error {
 	deployments, err := client.ExtensionsV1beta1().Deployments(namespace).List(meta_v1.ListOptions{})
 	if err != nil {
-		logrus.Fatalf("Failed to list deployments %v", err)
+		logrus.Errorf("Failed to list deployments %v", err)
 	}
 	var updateOnChangeAnnotation string
 	if envName == "_CONFIGMAP" {
@@ -100,7 +101,7 @@ func rollingUpgradeForDeployment(client kubernetes.Interface, namespace string, 
 				}
 			}
 			if matches {
-				updated := updateContainers(containers, name, sshData, envName)
+				updated := updateContainers(containers, name, shaData, envName)
 
 				if !updated {
 					logrus.Warnf("Rolling upgrade did not happen")
@@ -108,9 +109,10 @@ func rollingUpgradeForDeployment(client kubernetes.Interface, namespace string, 
 					// update the deployment
 					_, err := client.ExtensionsV1beta1().Deployments(namespace).Update(&d)
 					if err != nil {
-						logrus.Fatalf("Update deployment failed %v", err)
+						logrus.Errorf("Update deployment failed %v", err)
+					} else {
+						logrus.Infof("Updated Deployment %s", d.Name)
 					}
-					logrus.Infof("Updated Deployment %s", d.Name)
 				}
 			}
 		}
@@ -118,10 +120,11 @@ func rollingUpgradeForDeployment(client kubernetes.Interface, namespace string, 
 	return nil
 }
 
-func rollingUpgradeForDaemonSets(client kubernetes.Interface, namespace string, name string, sshData string, envName string) error {
+// RollingUpgradeForDaemonSets upgrades the daemonset if there is any change in configmap or secret data
+func RollingUpgradeForDaemonSets(client kubernetes.Interface, namespace string, name string, shaData string, envName string) error {
 	daemonSets, err := client.ExtensionsV1beta1().DaemonSets(namespace).List(meta_v1.ListOptions{})
 	if err != nil {
-		logrus.Fatalf("Failed to list daemonSets %v", err)
+		logrus.Errorf("Failed to list daemonSets %v", err)
 	}
 
 	var updateOnChangeAnnotation string
@@ -145,7 +148,7 @@ func rollingUpgradeForDaemonSets(client kubernetes.Interface, namespace string, 
 				}
 			}
 			if matches {
-				updated := updateContainers(containers, name, sshData, envName)
+				updated := updateContainers(containers, name, shaData, envName)
 
 				if !updated {
 					logrus.Warnf("Rolling upgrade did not happen")
@@ -153,9 +156,10 @@ func rollingUpgradeForDaemonSets(client kubernetes.Interface, namespace string, 
 					// update the daemonSet
 					_, err := client.ExtensionsV1beta1().DaemonSets(namespace).Update(&d)
 					if err != nil {
-						logrus.Fatalf("Update daemonSet failed %v", err)
+						logrus.Errorf("Update daemonSet failed %v", err)
+					} else {
+						logrus.Infof("Updated daemonSet %s", d.Name)
 					}
-					logrus.Infof("Updated daemonSet %s", d.Name)
 				}
 			}
 		}
@@ -163,10 +167,11 @@ func rollingUpgradeForDaemonSets(client kubernetes.Interface, namespace string, 
 	return nil
 }
 
-func rollingUpgradeForStatefulSets(client kubernetes.Interface, namespace string, name string, sshData string, envName string) error {
+// RollingUpgradeForStatefulSets upgrades the statefulset if there is any change in configmap or secret data
+func RollingUpgradeForStatefulSets(client kubernetes.Interface, namespace string, name string, shaData string, envName string) error {
 	statefulSets, err := client.AppsV1beta1().StatefulSets(namespace).List(meta_v1.ListOptions{})
 	if err != nil {
-		logrus.Fatalf("Failed to list statefulSets %v", err)
+		logrus.Errorf("Failed to list statefulSets %v", err)
 	}
 	var updateOnChangeAnnotation string
 	if envName == "_CONFIGMAP" {
@@ -189,7 +194,7 @@ func rollingUpgradeForStatefulSets(client kubernetes.Interface, namespace string
 				}
 			}
 			if matches {
-				updated := updateContainers(containers, name, sshData, envName)
+				updated := updateContainers(containers, name, shaData, envName)
 
 				if !updated {
 					logrus.Warnf("Rolling upgrade did not happen")
@@ -197,9 +202,10 @@ func rollingUpgradeForStatefulSets(client kubernetes.Interface, namespace string
 					// update the statefulSet
 					_, err := client.AppsV1beta1().StatefulSets(namespace).Update(&d)
 					if err != nil {
-						logrus.Fatalf("Update statefulSet failed %v", err)
+						logrus.Errorf("Update statefulSet failed %v", err)
+					} else {
+						logrus.Infof("Updated statefulSet %s", d.Name)
 					}
-					logrus.Infof("Updated statefulSet %s", d.Name)
 				}
 			}
 		}
@@ -207,7 +213,7 @@ func rollingUpgradeForStatefulSets(client kubernetes.Interface, namespace string
 	return nil
 }
 
-func updateContainers(containers []v1.Container, annotationValue string, sshData string, resourceType string) bool {
+func updateContainers(containers []v1.Container, annotationValue string, shaData string, resourceType string) bool {
 	updated := false
 	envar := "STAKATER_" + helper.ConvertToEnvVarName(annotationValue) + resourceType
 	logrus.Infof("Generated environment variable: %s", envar)
@@ -219,9 +225,9 @@ func updateContainers(containers []v1.Container, annotationValue string, sshData
 			if envs[j].Name == envar {
 				matched = true
 				logrus.Infof("%s environment variable found", envar)
-				if envs[j].Value != sshData {
-					logrus.Infof("Updating %s to %s", envar, sshData)
-					envs[j].Value = sshData
+				if envs[j].Value != shaData {
+					logrus.Infof("Updating %s to %s", envar, shaData)
+					envs[j].Value = shaData
 					updated = true
 				}
 			}
@@ -230,11 +236,11 @@ func updateContainers(containers []v1.Container, annotationValue string, sshData
 		if !matched {
 			e := v1.EnvVar{
 				Name:  envar,
-				Value: sshData,
+				Value: shaData,
 			}
 			containers[i].Env = append(containers[i].Env, e)
 			updated = true
-			logrus.Infof("%s environment variable does not found, creating a new env with value %s", envar, sshData)
+			logrus.Infof("%s environment variable does not found, creating a new env with value %s", envar, shaData)
 		}
 	}
 	return updated
