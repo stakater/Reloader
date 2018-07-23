@@ -38,34 +38,38 @@ func rollingUpgrade(r ResourceUpdatedHandler, rollingUpgradeType string) {
 	if err != nil {
 		logrus.Fatalf("Unable to create Kubernetes client error = %v", err)
 	}
-	var namespace, resourceName, shaData, oldSHAdata, envarPostfix, annotation string
-	if _, ok := r.Resource.(*v1.ConfigMap); ok {
-		logrus.Infof("Performing 'Updated' action for resource of type 'configmap'")
-		namespace = r.Resource.(*v1.ConfigMap).Namespace
-		resourceName = r.Resource.(*v1.ConfigMap).Name
-		envarPostfix = common.ConfigmapEnvarPostfix
-		annotation = common.ConfigmapUpdateOnChangeAnnotation
-		shaData = getSHAfromConfigmapData(r.Resource.(*v1.ConfigMap).Data)
-		oldSHAdata = getSHAfromConfigmapData(r.OldResource.(*v1.ConfigMap).Data)
-	} else if _, ok := r.Resource.(*v1.Secret); ok {
-		logrus.Infof("Performing 'Updated' action for resource of type 'secret'")
-		namespace = r.Resource.(*v1.Secret).Namespace
-		resourceName = r.Resource.(*v1.Secret).Name
-		envarPostfix = common.SecretEnvarPostfix
-		annotation = common.SecretUpdateOnChangeAnnotation
-		shaData = getSHAfromSecretData(r.Resource.(*v1.Secret).Data)
-		oldSHAdata = getSHAfromSecretData(r.OldResource.(*v1.Secret).Data)
-	} else {
-		logrus.Warnf("Invalid resource: Resource should be 'Secret' or 'Configmap' but found, %v", r.Resource)
-	}
 
+	var shaData, oldSHAdata string
+	shaData = getSHAfromData(r.Resource)
+	oldSHAdata = getSHAfromData(r.OldResource)
 	if shaData != oldSHAdata {
+		var namespace, resourceName, envarPostfix, annotation string
+		if _, ok := r.Resource.(*v1.ConfigMap); ok {
+			logrus.Infof("Performing 'Updated' action for resource of type 'configmap'")
+			namespace = r.Resource.(*v1.ConfigMap).Namespace
+			resourceName = r.Resource.(*v1.ConfigMap).Name
+			envarPostfix = common.ConfigmapEnvarPostfix
+			annotation = common.ConfigmapUpdateOnChangeAnnotation
+		} else if _, ok := r.Resource.(*v1.Secret); ok {
+			logrus.Infof("Performing 'Updated' action for resource of type 'secret'")
+			namespace = r.Resource.(*v1.Secret).Namespace
+			resourceName = r.Resource.(*v1.Secret).Name
+			envarPostfix = common.SecretEnvarPostfix
+			annotation = common.SecretUpdateOnChangeAnnotation
+		} else {
+			logrus.Warnf("Invalid resource: Resource should be 'Secret' or 'Configmap' but found, %v", r.Resource)
+		}
+	
 		if rollingUpgradeType == "deployments" {
-			RollingUpgradeDeployment(client, namespace, resourceName, shaData, envarPostfix, annotation)
+			err = RollingUpgradeDeployment(client, namespace, resourceName, shaData, envarPostfix, annotation)
 		} else if rollingUpgradeType == "daemonsets" {
-			RollingUpgradeDaemonSets(client, namespace, resourceName, shaData, envarPostfix, annotation)
+			err = RollingUpgradeDaemonSets(client, namespace, resourceName, shaData, envarPostfix, annotation)
 		} else if rollingUpgradeType == "statefulSets" {
-			RollingUpgradeStatefulSets(client, namespace, resourceName, shaData, envarPostfix, annotation)
+			err = RollingUpgradeStatefulSets(client, namespace, resourceName, shaData, envarPostfix, annotation)
+		}
+
+		if err != nil {
+			logrus.Errorf("Rolling upgrade failed for %s of resource type %s", resourceName, rollingUpgradeType)
 		}
 	} else {
 		logrus.Infof("Resource update will not happen because no data change detected")
@@ -205,21 +209,18 @@ func updateEnvVar(envs []v1.EnvVar, envar string, shaData string) bool {
 	return false
 }
 
-func getSHAfromConfigmapData(data map[string]string) string {
-	logrus.Infof("Generating SHA for configmap data")
+func getSHAfromData(resource interface{}) string {
 	values := []string{}
-	for k, v := range data {
-		values = append(values, k+"="+v)
-	}
-	sort.Strings(values)
-	return crypto.GenerateSHA(strings.Join(values, ";"))
-}
-
-func getSHAfromSecretData(data map[string][]byte) string {
-	logrus.Infof("Generating SHA for secret data")
-	values := []string{}
-	for k, v := range data {
-		values = append(values, k+"="+string(v[:]))
+	if _, ok := resource.(*v1.ConfigMap); ok {
+		logrus.Infof("Generating SHA for configmap data")
+		for k, v := range resource.(*v1.ConfigMap).Data {
+			values = append(values, k+"="+v)
+		}
+	} else if _, ok := resource.(*v1.Secret); ok{
+		logrus.Infof("Generating SHA for secret data")
+		for k, v := range resource.(*v1.Secret).Data {
+			values = append(values, k+"="+string(v[:]))
+		}
 	}
 	sort.Strings(values)
 	return crypto.GenerateSHA(strings.Join(values, ";"))

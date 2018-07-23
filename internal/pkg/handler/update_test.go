@@ -59,37 +59,37 @@ func setup() {
 	}
 
 	// Creating Deployment with configmap
-	testutil.CreateDeployment(client, configmapName, namespace)
+	_, err = testutil.CreateDeployment(client, configmapName, namespace)
 	if err != nil {
 		logrus.Errorf("Error in Deployment with configmap creation: %v", err)
 	}
 
 	// Creating Deployment with secret
-	testutil.CreateDeployment(client, secretName, namespace)
+	_, err = testutil.CreateDeployment(client, secretName, namespace)
 	if err != nil {
 		logrus.Errorf("Error in Deployment with secret creation: %v", err)
 	}
 
 	// Creating Daemonset with configmap
-	testutil.CreateDaemonset(client, configmapName, namespace)
+	_, err = testutil.CreateDaemonset(client, configmapName, namespace)
 	if err != nil {
 		logrus.Errorf("Error in Daemonset with configmap creation: %v", err)
 	}
 
 	// Creating Daemonset with secret
-	testutil.CreateDaemonset(client, secretName, namespace)
+	_, err = testutil.CreateDaemonset(client, secretName, namespace)
 	if err != nil {
 		logrus.Errorf("Error in Daemonset with secret creation: %v", err)
 	}
 
 	// Creating Statefulset with configmap
-	testutil.CreateStatefulset(client, configmapName, namespace)
+	_, err = testutil.CreateStatefulset(client, configmapName, namespace)
 	if err != nil {
 		logrus.Errorf("Error in Statefulset with configmap creation: %v", err)
 	}
 
 	// Creating Statefulset with secret
-	testutil.CreateStatefulset(client, secretName, namespace)
+	_, err = testutil.CreateStatefulset(client, secretName, namespace)
 	if err != nil {
 		logrus.Errorf("Error in Statefulset with secret creation: %v", err)
 	}
@@ -152,8 +152,11 @@ func teardown() {
 
 func TestRollingUpgradeForDeploymentWithConfigmap(t *testing.T) {
 	shaData := testutil.ConvertResourceToSHA(testutil.SecretResourceType, namespace, configmapName, "www.stakater.com")
-	RollingUpgradeDeployment(client, namespace, configmapName, shaData, common.ConfigmapEnvarPostfix, common.ConfigmapUpdateOnChangeAnnotation)
+	err := RollingUpgradeDeployment(client, namespace, configmapName, shaData, common.ConfigmapEnvarPostfix, common.ConfigmapUpdateOnChangeAnnotation)
 	time.Sleep(5 * time.Second)
+	if err != nil {
+		t.Errorf("Rolling upgrade failed for Deployment with configmap")
+	}
 
 	logrus.Infof("Verifying deployment update")
 	updated := testutil.VerifyDeploymentUpdate(client, namespace, configmapName, common.ConfigmapEnvarPostfix, shaData, common.ConfigmapUpdateOnChangeAnnotation)
@@ -164,8 +167,11 @@ func TestRollingUpgradeForDeploymentWithConfigmap(t *testing.T) {
 
 func TestRollingUpgradeForDeploymentWithSecret(t *testing.T) {
 	shaData := testutil.ConvertResourceToSHA(testutil.SecretResourceType, namespace, secretName, "dGVzdFVwZGF0ZWRTZWNyZXRFbmNvZGluZ0ZvclJlbG9hZGVy")
-	RollingUpgradeDeployment(client, namespace, secretName, shaData, common.SecretEnvarPostfix, common.SecretUpdateOnChangeAnnotation)
+	err := RollingUpgradeDeployment(client, namespace, secretName, shaData, common.SecretEnvarPostfix, common.SecretUpdateOnChangeAnnotation)
 	time.Sleep(5 * time.Second)
+	if err != nil {
+		t.Errorf("Rolling upgrade failed for Deployment with Secret")
+	}
 
 	logrus.Infof("Verifying deployment update")
 	updated := testutil.VerifyDeploymentUpdate(client, namespace, secretName, common.SecretEnvarPostfix, shaData, common.SecretUpdateOnChangeAnnotation)
@@ -176,8 +182,11 @@ func TestRollingUpgradeForDeploymentWithSecret(t *testing.T) {
 
 func TestRollingUpgradeForDaemonsetWithConfigmap(t *testing.T) {
 	shaData := testutil.ConvertResourceToSHA(testutil.ConfigmapResourceType, namespace, configmapName, "www.facebook.com")
-	RollingUpgradeDaemonSets(client, namespace, configmapName, shaData, common.ConfigmapEnvarPostfix, common.ConfigmapUpdateOnChangeAnnotation)
+	err := RollingUpgradeDaemonSets(client, namespace, configmapName, shaData, common.ConfigmapEnvarPostfix, common.ConfigmapUpdateOnChangeAnnotation)
 	time.Sleep(5 * time.Second)
+	if err != nil {
+		t.Errorf("Rolling upgrade failed for DaemonSet with configmap")
+	}
 
 	logrus.Infof("Verifying daemonset update")
 	updated := testutil.VerifyDaemonsetUpdate(client, namespace, configmapName, common.ConfigmapEnvarPostfix, shaData, common.ConfigmapUpdateOnChangeAnnotation)
@@ -188,8 +197,11 @@ func TestRollingUpgradeForDaemonsetWithConfigmap(t *testing.T) {
 
 func TestRollingUpgradeForDaemonsetWithSecret(t *testing.T) {
 	shaData := testutil.ConvertResourceToSHA(testutil.SecretResourceType, namespace, secretName, "d3d3LmZhY2Vib29rLmNvbQ==")
-	RollingUpgradeDaemonSets(client, namespace, secretName, shaData, common.SecretEnvarPostfix, common.SecretUpdateOnChangeAnnotation)
+	err := RollingUpgradeDaemonSets(client, namespace, secretName, shaData, common.SecretEnvarPostfix, common.SecretUpdateOnChangeAnnotation)
 	time.Sleep(5 * time.Second)
+	if err != nil {
+		t.Errorf("Rolling upgrade failed for DaemonSet with secret")
+	}
 
 	logrus.Infof("Verifying daemonset update")
 	updated := testutil.VerifyDaemonsetUpdate(client, namespace, secretName, common.SecretEnvarPostfix, shaData, common.SecretUpdateOnChangeAnnotation)
@@ -200,8 +212,11 @@ func TestRollingUpgradeForDaemonsetWithSecret(t *testing.T) {
 
 func TestRollingUpgradeForStatefulsetWithConfigmap(t *testing.T) {
 	shaData := testutil.ConvertResourceToSHA(testutil.ConfigmapResourceType, namespace, configmapName, "www.twitter.com")
-	RollingUpgradeStatefulSets(client, namespace, configmapName, shaData, common.ConfigmapEnvarPostfix, common.ConfigmapUpdateOnChangeAnnotation)
+	err := RollingUpgradeStatefulSets(client, namespace, configmapName, shaData, common.ConfigmapEnvarPostfix, common.ConfigmapUpdateOnChangeAnnotation)
 	time.Sleep(5 * time.Second)
+	if err != nil {
+		t.Errorf("Rolling upgrade failed for StatefulSet with configmap")
+	}
 
 	logrus.Infof("Verifying statefulset update")
 	updated := testutil.VerifyStatefulsetUpdate(client, namespace, configmapName, common.ConfigmapEnvarPostfix, shaData, common.ConfigmapUpdateOnChangeAnnotation)
@@ -212,8 +227,11 @@ func TestRollingUpgradeForStatefulsetWithConfigmap(t *testing.T) {
 
 func TestRollingUpgradeForStatefulsetWithSecret(t *testing.T) {
 	shaData := testutil.ConvertResourceToSHA(testutil.SecretResourceType, namespace, secretName, "d3d3LnR3aXR0ZXIuY29t")
-	RollingUpgradeStatefulSets(client, namespace, secretName, shaData, common.SecretEnvarPostfix, common.SecretUpdateOnChangeAnnotation)
+	err := RollingUpgradeStatefulSets(client, namespace, secretName, shaData, common.SecretEnvarPostfix, common.SecretUpdateOnChangeAnnotation)
 	time.Sleep(5 * time.Second)
+	if err != nil {
+		t.Errorf("Rolling upgrade failed for StatefulSet with secret")
+	}
 
 	logrus.Infof("Verifying statefulset update")
 	updated := testutil.VerifyStatefulsetUpdate(client, namespace, secretName, common.SecretEnvarPostfix, shaData, common.SecretUpdateOnChangeAnnotation)

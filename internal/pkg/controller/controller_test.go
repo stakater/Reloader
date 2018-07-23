@@ -65,7 +65,10 @@ func TestControllerUpdatingConfigmapShouldCreateEnvInDeployment(t *testing.T) {
 	}
 
 	// Creating deployment
-	testutil.CreateDeployment(client, configmapName, namespace)
+	_, err = testutil.CreateDeployment(client, configmapName, namespace)
+	if err != nil {
+		t.Errorf("Error  in deployment creation: %v", err)
+	}
 
 	// Updating configmap for first time
 	updateErr := testutil.UpdateConfigMap(configmapClient, namespace, configmapName, "", "www.stakater.com")
@@ -123,7 +126,10 @@ func TestControllerForUpdatingConfigmapShouldUpdateDeployment(t *testing.T) {
 	}
 
 	// Creating deployment
-	testutil.CreateDeployment(client, configmapName, namespace)
+	_, err = testutil.CreateDeployment(client, configmapName, namespace)
+	if err != nil {
+		t.Errorf("Error  in deployment creation: %v", err)
+	}
 
 	// Updating configmap for first time
 	updateErr := testutil.UpdateConfigMap(configmapClient, namespace, configmapName, "", "www.stakater.com")
@@ -200,7 +206,10 @@ func TestControllerUpdatingConfigmapLabelsShouldNotCreateorUpdateEnvInDeployment
 	}
 
 	// Creating deployment
-	testutil.CreateDeployment(client, configmapName, namespace)
+	_, err = testutil.CreateDeployment(client, configmapName, namespace)
+	if err != nil {
+		t.Errorf("Error  in deployment creation: %v", err)
+	}
 
 	// Updating configmap for first time
 	updateErr := testutil.UpdateConfigMap(configmapClient, namespace, configmapName, "test", "www.google.com")
@@ -285,7 +294,7 @@ func TestControllerUpdatingSecretShouldCreateEnvInDeployment(t *testing.T) {
 	}
 
 	//Deleting Secret
-	testutil.DeleteSecret(client, namespace, secretName)
+	err = testutil.DeleteSecret(client, namespace, secretName)
 	if err != nil {
 		logrus.Errorf("Error while deleting the secret %v", err)
 	}
@@ -358,7 +367,7 @@ func TestControllerUpdatingSecretShouldUpdateEnvInDeployment(t *testing.T) {
 	}
 
 	//Deleting Secret
-	testutil.DeleteSecret(client, namespace, secretName)
+	err = testutil.DeleteSecret(client, namespace, secretName)
 	if err != nil {
 		logrus.Errorf("Error while deleting the secret %v", err)
 	}
@@ -413,7 +422,7 @@ func TestControllerUpdatingSecretLabelsShouldNotCreateorUpdateEnvInDeployment(t 
 	}
 
 	//Deleting Secret
-	testutil.DeleteSecret(client, namespace, secretName)
+	err = testutil.DeleteSecret(client, namespace, secretName)
 	if err != nil {
 		logrus.Errorf("Error while deleting the secret %v", err)
 	}

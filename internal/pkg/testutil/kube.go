@@ -326,7 +326,7 @@ func ConvertResourceToSHA(resourceType string, namespace string, resourceName st
 	} else if resourceType == ConfigmapResourceType {
 		configmap := GetConfigmap(namespace, resourceName, data)
 		for k, v := range configmap.Data {
-			values = append(values, k+"="+string(v[:]))
+			values = append(values, k+"="+v)
 		}
 	}
 	sort.Strings(values)
