@@ -1,68 +1,74 @@
 package controller
 
 import (
+	"os"
 	"testing"
 	"time"
 
 	"github.com/sirupsen/logrus"
-	"github.com/stakater/Reloader/internal/pkg/helper"
+	"github.com/stakater/Reloader/internal/pkg/common"
+	"github.com/stakater/Reloader/internal/pkg/testutil"
 	"github.com/stakater/Reloader/pkg/kube"
-	"k8s.io/api/extensions/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 )
 
 var (
+	client              = getClient()
+	namespace           = "test-reloader"
 	configmapNamePrefix = "testconfigmap-reloader"
 	secretNamePrefix    = "testsecret-reloader"
 )
 
-// Creating a Controller to do a rolling upgrade upon updating the configmap or secret
-func TestControllerForUpdatingConfigmapShouldUpdateDeployment(t *testing.T) {
-	client, err := kube.GetClient()
-	if err != nil {
-		logrus.Errorf("Unable to create Kubernetes client error = %v", err)
-		return
-	}
-	namespace := "test-reloader"
-	logrus.Infof("Step 1: Create namespace")
-	helper.CreateNamespace(namespace, client)
-	defer helper.DeleteNamespace(namespace, client)
+func TestMain(m *testing.M) {
 
-	logrus.Infof("Step 2: Create controller")
-	controller, err := NewController(client, "configMaps", namespace)
+	logrus.Infof("Creating namespace %s", namespace)
+	testutil.CreateNamespace(namespace, client)
+
+	logrus.Infof("Running Testcases")
+	retCode := m.Run()
+
+	logrus.Infof("Deleting namespace %q.\n", namespace)
+	testutil.DeleteNamespace(namespace, client)
+
+	os.Exit(retCode)
+}
+
+func getClient() *kubernetes.Clientset {
+	newClient, err := kube.GetClient()
+	if err != nil {
+		logrus.Fatalf("Unable to create Kubernetes client error = %v", err)
+	}
+	return newClient
+}
+
+// Perform rolling upgrade on deployment and create env var upon updating the configmap
+func TestControllerUpdatingConfigmapShouldCreateEnvInDeployment(t *testing.T) {
+	// Creating Controller
+	logrus.Infof("Creating controller")
+	controller, err := NewController(client, testutil.ConfigmapResourceType, namespace)
 	if err != nil {
 		logrus.Errorf("Unable to create NewController error = %v", err)
 		return
 	}
 	stop := make(chan struct{})
 	defer close(stop)
-	logrus.Infof("Step 3: Start controller")
+	logrus.Infof("Starting controller")
 	go controller.Run(1, stop)
 	time.Sleep(10 * time.Second)
 
-	configmapName := configmapNamePrefix + "-update-" + helper.RandSeq(5)
-	configmapClient := client.CoreV1().ConfigMaps(namespace)
-
-	logrus.Infof("Step 4: Create configmap")
-	_, err = configmapClient.Create(helper.GetConfigmap(namespace, configmapName, "www.google.com"))
+	// Creating configmap
+	configmapName := configmapNamePrefix + "-update-" + common.RandSeq(5)
+	configmapClient, err := testutil.CreateConfigMap(client, namespace, configmapName, "www.google.com")
 	if err != nil {
-		t.Errorf("Error in configmap creation: %v", err)
+		t.Errorf("Error while creating the configmap %v", err)
 	}
-	logrus.Infof("Created Configmap %q.\n", configmapName)
-	time.Sleep(10 * time.Second)
 
-	logrus.Infof("Step 5: Create Deployment")
-	deployment := createDeployment(configmapName, namespace, client)
+	// Creating deployment
+	testutil.CreateDeployment(client, configmapName, namespace)
 
-	logrus.Infof("Step 6: Update configmap for first time")
-	logrus.Infof("Updating Configmap %q.\n", configmapName)
-	_, err = configmapClient.Get(configmapName, metav1.GetOptions{})
-	if err != nil {
-		logrus.Errorf("Error while getting configmap %v", err)
-	}
-	_, updateErr := configmapClient.Update(helper.GetConfigmap(namespace, configmapName, "www.stakater.com"))
-
+	// Updating configmap for first time
+	updateErr := testutil.UpdateConfigMap(configmapClient, namespace, configmapName, "", "www.stakater.com")
 	if updateErr != nil {
 		err = controller.client.CoreV1().ConfigMaps(namespace).Delete(configmapName, &metav1.DeleteOptions{})
 		if err != nil {
@@ -70,66 +76,169 @@ func TestControllerForUpdatingConfigmapShouldUpdateDeployment(t *testing.T) {
 		}
 		t.Errorf("Configmap was not updated")
 	}
-	time.Sleep(10 * time.Second)
 
-	logrus.Infof("Step 7: Verify deployment update for first time")
-	shaData := helper.ConvertConfigmapToSHA(helper.GetConfigmap(namespace, configmapName, "www.stakater.com"))
-	updated := helper.VerifyDeploymentUpdate(client, namespace, configmapName, "_CONFIGMAP", shaData)
+	// Verifying deployment update
+	logrus.Infof("Verifying env var has been created")
+	shaData := testutil.ConvertResourceToSHA(testutil.ConfigmapResourceType, namespace, configmapName, "www.stakater.com")
+	updated := testutil.VerifyDeploymentUpdate(client, namespace, configmapName, common.ConfigmapEnvarPostfix, shaData, common.ConfigmapUpdateOnChangeAnnotation)
 	if !updated {
 		t.Errorf("Deployment was not updated")
 	}
 	time.Sleep(10 * time.Second)
 
-	logrus.Infof("Step 8: Update configmap for Second time")
-	_, updateErr = configmapClient.Update(helper.GetConfigmap(namespace, configmapName, "aurorasolutions.io"))
-	time.Sleep(10 * time.Second)
-
-	logrus.Infof("Step 9: Verify deployment update for second time")
-	shaData = helper.ConvertConfigmapToSHA(helper.GetConfigmap(namespace, configmapName, "aurorasolutions.io"))
-	updated = helper.VerifyDeploymentUpdate(client, namespace, configmapName, "_CONFIGMAP", shaData)
-	if !updated {
-		t.Errorf("Deployment was not updated")
-	}
-	time.Sleep(10 * time.Second)
-
-	logrus.Infof("Step 10: Delete Deployment")
-	logrus.Infof("Deleting Deployment %q.\n", deployment.GetObjectMeta().GetName())
-	deploymentError := controller.client.ExtensionsV1beta1().Deployments(namespace).Delete(configmapName, &metav1.DeleteOptions{})
-	if deploymentError != nil {
-		logrus.Errorf("Error while deleting the configmap %v", deploymentError)
+	// Deleting deployment
+	err = testutil.DeleteDeployment(client, namespace, configmapName)
+	if err != nil {
+		logrus.Errorf("Error while deleting the deployment %v", err)
 	}
 
-	logrus.Infof("Step 11: Delete Configmap")
-	logrus.Infof("Deleting Configmap %q.\n", configmapName)
-	err = controller.client.CoreV1().ConfigMaps(namespace).Delete(configmapName, &metav1.DeleteOptions{})
+	// Deleting configmap
+	err = testutil.DeleteConfigMap(client, namespace, configmapName)
 	if err != nil {
 		logrus.Errorf("Error while deleting the configmap %v", err)
 	}
-	time.Sleep(15 * time.Second)
+	time.Sleep(5 * time.Second)
 }
 
-func createDeployment(deploymentName string, namespace string, client kubernetes.Interface) *v1beta1.Deployment {
-	deploymentClient := client.ExtensionsV1beta1().Deployments(namespace)
-	deployment := helper.GetDeployment(namespace, deploymentName)
-	deployment, err := deploymentClient.Create(deployment)
+// Perform rolling upgrade on deployment and update env var upon updating the configmap
+func TestControllerForUpdatingConfigmapShouldUpdateDeployment(t *testing.T) {
+	// Creating controller
+	logrus.Infof("Creating controller")
+	controller, err := NewController(client, testutil.ConfigmapResourceType, namespace)
 	if err != nil {
-		logrus.Errorf("Error in deployment creation: %v", err)
-	}
-	logrus.Infof("Created Deployment %q.\n", deployment.GetObjectMeta().GetName())
-	return deployment
-}
-
-func TestControllerForUpdatingSecretShouldUpdateDeployment(t *testing.T) {
-	client, err := kube.GetClient()
-	if err != nil {
-		logrus.Errorf("Unable to create Kubernetes client error = %v", err)
+		logrus.Errorf("Unable to create NewController error = %v", err)
 		return
 	}
-	namespace := "test-reloader-secrets"
-	helper.CreateNamespace(namespace, client)
-	defer helper.DeleteNamespace(namespace, client)
+	stop := make(chan struct{})
+	defer close(stop)
+	logrus.Infof("Starting controller")
+	go controller.Run(1, stop)
+	time.Sleep(10 * time.Second)
 
-	controller, err := NewController(client, "secrets", namespace)
+	// Creating secret
+	configmapName := configmapNamePrefix + "-update-" + common.RandSeq(5)
+	configmapClient, err := testutil.CreateConfigMap(client, namespace, configmapName, "www.google.com")
+	if err != nil {
+		t.Errorf("Error while creating the configmap %v", err)
+	}
+
+	// Creating deployment
+	testutil.CreateDeployment(client, configmapName, namespace)
+
+	// Updating configmap for first time
+	updateErr := testutil.UpdateConfigMap(configmapClient, namespace, configmapName, "", "www.stakater.com")
+	if updateErr != nil {
+		err = controller.client.CoreV1().ConfigMaps(namespace).Delete(configmapName, &metav1.DeleteOptions{})
+		if err != nil {
+			logrus.Errorf("Error while deleting the configmap %v", err)
+		}
+		t.Errorf("Configmap was not updated")
+	}
+
+	// Verifying deployment update
+	logrus.Infof("Verifying env var has been created")
+	shaData := testutil.ConvertResourceToSHA(testutil.ConfigmapResourceType, namespace, configmapName, "www.stakater.com")
+	updated := testutil.VerifyDeploymentUpdate(client, namespace, configmapName, common.ConfigmapEnvarPostfix, shaData, common.ConfigmapUpdateOnChangeAnnotation)
+	if !updated {
+		t.Errorf("Deployment was not updated")
+	}
+	time.Sleep(10 * time.Second)
+
+	// Updating configmap for second time
+	updateErr = testutil.UpdateConfigMap(configmapClient, namespace, configmapName, "", "aurorasolutions.io")
+	if updateErr != nil {
+		err = controller.client.CoreV1().ConfigMaps(namespace).Delete(configmapName, &metav1.DeleteOptions{})
+		if err != nil {
+			logrus.Errorf("Error while deleting the configmap %v", err)
+		}
+		t.Errorf("Configmap was not updated")
+	}
+
+	// Verifying deployment update
+	logrus.Infof("Verifying env var has been updated")
+	shaData = testutil.ConvertResourceToSHA(testutil.ConfigmapResourceType, namespace, configmapName, "aurorasolutions.io")
+	updated = testutil.VerifyDeploymentUpdate(client, namespace, configmapName, common.ConfigmapEnvarPostfix, shaData, common.ConfigmapUpdateOnChangeAnnotation)
+	if !updated {
+		t.Errorf("Deployment was not updated")
+	}
+	time.Sleep(10 * time.Second)
+
+	// Deleting deployment
+	err = testutil.DeleteDeployment(client, namespace, configmapName)
+	if err != nil {
+		logrus.Errorf("Error while deleting the deployment %v", err)
+	}
+
+	// Deleting configmap
+	err = testutil.DeleteConfigMap(client, namespace, configmapName)
+	if err != nil {
+		logrus.Errorf("Error while deleting the configmap %v", err)
+	}
+	time.Sleep(5 * time.Second)
+}
+
+// Do not Perform rolling upgrade on deployment and create env var upon updating the labels configmap
+func TestControllerUpdatingConfigmapLabelsShouldNotCreateorUpdateEnvInDeployment(t *testing.T) {
+	// Creating Controller
+	logrus.Infof("Creating controller")
+	controller, err := NewController(client, testutil.ConfigmapResourceType, namespace)
+	if err != nil {
+		logrus.Errorf("Unable to create NewController error = %v", err)
+		return
+	}
+	stop := make(chan struct{})
+	defer close(stop)
+	logrus.Infof("Starting controller")
+	go controller.Run(1, stop)
+	time.Sleep(10 * time.Second)
+
+	// Creating configmap
+	configmapName := configmapNamePrefix + "-update-" + common.RandSeq(5)
+	configmapClient, err := testutil.CreateConfigMap(client, namespace, configmapName, "www.google.com")
+	if err != nil {
+		t.Errorf("Error while creating the configmap %v", err)
+	}
+
+	// Creating deployment
+	testutil.CreateDeployment(client, configmapName, namespace)
+
+	// Updating configmap for first time
+	updateErr := testutil.UpdateConfigMap(configmapClient, namespace, configmapName, "test", "www.google.com")
+	if updateErr != nil {
+		err = controller.client.CoreV1().ConfigMaps(namespace).Delete(configmapName, &metav1.DeleteOptions{})
+		if err != nil {
+			logrus.Errorf("Error while deleting the configmap %v", err)
+		}
+		t.Errorf("Configmap was not updated")
+	}
+
+	// Verifying deployment update
+	logrus.Infof("Verifying env var has been created")
+	shaData := testutil.ConvertResourceToSHA(testutil.ConfigmapResourceType, namespace, configmapName, "www.google.com")
+	updated := testutil.VerifyDeploymentUpdate(client, namespace, configmapName, common.ConfigmapEnvarPostfix, shaData, common.ConfigmapUpdateOnChangeAnnotation)
+	if updated {
+		t.Errorf("Deployment should not be updated by changing label")
+	}
+	time.Sleep(10 * time.Second)
+
+	// Deleting deployment
+	err = testutil.DeleteDeployment(client, namespace, configmapName)
+	if err != nil {
+		logrus.Errorf("Error while deleting the deployment %v", err)
+	}
+
+	// Deleting configmap
+	err = testutil.DeleteConfigMap(client, namespace, configmapName)
+	if err != nil {
+		logrus.Errorf("Error while deleting the configmap %v", err)
+	}
+	time.Sleep(5 * time.Second)
+}
+
+// Perform rolling upgrade on secret and create a env var upon updating the secret
+func TestControllerUpdatingSecretShouldCreateEnvInDeployment(t *testing.T) {
+	// Creating controller
+	controller, err := NewController(client, testutil.SecretResourceType, namespace)
 	if err != nil {
 		logrus.Errorf("Unable to create NewController error = %v", err)
 		return
@@ -139,38 +248,174 @@ func TestControllerForUpdatingSecretShouldUpdateDeployment(t *testing.T) {
 	go controller.Run(1, stop)
 	time.Sleep(10 * time.Second)
 
-	secretName := secretNamePrefix + "-update-" + helper.RandSeq(5)
-	secretClient := client.CoreV1().Secrets(namespace)
+	// Creating secret
+	secretName := secretNamePrefix + "-update-" + common.RandSeq(5)
 	data := "dGVzdFNlY3JldEVuY29kaW5nRm9yUmVsb2FkZXI="
-	_, err = secretClient.Create(helper.GetSecret(namespace, secretName, data))
+	secretClient, err := testutil.CreateSecret(client, namespace, secretName, data)
 	if err != nil {
-		logrus.Errorf("Error  in secret creation: %v", err)
+		t.Errorf("Error  in secret creation: %v", err)
 	}
-	logrus.Infof("Created Secret %q.\n", secretName)
-	time.Sleep(10 * time.Second)
 
-	logrus.Infof("Updating Secret %q.\n", secretName)
-	_, err = secretClient.Get(secretName, metav1.GetOptions{})
+	// Creating deployment
+	_, err = testutil.CreateDeployment(client, secretName, namespace)
 	if err != nil {
-		logrus.Errorf("Error while getting secret %v", err)
+		t.Errorf("Error  in deployment creation: %v", err)
 	}
+
+	// Updating Secret
 	data = "dGVzdFVwZGF0ZWRTZWNyZXRFbmNvZGluZ0ZvclJlbG9hZGVy"
-	_, updateErr := secretClient.Update(helper.GetSecret(namespace, secretName, data))
+	err = testutil.UpdateSecret(secretClient, namespace, secretName, "", data)
+	if err != nil {
+		t.Errorf("Error while updating secret %v", err)
+	}
 
-	// TODO: Add functionality to verify reloader functionality here
-
-	if updateErr != nil {
-		err := controller.client.CoreV1().Secrets(namespace).Delete(secretName, &metav1.DeleteOptions{})
-		if err != nil {
-			logrus.Errorf("Error while deleting the secret %v", err)
-		}
-		logrus.Errorf("Error while updating the secret %v", err)
+	// Verifying Upgrade
+	logrus.Infof("Verifying env var has been created")
+	shaData := testutil.ConvertResourceToSHA(testutil.SecretResourceType, namespace, secretName, data)
+	updated := testutil.VerifyDeploymentUpdate(client, namespace, secretName, common.SecretEnvarPostfix, shaData, common.SecretUpdateOnChangeAnnotation)
+	if !updated {
+		t.Errorf("Deployment was not updated")
 	}
 	time.Sleep(10 * time.Second)
-	logrus.Infof("Deleting Secret %q.\n", secretName)
-	err = controller.client.CoreV1().Secrets(namespace).Delete(secretName, &metav1.DeleteOptions{})
+
+	// Deleting Deployment
+	err = testutil.DeleteDeployment(client, namespace, secretName)
+	if err != nil {
+		logrus.Errorf("Error while deleting the deployment %v", err)
+	}
+
+	//Deleting Secret
+	testutil.DeleteSecret(client, namespace, secretName)
 	if err != nil {
 		logrus.Errorf("Error while deleting the secret %v", err)
 	}
-	time.Sleep(15 * time.Second)
+	time.Sleep(5 * time.Second)
+}
+
+// Perform rolling upgrade on deployment and update env var upon updating the secret
+func TestControllerUpdatingSecretShouldUpdateEnvInDeployment(t *testing.T) {
+	// Creating controller
+	controller, err := NewController(client, testutil.SecretResourceType, namespace)
+	if err != nil {
+		logrus.Errorf("Unable to create NewController error = %v", err)
+		return
+	}
+	stop := make(chan struct{})
+	defer close(stop)
+	go controller.Run(1, stop)
+	time.Sleep(10 * time.Second)
+
+	// Creating secret
+	secretName := secretNamePrefix + "-update-" + common.RandSeq(5)
+	data := "dGVzdFNlY3JldEVuY29kaW5nRm9yUmVsb2FkZXI="
+	secretClient, err := testutil.CreateSecret(client, namespace, secretName, data)
+	if err != nil {
+		t.Errorf("Error  in secret creation: %v", err)
+	}
+
+	// Creating deployment
+	_, err = testutil.CreateDeployment(client, secretName, namespace)
+	if err != nil {
+		t.Errorf("Error  in deployment creation: %v", err)
+	}
+
+	// Updating Secret
+	data = "dGVzdFVwZGF0ZWRTZWNyZXRFbmNvZGluZ0ZvclJlbG9hZGVy"
+	err = testutil.UpdateSecret(secretClient, namespace, secretName, "", data)
+	if err != nil {
+		t.Errorf("Error while updating secret %v", err)
+	}
+
+	// Verifying Upgrade
+	logrus.Infof("Verifying env var has been created")
+	shaData := testutil.ConvertResourceToSHA(testutil.SecretResourceType, namespace, secretName, data)
+	updated := testutil.VerifyDeploymentUpdate(client, namespace, secretName, common.SecretEnvarPostfix, shaData, common.SecretUpdateOnChangeAnnotation)
+	if !updated {
+		t.Errorf("Deployment was not updated")
+	}
+	time.Sleep(10 * time.Second)
+
+	// Updating Secret
+	data = "dGVzdFVwZGF0ZWRTZWNyZXRFbmNvZGluZ0ZvclJlbG9hZGVy"
+	err = testutil.UpdateSecret(secretClient, namespace, secretName, "", data)
+	if err != nil {
+		t.Errorf("Error while updating secret %v", err)
+	}
+
+	// Verifying Upgrade
+	logrus.Infof("Verifying env var has been updated")
+	shaData = testutil.ConvertResourceToSHA(testutil.SecretResourceType, namespace, secretName, data)
+	updated = testutil.VerifyDeploymentUpdate(client, namespace, secretName, common.SecretEnvarPostfix, shaData, common.SecretUpdateOnChangeAnnotation)
+	if !updated {
+		t.Errorf("Deployment was not updated")
+	}
+	time.Sleep(10 * time.Second)
+
+	// Deleting Deployment
+	err = testutil.DeleteDeployment(client, namespace, secretName)
+	if err != nil {
+		logrus.Errorf("Error while deleting the deployment %v", err)
+	}
+
+	//Deleting Secret
+	testutil.DeleteSecret(client, namespace, secretName)
+	if err != nil {
+		logrus.Errorf("Error while deleting the secret %v", err)
+	}
+	time.Sleep(5 * time.Second)
+}
+
+// Do not Perform rolling upgrade on secret and create or update a env var upon updating the label in secret
+func TestControllerUpdatingSecretLabelsShouldNotCreateorUpdateEnvInDeployment(t *testing.T) {
+	// Creating controller
+	controller, err := NewController(client, testutil.SecretResourceType, namespace)
+	if err != nil {
+		logrus.Errorf("Unable to create NewController error = %v", err)
+		return
+	}
+	stop := make(chan struct{})
+	defer close(stop)
+	go controller.Run(1, stop)
+	time.Sleep(10 * time.Second)
+
+	// Creating secret
+	secretName := secretNamePrefix + "-update-" + common.RandSeq(5)
+	data := "dGVzdFNlY3JldEVuY29kaW5nRm9yUmVsb2FkZXI="
+	secretClient, err := testutil.CreateSecret(client, namespace, secretName, data)
+	if err != nil {
+		t.Errorf("Error  in secret creation: %v", err)
+	}
+
+	// Creating deployment
+	_, err = testutil.CreateDeployment(client, secretName, namespace)
+	if err != nil {
+		t.Errorf("Error  in deployment creation: %v", err)
+	}
+
+	err = testutil.UpdateSecret(secretClient, namespace, secretName, "test", data)
+	if err != nil {
+		t.Errorf("Error while updating secret %v", err)
+	}
+
+	// Verifying Upgrade
+	logrus.Infof("Verifying env var has been created")
+	shaData := testutil.ConvertResourceToSHA(testutil.SecretResourceType, namespace, secretName, data)
+	updated := testutil.VerifyDeploymentUpdate(client, namespace, secretName, common.SecretEnvarPostfix, shaData, common.SecretUpdateOnChangeAnnotation)
+	if updated {
+		t.Errorf("Deployment should not be updated by changing label in secret")
+	}
+	time.Sleep(10 * time.Second)
+
+	// Deleting Deployment
+	err = testutil.DeleteDeployment(client, namespace, secretName)
+	if err != nil {
+		logrus.Errorf("Error while deleting the deployment %v", err)
+	}
+
+	//Deleting Secret
+	testutil.DeleteSecret(client, namespace, secretName)
+	if err != nil {
+		logrus.Errorf("Error while deleting the secret %v", err)
+	}
+	time.Sleep(5 * time.Second)
 }
