@@ -189,7 +189,7 @@ func updateContainers(containers []v1.Container, annotationValue string, shaData
 			}
 			containers[i].Env = append(containers[i].Env, e)
 			updated = true
-			logrus.Infof("%s environment variable does not exist, creating a new env with value %s", envar, shaData)
+			logrus.Infof("%s environment variable does not exist, creating a new envVar", envar)
 		}
 	}
 	return updated
