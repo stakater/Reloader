@@ -9,7 +9,6 @@ import (
 	"github.com/stakater/Reloader/internal/pkg/common"
 	"github.com/stakater/Reloader/internal/pkg/testutil"
 	"github.com/stakater/Reloader/pkg/kube"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 )
 
@@ -27,6 +26,20 @@ func TestMain(m *testing.M) {
 
 	logrus.Infof("Creating namespace %s", namespace)
 	testutil.CreateNamespace(namespace, client)
+
+	logrus.Infof("Creating controller")
+	for k := range kube.ResourceMap {
+		c, err := NewController(client, k, namespace)
+		if err != nil {
+			logrus.Fatalf("%s", err)
+		}
+
+		// Now let's start the controller
+		stop := make(chan struct{})
+		defer close(stop)
+		go c.Run(1, stop)
+	}
+	time.Sleep(5 * time.Second)
 
 	logrus.Infof("Running Testcases")
 	retCode := m.Run()
@@ -47,18 +60,6 @@ func getClient() *kubernetes.Clientset {
 
 // Perform rolling upgrade on deployment and create env var upon updating the configmap
 func TestControllerUpdatingConfigmapShouldCreateEnvInDeployment(t *testing.T) {
-	// Creating Controller
-	logrus.Infof("Creating controller")
-	controller, err := NewController(client, testutil.ConfigmapResourceType, namespace)
-	if err != nil {
-		logrus.Errorf("Unable to create NewController error = %v", err)
-		return
-	}
-	stop := make(chan struct{})
-	defer close(stop)
-	logrus.Infof("Starting controller")
-	go controller.Run(1, stop)
-	time.Sleep(5 * time.Second)
 
 	// Creating configmap
 	configmapName := configmapNamePrefix + "-update-" + common.RandSeq(5)
@@ -76,10 +77,6 @@ func TestControllerUpdatingConfigmapShouldCreateEnvInDeployment(t *testing.T) {
 	// Updating configmap for first time
 	updateErr := testutil.UpdateConfigMap(configmapClient, namespace, configmapName, "", "www.stakater.com")
 	if updateErr != nil {
-		err = controller.client.CoreV1().ConfigMaps(namespace).Delete(configmapName, &metav1.DeleteOptions{})
-		if err != nil {
-			logrus.Errorf("Error while deleting the configmap %v", err)
-		}
 		t.Errorf("Configmap was not updated")
 	}
 
@@ -108,19 +105,6 @@ func TestControllerUpdatingConfigmapShouldCreateEnvInDeployment(t *testing.T) {
 
 // Perform rolling upgrade on deployment and update env var upon updating the configmap
 func TestControllerForUpdatingConfigmapShouldUpdateDeployment(t *testing.T) {
-	// Creating controller
-	logrus.Infof("Creating controller")
-	controller, err := NewController(client, testutil.ConfigmapResourceType, namespace)
-	if err != nil {
-		logrus.Errorf("Unable to create NewController error = %v", err)
-		return
-	}
-	stop := make(chan struct{})
-	defer close(stop)
-	logrus.Infof("Starting controller")
-	go controller.Run(1, stop)
-	time.Sleep(5 * time.Second)
-
 	// Creating secret
 	configmapName := configmapNamePrefix + "-update-" + common.RandSeq(5)
 	configmapClient, err := testutil.CreateConfigMap(client, namespace, configmapName, "www.google.com")
@@ -137,20 +121,12 @@ func TestControllerForUpdatingConfigmapShouldUpdateDeployment(t *testing.T) {
 	// Updating configmap for first time
 	updateErr := testutil.UpdateConfigMap(configmapClient, namespace, configmapName, "", "www.stakater.com")
 	if updateErr != nil {
-		err = controller.client.CoreV1().ConfigMaps(namespace).Delete(configmapName, &metav1.DeleteOptions{})
-		if err != nil {
-			logrus.Errorf("Error while deleting the configmap %v", err)
-		}
 		t.Errorf("Configmap was not updated")
 	}
 
 	// Updating configmap for second time
 	updateErr = testutil.UpdateConfigMap(configmapClient, namespace, configmapName, "", "aurorasolutions.io")
 	if updateErr != nil {
-		err = controller.client.CoreV1().ConfigMaps(namespace).Delete(configmapName, &metav1.DeleteOptions{})
-		if err != nil {
-			logrus.Errorf("Error while deleting the configmap %v", err)
-		}
 		t.Errorf("Configmap was not updated")
 	}
 
@@ -179,19 +155,6 @@ func TestControllerForUpdatingConfigmapShouldUpdateDeployment(t *testing.T) {
 
 // Do not Perform rolling upgrade on deployment and create env var upon updating the labels configmap
 func TestControllerUpdatingConfigmapLabelsShouldNotCreateorUpdateEnvInDeployment(t *testing.T) {
-	// Creating Controller
-	logrus.Infof("Creating controller")
-	controller, err := NewController(client, testutil.ConfigmapResourceType, namespace)
-	if err != nil {
-		logrus.Errorf("Unable to create NewController error = %v", err)
-		return
-	}
-	stop := make(chan struct{})
-	defer close(stop)
-	logrus.Infof("Starting controller")
-	go controller.Run(1, stop)
-	time.Sleep(5 * time.Second)
-
 	// Creating configmap
 	configmapName := configmapNamePrefix + "-update-" + common.RandSeq(5)
 	configmapClient, err := testutil.CreateConfigMap(client, namespace, configmapName, "www.google.com")
@@ -208,10 +171,6 @@ func TestControllerUpdatingConfigmapLabelsShouldNotCreateorUpdateEnvInDeployment
 	// Updating configmap for first time
 	updateErr := testutil.UpdateConfigMap(configmapClient, namespace, configmapName, "test", "www.google.com")
 	if updateErr != nil {
-		err = controller.client.CoreV1().ConfigMaps(namespace).Delete(configmapName, &metav1.DeleteOptions{})
-		if err != nil {
-			logrus.Errorf("Error while deleting the configmap %v", err)
-		}
 		t.Errorf("Configmap was not updated")
 	}
 
@@ -240,17 +199,6 @@ func TestControllerUpdatingConfigmapLabelsShouldNotCreateorUpdateEnvInDeployment
 
 // Perform rolling upgrade on secret and create a env var upon updating the secret
 func TestControllerUpdatingSecretShouldCreateEnvInDeployment(t *testing.T) {
-	// Creating controller
-	controller, err := NewController(client, testutil.SecretResourceType, namespace)
-	if err != nil {
-		logrus.Errorf("Unable to create NewController error = %v", err)
-		return
-	}
-	stop := make(chan struct{})
-	defer close(stop)
-	go controller.Run(1, stop)
-	time.Sleep(5 * time.Second)
-
 	// Creating secret
 	secretName := secretNamePrefix + "-update-" + common.RandSeq(5)
 	secretClient, err := testutil.CreateSecret(client, namespace, secretName, data)
@@ -295,17 +243,6 @@ func TestControllerUpdatingSecretShouldCreateEnvInDeployment(t *testing.T) {
 
 // Perform rolling upgrade on deployment and update env var upon updating the secret
 func TestControllerUpdatingSecretShouldUpdateEnvInDeployment(t *testing.T) {
-	// Creating controller
-	controller, err := NewController(client, testutil.SecretResourceType, namespace)
-	if err != nil {
-		logrus.Errorf("Unable to create NewController error = %v", err)
-		return
-	}
-	stop := make(chan struct{})
-	defer close(stop)
-	go controller.Run(1, stop)
-	time.Sleep(5 * time.Second)
-
 	// Creating secret
 	secretName := secretNamePrefix + "-update-" + common.RandSeq(5)
 	secretClient, err := testutil.CreateSecret(client, namespace, secretName, data)
@@ -356,17 +293,6 @@ func TestControllerUpdatingSecretShouldUpdateEnvInDeployment(t *testing.T) {
 
 // Do not Perform rolling upgrade on secret and create or update a env var upon updating the label in secret
 func TestControllerUpdatingSecretLabelsShouldNotCreateorUpdateEnvInDeployment(t *testing.T) {
-	// Creating controller
-	controller, err := NewController(client, testutil.SecretResourceType, namespace)
-	if err != nil {
-		logrus.Errorf("Unable to create NewController error = %v", err)
-		return
-	}
-	stop := make(chan struct{})
-	defer close(stop)
-	go controller.Run(1, stop)
-	time.Sleep(5 * time.Second)
-
 	// Creating secret
 	secretName := secretNamePrefix + "-update-" + common.RandSeq(5)
 	secretClient, err := testutil.CreateSecret(client, namespace, secretName, data)
@@ -410,19 +336,6 @@ func TestControllerUpdatingSecretLabelsShouldNotCreateorUpdateEnvInDeployment(t 
 
 // Perform rolling upgrade on DaemonSet and create env var upon updating the configmap
 func TestControllerUpdatingConfigmapShouldCreateEnvInDaemonSet(t *testing.T) {
-	// Creating Controller
-	logrus.Infof("Creating controller")
-	controller, err := NewController(client, testutil.ConfigmapResourceType, namespace)
-	if err != nil {
-		logrus.Errorf("Unable to create NewController error = %v", err)
-		return
-	}
-	stop := make(chan struct{})
-	defer close(stop)
-	logrus.Infof("Starting controller")
-	go controller.Run(1, stop)
-	time.Sleep(5 * time.Second)
-
 	// Creating configmap
 	configmapName := configmapNamePrefix + "-update-" + common.RandSeq(5)
 	configmapClient, err := testutil.CreateConfigMap(client, namespace, configmapName, "www.google.com")
@@ -439,10 +352,6 @@ func TestControllerUpdatingConfigmapShouldCreateEnvInDaemonSet(t *testing.T) {
 	// Updating configmap for first time
 	updateErr := testutil.UpdateConfigMap(configmapClient, namespace, configmapName, "", "www.stakater.com")
 	if updateErr != nil {
-		err = controller.client.CoreV1().ConfigMaps(namespace).Delete(configmapName, &metav1.DeleteOptions{})
-		if err != nil {
-			logrus.Errorf("Error while deleting the configmap %v", err)
-		}
 		t.Errorf("Configmap was not updated")
 	}
 
@@ -471,19 +380,6 @@ func TestControllerUpdatingConfigmapShouldCreateEnvInDaemonSet(t *testing.T) {
 
 // Perform rolling upgrade on DaemonSet and update env var upon updating the configmap
 func TestControllerForUpdatingConfigmapShouldUpdateDaemonSet(t *testing.T) {
-	// Creating controller
-	logrus.Infof("Creating controller")
-	controller, err := NewController(client, testutil.ConfigmapResourceType, namespace)
-	if err != nil {
-		logrus.Errorf("Unable to create NewController error = %v", err)
-		return
-	}
-	stop := make(chan struct{})
-	defer close(stop)
-	logrus.Infof("Starting controller")
-	go controller.Run(1, stop)
-	time.Sleep(5 * time.Second)
-
 	// Creating secret
 	configmapName := configmapNamePrefix + "-update-" + common.RandSeq(5)
 	configmapClient, err := testutil.CreateConfigMap(client, namespace, configmapName, "www.google.com")
@@ -500,20 +396,12 @@ func TestControllerForUpdatingConfigmapShouldUpdateDaemonSet(t *testing.T) {
 	// Updating configmap for first time
 	updateErr := testutil.UpdateConfigMap(configmapClient, namespace, configmapName, "", "www.stakater.com")
 	if updateErr != nil {
-		err = controller.client.CoreV1().ConfigMaps(namespace).Delete(configmapName, &metav1.DeleteOptions{})
-		if err != nil {
-			logrus.Errorf("Error while deleting the configmap %v", err)
-		}
 		t.Errorf("Configmap was not updated")
 	}
 
 	// Updating configmap for second time
 	updateErr = testutil.UpdateConfigMap(configmapClient, namespace, configmapName, "", "aurorasolutions.io")
 	if updateErr != nil {
-		err = controller.client.CoreV1().ConfigMaps(namespace).Delete(configmapName, &metav1.DeleteOptions{})
-		if err != nil {
-			logrus.Errorf("Error while deleting the configmap %v", err)
-		}
 		t.Errorf("Configmap was not updated")
 	}
 
@@ -542,17 +430,6 @@ func TestControllerForUpdatingConfigmapShouldUpdateDaemonSet(t *testing.T) {
 
 // Perform rolling upgrade on secret and create a env var upon updating the secret
 func TestControllerUpdatingSecretShouldCreateEnvInDaemonSet(t *testing.T) {
-	// Creating controller
-	controller, err := NewController(client, testutil.SecretResourceType, namespace)
-	if err != nil {
-		logrus.Errorf("Unable to create NewController error = %v", err)
-		return
-	}
-	stop := make(chan struct{})
-	defer close(stop)
-	go controller.Run(1, stop)
-	time.Sleep(5 * time.Second)
-
 	// Creating secret
 	secretName := secretNamePrefix + "-update-" + common.RandSeq(5)
 	secretClient, err := testutil.CreateSecret(client, namespace, secretName, data)
@@ -597,17 +474,6 @@ func TestControllerUpdatingSecretShouldCreateEnvInDaemonSet(t *testing.T) {
 
 // Perform rolling upgrade on DaemonSet and update env var upon updating the secret
 func TestControllerUpdatingSecretShouldUpdateEnvInDaemonSet(t *testing.T) {
-	// Creating controller
-	controller, err := NewController(client, testutil.SecretResourceType, namespace)
-	if err != nil {
-		logrus.Errorf("Unable to create NewController error = %v", err)
-		return
-	}
-	stop := make(chan struct{})
-	defer close(stop)
-	go controller.Run(1, stop)
-	time.Sleep(5 * time.Second)
-
 	// Creating secret
 	secretName := secretNamePrefix + "-update-" + common.RandSeq(5)
 	secretClient, err := testutil.CreateSecret(client, namespace, secretName, data)
@@ -658,17 +524,6 @@ func TestControllerUpdatingSecretShouldUpdateEnvInDaemonSet(t *testing.T) {
 
 // Do not Perform rolling upgrade on secret and create or update a env var upon updating the label in secret
 func TestControllerUpdatingSecretLabelsShouldNotCreateorUpdateEnvInDaemonSet(t *testing.T) {
-	// Creating controller
-	controller, err := NewController(client, testutil.SecretResourceType, namespace)
-	if err != nil {
-		logrus.Errorf("Unable to create NewController error = %v", err)
-		return
-	}
-	stop := make(chan struct{})
-	defer close(stop)
-	go controller.Run(1, stop)
-	time.Sleep(5 * time.Second)
-
 	// Creating secret
 	secretName := secretNamePrefix + "-update-" + common.RandSeq(5)
 	secretClient, err := testutil.CreateSecret(client, namespace, secretName, data)
@@ -712,19 +567,6 @@ func TestControllerUpdatingSecretLabelsShouldNotCreateorUpdateEnvInDaemonSet(t *
 
 // Perform rolling upgrade on StatefulSet and create env var upon updating the configmap
 func TestControllerUpdatingConfigmapShouldCreateEnvInStatefulSet(t *testing.T) {
-	// Creating Controller
-	logrus.Infof("Creating controller")
-	controller, err := NewController(client, testutil.ConfigmapResourceType, namespace)
-	if err != nil {
-		logrus.Errorf("Unable to create NewController error = %v", err)
-		return
-	}
-	stop := make(chan struct{})
-	defer close(stop)
-	logrus.Infof("Starting controller")
-	go controller.Run(1, stop)
-	time.Sleep(5 * time.Second)
-
 	// Creating configmap
 	configmapName := configmapNamePrefix + "-update-" + common.RandSeq(5)
 	configmapClient, err := testutil.CreateConfigMap(client, namespace, configmapName, "www.google.com")
@@ -741,10 +583,6 @@ func TestControllerUpdatingConfigmapShouldCreateEnvInStatefulSet(t *testing.T) {
 	// Updating configmap for first time
 	updateErr := testutil.UpdateConfigMap(configmapClient, namespace, configmapName, "", "www.stakater.com")
 	if updateErr != nil {
-		err = controller.client.CoreV1().ConfigMaps(namespace).Delete(configmapName, &metav1.DeleteOptions{})
-		if err != nil {
-			logrus.Errorf("Error while deleting the configmap %v", err)
-		}
 		t.Errorf("Configmap was not updated")
 	}
 
@@ -773,19 +611,6 @@ func TestControllerUpdatingConfigmapShouldCreateEnvInStatefulSet(t *testing.T) {
 
 // Perform rolling upgrade on StatefulSet and update env var upon updating the configmap
 func TestControllerForUpdatingConfigmapShouldUpdateStatefulSet(t *testing.T) {
-	// Creating controller
-	logrus.Infof("Creating controller")
-	controller, err := NewController(client, testutil.ConfigmapResourceType, namespace)
-	if err != nil {
-		logrus.Errorf("Unable to create NewController error = %v", err)
-		return
-	}
-	stop := make(chan struct{})
-	defer close(stop)
-	logrus.Infof("Starting controller")
-	go controller.Run(1, stop)
-	time.Sleep(5 * time.Second)
-
 	// Creating secret
 	configmapName := configmapNamePrefix + "-update-" + common.RandSeq(5)
 	configmapClient, err := testutil.CreateConfigMap(client, namespace, configmapName, "www.google.com")
@@ -802,20 +627,12 @@ func TestControllerForUpdatingConfigmapShouldUpdateStatefulSet(t *testing.T) {
 	// Updating configmap for first time
 	updateErr := testutil.UpdateConfigMap(configmapClient, namespace, configmapName, "", "www.stakater.com")
 	if updateErr != nil {
-		err = controller.client.CoreV1().ConfigMaps(namespace).Delete(configmapName, &metav1.DeleteOptions{})
-		if err != nil {
-			logrus.Errorf("Error while deleting the configmap %v", err)
-		}
 		t.Errorf("Configmap was not updated")
 	}
 
 	// Updating configmap for second time
 	updateErr = testutil.UpdateConfigMap(configmapClient, namespace, configmapName, "", "aurorasolutions.io")
 	if updateErr != nil {
-		err = controller.client.CoreV1().ConfigMaps(namespace).Delete(configmapName, &metav1.DeleteOptions{})
-		if err != nil {
-			logrus.Errorf("Error while deleting the configmap %v", err)
-		}
 		t.Errorf("Configmap was not updated")
 	}
 
@@ -844,19 +661,6 @@ func TestControllerForUpdatingConfigmapShouldUpdateStatefulSet(t *testing.T) {
 
 // Do not Perform rolling upgrade on StatefulSet and create env var upon updating the labels configmap
 func TestControllerUpdatingConfigmapLabelsShouldNotCreateorUpdateEnvInStatefulSet(t *testing.T) {
-	// Creating Controller
-	logrus.Infof("Creating controller")
-	controller, err := NewController(client, testutil.ConfigmapResourceType, namespace)
-	if err != nil {
-		logrus.Errorf("Unable to create NewController error = %v", err)
-		return
-	}
-	stop := make(chan struct{})
-	defer close(stop)
-	logrus.Infof("Starting controller")
-	go controller.Run(1, stop)
-	time.Sleep(5 * time.Second)
-
 	// Creating configmap
 	configmapName := configmapNamePrefix + "-update-" + common.RandSeq(5)
 	configmapClient, err := testutil.CreateConfigMap(client, namespace, configmapName, "www.google.com")
@@ -873,10 +677,6 @@ func TestControllerUpdatingConfigmapLabelsShouldNotCreateorUpdateEnvInStatefulSe
 	// Updating configmap for first time
 	updateErr := testutil.UpdateConfigMap(configmapClient, namespace, configmapName, "test", "www.google.com")
 	if updateErr != nil {
-		err = controller.client.CoreV1().ConfigMaps(namespace).Delete(configmapName, &metav1.DeleteOptions{})
-		if err != nil {
-			logrus.Errorf("Error while deleting the configmap %v", err)
-		}
 		t.Errorf("Configmap was not updated")
 	}
 
@@ -905,17 +705,6 @@ func TestControllerUpdatingConfigmapLabelsShouldNotCreateorUpdateEnvInStatefulSe
 
 // Perform rolling upgrade on secret and create a env var upon updating the secret
 func TestControllerUpdatingSecretShouldCreateEnvInStatefulSet(t *testing.T) {
-	// Creating controller
-	controller, err := NewController(client, testutil.SecretResourceType, namespace)
-	if err != nil {
-		logrus.Errorf("Unable to create NewController error = %v", err)
-		return
-	}
-	stop := make(chan struct{})
-	defer close(stop)
-	go controller.Run(1, stop)
-	time.Sleep(5 * time.Second)
-
 	// Creating secret
 	secretName := secretNamePrefix + "-update-" + common.RandSeq(5)
 	secretClient, err := testutil.CreateSecret(client, namespace, secretName, data)
@@ -960,17 +749,6 @@ func TestControllerUpdatingSecretShouldCreateEnvInStatefulSet(t *testing.T) {
 
 // Perform rolling upgrade on StatefulSet and update env var upon updating the secret
 func TestControllerUpdatingSecretShouldUpdateEnvInStatefulSet(t *testing.T) {
-	// Creating controller
-	controller, err := NewController(client, testutil.SecretResourceType, namespace)
-	if err != nil {
-		logrus.Errorf("Unable to create NewController error = %v", err)
-		return
-	}
-	stop := make(chan struct{})
-	defer close(stop)
-	go controller.Run(1, stop)
-	time.Sleep(5 * time.Second)
-
 	// Creating secret
 	secretName := secretNamePrefix + "-update-" + common.RandSeq(5)
 	secretClient, err := testutil.CreateSecret(client, namespace, secretName, data)
