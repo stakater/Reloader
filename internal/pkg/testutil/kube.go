@@ -83,8 +83,8 @@ func GetDeployment(namespace string, deploymentName string) *v1beta1.Deployment 
 	}
 }
 
-// GetDaemonset provides daemonset for testing
-func GetDaemonset(namespace string, daemonsetName string) *v1beta1.DaemonSet {
+// GetDaemonSet provides daemonset for testing
+func GetDaemonSet(namespace string, daemonsetName string) *v1beta1.DaemonSet {
 	return &v1beta1.DaemonSet{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      daemonsetName,
@@ -121,8 +121,8 @@ func GetDaemonset(namespace string, daemonsetName string) *v1beta1.DaemonSet {
 	}
 }
 
-// GetStatefulset provides statefulset for testing
-func GetStatefulset(namespace string, statefulsetName string) *v1_beta1.StatefulSet {
+// GetStatefulSet provides statefulset for testing
+func GetStatefulSet(namespace string, statefulsetName string) *v1_beta1.StatefulSet {
 	return &v1_beta1.StatefulSet{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      statefulsetName,
@@ -238,8 +238,8 @@ func VerifyDeploymentUpdate(client kubernetes.Interface, namespace string, name 
 	return false
 }
 
-// VerifyDaemonsetUpdate verifies whether daemonset has been updated with environment variable or not
-func VerifyDaemonsetUpdate(client kubernetes.Interface, namespace string, name string, resourceType string, shaData string, annotation string) bool {
+// VerifyDaemonSetUpdate verifies whether daemonset has been updated with environment variable or not
+func VerifyDaemonSetUpdate(client kubernetes.Interface, namespace string, name string, resourceType string, shaData string, annotation string) bool {
 	daemonsets, err := client.ExtensionsV1beta1().DaemonSets(namespace).List(metav1.ListOptions{})
 	if err != nil {
 		logrus.Errorf("Failed to list daemonsets %v", err)
@@ -270,8 +270,8 @@ func VerifyDaemonsetUpdate(client kubernetes.Interface, namespace string, name s
 	return false
 }
 
-// VerifyStatefulsetUpdate verifies whether statefulset has been updated with environment variable or not
-func VerifyStatefulsetUpdate(client kubernetes.Interface, namespace string, name string, resourceType string, shaData string, annotation string) bool {
+// VerifyStatefulSetUpdate verifies whether statefulset has been updated with environment variable or not
+func VerifyStatefulSetUpdate(client kubernetes.Interface, namespace string, name string, resourceType string, shaData string, annotation string) bool {
 	statefulsets, err := client.AppsV1beta1().StatefulSets(namespace).List(metav1.ListOptions{})
 	if err != nil {
 		logrus.Errorf("Failed to list statefulsets %v", err)
@@ -338,7 +338,7 @@ func CreateConfigMap(client kubernetes.Interface, namespace string, configmapNam
 	logrus.Infof("Creating configmap")
 	configmapClient := client.CoreV1().ConfigMaps(namespace)
 	_, err := configmapClient.Create(GetConfigmap(namespace, configmapName, data))
-	time.Sleep(10 * time.Second)
+	time.Sleep(5 * time.Second)
 	return configmapClient, err
 }
 
@@ -347,7 +347,7 @@ func CreateSecret(client kubernetes.Interface, namespace string, secretName stri
 	logrus.Infof("Creating secret")
 	secretClient := client.CoreV1().Secrets(namespace)
 	_, err := secretClient.Create(GetSecret(namespace, secretName, data))
-	time.Sleep(10 * time.Second)
+	time.Sleep(5 * time.Second)
 	return secretClient, err
 }
 
@@ -360,20 +360,20 @@ func CreateDeployment(client kubernetes.Interface, deploymentName string, namesp
 	return deployment, err
 }
 
-// CreateDaemonset creates a deployment in given namespace and returns the DaemonSet
-func CreateDaemonset(client kubernetes.Interface, daemonsetName string, namespace string) (*v1beta1.DaemonSet, error) {
-	logrus.Infof("Creating Daemonset")
+// CreateDaemonSet creates a deployment in given namespace and returns the DaemonSet
+func CreateDaemonSet(client kubernetes.Interface, daemonsetName string, namespace string) (*v1beta1.DaemonSet, error) {
+	logrus.Infof("Creating DaemonSet")
 	daemonsetClient := client.ExtensionsV1beta1().DaemonSets(namespace)
-	daemonset, err := daemonsetClient.Create(GetDaemonset(namespace, daemonsetName))
+	daemonset, err := daemonsetClient.Create(GetDaemonSet(namespace, daemonsetName))
 	time.Sleep(5 * time.Second)
 	return daemonset, err
 }
 
-// CreateStatefulset creates a deployment in given namespace and returns the StatefulSet
-func CreateStatefulset(client kubernetes.Interface, statefulsetName string, namespace string) (*v1_beta1.StatefulSet, error) {
-	logrus.Infof("Creating Statefulset")
+// CreateStatefulSet creates a deployment in given namespace and returns the StatefulSet
+func CreateStatefulSet(client kubernetes.Interface, statefulsetName string, namespace string) (*v1_beta1.StatefulSet, error) {
+	logrus.Infof("Creating StatefulSet")
 	statefulsetClient := client.AppsV1beta1().StatefulSets(namespace)
-	statefulset, err := statefulsetClient.Create(GetStatefulset(namespace, statefulsetName))
+	statefulset, err := statefulsetClient.Create(GetStatefulSet(namespace, statefulsetName))
 	time.Sleep(5 * time.Second)
 	return statefulset, err
 }
@@ -386,17 +386,17 @@ func DeleteDeployment(client kubernetes.Interface, namespace string, deploymentN
 	return deploymentError
 }
 
-// DeleteDaemonset creates a daemonset in given namespace and returns the error if any
-func DeleteDaemonset(client kubernetes.Interface, namespace string, daemonsetName string) error {
-	logrus.Infof("Deleting Daemonset %s", daemonsetName)
+// DeleteDaemonSet creates a daemonset in given namespace and returns the error if any
+func DeleteDaemonSet(client kubernetes.Interface, namespace string, daemonsetName string) error {
+	logrus.Infof("Deleting DaemonSet %s", daemonsetName)
 	daemonsetError := client.ExtensionsV1beta1().DaemonSets(namespace).Delete(daemonsetName, &metav1.DeleteOptions{})
 	time.Sleep(5 * time.Second)
 	return daemonsetError
 }
 
-// DeleteStatefulset creates a statefulset in given namespace and returns the error if any
-func DeleteStatefulset(client kubernetes.Interface, namespace string, statefulsetName string) error {
-	logrus.Infof("Deleting Statefulset %s", statefulsetName)
+// DeleteStatefulSet creates a statefulset in given namespace and returns the error if any
+func DeleteStatefulSet(client kubernetes.Interface, namespace string, statefulsetName string) error {
+	logrus.Infof("Deleting StatefulSet %s", statefulsetName)
 	statefulsetError := client.AppsV1beta1().StatefulSets(namespace).Delete(statefulsetName, &metav1.DeleteOptions{})
 	time.Sleep(5 * time.Second)
 	return statefulsetError

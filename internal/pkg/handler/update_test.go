@@ -70,28 +70,28 @@ func setup() {
 		logrus.Errorf("Error in Deployment with secret creation: %v", err)
 	}
 
-	// Creating Daemonset with configmap
-	_, err = testutil.CreateDaemonset(client, configmapName, namespace)
+	// Creating DaemonSet with configmap
+	_, err = testutil.CreateDaemonSet(client, configmapName, namespace)
 	if err != nil {
-		logrus.Errorf("Error in Daemonset with configmap creation: %v", err)
+		logrus.Errorf("Error in DaemonSet with configmap creation: %v", err)
 	}
 
-	// Creating Daemonset with secret
-	_, err = testutil.CreateDaemonset(client, secretName, namespace)
+	// Creating DaemonSet with secret
+	_, err = testutil.CreateDaemonSet(client, secretName, namespace)
 	if err != nil {
-		logrus.Errorf("Error in Daemonset with secret creation: %v", err)
+		logrus.Errorf("Error in DaemonSet with secret creation: %v", err)
 	}
 
-	// Creating Statefulset with configmap
-	_, err = testutil.CreateStatefulset(client, configmapName, namespace)
+	// Creating StatefulSet with configmap
+	_, err = testutil.CreateStatefulSet(client, configmapName, namespace)
 	if err != nil {
-		logrus.Errorf("Error in Statefulset with configmap creation: %v", err)
+		logrus.Errorf("Error in StatefulSet with configmap creation: %v", err)
 	}
 
-	// Creating Statefulset with secret
-	_, err = testutil.CreateStatefulset(client, secretName, namespace)
+	// Creating StatefulSet with secret
+	_, err = testutil.CreateStatefulSet(client, secretName, namespace)
 	if err != nil {
-		logrus.Errorf("Error in Statefulset with secret creation: %v", err)
+		logrus.Errorf("Error in StatefulSet with secret creation: %v", err)
 	}
 
 }
@@ -109,28 +109,28 @@ func teardown() {
 		logrus.Errorf("Error while deleting deployment with secret %v", deploymentError)
 	}
 
-	// Deleting Daemonset with configmap
-	daemonsetError := testutil.DeleteDaemonset(client, namespace, configmapName)
-	if daemonsetError != nil {
-		logrus.Errorf("Error while deleting daemonset with configmap %v", daemonsetError)
+	// Deleting DaemonSet with configmap
+	daemonSetError := testutil.DeleteDaemonSet(client, namespace, configmapName)
+	if daemonSetError != nil {
+		logrus.Errorf("Error while deleting daemonSet with configmap %v", daemonSetError)
 	}
 
 	// Deleting Deployment with secret
-	daemonsetError = testutil.DeleteDaemonset(client, namespace, secretName)
-	if daemonsetError != nil {
-		logrus.Errorf("Error while deleting daemonset with secret %v", daemonsetError)
+	daemonSetError = testutil.DeleteDaemonSet(client, namespace, secretName)
+	if daemonSetError != nil {
+		logrus.Errorf("Error while deleting daemonSet with secret %v", daemonSetError)
 	}
 
-	// Deleting Statefulset with configmap
-	statefulsetError := testutil.DeleteStatefulset(client, namespace, configmapName)
-	if statefulsetError != nil {
-		logrus.Errorf("Error while deleting statefulset with configmap %v", statefulsetError)
+	// Deleting StatefulSet with configmap
+	statefulSetError := testutil.DeleteStatefulSet(client, namespace, configmapName)
+	if statefulSetError != nil {
+		logrus.Errorf("Error while deleting statefulSet with configmap %v", statefulSetError)
 	}
 
 	// Deleting Deployment with secret
-	statefulsetError = testutil.DeleteStatefulset(client, namespace, secretName)
-	if statefulsetError != nil {
-		logrus.Errorf("Error while deleting statefulset with secret %v", statefulsetError)
+	statefulSetError = testutil.DeleteStatefulSet(client, namespace, secretName)
+	if statefulSetError != nil {
+		logrus.Errorf("Error while deleting statefulSet with secret %v", statefulSetError)
 	}
 
 	// Deleting Configmap
@@ -180,7 +180,7 @@ func TestRollingUpgradeForDeploymentWithSecret(t *testing.T) {
 	}
 }
 
-func TestRollingUpgradeForDaemonsetWithConfigmap(t *testing.T) {
+func TestRollingUpgradeForDaemonSetWithConfigmap(t *testing.T) {
 	shaData := testutil.ConvertResourceToSHA(testutil.ConfigmapResourceType, namespace, configmapName, "www.facebook.com")
 	err := RollingUpgradeDaemonSets(client, namespace, configmapName, shaData, common.ConfigmapEnvarPostfix, common.ConfigmapUpdateOnChangeAnnotation)
 	time.Sleep(5 * time.Second)
@@ -188,14 +188,14 @@ func TestRollingUpgradeForDaemonsetWithConfigmap(t *testing.T) {
 		t.Errorf("Rolling upgrade failed for DaemonSet with configmap")
 	}
 
-	logrus.Infof("Verifying daemonset update")
-	updated := testutil.VerifyDaemonsetUpdate(client, namespace, configmapName, common.ConfigmapEnvarPostfix, shaData, common.ConfigmapUpdateOnChangeAnnotation)
+	logrus.Infof("Verifying daemonSet update")
+	updated := testutil.VerifyDaemonSetUpdate(client, namespace, configmapName, common.ConfigmapEnvarPostfix, shaData, common.ConfigmapUpdateOnChangeAnnotation)
 	if !updated {
-		t.Errorf("Daemonset was not updated")
+		t.Errorf("DaemonSet was not updated")
 	}
 }
 
-func TestRollingUpgradeForDaemonsetWithSecret(t *testing.T) {
+func TestRollingUpgradeForDaemonSetWithSecret(t *testing.T) {
 	shaData := testutil.ConvertResourceToSHA(testutil.SecretResourceType, namespace, secretName, "d3d3LmZhY2Vib29rLmNvbQ==")
 	err := RollingUpgradeDaemonSets(client, namespace, secretName, shaData, common.SecretEnvarPostfix, common.SecretUpdateOnChangeAnnotation)
 	time.Sleep(5 * time.Second)
@@ -203,14 +203,14 @@ func TestRollingUpgradeForDaemonsetWithSecret(t *testing.T) {
 		t.Errorf("Rolling upgrade failed for DaemonSet with secret")
 	}
 
-	logrus.Infof("Verifying daemonset update")
-	updated := testutil.VerifyDaemonsetUpdate(client, namespace, secretName, common.SecretEnvarPostfix, shaData, common.SecretUpdateOnChangeAnnotation)
+	logrus.Infof("Verifying daemonSet update")
+	updated := testutil.VerifyDaemonSetUpdate(client, namespace, secretName, common.SecretEnvarPostfix, shaData, common.SecretUpdateOnChangeAnnotation)
 	if !updated {
-		t.Errorf("Daemonset was not updated")
+		t.Errorf("DaemonSet was not updated")
 	}
 }
 
-func TestRollingUpgradeForStatefulsetWithConfigmap(t *testing.T) {
+func TestRollingUpgradeForStatefulSetWithConfigmap(t *testing.T) {
 	shaData := testutil.ConvertResourceToSHA(testutil.ConfigmapResourceType, namespace, configmapName, "www.twitter.com")
 	err := RollingUpgradeStatefulSets(client, namespace, configmapName, shaData, common.ConfigmapEnvarPostfix, common.ConfigmapUpdateOnChangeAnnotation)
 	time.Sleep(5 * time.Second)
@@ -218,14 +218,14 @@ func TestRollingUpgradeForStatefulsetWithConfigmap(t *testing.T) {
 		t.Errorf("Rolling upgrade failed for StatefulSet with configmap")
 	}
 
-	logrus.Infof("Verifying statefulset update")
-	updated := testutil.VerifyStatefulsetUpdate(client, namespace, configmapName, common.ConfigmapEnvarPostfix, shaData, common.ConfigmapUpdateOnChangeAnnotation)
+	logrus.Infof("Verifying statefulSet update")
+	updated := testutil.VerifyStatefulSetUpdate(client, namespace, configmapName, common.ConfigmapEnvarPostfix, shaData, common.ConfigmapUpdateOnChangeAnnotation)
 	if !updated {
-		t.Errorf("Statefulset was not updated")
+		t.Errorf("StatefulSet was not updated")
 	}
 }
 
-func TestRollingUpgradeForStatefulsetWithSecret(t *testing.T) {
+func TestRollingUpgradeForStatefulSetWithSecret(t *testing.T) {
 	shaData := testutil.ConvertResourceToSHA(testutil.SecretResourceType, namespace, secretName, "d3d3LnR3aXR0ZXIuY29t")
 	err := RollingUpgradeStatefulSets(client, namespace, secretName, shaData, common.SecretEnvarPostfix, common.SecretUpdateOnChangeAnnotation)
 	time.Sleep(5 * time.Second)
@@ -233,9 +233,9 @@ func TestRollingUpgradeForStatefulsetWithSecret(t *testing.T) {
 		t.Errorf("Rolling upgrade failed for StatefulSet with secret")
 	}
 
-	logrus.Infof("Verifying statefulset update")
-	updated := testutil.VerifyStatefulsetUpdate(client, namespace, secretName, common.SecretEnvarPostfix, shaData, common.SecretUpdateOnChangeAnnotation)
+	logrus.Infof("Verifying statefulSet update")
+	updated := testutil.VerifyStatefulSetUpdate(client, namespace, secretName, common.SecretEnvarPostfix, shaData, common.SecretUpdateOnChangeAnnotation)
 	if !updated {
-		t.Errorf("Statefulset was not updated")
+		t.Errorf("StatefulSet was not updated")
 	}
 }

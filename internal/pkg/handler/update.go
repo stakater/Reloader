@@ -59,7 +59,7 @@ func rollingUpgrade(r ResourceUpdatedHandler, rollingUpgradeType string) {
 		} else {
 			logrus.Warnf("Invalid resource: Resource should be 'Secret' or 'Configmap' but found, %v", r.Resource)
 		}
-	
+
 		if rollingUpgradeType == "deployments" {
 			err = RollingUpgradeDeployment(client, namespace, resourceName, shaData, envarPostfix, annotation)
 		} else if rollingUpgradeType == "daemonsets" {
@@ -216,7 +216,7 @@ func getSHAfromData(resource interface{}) string {
 		for k, v := range resource.(*v1.ConfigMap).Data {
 			values = append(values, k+"="+v)
 		}
-	} else if _, ok := resource.(*v1.Secret); ok{
+	} else if _, ok := resource.(*v1.Secret); ok {
 		logrus.Infof("Generating SHA for secret data")
 		for k, v := range resource.(*v1.Secret).Data {
 			values = append(values, k+"="+string(v[:]))
