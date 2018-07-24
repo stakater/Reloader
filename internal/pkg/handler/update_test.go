@@ -10,10 +10,11 @@ import (
 	"github.com/stakater/Reloader/internal/pkg/constants"
 	"github.com/stakater/Reloader/internal/pkg/testutil"
 	"github.com/stakater/Reloader/internal/pkg/util"
+	testclient "k8s.io/client-go/kubernetes/fake"
 )
 
 var (
-	client        = testutil.GetClient()
+	client        = testclient.NewSimpleClientset()
 	namespace     = "test-handler"
 	configmapName = "testconfigmap-handler-" + testutil.RandSeq(5)
 	secretName    = "testsecret-handler-" + testutil.RandSeq(5)
