@@ -1,14 +1,8 @@
-package common
+package util
 
 import (
 	"bytes"
-	"math/rand"
 	"strings"
-	"time"
-)
-
-var (
-	letters = []rune("abcdefghijklmnopqrstuvwxyz")
 )
 
 // ConvertToEnvVarName converts the given text into a usable env var
@@ -30,14 +24,4 @@ func ConvertToEnvVarName(text string) string {
 		}
 	}
 	return buffer.String()
-}
-
-// RandSeq generates a random sequence
-func RandSeq(n int) string {
-	rand.Seed(time.Now().UnixNano())
-	b := make([]rune, n)
-	for i := range b {
-		b[i] = letters[rand.Intn(len(letters))]
-	}
-	return string(b)
 }

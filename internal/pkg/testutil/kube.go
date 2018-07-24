@@ -1,14 +1,17 @@
 package testutil
 
 import (
+	"math/rand"
 	"sort"
 	"strings"
 	"time"
 
 	"github.com/sirupsen/logrus"
-	"github.com/stakater/Reloader/internal/pkg/common"
+	"github.com/stakater/Reloader/internal/pkg/callbacks"
 	"github.com/stakater/Reloader/internal/pkg/constants"
 	"github.com/stakater/Reloader/internal/pkg/crypto"
+	"github.com/stakater/Reloader/internal/pkg/util"
+	"github.com/stakater/Reloader/pkg/kube"
 	v1_beta1 "k8s.io/api/apps/v1beta1"
 	"k8s.io/api/core/v1"
 	"k8s.io/api/extensions/v1beta1"
@@ -18,11 +21,20 @@ import (
 )
 
 var (
+	letters = []rune("abcdefghijklmnopqrstuvwxyz")
 	// ConfigmapResourceType is a resource type which controller watches for changes
 	ConfigmapResourceType = "configMaps"
 	// SecretResourceType is a resource type which controller watches for changes
 	SecretResourceType = "secrets"
 )
+
+func GetClient() *kubernetes.Clientset {
+	newClient, err := kube.GetClient()
+	if err != nil {
+		logrus.Fatalf("Unable to create Kubernetes client error = %v", err)
+	}
+	return newClient
+}
 
 // CreateNamespace creates namespace for testing
 func CreateNamespace(namespace string, client kubernetes.Interface) {
@@ -208,102 +220,8 @@ func GetSecretWithUpdatedLabel(namespace string, secretName string, label string
 	}
 }
 
-// VerifyDeploymentUpdate verifies whether deployment has been updated with environment variable or not
-func VerifyDeploymentUpdate(client kubernetes.Interface, namespace string, name string, envarPostfix string, shaData string, annotation string) bool {
-	deployments, err := client.ExtensionsV1beta1().Deployments(namespace).List(metav1.ListOptions{})
-	if err != nil {
-		logrus.Errorf("Failed to list deployments %v", err)
-	}
-	for _, d := range deployments.Items {
-		containers := d.Spec.Template.Spec.Containers
-		// match deployments with the correct annotation
-		annotationValue := d.ObjectMeta.Annotations[annotation]
-		if annotationValue != "" {
-			values := strings.Split(annotationValue, ",")
-			matches := false
-			for _, value := range values {
-				if value == name {
-					matches = true
-					break
-				}
-			}
-			if matches {
-				envName := constants.EnvVarPrefix + common.ConvertToEnvVarName(annotationValue) + envarPostfix
-				updated := getResourceSHA(containers, envName)
-				if updated == shaData {
-					return true
-				}
-			}
-		}
-	}
-	return false
-}
-
-// VerifyDaemonSetUpdate verifies whether daemonset has been updated with environment variable or not
-func VerifyDaemonSetUpdate(client kubernetes.Interface, namespace string, name string, resourceType string, shaData string, annotation string) bool {
-	daemonsets, err := client.ExtensionsV1beta1().DaemonSets(namespace).List(metav1.ListOptions{})
-	if err != nil {
-		logrus.Errorf("Failed to list daemonsets %v", err)
-	}
-	for _, d := range daemonsets.Items {
-		containers := d.Spec.Template.Spec.Containers
-		// match daemonsets with the correct annotation
-		annotationValue := d.ObjectMeta.Annotations[annotation]
-		if annotationValue != "" {
-			values := strings.Split(annotationValue, ",")
-			matches := false
-			for _, value := range values {
-				if value == name {
-					matches = true
-					break
-				}
-			}
-			if matches {
-				envName := constants.EnvVarPrefix + common.ConvertToEnvVarName(annotationValue) + resourceType
-				updated := getResourceSHA(containers, envName)
-
-				if updated == shaData {
-					return true
-				}
-			}
-		}
-	}
-	return false
-}
-
-// VerifyStatefulSetUpdate verifies whether statefulset has been updated with environment variable or not
-func VerifyStatefulSetUpdate(client kubernetes.Interface, namespace string, name string, resourceType string, shaData string, annotation string) bool {
-	statefulsets, err := client.AppsV1beta1().StatefulSets(namespace).List(metav1.ListOptions{})
-	if err != nil {
-		logrus.Errorf("Failed to list statefulsets %v", err)
-	}
-	for _, d := range statefulsets.Items {
-		containers := d.Spec.Template.Spec.Containers
-		// match statefulsets with the correct annotation
-		annotationValue := d.ObjectMeta.Annotations[annotation]
-		if annotationValue != "" {
-			values := strings.Split(annotationValue, ",")
-			matches := false
-			for _, value := range values {
-				if value == name {
-					matches = true
-					break
-				}
-			}
-			if matches {
-				envName := constants.EnvVarPrefix + common.ConvertToEnvVarName(annotationValue) + resourceType
-				updated := getResourceSHA(containers, envName)
-
-				if updated == shaData {
-					return true
-				}
-			}
-		}
-	}
-	return false
-}
-
-func getResourceSHA(containers []v1.Container, envar string) string {
+// GetResourceSHA returns the SHA value of given environment variable
+func GetResourceSHA(containers []v1.Container, envar string) string {
 	for i := range containers {
 		envs := containers[i].Env
 		for j := range envs {
@@ -445,4 +363,42 @@ func DeleteSecret(client kubernetes.Interface, namespace string, secretName stri
 	err := client.CoreV1().Secrets(namespace).Delete(secretName, &metav1.DeleteOptions{})
 	time.Sleep(5 * time.Second)
 	return err
+}
+
+// RandSeq generates a random sequence
+func RandSeq(n int) string {
+	rand.Seed(time.Now().UnixNano())
+	b := make([]rune, n)
+	for i := range b {
+		b[i] = letters[rand.Intn(len(letters))]
+	}
+	return string(b)
+}
+
+func VerifyResourceUpdate(client kubernetes.Interface, config util.Config, envVarPostfix string, upgradeFuncs callbacks.RollingUpgradeFuncs) bool {
+	items := upgradeFuncs.ItemsFunc(client, config.Namespace)
+	for _, i := range items {
+		containers := upgradeFuncs.ContainersFunc(i)
+		// match statefulsets with the correct annotation
+		annotationValue := util.ToObjectMeta(i).Annotations[config.Annotation]
+		if annotationValue != "" {
+			values := strings.Split(annotationValue, ",")
+			matches := false
+			for _, value := range values {
+				if value == config.ResourceName {
+					matches = true
+					break
+				}
+			}
+			if matches {
+				envName := constants.EnvVarPrefix + util.ConvertToEnvVarName(annotationValue) + envVarPostfix
+				updated := GetResourceSHA(containers, envName)
+
+				if updated == config.SHAValue {
+					return true
+				}
+			}
+		}
+	}
+	return false
 }

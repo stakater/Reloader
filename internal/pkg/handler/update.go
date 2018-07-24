@@ -5,15 +5,12 @@ import (
 	"strings"
 
 	"github.com/sirupsen/logrus"
-	"github.com/stakater/Reloader/internal/pkg/common"
+	"github.com/stakater/Reloader/internal/pkg/callbacks"
 	"github.com/stakater/Reloader/internal/pkg/constants"
 	"github.com/stakater/Reloader/internal/pkg/crypto"
 	"github.com/stakater/Reloader/internal/pkg/util"
 	"github.com/stakater/Reloader/pkg/kube"
-	apps_v1beta1 "k8s.io/api/apps/v1beta1"
 	"k8s.io/api/core/v1"
-	"k8s.io/api/extensions/v1beta1"
-	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 )
 
@@ -23,30 +20,6 @@ type ResourceUpdatedHandler struct {
 	OldResource interface{}
 }
 
-//Config contains rolling upgrade configuration parameters
-type Config struct {
-	namespace    string
-	resourceName string
-	annotation   string
-	shaValue     string
-}
-
-//ItemsFunc is a generic function to return a specific resource array in given namespace
-type ItemsFunc func(kubernetes.Interface, string) []interface{}
-
-//ContainersFunc is a generic func to return containers
-type ContainersFunc func(interface{}) []v1.Container
-
-//UpdateFunc performs the resource update
-type UpdateFunc func(kubernetes.Interface, string, interface{}) error
-
-//RollingUpgradeFuncs contains generic functions to perform rolling upgrade
-type RollingUpgradeFuncs struct {
-	ItemsFunc      ItemsFunc
-	ContainersFunc ContainersFunc
-	UpdateFunc     UpdateFunc
-}
-
 // Handle processes the updated resource
 func (r ResourceUpdatedHandler) Handle() error {
 	if r.Resource == nil || r.OldResource == nil {
@@ -54,89 +27,29 @@ func (r ResourceUpdatedHandler) Handle() error {
 	} else {
 		logrus.Infof("Detected changes in object %s", r.Resource)
 		// process resource based on its type
-		rollingUpgrade(r, RollingUpgradeFuncs{
-			ItemsFunc:      GetDeploymentItems,
-			ContainersFunc: GetDeploymentContainers,
-			UpdateFunc:     UpdateDeployment,
+		rollingUpgrade(r, callbacks.RollingUpgradeFuncs{
+			ItemsFunc:        callbacks.GetDeploymentItems,
+			ContainersFunc:   callbacks.GetDeploymentContainers,
+			UpdateFunc:       callbacks.UpdateDeployment,
+			ResourceTypeFunc: callbacks.GetDeploymentTypeName,
 		})
-		rollingUpgrade(r, RollingUpgradeFuncs{
-			ItemsFunc:      GetDaemonSetItems,
-			ContainersFunc: GetDaemonSetContainers,
-			UpdateFunc:     UpdateDaemonSet,
+		rollingUpgrade(r, callbacks.RollingUpgradeFuncs{
+			ItemsFunc:        callbacks.GetDaemonSetItems,
+			ContainersFunc:   callbacks.GetDaemonSetContainers,
+			UpdateFunc:       callbacks.UpdateDaemonSet,
+			ResourceTypeFunc: callbacks.GetDaemonSetTypeName,
 		})
-		rollingUpgrade(r, RollingUpgradeFuncs{
-			ItemsFunc:      GetStatefulSetItems,
-			ContainersFunc: GetStatefulsetContainers,
-			UpdateFunc:     UpdateStatefulset,
+		rollingUpgrade(r, callbacks.RollingUpgradeFuncs{
+			ItemsFunc:        callbacks.GetStatefulSetItems,
+			ContainersFunc:   callbacks.GetStatefulsetContainers,
+			UpdateFunc:       callbacks.UpdateStatefulset,
+			ResourceTypeFunc: callbacks.GetStatefulSetTypeName,
 		})
 	}
 	return nil
 }
 
-// GetDeploymentItems returns the deployments in given namespace
-func GetDeploymentItems(client kubernetes.Interface, namespace string) []interface{} {
-	deployments, err := client.ExtensionsV1beta1().Deployments(namespace).List(meta_v1.ListOptions{})
-	if err != nil {
-		logrus.Errorf("Failed to list deployments %v", err)
-	}
-	return util.InterfaceSlice(deployments.Items)
-}
-
-// GetDaemonSetItems returns the daemonSet in given namespace
-func GetDaemonSetItems(client kubernetes.Interface, namespace string) []interface{} {
-	daemonSets, err := client.ExtensionsV1beta1().DaemonSets(namespace).List(meta_v1.ListOptions{})
-	if err != nil {
-		logrus.Errorf("Failed to list daemonSets %v", err)
-	}
-	return util.InterfaceSlice(daemonSets.Items)
-}
-
-// GetStatefulSetItems returns the statefulSet in given namespace
-func GetStatefulSetItems(client kubernetes.Interface, namespace string) []interface{} {
-	statefulSets, err := client.AppsV1beta1().StatefulSets(namespace).List(meta_v1.ListOptions{})
-	if err != nil {
-		logrus.Errorf("Failed to list statefulSets %v", err)
-	}
-	return util.InterfaceSlice(statefulSets.Items)
-}
-
-// GetDeploymentContainers returns the containers of given deployment
-func GetDeploymentContainers(item interface{}) []v1.Container {
-	return item.(v1beta1.Deployment).Spec.Template.Spec.Containers
-}
-
-// GetDaemonSetContainers returns the containers of given daemonset
-func GetDaemonSetContainers(item interface{}) []v1.Container {
-	return item.(v1beta1.DaemonSet).Spec.Template.Spec.Containers
-}
-
-// GetStatefulsetContainers returns the containers of given statefulSet
-func GetStatefulsetContainers(item interface{}) []v1.Container {
-	return item.(apps_v1beta1.StatefulSet).Spec.Template.Spec.Containers
-}
-
-// UpdateDeployment performs rolling upgrade on deployment
-func UpdateDeployment(client kubernetes.Interface, namespace string, resource interface{}) error {
-	deployment := resource.(v1beta1.Deployment)
-	_, err := client.ExtensionsV1beta1().Deployments(namespace).Update(&deployment)
-	return err
-}
-
-// UpdateDaemonSet performs rolling upgrade on daemonSet
-func UpdateDaemonSet(client kubernetes.Interface, namespace string, resource interface{}) error {
-	daemonSet := resource.(v1beta1.DaemonSet)
-	_, err := client.ExtensionsV1beta1().DaemonSets(namespace).Update(&daemonSet)
-	return err
-}
-
-// UpdateStatefulset performs rolling upgrade on statefulSet
-func UpdateStatefulset(client kubernetes.Interface, namespace string, resource interface{}) error {
-	statefulSet := resource.(apps_v1beta1.StatefulSet)
-	_, err := client.AppsV1beta1().StatefulSets(namespace).Update(&statefulSet)
-	return err
-}
-
-func rollingUpgrade(r ResourceUpdatedHandler, upgradeFuncs RollingUpgradeFuncs) {
+func rollingUpgrade(r ResourceUpdatedHandler, upgradeFuncs callbacks.RollingUpgradeFuncs) {
 	client, err := kube.GetClient()
 	if err != nil {
 		logrus.Fatalf("Unable to create Kubernetes client error = %v", err)
@@ -144,7 +57,7 @@ func rollingUpgrade(r ResourceUpdatedHandler, upgradeFuncs RollingUpgradeFuncs) 
 
 	config, envVarPostfix, oldSHAData := getConfig(r)
 
-	if config.shaValue != oldSHAData {
+	if config.SHAValue != oldSHAData {
 		err = PerformRollingUpgrade(client, config, envVarPostfix, upgradeFuncs)
 		if err != nil {
 			logrus.Fatalf("Rolling upgrade failed with error = %v", err)
@@ -154,60 +67,66 @@ func rollingUpgrade(r ResourceUpdatedHandler, upgradeFuncs RollingUpgradeFuncs) 
 	}
 }
 
-func getConfig(r ResourceUpdatedHandler) (Config, string, string) {
-	var shaData, oldSHAData, envVarPostfix string
-	var config Config
+func getConfig(r ResourceUpdatedHandler) (util.Config, string, string) {
+	var oldSHAData, envVarPostfix string
+	var config util.Config
 	if _, ok := r.Resource.(*v1.ConfigMap); ok {
 		logrus.Infof("Performing 'Updated' action for resource of type 'configmap'")
-		configmap := r.Resource.(*v1.ConfigMap)
-		shaData = getSHAfromConfigmap(configmap.Data)
 		oldSHAData = getSHAfromConfigmap(r.OldResource.(*v1.ConfigMap).Data)
-		config = Config{
-			namespace:    configmap.Namespace,
-			resourceName: configmap.Name,
-			annotation:   constants.ConfigmapUpdateOnChangeAnnotation,
-			shaValue:     shaData,
-		}
-		envVarPostfix = constants.ConfigmapEnvarPostfix
+		config = getConfigmapConfig(r)
+		envVarPostfix = constants.ConfigmapEnvVarPostfix
 	} else if _, ok := r.Resource.(*v1.Secret); ok {
 		logrus.Infof("Performing 'Updated' action for resource of type 'secret'")
-		secret := r.Resource.(*v1.Secret)
-		shaData = getSHAfromSecret(secret.Data)
 		oldSHAData = getSHAfromSecret(r.OldResource.(*v1.Secret).Data)
-		config = Config{
-			namespace:    secret.Namespace,
-			resourceName: secret.Name,
-			annotation:   constants.SecretUpdateOnChangeAnnotation,
-			shaValue:     shaData,
-		}
-		envVarPostfix = constants.SecretEnvarPostfix
+		config = getSecretConfig(r)
+		envVarPostfix = constants.SecretEnvVarPostfix
 	} else {
 		logrus.Warnf("Invalid resource: Resource should be 'Secret' or 'Configmap' but found, %v", r.Resource)
 	}
 	return config, envVarPostfix, oldSHAData
 }
 
+func getConfigmapConfig(r ResourceUpdatedHandler) util.Config {
+	configmap := r.Resource.(*v1.ConfigMap)
+	return util.Config{
+		Namespace:    configmap.Namespace,
+		ResourceName: configmap.Name,
+		Annotation:   constants.ConfigmapUpdateOnChangeAnnotation,
+		SHAValue:     getSHAfromConfigmap(configmap.Data),
+	}
+}
+
+func getSecretConfig(r ResourceUpdatedHandler) util.Config {
+	secret := r.Resource.(*v1.Secret)
+	return util.Config{
+		Namespace:    secret.Namespace,
+		ResourceName: secret.Name,
+		Annotation:   constants.SecretUpdateOnChangeAnnotation,
+		SHAValue:     getSHAfromSecret(secret.Data),
+	}
+}
+
 // PerformRollingUpgrade upgrades the deployment if there is any change in configmap or secret data
-func PerformRollingUpgrade(client kubernetes.Interface, config Config, envarPostfix string, upgradeFuncs RollingUpgradeFuncs) error {
-	items := upgradeFuncs.ItemsFunc(client, config.namespace)
+func PerformRollingUpgrade(client kubernetes.Interface, config util.Config, envarPostfix string, upgradeFuncs callbacks.RollingUpgradeFuncs) error {
+	items := upgradeFuncs.ItemsFunc(client, config.Namespace)
 	var err error
 	for _, i := range items {
 		containers := upgradeFuncs.ContainersFunc(i)
 		// find correct annotation and update the resource
-		annotationValue := util.ToObjectMeta(i).Annotations[config.annotation]
+		annotationValue := util.ToObjectMeta(i).Annotations[config.Annotation]
 		if annotationValue != "" {
 			values := strings.Split(annotationValue, ",")
 			for _, value := range values {
-				if value == config.resourceName {
-					updated := updateContainers(containers, value, config.shaValue, envarPostfix)
+				if value == config.ResourceName {
+					updated := updateContainers(containers, value, config.SHAValue, envarPostfix)
 					if !updated {
 						logrus.Warnf("Rolling upgrade did not happen")
 					} else {
-						err = upgradeFuncs.UpdateFunc(client, config.namespace, i)
+						err = upgradeFuncs.UpdateFunc(client, config.Namespace, i)
 						if err != nil {
-							logrus.Errorf("Update deployment failed %v", err)
+							logrus.Errorf("Update %s failed %v", upgradeFuncs.ResourceTypeFunc, err)
 						} else {
-							logrus.Infof("Updated Deployment %s", config.resourceName)
+							logrus.Infof("Updated %s of type %s", config.ResourceName, upgradeFuncs.ResourceTypeFunc)
 						}
 						break
 					}
@@ -220,7 +139,7 @@ func PerformRollingUpgrade(client kubernetes.Interface, config Config, envarPost
 
 func updateContainers(containers []v1.Container, annotationValue string, shaData string, envarPostfix string) bool {
 	updated := false
-	envar := constants.EnvVarPrefix + common.ConvertToEnvVarName(annotationValue) + envarPostfix
+	envar := constants.EnvVarPrefix + util.ConvertToEnvVarName(annotationValue) + envarPostfix
 	logrus.Infof("Generated environment variable: %s", envar)
 	for i := range containers {
 		envs := containers[i].Env
@@ -247,7 +166,7 @@ func updateEnvVar(envs []v1.EnvVar, envar string, shaData string) bool {
 		if envs[j].Name == envar {
 			logrus.Infof("%s environment variable found", envar)
 			if envs[j].Value != shaData {
-				logrus.Infof("Updating %s to %s", envar, shaData)
+				logrus.Infof("Updating %s", envar)
 				envs[j].Value = shaData
 				return true
 			}
@@ -267,7 +186,6 @@ func getSHAfromConfigmap(data map[string]string) string {
 
 func getSHAfromSecret(data map[string][]byte) string {
 	values := []string{}
-	logrus.Infof("Generating SHA for secret data")
 	for k, v := range data {
 		values = append(values, k+"="+string(v[:]))
 	}
