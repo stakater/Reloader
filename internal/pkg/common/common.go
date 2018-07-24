@@ -11,19 +11,6 @@ var (
 	letters = []rune("abcdefghijklmnopqrstuvwxyz")
 )
 
-const (
-	// ConfigmapUpdateOnChangeAnnotation is an annotation to detect changes in configmaps
-	ConfigmapUpdateOnChangeAnnotation = "configmap.reloader.stakater.com/reload"
-	// SecretUpdateOnChangeAnnotation is an annotation to detect changes in secrets
-	SecretUpdateOnChangeAnnotation = "secret.reloader.stakater.com/reload"
-	// ConfigmapEnvarPostfix is a postfix for configmap envVar
-	ConfigmapEnvarPostfix = "_CONFIGMAP"
-	// SecretEnvarPostfix is a postfix for secret envVar
-	SecretEnvarPostfix = "_SECRET"
-	// EnvVarPrefix is a Prefix for environment variable
-	EnvVarPrefix = "STAKATER_"
-)
-
 // ConvertToEnvVarName converts the given text into a usable env var
 // removing any special chars with '_' and transforming text to upper case
 func ConvertToEnvVarName(text string) string {

@@ -21,7 +21,7 @@ For a `Deployment` called `foo` have a `ConfigMap` called `foo`. Then add this a
 ```yaml
 metadata:
   annotations:
-    reloader.stakater.com/configmap.update-on-change: "foo"
+    configmap.reloader.stakater.com/reload: "foo"
 ```
 
 OR
@@ -31,7 +31,7 @@ For a `Deployment` called `foo` have a `Secret` called `foo`. Then add this anno
 ```yaml
 metadata:
   annotations:
-    reloader.stakater.com/secret.update-on-change: "foo"
+    secret.reloader.stakater.com/reload: "foo"
 ```
 
 Then, providing `Reloader` is running, whenever you edit the `ConfigMap` or `Secret` called `foo` the Reloader will update the `Deployment` by adding the environment variable:

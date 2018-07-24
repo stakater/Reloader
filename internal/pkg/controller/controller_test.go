@@ -7,6 +7,7 @@ import (
 
 	"github.com/sirupsen/logrus"
 	"github.com/stakater/Reloader/internal/pkg/common"
+	"github.com/stakater/Reloader/internal/pkg/constants"
 	"github.com/stakater/Reloader/internal/pkg/testutil"
 	"github.com/stakater/Reloader/pkg/kube"
 	"k8s.io/client-go/kubernetes"
@@ -83,7 +84,7 @@ func TestControllerUpdatingConfigmapShouldCreateEnvInDeployment(t *testing.T) {
 	// Verifying deployment update
 	logrus.Infof("Verifying env var has been created")
 	shaData := testutil.ConvertResourceToSHA(testutil.ConfigmapResourceType, namespace, configmapName, "www.stakater.com")
-	updated := testutil.VerifyDeploymentUpdate(client, namespace, configmapName, common.ConfigmapEnvarPostfix, shaData, common.ConfigmapUpdateOnChangeAnnotation)
+	updated := testutil.VerifyDeploymentUpdate(client, namespace, configmapName, constants.ConfigmapEnvarPostfix, shaData, constants.ConfigmapUpdateOnChangeAnnotation)
 	if !updated {
 		t.Errorf("Deployment was not updated")
 	}
@@ -133,7 +134,7 @@ func TestControllerForUpdatingConfigmapShouldUpdateDeployment(t *testing.T) {
 	// Verifying deployment update
 	logrus.Infof("Verifying env var has been updated")
 	shaData := testutil.ConvertResourceToSHA(testutil.ConfigmapResourceType, namespace, configmapName, "aurorasolutions.io")
-	updated := testutil.VerifyDeploymentUpdate(client, namespace, configmapName, common.ConfigmapEnvarPostfix, shaData, common.ConfigmapUpdateOnChangeAnnotation)
+	updated := testutil.VerifyDeploymentUpdate(client, namespace, configmapName, constants.ConfigmapEnvarPostfix, shaData, constants.ConfigmapUpdateOnChangeAnnotation)
 	if !updated {
 		t.Errorf("Deployment was not updated")
 	}
@@ -177,7 +178,7 @@ func TestControllerUpdatingConfigmapLabelsShouldNotCreateorUpdateEnvInDeployment
 	// Verifying deployment update
 	logrus.Infof("Verifying env var has been created")
 	shaData := testutil.ConvertResourceToSHA(testutil.ConfigmapResourceType, namespace, configmapName, "www.google.com")
-	updated := testutil.VerifyDeploymentUpdate(client, namespace, configmapName, common.ConfigmapEnvarPostfix, shaData, common.ConfigmapUpdateOnChangeAnnotation)
+	updated := testutil.VerifyDeploymentUpdate(client, namespace, configmapName, constants.ConfigmapEnvarPostfix, shaData, constants.ConfigmapUpdateOnChangeAnnotation)
 	if updated {
 		t.Errorf("Deployment should not be updated by changing label")
 	}
@@ -221,7 +222,7 @@ func TestControllerUpdatingSecretShouldCreateEnvInDeployment(t *testing.T) {
 	// Verifying Upgrade
 	logrus.Infof("Verifying env var has been created")
 	shaData := testutil.ConvertResourceToSHA(testutil.SecretResourceType, namespace, secretName, newData)
-	updated := testutil.VerifyDeploymentUpdate(client, namespace, secretName, common.SecretEnvarPostfix, shaData, common.SecretUpdateOnChangeAnnotation)
+	updated := testutil.VerifyDeploymentUpdate(client, namespace, secretName, constants.SecretEnvarPostfix, shaData, constants.SecretUpdateOnChangeAnnotation)
 	if !updated {
 		t.Errorf("Deployment was not updated")
 	}
@@ -271,7 +272,7 @@ func TestControllerUpdatingSecretShouldUpdateEnvInDeployment(t *testing.T) {
 	// Verifying Upgrade
 	logrus.Infof("Verifying env var has been updated")
 	shaData := testutil.ConvertResourceToSHA(testutil.SecretResourceType, namespace, secretName, updatedData)
-	updated := testutil.VerifyDeploymentUpdate(client, namespace, secretName, common.SecretEnvarPostfix, shaData, common.SecretUpdateOnChangeAnnotation)
+	updated := testutil.VerifyDeploymentUpdate(client, namespace, secretName, constants.SecretEnvarPostfix, shaData, constants.SecretUpdateOnChangeAnnotation)
 	if !updated {
 		t.Errorf("Deployment was not updated")
 	}
@@ -314,7 +315,7 @@ func TestControllerUpdatingSecretLabelsShouldNotCreateorUpdateEnvInDeployment(t 
 	// Verifying Upgrade
 	logrus.Infof("Verifying env var has been created")
 	shaData := testutil.ConvertResourceToSHA(testutil.SecretResourceType, namespace, secretName, data)
-	updated := testutil.VerifyDeploymentUpdate(client, namespace, secretName, common.SecretEnvarPostfix, shaData, common.SecretUpdateOnChangeAnnotation)
+	updated := testutil.VerifyDeploymentUpdate(client, namespace, secretName, constants.SecretEnvarPostfix, shaData, constants.SecretUpdateOnChangeAnnotation)
 	if updated {
 		t.Errorf("Deployment should not be updated by changing label in secret")
 	}
@@ -358,7 +359,7 @@ func TestControllerUpdatingConfigmapShouldCreateEnvInDaemonSet(t *testing.T) {
 	// Verifying DaemonSet update
 	logrus.Infof("Verifying env var has been created")
 	shaData := testutil.ConvertResourceToSHA(testutil.ConfigmapResourceType, namespace, configmapName, "www.stakater.com")
-	updated := testutil.VerifyDaemonSetUpdate(client, namespace, configmapName, common.ConfigmapEnvarPostfix, shaData, common.ConfigmapUpdateOnChangeAnnotation)
+	updated := testutil.VerifyDaemonSetUpdate(client, namespace, configmapName, constants.ConfigmapEnvarPostfix, shaData, constants.ConfigmapUpdateOnChangeAnnotation)
 	if !updated {
 		t.Errorf("DaemonSet was not updated")
 	}
@@ -408,7 +409,7 @@ func TestControllerForUpdatingConfigmapShouldUpdateDaemonSet(t *testing.T) {
 	// Verifying DaemonSet update
 	logrus.Infof("Verifying env var has been updated")
 	shaData := testutil.ConvertResourceToSHA(testutil.ConfigmapResourceType, namespace, configmapName, "aurorasolutions.io")
-	updated := testutil.VerifyDaemonSetUpdate(client, namespace, configmapName, common.ConfigmapEnvarPostfix, shaData, common.ConfigmapUpdateOnChangeAnnotation)
+	updated := testutil.VerifyDaemonSetUpdate(client, namespace, configmapName, constants.ConfigmapEnvarPostfix, shaData, constants.ConfigmapUpdateOnChangeAnnotation)
 	if !updated {
 		t.Errorf("DaemonSet was not updated")
 	}
@@ -452,7 +453,7 @@ func TestControllerUpdatingSecretShouldCreateEnvInDaemonSet(t *testing.T) {
 	// Verifying Upgrade
 	logrus.Infof("Verifying env var has been created")
 	shaData := testutil.ConvertResourceToSHA(testutil.SecretResourceType, namespace, secretName, newData)
-	updated := testutil.VerifyDaemonSetUpdate(client, namespace, secretName, common.SecretEnvarPostfix, shaData, common.SecretUpdateOnChangeAnnotation)
+	updated := testutil.VerifyDaemonSetUpdate(client, namespace, secretName, constants.SecretEnvarPostfix, shaData, constants.SecretUpdateOnChangeAnnotation)
 	if !updated {
 		t.Errorf("DaemonSet was not updated")
 	}
@@ -502,7 +503,7 @@ func TestControllerUpdatingSecretShouldUpdateEnvInDaemonSet(t *testing.T) {
 	// Verifying Upgrade
 	logrus.Infof("Verifying env var has been updated")
 	shaData := testutil.ConvertResourceToSHA(testutil.SecretResourceType, namespace, secretName, updatedData)
-	updated := testutil.VerifyDaemonSetUpdate(client, namespace, secretName, common.SecretEnvarPostfix, shaData, common.SecretUpdateOnChangeAnnotation)
+	updated := testutil.VerifyDaemonSetUpdate(client, namespace, secretName, constants.SecretEnvarPostfix, shaData, constants.SecretUpdateOnChangeAnnotation)
 	if !updated {
 		t.Errorf("DaemonSet was not updated")
 	}
@@ -545,7 +546,7 @@ func TestControllerUpdatingSecretLabelsShouldNotCreateorUpdateEnvInDaemonSet(t *
 	// Verifying Upgrade
 	logrus.Infof("Verifying env var has been created")
 	shaData := testutil.ConvertResourceToSHA(testutil.SecretResourceType, namespace, secretName, data)
-	updated := testutil.VerifyDaemonSetUpdate(client, namespace, secretName, common.SecretEnvarPostfix, shaData, common.SecretUpdateOnChangeAnnotation)
+	updated := testutil.VerifyDaemonSetUpdate(client, namespace, secretName, constants.SecretEnvarPostfix, shaData, constants.SecretUpdateOnChangeAnnotation)
 	if updated {
 		t.Errorf("DaemonSet should not be updated by changing label in secret")
 	}
@@ -589,7 +590,7 @@ func TestControllerUpdatingConfigmapShouldCreateEnvInStatefulSet(t *testing.T) {
 	// Verifying StatefulSet update
 	logrus.Infof("Verifying env var has been created")
 	shaData := testutil.ConvertResourceToSHA(testutil.ConfigmapResourceType, namespace, configmapName, "www.stakater.com")
-	updated := testutil.VerifyStatefulSetUpdate(client, namespace, configmapName, common.ConfigmapEnvarPostfix, shaData, common.ConfigmapUpdateOnChangeAnnotation)
+	updated := testutil.VerifyStatefulSetUpdate(client, namespace, configmapName, constants.ConfigmapEnvarPostfix, shaData, constants.ConfigmapUpdateOnChangeAnnotation)
 	if !updated {
 		t.Errorf("StatefulSet was not updated")
 	}
@@ -639,7 +640,7 @@ func TestControllerForUpdatingConfigmapShouldUpdateStatefulSet(t *testing.T) {
 	// Verifying StatefulSet update
 	logrus.Infof("Verifying env var has been updated")
 	shaData := testutil.ConvertResourceToSHA(testutil.ConfigmapResourceType, namespace, configmapName, "aurorasolutions.io")
-	updated := testutil.VerifyStatefulSetUpdate(client, namespace, configmapName, common.ConfigmapEnvarPostfix, shaData, common.ConfigmapUpdateOnChangeAnnotation)
+	updated := testutil.VerifyStatefulSetUpdate(client, namespace, configmapName, constants.ConfigmapEnvarPostfix, shaData, constants.ConfigmapUpdateOnChangeAnnotation)
 	if !updated {
 		t.Errorf("StatefulSet was not updated")
 	}
@@ -683,7 +684,7 @@ func TestControllerUpdatingConfigmapLabelsShouldNotCreateorUpdateEnvInStatefulSe
 	// Verifying StatefulSet update
 	logrus.Infof("Verifying env var has been created")
 	shaData := testutil.ConvertResourceToSHA(testutil.ConfigmapResourceType, namespace, configmapName, "www.google.com")
-	updated := testutil.VerifyStatefulSetUpdate(client, namespace, configmapName, common.ConfigmapEnvarPostfix, shaData, common.ConfigmapUpdateOnChangeAnnotation)
+	updated := testutil.VerifyStatefulSetUpdate(client, namespace, configmapName, constants.ConfigmapEnvarPostfix, shaData, constants.ConfigmapUpdateOnChangeAnnotation)
 	if updated {
 		t.Errorf("StatefulSet should not be updated by changing label")
 	}
@@ -727,7 +728,7 @@ func TestControllerUpdatingSecretShouldCreateEnvInStatefulSet(t *testing.T) {
 	// Verifying Upgrade
 	logrus.Infof("Verifying env var has been created")
 	shaData := testutil.ConvertResourceToSHA(testutil.SecretResourceType, namespace, secretName, newData)
-	updated := testutil.VerifyStatefulSetUpdate(client, namespace, secretName, common.SecretEnvarPostfix, shaData, common.SecretUpdateOnChangeAnnotation)
+	updated := testutil.VerifyStatefulSetUpdate(client, namespace, secretName, constants.SecretEnvarPostfix, shaData, constants.SecretUpdateOnChangeAnnotation)
 	if !updated {
 		t.Errorf("StatefulSet was not updated")
 	}
@@ -777,7 +778,7 @@ func TestControllerUpdatingSecretShouldUpdateEnvInStatefulSet(t *testing.T) {
 	// Verifying Upgrade
 	logrus.Infof("Verifying env var has been updated")
 	shaData := testutil.ConvertResourceToSHA(testutil.SecretResourceType, namespace, secretName, updatedData)
-	updated := testutil.VerifyStatefulSetUpdate(client, namespace, secretName, common.SecretEnvarPostfix, shaData, common.SecretUpdateOnChangeAnnotation)
+	updated := testutil.VerifyStatefulSetUpdate(client, namespace, secretName, constants.SecretEnvarPostfix, shaData, constants.SecretUpdateOnChangeAnnotation)
 	if !updated {
 		t.Errorf("StatefulSet was not updated")
 	}

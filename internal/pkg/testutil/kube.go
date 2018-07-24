@@ -7,6 +7,7 @@ import (
 
 	"github.com/sirupsen/logrus"
 	"github.com/stakater/Reloader/internal/pkg/common"
+	"github.com/stakater/Reloader/internal/pkg/constants"
 	"github.com/stakater/Reloader/internal/pkg/crypto"
 	v1_beta1 "k8s.io/api/apps/v1beta1"
 	"k8s.io/api/core/v1"
@@ -52,8 +53,8 @@ func GetDeployment(namespace string, deploymentName string) *v1beta1.Deployment 
 			Namespace: namespace,
 			Labels:    map[string]string{"firstLabel": "temp"},
 			Annotations: map[string]string{
-				common.ConfigmapUpdateOnChangeAnnotation: deploymentName,
-				common.SecretUpdateOnChangeAnnotation:    deploymentName},
+				constants.ConfigmapUpdateOnChangeAnnotation: deploymentName,
+				constants.SecretUpdateOnChangeAnnotation:    deploymentName},
 		},
 		Spec: v1beta1.DeploymentSpec{
 			Replicas: &replicaset,
@@ -91,8 +92,8 @@ func GetDaemonSet(namespace string, daemonsetName string) *v1beta1.DaemonSet {
 			Namespace: namespace,
 			Labels:    map[string]string{"firstLabel": "temp"},
 			Annotations: map[string]string{
-				common.ConfigmapUpdateOnChangeAnnotation: daemonsetName,
-				common.SecretUpdateOnChangeAnnotation:    daemonsetName},
+				constants.ConfigmapUpdateOnChangeAnnotation: daemonsetName,
+				constants.SecretUpdateOnChangeAnnotation:    daemonsetName},
 		},
 		Spec: v1beta1.DaemonSetSpec{
 			UpdateStrategy: v1beta1.DaemonSetUpdateStrategy{
@@ -129,8 +130,8 @@ func GetStatefulSet(namespace string, statefulsetName string) *v1_beta1.Stateful
 			Namespace: namespace,
 			Labels:    map[string]string{"firstLabel": "temp"},
 			Annotations: map[string]string{
-				common.ConfigmapUpdateOnChangeAnnotation: statefulsetName,
-				common.SecretUpdateOnChangeAnnotation:    statefulsetName},
+				constants.ConfigmapUpdateOnChangeAnnotation: statefulsetName,
+				constants.SecretUpdateOnChangeAnnotation:    statefulsetName},
 		},
 		Spec: v1_beta1.StatefulSetSpec{
 			UpdateStrategy: v1_beta1.StatefulSetUpdateStrategy{
@@ -227,7 +228,7 @@ func VerifyDeploymentUpdate(client kubernetes.Interface, namespace string, name 
 				}
 			}
 			if matches {
-				envName := common.EnvVarPrefix + common.ConvertToEnvVarName(annotationValue) + envarPostfix
+				envName := constants.EnvVarPrefix + common.ConvertToEnvVarName(annotationValue) + envarPostfix
 				updated := getResourceSHA(containers, envName)
 				if updated == shaData {
 					return true
@@ -258,7 +259,7 @@ func VerifyDaemonSetUpdate(client kubernetes.Interface, namespace string, name s
 				}
 			}
 			if matches {
-				envName := common.EnvVarPrefix + common.ConvertToEnvVarName(annotationValue) + resourceType
+				envName := constants.EnvVarPrefix + common.ConvertToEnvVarName(annotationValue) + resourceType
 				updated := getResourceSHA(containers, envName)
 
 				if updated == shaData {
@@ -290,7 +291,7 @@ func VerifyStatefulSetUpdate(client kubernetes.Interface, namespace string, name
 				}
 			}
 			if matches {
-				envName := common.EnvVarPrefix + common.ConvertToEnvVarName(annotationValue) + resourceType
+				envName := constants.EnvVarPrefix + common.ConvertToEnvVarName(annotationValue) + resourceType
 				updated := getResourceSHA(containers, envName)
 
 				if updated == shaData {

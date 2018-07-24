@@ -37,7 +37,6 @@ rules:
       - get
       - update
       - patch
-      - watch
 ---
 apiVersion: rbac.authorization.k8s.io/v1beta1
 kind: RoleBinding

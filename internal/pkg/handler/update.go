@@ -6,9 +6,13 @@ import (
 
 	"github.com/sirupsen/logrus"
 	"github.com/stakater/Reloader/internal/pkg/common"
+	"github.com/stakater/Reloader/internal/pkg/constants"
 	"github.com/stakater/Reloader/internal/pkg/crypto"
+	"github.com/stakater/Reloader/internal/pkg/util"
 	"github.com/stakater/Reloader/pkg/kube"
+	apps_v1beta1 "k8s.io/api/apps/v1beta1"
 	"k8s.io/api/core/v1"
+	"k8s.io/api/extensions/v1beta1"
 	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 )
@@ -19,6 +23,30 @@ type ResourceUpdatedHandler struct {
 	OldResource interface{}
 }
 
+//Config contains rolling upgrade configuration parameters
+type Config struct {
+	namespace    string
+	resourceName string
+	annotation   string
+	shaValue     string
+}
+
+//ItemsFunc is a generic function to return a specific resource array in given namespace
+type ItemsFunc func(kubernetes.Interface, string) []interface{}
+
+//ContainersFunc is a generic func to return containers
+type ContainersFunc func(interface{}) []v1.Container
+
+//UpdateFunc performs the resource update
+type UpdateFunc func(kubernetes.Interface, string, interface{}) error
+
+//RollingUpgradeFuncs contains generic functions to perform rolling upgrade
+type RollingUpgradeFuncs struct {
+	ItemsFunc      ItemsFunc
+	ContainersFunc ContainersFunc
+	UpdateFunc     UpdateFunc
+}
+
 // Handle processes the updated resource
 func (r ResourceUpdatedHandler) Handle() error {
 	if r.Resource == nil || r.OldResource == nil {
@@ -26,154 +54,173 @@ func (r ResourceUpdatedHandler) Handle() error {
 	} else {
 		logrus.Infof("Detected changes in object %s", r.Resource)
 		// process resource based on its type
-		rollingUpgrade(r, "deployments")
-		rollingUpgrade(r, "daemonsets")
-		rollingUpgrade(r, "statefulSets")
+		rollingUpgrade(r, RollingUpgradeFuncs{
+			ItemsFunc:      GetDeploymentItems,
+			ContainersFunc: GetDeploymentContainers,
+			UpdateFunc:     UpdateDeployment,
+		})
+		rollingUpgrade(r, RollingUpgradeFuncs{
+			ItemsFunc:      GetDaemonSetItems,
+			ContainersFunc: GetDaemonSetContainers,
+			UpdateFunc:     UpdateDaemonSet,
+		})
+		rollingUpgrade(r, RollingUpgradeFuncs{
+			ItemsFunc:      GetStatefulSetItems,
+			ContainersFunc: GetStatefulsetContainers,
+			UpdateFunc:     UpdateStatefulset,
+		})
 	}
 	return nil
 }
 
-func rollingUpgrade(r ResourceUpdatedHandler, rollingUpgradeType string) {
+// GetDeploymentItems returns the deployments in given namespace
+func GetDeploymentItems(client kubernetes.Interface, namespace string) []interface{} {
+	deployments, err := client.ExtensionsV1beta1().Deployments(namespace).List(meta_v1.ListOptions{})
+	if err != nil {
+		logrus.Errorf("Failed to list deployments %v", err)
+	}
+	return util.InterfaceSlice(deployments.Items)
+}
+
+// GetDaemonSetItems returns the daemonSet in given namespace
+func GetDaemonSetItems(client kubernetes.Interface, namespace string) []interface{} {
+	daemonSets, err := client.ExtensionsV1beta1().DaemonSets(namespace).List(meta_v1.ListOptions{})
+	if err != nil {
+		logrus.Errorf("Failed to list daemonSets %v", err)
+	}
+	return util.InterfaceSlice(daemonSets.Items)
+}
+
+// GetStatefulSetItems returns the statefulSet in given namespace
+func GetStatefulSetItems(client kubernetes.Interface, namespace string) []interface{} {
+	statefulSets, err := client.AppsV1beta1().StatefulSets(namespace).List(meta_v1.ListOptions{})
+	if err != nil {
+		logrus.Errorf("Failed to list statefulSets %v", err)
+	}
+	return util.InterfaceSlice(statefulSets.Items)
+}
+
+// GetDeploymentContainers returns the containers of given deployment
+func GetDeploymentContainers(item interface{}) []v1.Container {
+	return item.(v1beta1.Deployment).Spec.Template.Spec.Containers
+}
+
+// GetDaemonSetContainers returns the containers of given daemonset
+func GetDaemonSetContainers(item interface{}) []v1.Container {
+	return item.(v1beta1.DaemonSet).Spec.Template.Spec.Containers
+}
+
+// GetStatefulsetContainers returns the containers of given statefulSet
+func GetStatefulsetContainers(item interface{}) []v1.Container {
+	return item.(apps_v1beta1.StatefulSet).Spec.Template.Spec.Containers
+}
+
+// UpdateDeployment performs rolling upgrade on deployment
+func UpdateDeployment(client kubernetes.Interface, namespace string, resource interface{}) error {
+	deployment := resource.(v1beta1.Deployment)
+	_, err := client.ExtensionsV1beta1().Deployments(namespace).Update(&deployment)
+	return err
+}
+
+// UpdateDaemonSet performs rolling upgrade on daemonSet
+func UpdateDaemonSet(client kubernetes.Interface, namespace string, resource interface{}) error {
+	daemonSet := resource.(v1beta1.DaemonSet)
+	_, err := client.ExtensionsV1beta1().DaemonSets(namespace).Update(&daemonSet)
+	return err
+}
+
+// UpdateStatefulset performs rolling upgrade on statefulSet
+func UpdateStatefulset(client kubernetes.Interface, namespace string, resource interface{}) error {
+	statefulSet := resource.(apps_v1beta1.StatefulSet)
+	_, err := client.AppsV1beta1().StatefulSets(namespace).Update(&statefulSet)
+	return err
+}
+
+func rollingUpgrade(r ResourceUpdatedHandler, upgradeFuncs RollingUpgradeFuncs) {
 	client, err := kube.GetClient()
 	if err != nil {
 		logrus.Fatalf("Unable to create Kubernetes client error = %v", err)
 	}
 
-	var shaData, oldSHAdata string
-	shaData = getSHAfromData(r.Resource)
-	oldSHAdata = getSHAfromData(r.OldResource)
-	if shaData != oldSHAdata {
-		var namespace, resourceName, envarPostfix, annotation string
-		if _, ok := r.Resource.(*v1.ConfigMap); ok {
-			logrus.Infof("Performing 'Updated' action for resource of type 'configmap'")
-			namespace = r.Resource.(*v1.ConfigMap).Namespace
-			resourceName = r.Resource.(*v1.ConfigMap).Name
-			envarPostfix = common.ConfigmapEnvarPostfix
-			annotation = common.ConfigmapUpdateOnChangeAnnotation
-		} else if _, ok := r.Resource.(*v1.Secret); ok {
-			logrus.Infof("Performing 'Updated' action for resource of type 'secret'")
-			namespace = r.Resource.(*v1.Secret).Namespace
-			resourceName = r.Resource.(*v1.Secret).Name
-			envarPostfix = common.SecretEnvarPostfix
-			annotation = common.SecretUpdateOnChangeAnnotation
-		} else {
-			logrus.Warnf("Invalid resource: Resource should be 'Secret' or 'Configmap' but found, %v", r.Resource)
-		}
+	config, envVarPostfix, oldSHAData := getConfig(r)
 
-		if rollingUpgradeType == "deployments" {
-			err = RollingUpgradeDeployment(client, namespace, resourceName, shaData, envarPostfix, annotation)
-		} else if rollingUpgradeType == "daemonsets" {
-			err = RollingUpgradeDaemonSets(client, namespace, resourceName, shaData, envarPostfix, annotation)
-		} else if rollingUpgradeType == "statefulSets" {
-			err = RollingUpgradeStatefulSets(client, namespace, resourceName, shaData, envarPostfix, annotation)
-		}
-
+	if config.shaValue != oldSHAData {
+		err = PerformRollingUpgrade(client, config, envVarPostfix, upgradeFuncs)
 		if err != nil {
-			logrus.Errorf("Rolling upgrade failed for %s of resource type %s", resourceName, rollingUpgradeType)
+			logrus.Fatalf("Rolling upgrade failed with error = %v", err)
 		}
 	} else {
-		logrus.Infof("Resource update will not happen because no data change detected")
+		logrus.Infof("Rolling upgrade will not happend because no actual change in data has been detected")
 	}
 }
 
-// RollingUpgradeDeployment upgrades the deployment if there is any change in configmap or secret data
-func RollingUpgradeDeployment(client kubernetes.Interface, namespace string, resourceName string, shaData string, envarPostfix string, annotation string) error {
-	deployments, err := client.ExtensionsV1beta1().Deployments(namespace).List(meta_v1.ListOptions{})
-	if err != nil {
-		logrus.Errorf("Failed to list deployments %v", err)
-	}
-
-	for _, d := range deployments.Items {
-		containers := d.Spec.Template.Spec.Containers
-		// match deployments with the correct annotation
-		annotationValue := d.ObjectMeta.Annotations[annotation]
-		updated := performRollingUpgrade(containers, resourceName, annotationValue, shaData, envarPostfix)
-		if !updated {
-			logrus.Warnf("Rolling upgrade did not happen")
-		} else {
-			// update the deployment
-			_, err := client.ExtensionsV1beta1().Deployments(namespace).Update(&d)
-			if err != nil {
-				logrus.Errorf("Update deployment failed %v", err)
-			} else {
-				logrus.Infof("Updated Deployment %s", d.Name)
-			}
+func getConfig(r ResourceUpdatedHandler) (Config, string, string) {
+	var shaData, oldSHAData, envVarPostfix string
+	var config Config
+	if _, ok := r.Resource.(*v1.ConfigMap); ok {
+		logrus.Infof("Performing 'Updated' action for resource of type 'configmap'")
+		configmap := r.Resource.(*v1.ConfigMap)
+		shaData = getSHAfromConfigmap(configmap.Data)
+		oldSHAData = getSHAfromConfigmap(r.OldResource.(*v1.ConfigMap).Data)
+		config = Config{
+			namespace:    configmap.Namespace,
+			resourceName: configmap.Name,
+			annotation:   constants.ConfigmapUpdateOnChangeAnnotation,
+			shaValue:     shaData,
 		}
-	}
-	return nil
-}
-
-// RollingUpgradeDaemonSets upgrades the daemonset if there is any change in configmap or secret data
-func RollingUpgradeDaemonSets(client kubernetes.Interface, namespace string, resourceName string, shaData string, envarPostfix string, annotation string) error {
-	daemonSets, err := client.ExtensionsV1beta1().DaemonSets(namespace).List(meta_v1.ListOptions{})
-	if err != nil {
-		logrus.Errorf("Failed to list daemonSets %v", err)
-	}
-
-	for _, d := range daemonSets.Items {
-		containers := d.Spec.Template.Spec.Containers
-		// match daemonSets with the correct annotation
-		annotationValue := d.ObjectMeta.Annotations[annotation]
-		updated := performRollingUpgrade(containers, resourceName, annotationValue, shaData, envarPostfix)
-		if !updated {
-			logrus.Warnf("Rolling upgrade did not happen")
-		} else {
-			// update the daemonSet
-			_, err := client.ExtensionsV1beta1().DaemonSets(namespace).Update(&d)
-			if err != nil {
-				logrus.Errorf("Update daemonSet failed %v", err)
-			} else {
-				logrus.Infof("Updated daemonSet %s", d.Name)
-			}
+		envVarPostfix = constants.ConfigmapEnvarPostfix
+	} else if _, ok := r.Resource.(*v1.Secret); ok {
+		logrus.Infof("Performing 'Updated' action for resource of type 'secret'")
+		secret := r.Resource.(*v1.Secret)
+		shaData = getSHAfromSecret(secret.Data)
+		oldSHAData = getSHAfromSecret(r.OldResource.(*v1.Secret).Data)
+		config = Config{
+			namespace:    secret.Namespace,
+			resourceName: secret.Name,
+			annotation:   constants.SecretUpdateOnChangeAnnotation,
+			shaValue:     shaData,
 		}
+		envVarPostfix = constants.SecretEnvarPostfix
+	} else {
+		logrus.Warnf("Invalid resource: Resource should be 'Secret' or 'Configmap' but found, %v", r.Resource)
 	}
-	return err
+	return config, envVarPostfix, oldSHAData
 }
 
-// RollingUpgradeStatefulSets upgrades the statefulset if there is any change in configmap or secret data
-func RollingUpgradeStatefulSets(client kubernetes.Interface, namespace string, resourceName string, shaData string, envarPostfix string, annotation string) error {
-	statefulSets, err := client.AppsV1beta1().StatefulSets(namespace).List(meta_v1.ListOptions{})
-	if err != nil {
-		logrus.Errorf("Failed to list statefulSets %v", err)
-	}
-
-	for _, s := range statefulSets.Items {
-		containers := s.Spec.Template.Spec.Containers
-		// match statefulSets with the correct annotation
-		annotationValue := s.ObjectMeta.Annotations[annotation]
-		updated := performRollingUpgrade(containers, resourceName, annotationValue, shaData, envarPostfix)
-		if !updated {
-			logrus.Warnf("Rolling upgrade did not happen")
-		} else {
-			// update the statefulSet
-			_, err := client.AppsV1beta1().StatefulSets(namespace).Update(&s)
-			if err != nil {
-				logrus.Errorf("Update statefulSet failed %v", err)
-			} else {
-				logrus.Infof("Updated statefulSet %s", s.Name)
+// PerformRollingUpgrade upgrades the deployment if there is any change in configmap or secret data
+func PerformRollingUpgrade(client kubernetes.Interface, config Config, envarPostfix string, upgradeFuncs RollingUpgradeFuncs) error {
+	items := upgradeFuncs.ItemsFunc(client, config.namespace)
+	var err error
+	for _, i := range items {
+		containers := upgradeFuncs.ContainersFunc(i)
+		// find correct annotation and update the resource
+		annotationValue := util.ToObjectMeta(i).Annotations[config.annotation]
+		if annotationValue != "" {
+			values := strings.Split(annotationValue, ",")
+			for _, value := range values {
+				if value == config.resourceName {
+					updated := updateContainers(containers, value, config.shaValue, envarPostfix)
+					if !updated {
+						logrus.Warnf("Rolling upgrade did not happen")
+					} else {
+						err = upgradeFuncs.UpdateFunc(client, config.namespace, i)
+						if err != nil {
+							logrus.Errorf("Update deployment failed %v", err)
+						} else {
+							logrus.Infof("Updated Deployment %s", config.resourceName)
+						}
+						break
+					}
+				}
 			}
 		}
 	}
 	return err
-}
-
-func performRollingUpgrade(containers []v1.Container, resourceName string, annotationValue string, shaData string, envarPostfix string) bool {
-	updated := false
-	if annotationValue != "" {
-		values := strings.Split(annotationValue, ",")
-		for _, value := range values {
-			if value == resourceName {
-				updated = updateContainers(containers, value, shaData, envarPostfix)
-				break
-			}
-		}
-	}
-	return updated
 }
 
 func updateContainers(containers []v1.Container, annotationValue string, shaData string, envarPostfix string) bool {
 	updated := false
-	envar := common.EnvVarPrefix + common.ConvertToEnvVarName(annotationValue) + envarPostfix
+	envar := constants.EnvVarPrefix + common.ConvertToEnvVarName(annotationValue) + envarPostfix
 	logrus.Infof("Generated environment variable: %s", envar)
 	for i := range containers {
 		envs := containers[i].Env
@@ -209,18 +256,20 @@ func updateEnvVar(envs []v1.EnvVar, envar string, shaData string) bool {
 	return false
 }
 
-func getSHAfromData(resource interface{}) string {
+func getSHAfromConfigmap(data map[string]string) string {
 	values := []string{}
-	if _, ok := resource.(*v1.ConfigMap); ok {
-		logrus.Infof("Generating SHA for configmap data")
-		for k, v := range resource.(*v1.ConfigMap).Data {
-			values = append(values, k+"="+v)
-		}
-	} else if _, ok := resource.(*v1.Secret); ok {
-		logrus.Infof("Generating SHA for secret data")
-		for k, v := range resource.(*v1.Secret).Data {
-			values = append(values, k+"="+string(v[:]))
-		}
+	for k, v := range data {
+		values = append(values, k+"="+v)
+	}
+	sort.Strings(values)
+	return crypto.GenerateSHA(strings.Join(values, ";"))
+}
+
+func getSHAfromSecret(data map[string][]byte) string {
+	values := []string{}
+	logrus.Infof("Generating SHA for secret data")
+	for k, v := range data {
+		values = append(values, k+"="+string(v[:]))
 	}
 	sort.Strings(values)
 	return crypto.GenerateSHA(strings.Join(values, ";"))
