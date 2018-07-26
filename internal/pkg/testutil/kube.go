@@ -257,7 +257,7 @@ func CreateConfigMap(client kubernetes.Interface, namespace string, configmapNam
 	logrus.Infof("Creating configmap")
 	configmapClient := client.CoreV1().ConfigMaps(namespace)
 	_, err := configmapClient.Create(GetConfigmap(namespace, configmapName, data))
-	time.Sleep(5 * time.Second)
+	time.Sleep(10 * time.Second)
 	return configmapClient, err
 }
 
@@ -266,7 +266,7 @@ func CreateSecret(client kubernetes.Interface, namespace string, secretName stri
 	logrus.Infof("Creating secret")
 	secretClient := client.CoreV1().Secrets(namespace)
 	_, err := secretClient.Create(GetSecret(namespace, secretName, data))
-	time.Sleep(5 * time.Second)
+	time.Sleep(10 * time.Second)
 	return secretClient, err
 }
 
@@ -275,7 +275,7 @@ func CreateDeployment(client kubernetes.Interface, deploymentName string, namesp
 	logrus.Infof("Creating Deployment")
 	deploymentClient := client.ExtensionsV1beta1().Deployments(namespace)
 	deployment, err := deploymentClient.Create(GetDeployment(namespace, deploymentName))
-	time.Sleep(5 * time.Second)
+	time.Sleep(10 * time.Second)
 	return deployment, err
 }
 
@@ -284,7 +284,7 @@ func CreateDaemonSet(client kubernetes.Interface, daemonsetName string, namespac
 	logrus.Infof("Creating DaemonSet")
 	daemonsetClient := client.ExtensionsV1beta1().DaemonSets(namespace)
 	daemonset, err := daemonsetClient.Create(GetDaemonSet(namespace, daemonsetName))
-	time.Sleep(5 * time.Second)
+	time.Sleep(10 * time.Second)
 	return daemonset, err
 }
 
@@ -293,7 +293,7 @@ func CreateStatefulSet(client kubernetes.Interface, statefulsetName string, name
 	logrus.Infof("Creating StatefulSet")
 	statefulsetClient := client.AppsV1beta1().StatefulSets(namespace)
 	statefulset, err := statefulsetClient.Create(GetStatefulSet(namespace, statefulsetName))
-	time.Sleep(5 * time.Second)
+	time.Sleep(10 * time.Second)
 	return statefulset, err
 }
 
@@ -301,7 +301,7 @@ func CreateStatefulSet(client kubernetes.Interface, statefulsetName string, name
 func DeleteDeployment(client kubernetes.Interface, namespace string, deploymentName string) error {
 	logrus.Infof("Deleting Deployment")
 	deploymentError := client.ExtensionsV1beta1().Deployments(namespace).Delete(deploymentName, &metav1.DeleteOptions{})
-	time.Sleep(5 * time.Second)
+	time.Sleep(10 * time.Second)
 	return deploymentError
 }
 
@@ -309,7 +309,7 @@ func DeleteDeployment(client kubernetes.Interface, namespace string, deploymentN
 func DeleteDaemonSet(client kubernetes.Interface, namespace string, daemonsetName string) error {
 	logrus.Infof("Deleting DaemonSet %s", daemonsetName)
 	daemonsetError := client.ExtensionsV1beta1().DaemonSets(namespace).Delete(daemonsetName, &metav1.DeleteOptions{})
-	time.Sleep(5 * time.Second)
+	time.Sleep(10 * time.Second)
 	return daemonsetError
 }
 
@@ -317,7 +317,7 @@ func DeleteDaemonSet(client kubernetes.Interface, namespace string, daemonsetNam
 func DeleteStatefulSet(client kubernetes.Interface, namespace string, statefulsetName string) error {
 	logrus.Infof("Deleting StatefulSet %s", statefulsetName)
 	statefulsetError := client.AppsV1beta1().StatefulSets(namespace).Delete(statefulsetName, &metav1.DeleteOptions{})
-	time.Sleep(5 * time.Second)
+	time.Sleep(10 * time.Second)
 	return statefulsetError
 }
 
@@ -331,7 +331,7 @@ func UpdateConfigMap(configmapClient core_v1.ConfigMapInterface, namespace strin
 		configmap = GetConfigmap(namespace, configmapName, data)
 	}
 	_, updateErr := configmapClient.Update(configmap)
-	time.Sleep(5 * time.Second)
+	time.Sleep(10 * time.Second)
 	return updateErr
 }
 
@@ -345,7 +345,7 @@ func UpdateSecret(secretClient core_v1.SecretInterface, namespace string, secret
 		secret = GetSecret(namespace, secretName, data)
 	}
 	_, updateErr := secretClient.Update(secret)
-	time.Sleep(5 * time.Second)
+	time.Sleep(10 * time.Second)
 	return updateErr
 }
 
@@ -353,7 +353,7 @@ func UpdateSecret(secretClient core_v1.SecretInterface, namespace string, secret
 func DeleteConfigMap(client kubernetes.Interface, namespace string, configmapName string) error {
 	logrus.Infof("Deleting configmap %q.\n", configmapName)
 	err := client.CoreV1().ConfigMaps(namespace).Delete(configmapName, &metav1.DeleteOptions{})
-	time.Sleep(5 * time.Second)
+	time.Sleep(10 * time.Second)
 	return err
 }
 
@@ -361,7 +361,7 @@ func DeleteConfigMap(client kubernetes.Interface, namespace string, configmapNam
 func DeleteSecret(client kubernetes.Interface, namespace string, secretName string) error {
 	logrus.Infof("Deleting secret %q.\n", secretName)
 	err := client.CoreV1().Secrets(namespace).Delete(secretName, &metav1.DeleteOptions{})
-	time.Sleep(5 * time.Second)
+	time.Sleep(10 * time.Second)
 	return err
 }
 

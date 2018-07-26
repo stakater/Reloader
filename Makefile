@@ -32,7 +32,7 @@ binary-image: builder-image
 	@docker run --network host --rm "${BUILDER}" | docker build --network host -t "${REPOSITORY}" -f Dockerfile.run -
 
 test:
-	"$(GOCMD)" test -v ./...
+	"$(GOCMD)" test -timeout 1800s -v ./...
 
 stop:
 	@docker stop "${BINARY}"
