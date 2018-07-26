@@ -1,254 +1,930 @@
 package controller
 
 import (
-	"math/rand"
+	"os"
 	"testing"
 	"time"
 
 	"github.com/sirupsen/logrus"
+	"github.com/stakater/Reloader/internal/pkg/callbacks"
+	"github.com/stakater/Reloader/internal/pkg/constants"
+	"github.com/stakater/Reloader/internal/pkg/testutil"
+	"github.com/stakater/Reloader/internal/pkg/util"
 	"github.com/stakater/Reloader/pkg/kube"
-	"k8s.io/api/core/v1"
-	"k8s.io/api/extensions/v1beta1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/kubernetes"
 )
 
 var (
+	client              = testutil.GetClient()
+	namespace           = "test-reloader"
 	configmapNamePrefix = "testconfigmap-reloader"
 	secretNamePrefix    = "testsecret-reloader"
-	letters             = []rune("abcdefghijklmnopqrstuvwxyz")
+	data                = "dGVzdFNlY3JldEVuY29kaW5nRm9yUmVsb2FkZXI="
+	newData             = "dGVzdE5ld1NlY3JldEVuY29kaW5nRm9yUmVsb2FkZXI="
+	updatedData         = "dGVzdFVwZGF0ZWRTZWNyZXRFbmNvZGluZ0ZvclJlbG9hZGVy"
 )
 
-func randSeq(n int) string {
-	rand.Seed(time.Now().UnixNano())
-	b := make([]rune, n)
-	for i := range b {
-		b[i] = letters[rand.Intn(len(letters))]
+func TestMain(m *testing.M) {
+
+	logrus.Infof("Creating namespace %s", namespace)
+	testutil.CreateNamespace(namespace, client)
+
+	logrus.Infof("Creating controller")
+	for k := range kube.ResourceMap {
+		c, err := NewController(client, k, namespace)
+		if err != nil {
+			logrus.Fatalf("%s", err)
+		}
+
+		// Now let's start the controller
+		stop := make(chan struct{})
+		defer close(stop)
+		go c.Run(1, stop)
 	}
-	return string(b)
+	time.Sleep(5 * time.Second)
+
+	logrus.Infof("Running Testcases")
+	retCode := m.Run()
+
+	logrus.Infof("Deleting namespace %q.\n", namespace)
+	testutil.DeleteNamespace(namespace, client)
+
+	os.Exit(retCode)
 }
 
-// Creating a Controller to do a rolling upgrade upon updating the configmap or secret
-func TestControllerForUpdatingConfigmapShouldUpdateDeployment(t *testing.T) {
-	client, err := kube.GetClient()
+// Perform rolling upgrade on deployment and create env var upon updating the configmap
+func TestControllerUpdatingConfigmapShouldCreateEnvInDeployment(t *testing.T) {
+
+	// Creating configmap
+	configmapName := configmapNamePrefix + "-update-" + testutil.RandSeq(5)
+	configmapClient, err := testutil.CreateConfigMap(client, namespace, configmapName, "www.google.com")
 	if err != nil {
-		logrus.Errorf("Unable to create Kubernetes client error = %v", err)
-		return
+		t.Errorf("Error while creating the configmap %v", err)
 	}
-	namespace := "test-reloader"
-	createNamespace(t, namespace, client)
-	defer deleteNamespace(t, namespace, client)
 
-	controller, err := NewController(client, "configMaps", namespace)
+	// Creating deployment
+	_, err = testutil.CreateDeployment(client, configmapName, namespace)
 	if err != nil {
-		logrus.Errorf("Unable to create NewController error = %v", err)
-		return
+		t.Errorf("Error  in deployment creation: %v", err)
 	}
-	stop := make(chan struct{})
-	defer close(stop)
-	go controller.Run(1, stop)
-	time.Sleep(10 * time.Second)
 
-	configmapName := configmapNamePrefix + "-update-" + randSeq(5)
-	configmapClient := client.CoreV1().ConfigMaps(namespace)
-	_, err = configmapClient.Create(initConfigmap(namespace, configmapName))
-	if err != nil {
-		logrus.Fatalf("Fatal error  in configmap creation: %v", err)
-	}
-	logrus.Infof("Created Configmap %q.\n", configmapName)
-	time.Sleep(10 * time.Second)
-	deployment := createDeployement(configmapName, namespace, client)
-
-	logrus.Infof("Updating Configmap %q.\n", configmapName)
-	_, err = configmapClient.Get(configmapName, metav1.GetOptions{})
-	if err != nil {
-		logrus.Errorf("Error while getting configmap %v", err)
-	}
-	_, updateErr := configmapClient.Update(updateConfigmap(namespace, configmapName))
-
-	// TODO: Add functionality to verify reloader functionality here
-
+	// Updating configmap for first time
+	updateErr := testutil.UpdateConfigMap(configmapClient, namespace, configmapName, "", "www.stakater.com")
 	if updateErr != nil {
-		err = controller.client.CoreV1().ConfigMaps(namespace).Delete(configmapName, &metav1.DeleteOptions{})
-		if err != nil {
-			logrus.Errorf("Error while deleting the configmap %v", err)
-		}
-		logrus.Fatalf("Fatal error  in configmap update: %v", updateErr)
+		t.Errorf("Configmap was not updated")
 	}
-	time.Sleep(10 * time.Second)
-	logrus.Infof("Deleting Deployment %q.\n", deployment.GetObjectMeta().GetName())
-	deploymentError := controller.client.ExtensionsV1beta1().Deployments(namespace).Delete(configmapName, &metav1.DeleteOptions{})
-	if deploymentError != nil {
-		logrus.Fatalf("Error while deleting the configmap %v", deploymentError)
+
+	// Verifying deployment update
+	logrus.Infof("Verifying env var has been created")
+	shaData := testutil.ConvertResourceToSHA(testutil.ConfigmapResourceType, namespace, configmapName, "www.stakater.com")
+	config := util.Config{
+		Namespace:    namespace,
+		ResourceName: configmapName,
+		SHAValue:     shaData,
+		Annotation:   constants.ConfigmapUpdateOnChangeAnnotation,
 	}
-	logrus.Infof("Deleting Configmap %q.\n", configmapName)
-	err = controller.client.CoreV1().ConfigMaps(namespace).Delete(configmapName, &metav1.DeleteOptions{})
+	deploymentFuncs := callbacks.RollingUpgradeFuncs{
+		ItemsFunc:      callbacks.GetDeploymentItems,
+		ContainersFunc: callbacks.GetDeploymentContainers,
+		UpdateFunc:     callbacks.UpdateDeployment,
+		ResourceType:   "Deployment",
+	}
+	updated := testutil.VerifyResourceUpdate(client, config, constants.ConfigmapEnvVarPostfix, deploymentFuncs)
+	if !updated {
+		t.Errorf("Deployment was not updated")
+	}
+	time.Sleep(5 * time.Second)
+
+	// Deleting deployment
+	err = testutil.DeleteDeployment(client, namespace, configmapName)
+	if err != nil {
+		logrus.Errorf("Error while deleting the deployment %v", err)
+	}
+
+	// Deleting configmap
+	err = testutil.DeleteConfigMap(client, namespace, configmapName)
 	if err != nil {
 		logrus.Errorf("Error while deleting the configmap %v", err)
 	}
-	time.Sleep(15 * time.Second)
+	time.Sleep(5 * time.Second)
 }
 
-func createDeployement(deploymentName string, namespace string, client kubernetes.Interface) *v1beta1.Deployment {
-	deploymentClient := client.ExtensionsV1beta1().Deployments(namespace)
-	deployment := initDeployment(namespace, deploymentName)
-	deployment, err := deploymentClient.Create(deployment)
+// Perform rolling upgrade on deployment and update env var upon updating the configmap
+func TestControllerForUpdatingConfigmapShouldUpdateDeployment(t *testing.T) {
+	// Creating secret
+	configmapName := configmapNamePrefix + "-update-" + testutil.RandSeq(5)
+	configmapClient, err := testutil.CreateConfigMap(client, namespace, configmapName, "www.google.com")
 	if err != nil {
-		logrus.Fatalf("Fatal error  in deployment creation: %v", err)
+		t.Errorf("Error while creating the configmap %v", err)
 	}
-	logrus.Infof("Created Deployment %q.\n", deployment.GetObjectMeta().GetName())
-	return deployment
-}
 
-func TestControllerForUpdatingSecretShouldUpdateDeployment(t *testing.T) {
-	client, err := kube.GetClient()
+	// Creating deployment
+	_, err = testutil.CreateDeployment(client, configmapName, namespace)
 	if err != nil {
-		logrus.Errorf("Unable to create Kubernetes client error = %v", err)
-		return
+		t.Errorf("Error  in deployment creation: %v", err)
 	}
-	namespace := "test-reloader-secrets"
-	createNamespace(t, namespace, client)
-	defer deleteNamespace(t, namespace, client)
 
-	controller, err := NewController(client, "secrets", namespace)
-	if err != nil {
-		logrus.Errorf("Unable to create NewController error = %v", err)
-		return
-	}
-	stop := make(chan struct{})
-	defer close(stop)
-	go controller.Run(1, stop)
-	time.Sleep(10 * time.Second)
-
-	secretName := secretNamePrefix + "-update-" + randSeq(5)
-	secretClient := client.CoreV1().Secrets(namespace)
-	_, err = secretClient.Create(initSecret(namespace, secretName))
-	if err != nil {
-		logrus.Fatalf("Fatal error  in secret creation: %v", err)
-	}
-	logrus.Infof("Created Secret %q.\n", secretName)
-	time.Sleep(10 * time.Second)
-
-	logrus.Infof("Updating Secret %q.\n", secretName)
-	_, err = secretClient.Get(secretName, metav1.GetOptions{})
-	if err != nil {
-		logrus.Errorf("Error while getting secret %v", err)
-	}
-	_, updateErr := secretClient.Update(updateSecret(namespace, secretName))
-
-	// TODO: Add functionality to verify reloader functionality here
-
+	// Updating configmap for first time
+	updateErr := testutil.UpdateConfigMap(configmapClient, namespace, configmapName, "", "www.stakater.com")
 	if updateErr != nil {
-		err := controller.client.CoreV1().Secrets(namespace).Delete(secretName, &metav1.DeleteOptions{})
-		if err != nil {
-			logrus.Errorf("Error while deleting the secret %v", err)
-		}
-		logrus.Errorf("Error while updating the secret %v", err)
+		t.Errorf("Configmap was not updated")
 	}
-	time.Sleep(10 * time.Second)
-	logrus.Infof("Deleting Secret %q.\n", secretName)
-	err = controller.client.CoreV1().Secrets(namespace).Delete(secretName, &metav1.DeleteOptions{})
+
+	// Updating configmap for second time
+	updateErr = testutil.UpdateConfigMap(configmapClient, namespace, configmapName, "", "aurorasolutions.io")
+	if updateErr != nil {
+		t.Errorf("Configmap was not updated")
+	}
+
+	// Verifying deployment update
+	logrus.Infof("Verifying env var has been updated")
+	shaData := testutil.ConvertResourceToSHA(testutil.ConfigmapResourceType, namespace, configmapName, "aurorasolutions.io")
+	config := util.Config{
+		Namespace:    namespace,
+		ResourceName: configmapName,
+		SHAValue:     shaData,
+		Annotation:   constants.ConfigmapUpdateOnChangeAnnotation,
+	}
+
+	deploymentFuncs := callbacks.RollingUpgradeFuncs{
+		ItemsFunc:      callbacks.GetDeploymentItems,
+		ContainersFunc: callbacks.GetDeploymentContainers,
+		UpdateFunc:     callbacks.UpdateDeployment,
+		ResourceType:   "Deployment",
+	}
+
+	updated := testutil.VerifyResourceUpdate(client, config, constants.ConfigmapEnvVarPostfix, deploymentFuncs)
+	if !updated {
+		t.Errorf("Deployment was not updated")
+	}
+	time.Sleep(5 * time.Second)
+
+	// Deleting deployment
+	err = testutil.DeleteDeployment(client, namespace, configmapName)
+	if err != nil {
+		logrus.Errorf("Error while deleting the deployment %v", err)
+	}
+
+	// Deleting configmap
+	err = testutil.DeleteConfigMap(client, namespace, configmapName)
+	if err != nil {
+		logrus.Errorf("Error while deleting the configmap %v", err)
+	}
+	time.Sleep(5 * time.Second)
+}
+
+// Do not Perform rolling upgrade on deployment and create env var upon updating the labels configmap
+func TestControllerUpdatingConfigmapLabelsShouldNotCreateorUpdateEnvInDeployment(t *testing.T) {
+	// Creating configmap
+	configmapName := configmapNamePrefix + "-update-" + testutil.RandSeq(5)
+	configmapClient, err := testutil.CreateConfigMap(client, namespace, configmapName, "www.google.com")
+	if err != nil {
+		t.Errorf("Error while creating the configmap %v", err)
+	}
+
+	// Creating deployment
+	_, err = testutil.CreateDeployment(client, configmapName, namespace)
+	if err != nil {
+		t.Errorf("Error  in deployment creation: %v", err)
+	}
+
+	// Updating configmap for first time
+	updateErr := testutil.UpdateConfigMap(configmapClient, namespace, configmapName, "test", "www.google.com")
+	if updateErr != nil {
+		t.Errorf("Configmap was not updated")
+	}
+
+	// Verifying deployment update
+	logrus.Infof("Verifying env var has been created")
+	shaData := testutil.ConvertResourceToSHA(testutil.ConfigmapResourceType, namespace, configmapName, "www.google.com")
+	config := util.Config{
+		Namespace:    namespace,
+		ResourceName: configmapName,
+		SHAValue:     shaData,
+		Annotation:   constants.ConfigmapUpdateOnChangeAnnotation,
+	}
+	deploymentFuncs := callbacks.RollingUpgradeFuncs{
+		ItemsFunc:      callbacks.GetDeploymentItems,
+		ContainersFunc: callbacks.GetDeploymentContainers,
+		UpdateFunc:     callbacks.UpdateDeployment,
+		ResourceType:   "Deployment",
+	}
+	updated := testutil.VerifyResourceUpdate(client, config, constants.ConfigmapEnvVarPostfix, deploymentFuncs)
+	if updated {
+		t.Errorf("Deployment should not be updated by changing label")
+	}
+	time.Sleep(5 * time.Second)
+
+	// Deleting deployment
+	err = testutil.DeleteDeployment(client, namespace, configmapName)
+	if err != nil {
+		logrus.Errorf("Error while deleting the deployment %v", err)
+	}
+
+	// Deleting configmap
+	err = testutil.DeleteConfigMap(client, namespace, configmapName)
+	if err != nil {
+		logrus.Errorf("Error while deleting the configmap %v", err)
+	}
+	time.Sleep(5 * time.Second)
+}
+
+// Perform rolling upgrade on secret and create a env var upon updating the secret
+func TestControllerUpdatingSecretShouldCreateEnvInDeployment(t *testing.T) {
+	// Creating secret
+	secretName := secretNamePrefix + "-update-" + testutil.RandSeq(5)
+	secretClient, err := testutil.CreateSecret(client, namespace, secretName, data)
+	if err != nil {
+		t.Errorf("Error  in secret creation: %v", err)
+	}
+
+	// Creating deployment
+	_, err = testutil.CreateDeployment(client, secretName, namespace)
+	if err != nil {
+		t.Errorf("Error  in deployment creation: %v", err)
+	}
+
+	// Updating Secret
+	err = testutil.UpdateSecret(secretClient, namespace, secretName, "", newData)
+	if err != nil {
+		t.Errorf("Error while updating secret %v", err)
+	}
+
+	// Verifying Upgrade
+	logrus.Infof("Verifying env var has been created")
+	shaData := testutil.ConvertResourceToSHA(testutil.SecretResourceType, namespace, secretName, newData)
+	config := util.Config{
+		Namespace:    namespace,
+		ResourceName: secretName,
+		SHAValue:     shaData,
+		Annotation:   constants.SecretUpdateOnChangeAnnotation,
+	}
+	deploymentFuncs := callbacks.RollingUpgradeFuncs{
+		ItemsFunc:      callbacks.GetDeploymentItems,
+		ContainersFunc: callbacks.GetDeploymentContainers,
+		UpdateFunc:     callbacks.UpdateDeployment,
+		ResourceType:   "Deployment",
+	}
+	updated := testutil.VerifyResourceUpdate(client, config, constants.SecretEnvVarPostfix, deploymentFuncs)
+	if !updated {
+		t.Errorf("Deployment was not updated")
+	}
+	//time.Sleep(5 * time.Second)
+
+	// Deleting Deployment
+	err = testutil.DeleteDeployment(client, namespace, secretName)
+	if err != nil {
+		logrus.Errorf("Error while deleting the deployment %v", err)
+	}
+
+	//Deleting Secret
+	err = testutil.DeleteSecret(client, namespace, secretName)
 	if err != nil {
 		logrus.Errorf("Error while deleting the secret %v", err)
 	}
-	time.Sleep(15 * time.Second)
+	time.Sleep(5 * time.Second)
 }
 
-func initConfigmap(namespace string, configmapName string) *v1.ConfigMap {
-	return &v1.ConfigMap{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      configmapName,
-			Namespace: namespace,
-			Labels:    map[string]string{"firstLabel": "temp"},
-		},
-		Data: map[string]string{"test.url": "www.google.com"},
-	}
-}
-
-func initDeployment(namespace string, deploymentName string) *v1beta1.Deployment {
-	replicaset := int32(1)
-	return &v1beta1.Deployment{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:        deploymentName,
-			Namespace:   namespace,
-			Labels:      map[string]string{"firstLabel": "temp"},
-			Annotations: map[string]string{"reloader.stakater.com/update-on-change": deploymentName},
-		},
-		Spec: v1beta1.DeploymentSpec{
-			Replicas: &replicaset,
-			Strategy: v1beta1.DeploymentStrategy{
-				Type: v1beta1.RollingUpdateDeploymentStrategyType,
-			},
-			Template: v1.PodTemplateSpec{
-				ObjectMeta: metav1.ObjectMeta{
-					Labels: map[string]string{"secondLabel": "temp"},
-				},
-				Spec: v1.PodSpec{
-					Containers: []v1.Container{
-						{
-							Image: "tutum/hello-world",
-							Name:  deploymentName,
-							Env: []v1.EnvVar{
-								{
-									Name:  "BUCKET_NAME",
-									Value: "test",
-								},
-							},
-						},
-					},
-				},
-			},
-		},
-	}
-}
-
-func initSecret(namespace string, secretName string) *v1.Secret {
-	return &v1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      secretName,
-			Namespace: namespace,
-			Labels:    map[string]string{"firstLabel": "temp"},
-		},
-		Data: map[string][]byte{"test.url": []byte("dGVzdFNlY3JldEVuY29kaW5nRm9yUmVsb2FkZXI=")},
-	}
-}
-
-func createNamespace(t *testing.T, namespace string, client kubernetes.Interface) {
-	_, err := client.CoreV1().Namespaces().Create(&v1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: namespace}})
+// Perform rolling upgrade on deployment and update env var upon updating the secret
+func TestControllerUpdatingSecretShouldUpdateEnvInDeployment(t *testing.T) {
+	// Creating secret
+	secretName := secretNamePrefix + "-update-" + testutil.RandSeq(5)
+	secretClient, err := testutil.CreateSecret(client, namespace, secretName, data)
 	if err != nil {
-		t.Error("Failed to create namespace for testing", err)
-	} else {
-		logrus.Infof("Creating namespace for testing = %s", namespace)
+		t.Errorf("Error  in secret creation: %v", err)
 	}
-}
 
-func deleteNamespace(t *testing.T, namespace string, client kubernetes.Interface) {
-	err := client.CoreV1().Namespaces().Delete(namespace, &metav1.DeleteOptions{})
+	// Creating deployment
+	_, err = testutil.CreateDeployment(client, secretName, namespace)
 	if err != nil {
-		t.Error("Failed to delete namespace that was created for testing", err)
-	} else {
-		logrus.Infof("Deleting namespace for testing = %s", namespace)
+		t.Errorf("Error  in deployment creation: %v", err)
 	}
+
+	// Updating Secret
+	err = testutil.UpdateSecret(secretClient, namespace, secretName, "", newData)
+	if err != nil {
+		t.Errorf("Error while updating secret %v", err)
+	}
+
+	// Updating Secret
+	err = testutil.UpdateSecret(secretClient, namespace, secretName, "", updatedData)
+	if err != nil {
+		t.Errorf("Error while updating secret %v", err)
+	}
+
+	// Verifying Upgrade
+	logrus.Infof("Verifying env var has been updated")
+	shaData := testutil.ConvertResourceToSHA(testutil.SecretResourceType, namespace, secretName, updatedData)
+	config := util.Config{
+		Namespace:    namespace,
+		ResourceName: secretName,
+		SHAValue:     shaData,
+		Annotation:   constants.SecretUpdateOnChangeAnnotation,
+	}
+	deploymentFuncs := callbacks.RollingUpgradeFuncs{
+		ItemsFunc:      callbacks.GetDeploymentItems,
+		ContainersFunc: callbacks.GetDeploymentContainers,
+		UpdateFunc:     callbacks.UpdateDeployment,
+		ResourceType:   "Deployment",
+	}
+	updated := testutil.VerifyResourceUpdate(client, config, constants.SecretEnvVarPostfix, deploymentFuncs)
+	if !updated {
+		t.Errorf("Deployment was not updated")
+	}
+	//time.Sleep(5 * time.Second)
+
+	// Deleting Deployment
+	err = testutil.DeleteDeployment(client, namespace, secretName)
+	if err != nil {
+		logrus.Errorf("Error while deleting the deployment %v", err)
+	}
+
+	//Deleting Secret
+	err = testutil.DeleteSecret(client, namespace, secretName)
+	if err != nil {
+		logrus.Errorf("Error while deleting the secret %v", err)
+	}
+	time.Sleep(5 * time.Second)
 }
 
-func updateConfigmap(namespace string, configmapName string) *v1.ConfigMap {
-	return &v1.ConfigMap{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      configmapName,
-			Namespace: namespace,
-			Labels:    map[string]string{"firstLabel": "temp"},
-		},
-		Data: map[string]string{"test.url": "www.stakater.com"},
+// Do not Perform rolling upgrade on secret and create or update a env var upon updating the label in secret
+func TestControllerUpdatingSecretLabelsShouldNotCreateorUpdateEnvInDeployment(t *testing.T) {
+	// Creating secret
+	secretName := secretNamePrefix + "-update-" + testutil.RandSeq(5)
+	secretClient, err := testutil.CreateSecret(client, namespace, secretName, data)
+	if err != nil {
+		t.Errorf("Error  in secret creation: %v", err)
 	}
+
+	// Creating deployment
+	_, err = testutil.CreateDeployment(client, secretName, namespace)
+	if err != nil {
+		t.Errorf("Error  in deployment creation: %v", err)
+	}
+
+	err = testutil.UpdateSecret(secretClient, namespace, secretName, "test", data)
+	if err != nil {
+		t.Errorf("Error while updating secret %v", err)
+	}
+
+	// Verifying Upgrade
+	logrus.Infof("Verifying env var has been created")
+	shaData := testutil.ConvertResourceToSHA(testutil.SecretResourceType, namespace, secretName, data)
+	config := util.Config{
+		Namespace:    namespace,
+		ResourceName: secretName,
+		SHAValue:     shaData,
+		Annotation:   constants.SecretUpdateOnChangeAnnotation,
+	}
+	deploymentFuncs := callbacks.RollingUpgradeFuncs{
+		ItemsFunc:      callbacks.GetDeploymentItems,
+		ContainersFunc: callbacks.GetDeploymentContainers,
+		UpdateFunc:     callbacks.UpdateDeployment,
+		ResourceType:   "Deployment",
+	}
+	updated := testutil.VerifyResourceUpdate(client, config, constants.SecretEnvVarPostfix, deploymentFuncs)
+	if updated {
+		t.Errorf("Deployment should not be updated by changing label in secret")
+	}
+	//time.Sleep(5 * time.Second)
+
+	// Deleting Deployment
+	err = testutil.DeleteDeployment(client, namespace, secretName)
+	if err != nil {
+		logrus.Errorf("Error while deleting the deployment %v", err)
+	}
+
+	//Deleting Secret
+	err = testutil.DeleteSecret(client, namespace, secretName)
+	if err != nil {
+		logrus.Errorf("Error while deleting the secret %v", err)
+	}
+	time.Sleep(5 * time.Second)
 }
 
-func updateSecret(namespace string, secretName string) *v1.Secret {
-	return &v1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      secretName,
-			Namespace: namespace,
-			Labels:    map[string]string{"firstLabel": "temp"},
-		},
-		Data: map[string][]byte{"test.url": []byte("dGVzdFVwZGF0ZWRTZWNyZXRFbmNvZGluZ0ZvclJlbG9hZGVy")},
+// Perform rolling upgrade on DaemonSet and create env var upon updating the configmap
+func TestControllerUpdatingConfigmapShouldCreateEnvInDaemonSet(t *testing.T) {
+	// Creating configmap
+	configmapName := configmapNamePrefix + "-update-" + testutil.RandSeq(5)
+	configmapClient, err := testutil.CreateConfigMap(client, namespace, configmapName, "www.google.com")
+	if err != nil {
+		t.Errorf("Error while creating the configmap %v", err)
 	}
+
+	// Creating DaemonSet
+	_, err = testutil.CreateDaemonSet(client, configmapName, namespace)
+	if err != nil {
+		t.Errorf("Error  in DaemonSet creation: %v", err)
+	}
+
+	// Updating configmap for first time
+	updateErr := testutil.UpdateConfigMap(configmapClient, namespace, configmapName, "", "www.stakater.com")
+	if updateErr != nil {
+		t.Errorf("Configmap was not updated")
+	}
+
+	// Verifying DaemonSet update
+	logrus.Infof("Verifying env var has been created")
+	shaData := testutil.ConvertResourceToSHA(testutil.ConfigmapResourceType, namespace, configmapName, "www.stakater.com")
+	config := util.Config{
+		Namespace:    namespace,
+		ResourceName: configmapName,
+		SHAValue:     shaData,
+		Annotation:   constants.ConfigmapUpdateOnChangeAnnotation,
+	}
+	daemonSetFuncs := callbacks.RollingUpgradeFuncs{
+		ItemsFunc:      callbacks.GetDaemonSetItems,
+		ContainersFunc: callbacks.GetDaemonSetContainers,
+		UpdateFunc:     callbacks.UpdateDaemonSet,
+		ResourceType:   "DaemonSet",
+	}
+	updated := testutil.VerifyResourceUpdate(client, config, constants.ConfigmapEnvVarPostfix, daemonSetFuncs)
+	if !updated {
+		t.Errorf("DaemonSet was not updated")
+	}
+	time.Sleep(5 * time.Second)
+
+	// Deleting DaemonSet
+	err = testutil.DeleteDaemonSet(client, namespace, configmapName)
+	if err != nil {
+		logrus.Errorf("Error while deleting the DaemonSet %v", err)
+	}
+
+	// Deleting configmap
+	err = testutil.DeleteConfigMap(client, namespace, configmapName)
+	if err != nil {
+		logrus.Errorf("Error while deleting the configmap %v", err)
+	}
+	time.Sleep(5 * time.Second)
+}
+
+// Perform rolling upgrade on DaemonSet and update env var upon updating the configmap
+func TestControllerForUpdatingConfigmapShouldUpdateDaemonSet(t *testing.T) {
+	// Creating secret
+	configmapName := configmapNamePrefix + "-update-" + testutil.RandSeq(5)
+	configmapClient, err := testutil.CreateConfigMap(client, namespace, configmapName, "www.google.com")
+	if err != nil {
+		t.Errorf("Error while creating the configmap %v", err)
+	}
+
+	// Creating DaemonSet
+	_, err = testutil.CreateDaemonSet(client, configmapName, namespace)
+	if err != nil {
+		t.Errorf("Error  in DaemonSet creation: %v", err)
+	}
+
+	// Updating configmap for first time
+	updateErr := testutil.UpdateConfigMap(configmapClient, namespace, configmapName, "", "www.stakater.com")
+	if updateErr != nil {
+		t.Errorf("Configmap was not updated")
+	}
+
+	// Updating configmap for second time
+	updateErr = testutil.UpdateConfigMap(configmapClient, namespace, configmapName, "", "aurorasolutions.io")
+	if updateErr != nil {
+		t.Errorf("Configmap was not updated")
+	}
+
+	// Verifying DaemonSet update
+	logrus.Infof("Verifying env var has been updated")
+	shaData := testutil.ConvertResourceToSHA(testutil.ConfigmapResourceType, namespace, configmapName, "aurorasolutions.io")
+	config := util.Config{
+		Namespace:    namespace,
+		ResourceName: configmapName,
+		SHAValue:     shaData,
+		Annotation:   constants.ConfigmapUpdateOnChangeAnnotation,
+	}
+	daemonSetFuncs := callbacks.RollingUpgradeFuncs{
+		ItemsFunc:      callbacks.GetDaemonSetItems,
+		ContainersFunc: callbacks.GetDaemonSetContainers,
+		UpdateFunc:     callbacks.UpdateDaemonSet,
+		ResourceType:   "DaemonSet",
+	}
+	updated := testutil.VerifyResourceUpdate(client, config, constants.ConfigmapEnvVarPostfix, daemonSetFuncs)
+	if !updated {
+		t.Errorf("DaemonSet was not updated")
+	}
+	time.Sleep(5 * time.Second)
+
+	// Deleting DaemonSet
+	err = testutil.DeleteDaemonSet(client, namespace, configmapName)
+	if err != nil {
+		logrus.Errorf("Error while deleting the DaemonSet %v", err)
+	}
+
+	// Deleting configmap
+	err = testutil.DeleteConfigMap(client, namespace, configmapName)
+	if err != nil {
+		logrus.Errorf("Error while deleting the configmap %v", err)
+	}
+	time.Sleep(5 * time.Second)
+}
+
+// Perform rolling upgrade on secret and create a env var upon updating the secret
+func TestControllerUpdatingSecretShouldCreateEnvInDaemonSet(t *testing.T) {
+	// Creating secret
+	secretName := secretNamePrefix + "-update-" + testutil.RandSeq(5)
+	secretClient, err := testutil.CreateSecret(client, namespace, secretName, data)
+	if err != nil {
+		t.Errorf("Error  in secret creation: %v", err)
+	}
+
+	// Creating DaemonSet
+	_, err = testutil.CreateDaemonSet(client, secretName, namespace)
+	if err != nil {
+		t.Errorf("Error  in DaemonSet creation: %v", err)
+	}
+
+	// Updating Secret
+	err = testutil.UpdateSecret(secretClient, namespace, secretName, "", newData)
+	if err != nil {
+		t.Errorf("Error while updating secret %v", err)
+	}
+
+	// Verifying Upgrade
+	logrus.Infof("Verifying env var has been created")
+	shaData := testutil.ConvertResourceToSHA(testutil.SecretResourceType, namespace, secretName, newData)
+	config := util.Config{
+		Namespace:    namespace,
+		ResourceName: secretName,
+		SHAValue:     shaData,
+		Annotation:   constants.SecretUpdateOnChangeAnnotation,
+	}
+	daemonSetFuncs := callbacks.RollingUpgradeFuncs{
+		ItemsFunc:      callbacks.GetDaemonSetItems,
+		ContainersFunc: callbacks.GetDaemonSetContainers,
+		UpdateFunc:     callbacks.UpdateDaemonSet,
+		ResourceType:   "DaemonSet",
+	}
+	updated := testutil.VerifyResourceUpdate(client, config, constants.SecretEnvVarPostfix, daemonSetFuncs)
+	if !updated {
+		t.Errorf("DaemonSet was not updated")
+	}
+	//time.Sleep(5 * time.Second)
+
+	// Deleting DaemonSet
+	err = testutil.DeleteDaemonSet(client, namespace, secretName)
+	if err != nil {
+		logrus.Errorf("Error while deleting the DaemonSet %v", err)
+	}
+
+	//Deleting Secret
+	err = testutil.DeleteSecret(client, namespace, secretName)
+	if err != nil {
+		logrus.Errorf("Error while deleting the secret %v", err)
+	}
+	time.Sleep(5 * time.Second)
+}
+
+// Perform rolling upgrade on DaemonSet and update env var upon updating the secret
+func TestControllerUpdatingSecretShouldUpdateEnvInDaemonSet(t *testing.T) {
+	// Creating secret
+	secretName := secretNamePrefix + "-update-" + testutil.RandSeq(5)
+	secretClient, err := testutil.CreateSecret(client, namespace, secretName, data)
+	if err != nil {
+		t.Errorf("Error  in secret creation: %v", err)
+	}
+
+	// Creating DaemonSet
+	_, err = testutil.CreateDaemonSet(client, secretName, namespace)
+	if err != nil {
+		t.Errorf("Error  in DaemonSet creation: %v", err)
+	}
+
+	// Updating Secret
+	err = testutil.UpdateSecret(secretClient, namespace, secretName, "", newData)
+	if err != nil {
+		t.Errorf("Error while updating secret %v", err)
+	}
+	time.Sleep(5 * time.Second)
+
+	// Updating Secret
+	err = testutil.UpdateSecret(secretClient, namespace, secretName, "", updatedData)
+	if err != nil {
+		t.Errorf("Error while updating secret %v", err)
+	}
+
+	// Verifying Upgrade
+	logrus.Infof("Verifying env var has been updated")
+	shaData := testutil.ConvertResourceToSHA(testutil.SecretResourceType, namespace, secretName, updatedData)
+	config := util.Config{
+		Namespace:    namespace,
+		ResourceName: secretName,
+		SHAValue:     shaData,
+		Annotation:   constants.SecretUpdateOnChangeAnnotation,
+	}
+	daemonSetFuncs := callbacks.RollingUpgradeFuncs{
+		ItemsFunc:      callbacks.GetDaemonSetItems,
+		ContainersFunc: callbacks.GetDaemonSetContainers,
+		UpdateFunc:     callbacks.UpdateDaemonSet,
+		ResourceType:   "DaemonSet",
+	}
+	updated := testutil.VerifyResourceUpdate(client, config, constants.SecretEnvVarPostfix, daemonSetFuncs)
+	if !updated {
+		t.Errorf("DaemonSet was not updated")
+	}
+	//time.Sleep(5 * time.Second)
+
+	// Deleting DaemonSet
+	err = testutil.DeleteDaemonSet(client, namespace, secretName)
+	if err != nil {
+		logrus.Errorf("Error while deleting the DaemonSet %v", err)
+	}
+
+	//Deleting Secret
+	err = testutil.DeleteSecret(client, namespace, secretName)
+	if err != nil {
+		logrus.Errorf("Error while deleting the secret %v", err)
+	}
+	time.Sleep(5 * time.Second)
+}
+
+// Do not Perform rolling upgrade on secret and create or update a env var upon updating the label in secret
+func TestControllerUpdatingSecretLabelsShouldNotCreateorUpdateEnvInDaemonSet(t *testing.T) {
+	// Creating secret
+	secretName := secretNamePrefix + "-update-" + testutil.RandSeq(5)
+	secretClient, err := testutil.CreateSecret(client, namespace, secretName, data)
+	if err != nil {
+		t.Errorf("Error  in secret creation: %v", err)
+	}
+
+	// Creating DaemonSet
+	_, err = testutil.CreateDaemonSet(client, secretName, namespace)
+	if err != nil {
+		t.Errorf("Error  in DaemonSet creation: %v", err)
+	}
+
+	err = testutil.UpdateSecret(secretClient, namespace, secretName, "test", data)
+	if err != nil {
+		t.Errorf("Error while updating secret %v", err)
+	}
+
+	// Verifying Upgrade
+	logrus.Infof("Verifying env var has been created")
+	shaData := testutil.ConvertResourceToSHA(testutil.SecretResourceType, namespace, secretName, data)
+	config := util.Config{
+		Namespace:    namespace,
+		ResourceName: secretName,
+		SHAValue:     shaData,
+		Annotation:   constants.SecretUpdateOnChangeAnnotation,
+	}
+	daemonSetFuncs := callbacks.RollingUpgradeFuncs{
+		ItemsFunc:      callbacks.GetDaemonSetItems,
+		ContainersFunc: callbacks.GetDaemonSetContainers,
+		UpdateFunc:     callbacks.UpdateDaemonSet,
+		ResourceType:   "DaemonSet",
+	}
+	updated := testutil.VerifyResourceUpdate(client, config, constants.SecretEnvVarPostfix, daemonSetFuncs)
+	if updated {
+		t.Errorf("DaemonSet should not be updated by changing label in secret")
+	}
+	//time.Sleep(5 * time.Second)
+
+	// Deleting DaemonSet
+	err = testutil.DeleteDaemonSet(client, namespace, secretName)
+	if err != nil {
+		logrus.Errorf("Error while deleting the DaemonSet %v", err)
+	}
+
+	//Deleting Secret
+	err = testutil.DeleteSecret(client, namespace, secretName)
+	if err != nil {
+		logrus.Errorf("Error while deleting the secret %v", err)
+	}
+	time.Sleep(5 * time.Second)
+}
+
+// Perform rolling upgrade on StatefulSet and create env var upon updating the configmap
+func TestControllerUpdatingConfigmapShouldCreateEnvInStatefulSet(t *testing.T) {
+	// Creating configmap
+	configmapName := configmapNamePrefix + "-update-" + testutil.RandSeq(5)
+	configmapClient, err := testutil.CreateConfigMap(client, namespace, configmapName, "www.google.com")
+	if err != nil {
+		t.Errorf("Error while creating the configmap %v", err)
+	}
+
+	// Creating StatefulSet
+	_, err = testutil.CreateStatefulSet(client, configmapName, namespace)
+	if err != nil {
+		t.Errorf("Error  in StatefulSet creation: %v", err)
+	}
+
+	// Updating configmap for first time
+	updateErr := testutil.UpdateConfigMap(configmapClient, namespace, configmapName, "", "www.stakater.com")
+	if updateErr != nil {
+		t.Errorf("Configmap was not updated")
+	}
+
+	// Verifying StatefulSet update
+	logrus.Infof("Verifying env var has been created")
+	shaData := testutil.ConvertResourceToSHA(testutil.ConfigmapResourceType, namespace, configmapName, "www.stakater.com")
+	config := util.Config{
+		Namespace:    namespace,
+		ResourceName: configmapName,
+		SHAValue:     shaData,
+		Annotation:   constants.ConfigmapUpdateOnChangeAnnotation,
+	}
+	statefulSetFuncs := callbacks.RollingUpgradeFuncs{
+		ItemsFunc:      callbacks.GetStatefulSetItems,
+		ContainersFunc: callbacks.GetStatefulsetContainers,
+		UpdateFunc:     callbacks.UpdateStatefulset,
+		ResourceType:   "StatefulSet",
+	}
+	updated := testutil.VerifyResourceUpdate(client, config, constants.ConfigmapEnvVarPostfix, statefulSetFuncs)
+	if !updated {
+		t.Errorf("StatefulSet was not updated")
+	}
+	time.Sleep(5 * time.Second)
+
+	// Deleting StatefulSet
+	err = testutil.DeleteStatefulSet(client, namespace, configmapName)
+	if err != nil {
+		logrus.Errorf("Error while deleting the StatefulSet %v", err)
+	}
+
+	// Deleting configmap
+	err = testutil.DeleteConfigMap(client, namespace, configmapName)
+	if err != nil {
+		logrus.Errorf("Error while deleting the configmap %v", err)
+	}
+	time.Sleep(5 * time.Second)
+}
+
+// Perform rolling upgrade on StatefulSet and update env var upon updating the configmap
+func TestControllerForUpdatingConfigmapShouldUpdateStatefulSet(t *testing.T) {
+	// Creating secret
+	configmapName := configmapNamePrefix + "-update-" + testutil.RandSeq(5)
+	configmapClient, err := testutil.CreateConfigMap(client, namespace, configmapName, "www.google.com")
+	if err != nil {
+		t.Errorf("Error while creating the configmap %v", err)
+	}
+
+	// Creating StatefulSet
+	_, err = testutil.CreateStatefulSet(client, configmapName, namespace)
+	if err != nil {
+		t.Errorf("Error  in StatefulSet creation: %v", err)
+	}
+
+	// Updating configmap for first time
+	updateErr := testutil.UpdateConfigMap(configmapClient, namespace, configmapName, "", "www.stakater.com")
+	if updateErr != nil {
+		t.Errorf("Configmap was not updated")
+	}
+
+	// Updating configmap for second time
+	updateErr = testutil.UpdateConfigMap(configmapClient, namespace, configmapName, "", "aurorasolutions.io")
+	if updateErr != nil {
+		t.Errorf("Configmap was not updated")
+	}
+
+	// Verifying StatefulSet update
+	logrus.Infof("Verifying env var has been updated")
+	shaData := testutil.ConvertResourceToSHA(testutil.ConfigmapResourceType, namespace, configmapName, "aurorasolutions.io")
+	config := util.Config{
+		Namespace:    namespace,
+		ResourceName: configmapName,
+		SHAValue:     shaData,
+		Annotation:   constants.ConfigmapUpdateOnChangeAnnotation,
+	}
+	statefulSetFuncs := callbacks.RollingUpgradeFuncs{
+		ItemsFunc:      callbacks.GetStatefulSetItems,
+		ContainersFunc: callbacks.GetStatefulsetContainers,
+		UpdateFunc:     callbacks.UpdateStatefulset,
+		ResourceType:   "StatefulSet",
+	}
+	updated := testutil.VerifyResourceUpdate(client, config, constants.ConfigmapEnvVarPostfix, statefulSetFuncs)
+	if !updated {
+		t.Errorf("StatefulSet was not updated")
+	}
+	time.Sleep(5 * time.Second)
+
+	// Deleting StatefulSet
+	err = testutil.DeleteStatefulSet(client, namespace, configmapName)
+	if err != nil {
+		logrus.Errorf("Error while deleting the StatefulSet %v", err)
+	}
+
+	// Deleting configmap
+	err = testutil.DeleteConfigMap(client, namespace, configmapName)
+	if err != nil {
+		logrus.Errorf("Error while deleting the configmap %v", err)
+	}
+	time.Sleep(5 * time.Second)
+}
+
+// Perform rolling upgrade on secret and create a env var upon updating the secret
+func TestControllerUpdatingSecretShouldCreateEnvInStatefulSet(t *testing.T) {
+	// Creating secret
+	secretName := secretNamePrefix + "-update-" + testutil.RandSeq(5)
+	secretClient, err := testutil.CreateSecret(client, namespace, secretName, data)
+	if err != nil {
+		t.Errorf("Error  in secret creation: %v", err)
+	}
+
+	// Creating StatefulSet
+	_, err = testutil.CreateStatefulSet(client, secretName, namespace)
+	if err != nil {
+		t.Errorf("Error  in StatefulSet creation: %v", err)
+	}
+
+	// Updating Secret
+	err = testutil.UpdateSecret(secretClient, namespace, secretName, "", newData)
+	if err != nil {
+		t.Errorf("Error while updating secret %v", err)
+	}
+
+	// Verifying Upgrade
+	logrus.Infof("Verifying env var has been created")
+	shaData := testutil.ConvertResourceToSHA(testutil.SecretResourceType, namespace, secretName, newData)
+	config := util.Config{
+		Namespace:    namespace,
+		ResourceName: secretName,
+		SHAValue:     shaData,
+		Annotation:   constants.SecretUpdateOnChangeAnnotation,
+	}
+	statefulSetFuncs := callbacks.RollingUpgradeFuncs{
+		ItemsFunc:      callbacks.GetStatefulSetItems,
+		ContainersFunc: callbacks.GetStatefulsetContainers,
+		UpdateFunc:     callbacks.UpdateStatefulset,
+		ResourceType:   "StatefulSet",
+	}
+	updated := testutil.VerifyResourceUpdate(client, config, constants.SecretEnvVarPostfix, statefulSetFuncs)
+	if !updated {
+		t.Errorf("StatefulSet was not updated")
+	}
+	//time.Sleep(5 * time.Second)
+
+	// Deleting StatefulSet
+	err = testutil.DeleteStatefulSet(client, namespace, secretName)
+	if err != nil {
+		logrus.Errorf("Error while deleting the StatefulSet %v", err)
+	}
+
+	//Deleting Secret
+	err = testutil.DeleteSecret(client, namespace, secretName)
+	if err != nil {
+		logrus.Errorf("Error while deleting the secret %v", err)
+	}
+	time.Sleep(5 * time.Second)
+}
+
+// Perform rolling upgrade on StatefulSet and update env var upon updating the secret
+func TestControllerUpdatingSecretShouldUpdateEnvInStatefulSet(t *testing.T) {
+	// Creating secret
+	secretName := secretNamePrefix + "-update-" + testutil.RandSeq(5)
+	secretClient, err := testutil.CreateSecret(client, namespace, secretName, data)
+	if err != nil {
+		t.Errorf("Error  in secret creation: %v", err)
+	}
+
+	// Creating StatefulSet
+	_, err = testutil.CreateStatefulSet(client, secretName, namespace)
+	if err != nil {
+		t.Errorf("Error  in StatefulSet creation: %v", err)
+	}
+
+	// Updating Secret
+	err = testutil.UpdateSecret(secretClient, namespace, secretName, "", newData)
+	if err != nil {
+		t.Errorf("Error while updating secret %v", err)
+	}
+
+	// Updating Secret
+	err = testutil.UpdateSecret(secretClient, namespace, secretName, "", updatedData)
+	if err != nil {
+		t.Errorf("Error while updating secret %v", err)
+	}
+
+	// Verifying Upgrade
+	logrus.Infof("Verifying env var has been updated")
+	shaData := testutil.ConvertResourceToSHA(testutil.SecretResourceType, namespace, secretName, updatedData)
+	config := util.Config{
+		Namespace:    namespace,
+		ResourceName: secretName,
+		SHAValue:     shaData,
+		Annotation:   constants.SecretUpdateOnChangeAnnotation,
+	}
+	statefulSetFuncs := callbacks.RollingUpgradeFuncs{
+		ItemsFunc:      callbacks.GetStatefulSetItems,
+		ContainersFunc: callbacks.GetStatefulsetContainers,
+		UpdateFunc:     callbacks.UpdateStatefulset,
+		ResourceType:   "StatefulSet",
+	}
+	updated := testutil.VerifyResourceUpdate(client, config, constants.SecretEnvVarPostfix, statefulSetFuncs)
+	if !updated {
+		t.Errorf("StatefulSet was not updated")
+	}
+	//time.Sleep(5 * time.Second)
+
+	// Deleting StatefulSet
+	err = testutil.DeleteStatefulSet(client, namespace, secretName)
+	if err != nil {
+		logrus.Errorf("Error while deleting the StatefulSet %v", err)
+	}
+
+	//Deleting Secret
+	err = testutil.DeleteSecret(client, namespace, secretName)
+	if err != nil {
+		logrus.Errorf("Error while deleting the secret %v", err)
+	}
+	time.Sleep(5 * time.Second)
 }

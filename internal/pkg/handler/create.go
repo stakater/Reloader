@@ -18,11 +18,11 @@ func (r ResourceCreatedHandler) Handle() error {
 		logrus.Infof("Detected changes in object %s", r.Resource)
 		// process resource based on its type
 		if _, ok := r.Resource.(*v1.ConfigMap); ok {
-			logrus.Infof("Performing 'Added' action for resource of type 'configmap'")
+			logrus.Infof("A 'configmap' has been 'Added' but no implementation found to take action")
 		} else if _, ok := r.Resource.(*v1.Secret); ok {
-			logrus.Infof("Performing 'Added' action for resource of type 'secret'")
+			logrus.Infof("A 'secret' has been 'Added' but no implementation found to take action")
 		} else {
-			logrus.Warnf("Invalid resource: Resource should be 'Secret' or 'Configmap' but found %v", r.Resource)
+			logrus.Warnf("Invalid resource: Resource should be 'Secret' or 'Configmap' but found, %v", r.Resource)
 		}
 	}
 	return nil
