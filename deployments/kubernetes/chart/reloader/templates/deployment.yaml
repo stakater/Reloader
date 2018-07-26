@@ -18,10 +18,12 @@ spec:
     spec:
       containers:
       - env:
+      {{- if eq .Values.reloader.watchGlobally false }}
         - name: KUBERNETES_NAMESPACE
           valueFrom:
             fieldRef:
               fieldPath: metadata.namespace
+      {{- end }}
         image: "{{ .Values.reloader.image.name }}:{{ .Values.reloader.image.tag }}"
         imagePullPolicy: {{ .Values.reloader.image.pullPolicy }}
         name: {{ template "reloader-name" . }}

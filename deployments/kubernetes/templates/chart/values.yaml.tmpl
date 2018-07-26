@@ -12,3 +12,4 @@ reloader:
     name: {{ getenv "DOCKER_IMAGE" }}
     tag: "{{ getenv "VERSION" }}"
     pullPolicy: IfNotPresent
+  watchGlobally: false

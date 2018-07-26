@@ -12,3 +12,4 @@ reloader:
     name: stakater/reloader
     tag: "0.0.2"
     pullPolicy: IfNotPresent
+  watchGlobally: false
