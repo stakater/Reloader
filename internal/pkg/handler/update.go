@@ -28,22 +28,22 @@ func (r ResourceUpdatedHandler) Handle() error {
 		logrus.Infof("Detected changes in object %s", r.Resource)
 		// process resource based on its type
 		rollingUpgrade(r, callbacks.RollingUpgradeFuncs{
-			ItemsFunc:        callbacks.GetDeploymentItems,
-			ContainersFunc:   callbacks.GetDeploymentContainers,
-			UpdateFunc:       callbacks.UpdateDeployment,
-			ResourceTypeFunc: callbacks.GetDeploymentTypeName,
+			ItemsFunc:      callbacks.GetDeploymentItems,
+			ContainersFunc: callbacks.GetDeploymentContainers,
+			UpdateFunc:     callbacks.UpdateDeployment,
+			ResourceType:   "Deployment",
 		})
 		rollingUpgrade(r, callbacks.RollingUpgradeFuncs{
-			ItemsFunc:        callbacks.GetDaemonSetItems,
-			ContainersFunc:   callbacks.GetDaemonSetContainers,
-			UpdateFunc:       callbacks.UpdateDaemonSet,
-			ResourceTypeFunc: callbacks.GetDaemonSetTypeName,
+			ItemsFunc:      callbacks.GetDaemonSetItems,
+			ContainersFunc: callbacks.GetDaemonSetContainers,
+			UpdateFunc:     callbacks.UpdateDaemonSet,
+			ResourceType:   "DaemonSet",
 		})
 		rollingUpgrade(r, callbacks.RollingUpgradeFuncs{
-			ItemsFunc:        callbacks.GetStatefulSetItems,
-			ContainersFunc:   callbacks.GetStatefulsetContainers,
-			UpdateFunc:       callbacks.UpdateStatefulset,
-			ResourceTypeFunc: callbacks.GetStatefulSetTypeName,
+			ItemsFunc:      callbacks.GetStatefulSetItems,
+			ContainersFunc: callbacks.GetStatefulsetContainers,
+			UpdateFunc:     callbacks.UpdateStatefulset,
+			ResourceType:   "StatefulSet",
 		})
 	}
 	return nil
@@ -124,9 +124,9 @@ func PerformRollingUpgrade(client kubernetes.Interface, config util.Config, enva
 					} else {
 						err = upgradeFuncs.UpdateFunc(client, config.Namespace, i)
 						if err != nil {
-							logrus.Errorf("Update %s failed %v", upgradeFuncs.ResourceTypeFunc, err)
+							logrus.Errorf("Update %s failed %v", upgradeFuncs.ResourceType, err)
 						} else {
-							logrus.Infof("Updated %s of type %s", config.ResourceName, upgradeFuncs.ResourceTypeFunc)
+							logrus.Infof("Updated %s of type %s", config.ResourceName, upgradeFuncs.ResourceType)
 						}
 						break
 					}

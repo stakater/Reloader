@@ -152,10 +152,10 @@ func TestRollingUpgradeForDeploymentWithConfigmap(t *testing.T) {
 		Annotation:   constants.ConfigmapUpdateOnChangeAnnotation,
 	}
 	deploymentFuncs := callbacks.RollingUpgradeFuncs{
-		ItemsFunc:        callbacks.GetDeploymentItems,
-		ContainersFunc:   callbacks.GetDeploymentContainers,
-		UpdateFunc:       callbacks.UpdateDeployment,
-		ResourceTypeFunc: callbacks.GetDeploymentTypeName,
+		ItemsFunc:      callbacks.GetDeploymentItems,
+		ContainersFunc: callbacks.GetDeploymentContainers,
+		UpdateFunc:     callbacks.UpdateDeployment,
+		ResourceType:   "Deployment",
 	}
 
 	err := PerformRollingUpgrade(client, config, constants.ConfigmapEnvVarPostfix, deploymentFuncs)
@@ -180,10 +180,10 @@ func TestRollingUpgradeForDeploymentWithSecret(t *testing.T) {
 		Annotation:   constants.SecretUpdateOnChangeAnnotation,
 	}
 	deploymentFuncs := callbacks.RollingUpgradeFuncs{
-		ItemsFunc:        callbacks.GetDeploymentItems,
-		ContainersFunc:   callbacks.GetDeploymentContainers,
-		UpdateFunc:       callbacks.UpdateDeployment,
-		ResourceTypeFunc: callbacks.GetDeploymentTypeName,
+		ItemsFunc:      callbacks.GetDeploymentItems,
+		ContainersFunc: callbacks.GetDeploymentContainers,
+		UpdateFunc:     callbacks.UpdateDeployment,
+		ResourceType:   "Deployment",
 	}
 
 	err := PerformRollingUpgrade(client, config, constants.SecretEnvVarPostfix, deploymentFuncs)
@@ -208,10 +208,10 @@ func TestRollingUpgradeForDaemonSetWithConfigmap(t *testing.T) {
 		Annotation:   constants.ConfigmapUpdateOnChangeAnnotation,
 	}
 	daemonSetFuncs := callbacks.RollingUpgradeFuncs{
-		ItemsFunc:        callbacks.GetDaemonSetItems,
-		ContainersFunc:   callbacks.GetDaemonSetContainers,
-		UpdateFunc:       callbacks.UpdateDaemonSet,
-		ResourceTypeFunc: callbacks.GetDaemonSetTypeName,
+		ItemsFunc:      callbacks.GetDaemonSetItems,
+		ContainersFunc: callbacks.GetDaemonSetContainers,
+		UpdateFunc:     callbacks.UpdateDaemonSet,
+		ResourceType:   "DaemonSet",
 	}
 
 	err := PerformRollingUpgrade(client, config, constants.ConfigmapEnvVarPostfix, daemonSetFuncs)
@@ -237,10 +237,10 @@ func TestRollingUpgradeForDaemonSetWithSecret(t *testing.T) {
 		Annotation:   constants.SecretUpdateOnChangeAnnotation,
 	}
 	daemonSetFuncs := callbacks.RollingUpgradeFuncs{
-		ItemsFunc:        callbacks.GetDaemonSetItems,
-		ContainersFunc:   callbacks.GetDaemonSetContainers,
-		UpdateFunc:       callbacks.UpdateDaemonSet,
-		ResourceTypeFunc: callbacks.GetDaemonSetTypeName,
+		ItemsFunc:      callbacks.GetDaemonSetItems,
+		ContainersFunc: callbacks.GetDaemonSetContainers,
+		UpdateFunc:     callbacks.UpdateDaemonSet,
+		ResourceType:   "DaemonSet",
 	}
 
 	err := PerformRollingUpgrade(client, config, constants.SecretEnvVarPostfix, daemonSetFuncs)
@@ -266,10 +266,10 @@ func TestRollingUpgradeForStatefulSetWithConfigmap(t *testing.T) {
 		Annotation:   constants.ConfigmapUpdateOnChangeAnnotation,
 	}
 	statefulSetFuncs := callbacks.RollingUpgradeFuncs{
-		ItemsFunc:        callbacks.GetStatefulSetItems,
-		ContainersFunc:   callbacks.GetStatefulsetContainers,
-		UpdateFunc:       callbacks.UpdateStatefulset,
-		ResourceTypeFunc: callbacks.GetStatefulSetTypeName,
+		ItemsFunc:      callbacks.GetStatefulSetItems,
+		ContainersFunc: callbacks.GetStatefulsetContainers,
+		UpdateFunc:     callbacks.UpdateStatefulset,
+		ResourceType:   "StatefulSet",
 	}
 
 	err := PerformRollingUpgrade(client, config, constants.ConfigmapEnvVarPostfix, statefulSetFuncs)
@@ -295,10 +295,10 @@ func TestRollingUpgradeForStatefulSetWithSecret(t *testing.T) {
 		Annotation:   constants.SecretUpdateOnChangeAnnotation,
 	}
 	statefulSetFuncs := callbacks.RollingUpgradeFuncs{
-		ItemsFunc:        callbacks.GetStatefulSetItems,
-		ContainersFunc:   callbacks.GetStatefulsetContainers,
-		UpdateFunc:       callbacks.UpdateStatefulset,
-		ResourceTypeFunc: callbacks.GetStatefulSetTypeName,
+		ItemsFunc:      callbacks.GetStatefulSetItems,
+		ContainersFunc: callbacks.GetStatefulsetContainers,
+		UpdateFunc:     callbacks.UpdateStatefulset,
+		ResourceType:   "StatefulSet",
 	}
 
 	err := PerformRollingUpgrade(client, config, constants.SecretEnvVarPostfix, statefulSetFuncs)

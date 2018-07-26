@@ -19,14 +19,12 @@ type ContainersFunc func(interface{}) []v1.Container
 //UpdateFunc performs the resource update
 type UpdateFunc func(kubernetes.Interface, string, interface{}) error
 
-type ResourceTypeFunc func() string
-
 //RollingUpgradeFuncs contains generic functions to perform rolling upgrade
 type RollingUpgradeFuncs struct {
-	ItemsFunc        ItemsFunc
-	ContainersFunc   ContainersFunc
-	UpdateFunc       UpdateFunc
-	ResourceTypeFunc ResourceTypeFunc
+	ItemsFunc      ItemsFunc
+	ContainersFunc ContainersFunc
+	UpdateFunc     UpdateFunc
+	ResourceType   string
 }
 
 // GetDeploymentItems returns the deployments in given namespace
@@ -69,21 +67,6 @@ func GetDaemonSetContainers(item interface{}) []v1.Container {
 // GetStatefulsetContainers returns the containers of given statefulSet
 func GetStatefulsetContainers(item interface{}) []v1.Container {
 	return item.(apps_v1beta1.StatefulSet).Spec.Template.Spec.Containers
-}
-
-// GetDeploymentTypeName returns Deployment resource type
-func GetDeploymentTypeName() string {
-	return "Deployment"
-}
-
-// GetDaemonSetTypeName returns DaemonSet resource type
-func GetDaemonSetTypeName() string {
-	return "DaemonSet"
-}
-
-// GetStatefulSetTypeName returns StatefulSet resource type
-func GetStatefulSetTypeName() string {
-	return "StatefulSet"
 }
 
 // UpdateDeployment performs rolling upgrade on deployment

@@ -83,10 +83,10 @@ func TestControllerUpdatingConfigmapShouldCreateEnvInDeployment(t *testing.T) {
 		Annotation:   constants.ConfigmapUpdateOnChangeAnnotation,
 	}
 	deploymentFuncs := callbacks.RollingUpgradeFuncs{
-		ItemsFunc:        callbacks.GetDeploymentItems,
-		ContainersFunc:   callbacks.GetDeploymentContainers,
-		UpdateFunc:       callbacks.UpdateDeployment,
-		ResourceTypeFunc: callbacks.GetDeploymentTypeName,
+		ItemsFunc:      callbacks.GetDeploymentItems,
+		ContainersFunc: callbacks.GetDeploymentContainers,
+		UpdateFunc:     callbacks.UpdateDeployment,
+		ResourceType:   "Deployment",
 	}
 	updated := testutil.VerifyResourceUpdate(client, config, constants.ConfigmapEnvVarPostfix, deploymentFuncs)
 	if !updated {
@@ -146,10 +146,10 @@ func TestControllerForUpdatingConfigmapShouldUpdateDeployment(t *testing.T) {
 	}
 
 	deploymentFuncs := callbacks.RollingUpgradeFuncs{
-		ItemsFunc:        callbacks.GetDeploymentItems,
-		ContainersFunc:   callbacks.GetDeploymentContainers,
-		UpdateFunc:       callbacks.UpdateDeployment,
-		ResourceTypeFunc: callbacks.GetDeploymentTypeName,
+		ItemsFunc:      callbacks.GetDeploymentItems,
+		ContainersFunc: callbacks.GetDeploymentContainers,
+		UpdateFunc:     callbacks.UpdateDeployment,
+		ResourceType:   "Deployment",
 	}
 
 	updated := testutil.VerifyResourceUpdate(client, config, constants.ConfigmapEnvVarPostfix, deploymentFuncs)
@@ -203,10 +203,10 @@ func TestControllerUpdatingConfigmapLabelsShouldNotCreateorUpdateEnvInDeployment
 		Annotation:   constants.ConfigmapUpdateOnChangeAnnotation,
 	}
 	deploymentFuncs := callbacks.RollingUpgradeFuncs{
-		ItemsFunc:        callbacks.GetDeploymentItems,
-		ContainersFunc:   callbacks.GetDeploymentContainers,
-		UpdateFunc:       callbacks.UpdateDeployment,
-		ResourceTypeFunc: callbacks.GetDeploymentTypeName,
+		ItemsFunc:      callbacks.GetDeploymentItems,
+		ContainersFunc: callbacks.GetDeploymentContainers,
+		UpdateFunc:     callbacks.UpdateDeployment,
+		ResourceType:   "Deployment",
 	}
 	updated := testutil.VerifyResourceUpdate(client, config, constants.ConfigmapEnvVarPostfix, deploymentFuncs)
 	if updated {
@@ -259,10 +259,10 @@ func TestControllerUpdatingSecretShouldCreateEnvInDeployment(t *testing.T) {
 		Annotation:   constants.SecretUpdateOnChangeAnnotation,
 	}
 	deploymentFuncs := callbacks.RollingUpgradeFuncs{
-		ItemsFunc:        callbacks.GetDeploymentItems,
-		ContainersFunc:   callbacks.GetDeploymentContainers,
-		UpdateFunc:       callbacks.UpdateDeployment,
-		ResourceTypeFunc: callbacks.GetDeploymentTypeName,
+		ItemsFunc:      callbacks.GetDeploymentItems,
+		ContainersFunc: callbacks.GetDeploymentContainers,
+		UpdateFunc:     callbacks.UpdateDeployment,
+		ResourceType:   "Deployment",
 	}
 	updated := testutil.VerifyResourceUpdate(client, config, constants.SecretEnvVarPostfix, deploymentFuncs)
 	if !updated {
@@ -321,10 +321,10 @@ func TestControllerUpdatingSecretShouldUpdateEnvInDeployment(t *testing.T) {
 		Annotation:   constants.SecretUpdateOnChangeAnnotation,
 	}
 	deploymentFuncs := callbacks.RollingUpgradeFuncs{
-		ItemsFunc:        callbacks.GetDeploymentItems,
-		ContainersFunc:   callbacks.GetDeploymentContainers,
-		UpdateFunc:       callbacks.UpdateDeployment,
-		ResourceTypeFunc: callbacks.GetDeploymentTypeName,
+		ItemsFunc:      callbacks.GetDeploymentItems,
+		ContainersFunc: callbacks.GetDeploymentContainers,
+		UpdateFunc:     callbacks.UpdateDeployment,
+		ResourceType:   "Deployment",
 	}
 	updated := testutil.VerifyResourceUpdate(client, config, constants.SecretEnvVarPostfix, deploymentFuncs)
 	if !updated {
@@ -376,10 +376,10 @@ func TestControllerUpdatingSecretLabelsShouldNotCreateorUpdateEnvInDeployment(t 
 		Annotation:   constants.SecretUpdateOnChangeAnnotation,
 	}
 	deploymentFuncs := callbacks.RollingUpgradeFuncs{
-		ItemsFunc:        callbacks.GetDeploymentItems,
-		ContainersFunc:   callbacks.GetDeploymentContainers,
-		UpdateFunc:       callbacks.UpdateDeployment,
-		ResourceTypeFunc: callbacks.GetDeploymentTypeName,
+		ItemsFunc:      callbacks.GetDeploymentItems,
+		ContainersFunc: callbacks.GetDeploymentContainers,
+		UpdateFunc:     callbacks.UpdateDeployment,
+		ResourceType:   "Deployment",
 	}
 	updated := testutil.VerifyResourceUpdate(client, config, constants.SecretEnvVarPostfix, deploymentFuncs)
 	if updated {
@@ -432,10 +432,10 @@ func TestControllerUpdatingConfigmapShouldCreateEnvInDaemonSet(t *testing.T) {
 		Annotation:   constants.ConfigmapUpdateOnChangeAnnotation,
 	}
 	daemonSetFuncs := callbacks.RollingUpgradeFuncs{
-		ItemsFunc:        callbacks.GetDaemonSetItems,
-		ContainersFunc:   callbacks.GetDaemonSetContainers,
-		UpdateFunc:       callbacks.UpdateDaemonSet,
-		ResourceTypeFunc: callbacks.GetDaemonSetTypeName,
+		ItemsFunc:      callbacks.GetDaemonSetItems,
+		ContainersFunc: callbacks.GetDaemonSetContainers,
+		UpdateFunc:     callbacks.UpdateDaemonSet,
+		ResourceType:   "DaemonSet",
 	}
 	updated := testutil.VerifyResourceUpdate(client, config, constants.ConfigmapEnvVarPostfix, daemonSetFuncs)
 	if !updated {
@@ -494,10 +494,10 @@ func TestControllerForUpdatingConfigmapShouldUpdateDaemonSet(t *testing.T) {
 		Annotation:   constants.ConfigmapUpdateOnChangeAnnotation,
 	}
 	daemonSetFuncs := callbacks.RollingUpgradeFuncs{
-		ItemsFunc:        callbacks.GetDaemonSetItems,
-		ContainersFunc:   callbacks.GetDaemonSetContainers,
-		UpdateFunc:       callbacks.UpdateDaemonSet,
-		ResourceTypeFunc: callbacks.GetDaemonSetTypeName,
+		ItemsFunc:      callbacks.GetDaemonSetItems,
+		ContainersFunc: callbacks.GetDaemonSetContainers,
+		UpdateFunc:     callbacks.UpdateDaemonSet,
+		ResourceType:   "DaemonSet",
 	}
 	updated := testutil.VerifyResourceUpdate(client, config, constants.ConfigmapEnvVarPostfix, daemonSetFuncs)
 	if !updated {
@@ -550,10 +550,10 @@ func TestControllerUpdatingSecretShouldCreateEnvInDaemonSet(t *testing.T) {
 		Annotation:   constants.SecretUpdateOnChangeAnnotation,
 	}
 	daemonSetFuncs := callbacks.RollingUpgradeFuncs{
-		ItemsFunc:        callbacks.GetDaemonSetItems,
-		ContainersFunc:   callbacks.GetDaemonSetContainers,
-		UpdateFunc:       callbacks.UpdateDaemonSet,
-		ResourceTypeFunc: callbacks.GetDaemonSetTypeName,
+		ItemsFunc:      callbacks.GetDaemonSetItems,
+		ContainersFunc: callbacks.GetDaemonSetContainers,
+		UpdateFunc:     callbacks.UpdateDaemonSet,
+		ResourceType:   "DaemonSet",
 	}
 	updated := testutil.VerifyResourceUpdate(client, config, constants.SecretEnvVarPostfix, daemonSetFuncs)
 	if !updated {
@@ -613,10 +613,10 @@ func TestControllerUpdatingSecretShouldUpdateEnvInDaemonSet(t *testing.T) {
 		Annotation:   constants.SecretUpdateOnChangeAnnotation,
 	}
 	daemonSetFuncs := callbacks.RollingUpgradeFuncs{
-		ItemsFunc:        callbacks.GetDaemonSetItems,
-		ContainersFunc:   callbacks.GetDaemonSetContainers,
-		UpdateFunc:       callbacks.UpdateDaemonSet,
-		ResourceTypeFunc: callbacks.GetDaemonSetTypeName,
+		ItemsFunc:      callbacks.GetDaemonSetItems,
+		ContainersFunc: callbacks.GetDaemonSetContainers,
+		UpdateFunc:     callbacks.UpdateDaemonSet,
+		ResourceType:   "DaemonSet",
 	}
 	updated := testutil.VerifyResourceUpdate(client, config, constants.SecretEnvVarPostfix, daemonSetFuncs)
 	if !updated {
@@ -668,10 +668,10 @@ func TestControllerUpdatingSecretLabelsShouldNotCreateorUpdateEnvInDaemonSet(t *
 		Annotation:   constants.SecretUpdateOnChangeAnnotation,
 	}
 	daemonSetFuncs := callbacks.RollingUpgradeFuncs{
-		ItemsFunc:        callbacks.GetDaemonSetItems,
-		ContainersFunc:   callbacks.GetDaemonSetContainers,
-		UpdateFunc:       callbacks.UpdateDaemonSet,
-		ResourceTypeFunc: callbacks.GetDaemonSetTypeName,
+		ItemsFunc:      callbacks.GetDaemonSetItems,
+		ContainersFunc: callbacks.GetDaemonSetContainers,
+		UpdateFunc:     callbacks.UpdateDaemonSet,
+		ResourceType:   "DaemonSet",
 	}
 	updated := testutil.VerifyResourceUpdate(client, config, constants.SecretEnvVarPostfix, daemonSetFuncs)
 	if updated {
@@ -724,10 +724,10 @@ func TestControllerUpdatingConfigmapShouldCreateEnvInStatefulSet(t *testing.T) {
 		Annotation:   constants.ConfigmapUpdateOnChangeAnnotation,
 	}
 	statefulSetFuncs := callbacks.RollingUpgradeFuncs{
-		ItemsFunc:        callbacks.GetStatefulSetItems,
-		ContainersFunc:   callbacks.GetStatefulsetContainers,
-		UpdateFunc:       callbacks.UpdateStatefulset,
-		ResourceTypeFunc: callbacks.GetStatefulSetTypeName,
+		ItemsFunc:      callbacks.GetStatefulSetItems,
+		ContainersFunc: callbacks.GetStatefulsetContainers,
+		UpdateFunc:     callbacks.UpdateStatefulset,
+		ResourceType:   "StatefulSet",
 	}
 	updated := testutil.VerifyResourceUpdate(client, config, constants.ConfigmapEnvVarPostfix, statefulSetFuncs)
 	if !updated {
@@ -786,10 +786,10 @@ func TestControllerForUpdatingConfigmapShouldUpdateStatefulSet(t *testing.T) {
 		Annotation:   constants.ConfigmapUpdateOnChangeAnnotation,
 	}
 	statefulSetFuncs := callbacks.RollingUpgradeFuncs{
-		ItemsFunc:        callbacks.GetStatefulSetItems,
-		ContainersFunc:   callbacks.GetStatefulsetContainers,
-		UpdateFunc:       callbacks.UpdateStatefulset,
-		ResourceTypeFunc: callbacks.GetStatefulSetTypeName,
+		ItemsFunc:      callbacks.GetStatefulSetItems,
+		ContainersFunc: callbacks.GetStatefulsetContainers,
+		UpdateFunc:     callbacks.UpdateStatefulset,
+		ResourceType:   "StatefulSet",
 	}
 	updated := testutil.VerifyResourceUpdate(client, config, constants.ConfigmapEnvVarPostfix, statefulSetFuncs)
 	if !updated {
@@ -842,10 +842,10 @@ func TestControllerUpdatingSecretShouldCreateEnvInStatefulSet(t *testing.T) {
 		Annotation:   constants.SecretUpdateOnChangeAnnotation,
 	}
 	statefulSetFuncs := callbacks.RollingUpgradeFuncs{
-		ItemsFunc:        callbacks.GetStatefulSetItems,
-		ContainersFunc:   callbacks.GetStatefulsetContainers,
-		UpdateFunc:       callbacks.UpdateStatefulset,
-		ResourceTypeFunc: callbacks.GetStatefulSetTypeName,
+		ItemsFunc:      callbacks.GetStatefulSetItems,
+		ContainersFunc: callbacks.GetStatefulsetContainers,
+		UpdateFunc:     callbacks.UpdateStatefulset,
+		ResourceType:   "StatefulSet",
 	}
 	updated := testutil.VerifyResourceUpdate(client, config, constants.SecretEnvVarPostfix, statefulSetFuncs)
 	if !updated {
@@ -904,10 +904,10 @@ func TestControllerUpdatingSecretShouldUpdateEnvInStatefulSet(t *testing.T) {
 		Annotation:   constants.SecretUpdateOnChangeAnnotation,
 	}
 	statefulSetFuncs := callbacks.RollingUpgradeFuncs{
-		ItemsFunc:        callbacks.GetStatefulSetItems,
-		ContainersFunc:   callbacks.GetStatefulsetContainers,
-		UpdateFunc:       callbacks.UpdateStatefulset,
-		ResourceTypeFunc: callbacks.GetStatefulSetTypeName,
+		ItemsFunc:      callbacks.GetStatefulSetItems,
+		ContainersFunc: callbacks.GetStatefulsetContainers,
+		UpdateFunc:     callbacks.UpdateStatefulset,
+		ResourceType:   "StatefulSet",
 	}
 	updated := testutil.VerifyResourceUpdate(client, config, constants.SecretEnvVarPostfix, statefulSetFuncs)
 	if !updated {
