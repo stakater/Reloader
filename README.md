@@ -1,9 +1,5 @@
 # RELOADER
 
-## WHY NAME RELOADER
-
-In english language, Reloader is a thing/tool that can reload certain stuff. So referring to that meaning reloader can reload
-
 ## Problem
 
 We would like to watch if some change happens in `ConfigMap` and `Secret` objects and then perform certain upgrade on relevant `Deployment`, `Deamonset` and `Statefulset`
@@ -53,9 +49,20 @@ kubectl apply -f rbac.yaml -n <namespace>
 kubectl apply -f deployment.yaml -n <namespace>
 ```
 
+### Vanilla Manifests
+
+You can apply vanilla manifests by running the following command
+
+```bash
+kubecl apply -f https://raw.githubusercontent.com/stakater/Reloader/master/deployments/kubernetes/reloader.yaml
+```
+
 ### Helm Charts
 
 Or alternatively if you configured `helm` on your cluster, you can deploy Reloader via helm chart located under `deployments/kubernetes/chart/reloader` folder.
+
+### Monitor All namespaces
+You can monitor all namespaces in cluster by setting the `watchGlobally` flag to `true` in manifest file.
 
 ## Help
 
