@@ -50,12 +50,7 @@ Same procedure can be followed to perform rolling upgrade on `Deamonsets` and `S
 
 ## Deploying to Kubernetes
 
-You can deploy Reloader by running the following kubectl commands:
-
-```bash
-kubectl apply -f rbac.yaml -n <namespace>
-kubectl apply -f deployment.yaml -n <namespace>
-```
+You can deploy Reloader by following methods:
 
 ### Vanilla Manifests
 
@@ -69,8 +64,9 @@ kubecl apply -f https://raw.githubusercontent.com/stakater/Reloader/master/deplo
 
 Or alternatively if you configured `helm` on your cluster, you can deploy Reloader via helm chart located under `deployments/kubernetes/chart/reloader` folder.
 
-### Monitor All namespaces
-By default reloader only watches secrets and configmaps in the namespace in which it is deployed. But you can monitor all namespaces in cluster by setting the `watchGlobally` flag to `true` in `values.yaml` file located under `deployments/kubernetes/chart/reloader` directory.
+## Monitor All namespaces
+
+By default Reloader gets deployed in `default` namespace and watches changes `secrets` and `configmaps` in all namespaces.
 
 ## Help
 
