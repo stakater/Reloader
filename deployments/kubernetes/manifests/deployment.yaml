@@ -7,8 +7,8 @@ metadata:
     app: reloader
     group: com.stakater.platform
     provider: stakater
-    version: 0.0.3
-    chart: "reloader-0.0.3"
+    version: 0.0.4
+    chart: "reloader-0.0.4"
     release: "RELEASE-NAME"
     heritage: "Tiller"
   name: reloader
@@ -33,7 +33,7 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: metadata.namespace
-        image: "stakater/reloader:0.0.3"
+        image: "stakater/reloader:0.0.4"
         imagePullPolicy: IfNotPresent
         name: reloader
       serviceAccountName: reloader
