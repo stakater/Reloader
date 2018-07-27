@@ -15,7 +15,7 @@ import (
 
 var (
 	client              = testutil.GetClient()
-	namespace           = "test-reloader"
+	namespace           = "test-reloader-" + testutil.RandSeq(5)
 	configmapNamePrefix = "testconfigmap-reloader"
 	secretNamePrefix    = "testsecret-reloader"
 	data                = "dGVzdFNlY3JldEVuY29kaW5nRm9yUmVsb2FkZXI="
