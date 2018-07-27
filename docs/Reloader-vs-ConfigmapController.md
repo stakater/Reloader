@@ -1,4 +1,5 @@
-## Introduction
+# Reloader vs ConfigmapController
+
 Reloader is inspired from [configmapcontroller](https://github.com/fabric8io/configmapcontroller) but there are many ways in which it differs from configmapController. Below is the small comparison between these two controllers.
 
 | Configmap                                                                                                                                                                                                                                                          | Reloader                                                                                                                                                                                                                                                                                                                 |
