@@ -30,6 +30,8 @@ metadata:
     secret.reloader.stakater.com/reload: "foo"
 ```
 
+## How Reloader works
+
 Then, providing `Reloader` is running, whenever you edit the `ConfigMap` or `Secret` called `foo` the Reloader will update the `Deployment` by adding the environment variable:
 
 ```
