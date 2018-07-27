@@ -2,11 +2,11 @@
 
 ## Problem
 
-We would like to watch if some change happens in `ConfigMap` and `Secret` objects and then perform certain upgrade on relevant `Deployment`, `Deamonset` and `Statefulset`
+We would like to watch if some change happens in `ConfigMap` and `Secret` objects and then perform rolling upgrade on relevant `Deployment`, `Deamonset` and `Statefulset`
 
 ## Solution
 
-Reloader can watch any changes in `ConfigMap` and `Secret` objects and update or recreate Pods for their associated `Deployments`, `Deamonsets` and `Statefulsets`. In this way Pods can get the latest changes in `ConfigMap` or `Secret` objects.
+Reloader can watch any changes in `ConfigMap` and `Secret` objects and recreate Pods for their associated `Deployments`, `Deamonsets` and `Statefulsets`. In this way Pods can get the latest changes in `ConfigMap` or `Secret` objects.
 
 **NOTE:** This controller has been inspired from [configmapController](https://github.com/fabric8io/configmapcontroller)
 
@@ -33,8 +33,14 @@ metadata:
 Then, providing `Reloader` is running, whenever you edit the `ConfigMap` or `Secret` called `foo` the Reloader will update the `Deployment` by adding the environment variable:
 
 ```
-STAKATER_FOO_REVISION=${reloaderRevision}
+STAKATER_FOO_CONFIGMAP=${reloaderRevisionHash}
 ```
+Or if the change is detected in secret
+```
+STAKATER_FOO_SECRET=${reloaderRevisionHash}
+```
+
+`reloaderRevisionHash` is the change in secret or configmap that is converted into SHA1. This value gets updated every time when reloader detects any change.
 
 This then triggers a rolling upgrade of your deployment's pods to use the new configuration.
 
@@ -62,7 +68,7 @@ kubecl apply -f https://raw.githubusercontent.com/stakater/Reloader/master/deplo
 Or alternatively if you configured `helm` on your cluster, you can deploy Reloader via helm chart located under `deployments/kubernetes/chart/reloader` folder.
 
 ### Monitor All namespaces
-You can monitor all namespaces in cluster by setting the `watchGlobally` flag to `true` in manifest file.
+By default reloader only watches secrets and configmaps in the namespace in which it is deployed. But you can monitor all namespaces in cluster by setting the `watchGlobally` flag to `true` in `values.yaml` file located under `deployments/kubernetes/chart/reloader` directory.
 
 ## Help
 
