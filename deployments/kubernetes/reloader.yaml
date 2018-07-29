@@ -7,8 +7,8 @@ metadata:
     app: reloader
     group: com.stakater.platform
     provider: stakater
-    version: 0.0.4
-    chart: "reloader-0.0.4"
+    version: 0.0.5
+    chart: "reloader-0.0.5"
     release: "RELEASE-NAME"
     heritage: "Tiller"
   name: reloader
@@ -33,7 +33,7 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: metadata.namespace
-        image: "stakater/reloader:0.0.4"
+        image: "stakater/reloader:0.0.5"
         imagePullPolicy: IfNotPresent
         name: reloader
       serviceAccountName: reloader
@@ -47,8 +47,8 @@ metadata:
     app: reloader
     group: com.stakater.platform
     provider: stakater
-    version: 0.0.4
-    chart: "reloader-0.0.4"
+    version: 0.0.5
+    chart: "reloader-0.0.5"
     release: "RELEASE-NAME"
     heritage: "Tiller"
   name: reloader
@@ -60,8 +60,8 @@ metadata:
     app: reloader
     group: com.stakater.platform
     provider: stakater
-    version: 0.0.4
-    chart: "reloader-0.0.4"
+    version: 0.0.5
+    chart: "reloader-0.0.5"
     release: "RELEASE-NAME"
     heritage: "Tiller"
   name: reloader-role
@@ -97,8 +97,8 @@ metadata:
     app: reloader
     group: com.stakater.platform
     provider: stakater
-    version: 0.0.4
-    chart: "reloader-0.0.4"
+    version: 0.0.5
+    chart: "reloader-0.0.5"
     release: "RELEASE-NAME"
     heritage: "Tiller"
   name: reloader-role-binding
