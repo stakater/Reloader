@@ -15,7 +15,7 @@ import (
 
 var (
 	client        = testclient.NewSimpleClientset()
-	namespace     = "test-handler"
+	namespace     = "test-handler-" + testutil.RandSeq(5)
 	configmapName = "testconfigmap-handler-" + testutil.RandSeq(5)
 	secretName    = "testsecret-handler-" + testutil.RandSeq(5)
 )
