@@ -39,9 +39,9 @@ Above mentioned annotation are also work for `Daemonsets` and `Statefulsets`
 
 ## How Rolling upgrade works
 
-After change detection in configmap or secret, reloader first compare the old configmap data hash with new config data hash and if finds any difference only then move forward with rolling upgrade.
+When reloader detects any changes in configmap. It gets two objects of configmap. First object is an old configmap object which has a state before the latest change. Second object is new configmap object which contains latest changes. Reloader compares both objects and see whether any change in data occurred or not. If reloader finds any change in new configmap object, only then, it move forward with rolling upgrade.
 
-After that, reloader gets the list of all deployments, daemonsets and statefulset and looks for relevant annotation. If the annotation is found, it then looks for an environment variable which can contain the configmap or secret data change hash.
+After that, reloader gets the list of all deployments, daemonsets and statefulset and looks for above mentioned annotation for configmap. If the annotation value contains the configmap name, it then looks for an environment variable which can contain the configmap or secret data change hash.
 
 ### Environment variable for Configmap
 
@@ -59,7 +59,9 @@ If Secret name is foo then
 STAKATER_FOO_SECRET
 ```
 
-If the environment variable is found then it checks the hash value and only if it differs from new hash value then reloader updates it. If the environment variable does not exist then it creates a new environment variable with latest hash value and updates the relevant `deployment`, `daemonset` or `statefulset`
+If the environment variable is found then it gets its value and compares it with new configmap hash value.If old value in environment variable is different from new hash value then reloader updates the environment variable. If the environment variable does not exist then it creates a new environment variable with latest hash value from configmap and updates the relevant `deployment`, `daemonset` or `statefulset`
+
+Note: Rolling upgrade also works in the same way for secrets.
 
 ### Hash value Computation
 
@@ -67,4 +69,9 @@ Reloader uses SHA1 to compute hash value. SHA1 is used because it is efficient a
 
 ## Monitor All namespaces
 
-By default reloader deploys in default namespace but monitors changes in all namespaces. To monitor changes in a specific namespace deploy the reloader in that namespace and set the `watchGlobally` flag to `false` in values file located under `deployments/kubernetes/chart/reloader`
+By default reloader deploys in default namespace and monitors changes in all namespaces. To monitor changes in a specific namespace deploy the reloader in that namespace and set the `watchGlobally` flag to `false` in values file located under `deployments/kubernetes/chart/reloader`
+And render manifest file using helm command
+```bash
+helm --namespace {replace this with namespace name} template . > reloader.yaml
+```
+The output file can then be used to deploy reloader in specific namespace.
