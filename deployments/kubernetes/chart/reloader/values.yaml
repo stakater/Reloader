@@ -7,9 +7,9 @@ reloader:
   labels:
     provider: stakater
     group: com.stakater.platform
-    version: 0.0.3
+    version: 0.0.5
   image:
     name: stakater/reloader
-    tag: "0.0.3"
+    tag: "0.0.5"
     pullPolicy: IfNotPresent
   watchGlobally: true
