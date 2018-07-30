@@ -54,7 +54,7 @@ kubectl apply -f deployment.yaml -n <namespace>
 You can apply vanilla manifests by running the following command
 
 ```bash
-kubecl apply -f https://raw.githubusercontent.com/stakater/Reloader/master/deployments/kubernetes/reloader.yaml
+kubectl apply -f https://raw.githubusercontent.com/stakater/Reloader/master/deployments/kubernetes/reloader.yaml
 ```
 
 ### Helm Charts
