@@ -6,7 +6,7 @@ We would like to watch if some change happens in `ConfigMap` and `Secret` object
 
 ## Solution
 
-Reloader can watch any changes in `ConfigMap` and `Secret` objects and recreate Pods for their associated `Deployments`, `Deamonsets` and `Statefulsets`. In this way Pods can get the latest changes in `ConfigMap` or `Secret` objects.
+Reloader can watch changes in `ConfigMap` and `Secret` and do rolling upgrades on Pods with their associated `Deployments`, `Deamonsets` and `Statefulsets`.
 
 **NOTE:** This controller has been inspired from [configmapController](https://github.com/fabric8io/configmapcontroller)
 
@@ -57,12 +57,20 @@ You can deploy Reloader by following methods:
 You can apply vanilla manifests by running the following command
 
 ```bash
-kubecl apply -f https://raw.githubusercontent.com/stakater/Reloader/master/deployments/kubernetes/reloader.yaml
+kubectl apply -f https://raw.githubusercontent.com/stakater/Reloader/master/deployments/kubernetes/reloader.yaml
 ```
 
 ### Helm Charts
 
-Or alternatively if you configured `helm` on your cluster, you can deploy Reloader via helm chart located under `deployments/kubernetes/chart/reloader` folder.
+Alternatively if you have configured helm on your cluster, you can add reloader to helm from our public chart repository and deploy it via helm using below mentioned commands
+
+ ```bash
+helm repo add stakater https://stakater.github.io/stakater-charts
+
+helm repo update
+
+helm install stakater/reloader
+```
 
 ## Monitor All namespaces
 
