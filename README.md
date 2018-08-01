@@ -48,6 +48,8 @@ This then triggers a rolling upgrade of your deployment's pods to use the new co
 
 Same procedure can be followed to perform rolling upgrade on `Deamonsets` and `Statefulsets` as well.
 
+_Please refer to [this](docs/How-it-works.md) document for detailed working of reloader_.
+
 ## Deploying to Kubernetes
 
 You can deploy Reloader by following methods:
