@@ -12,7 +12,7 @@ Changes Detected in test-object of type 'SECRET' in namespace: test-reloader
 Updated test-resource of type Deployment in namespace: test-reloader
 ```
 
-Below are the details that explain these logs
+Below are the details that explain these logs:
 
 ### test-object
 
@@ -20,7 +20,7 @@ Below are the details that explain these logs
 
 ### SECRET
 
-`SECRET` is the type of `test-object`. It can either be `SECRET` or `DEPLOYMENT`
+`SECRET` is the type of `test-object`. It can either be `SECRET` or `CONFIGMAP`
 
 ### test-reloader
 
@@ -28,7 +28,7 @@ Below are the details that explain these logs
 
 ### test-resource
 
-`test-resource` is the name of resource which is going to be updated.
+`test-resource` is the name of resource which is going to be updated
 
 ### Deployment
 
