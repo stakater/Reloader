@@ -2,11 +2,11 @@
 
 ## Problem
 
-We would like to watch if some change happens in `ConfigMap` and `Secret` objects and then perform certain upgrade on relevant `Deployment`, `Deamonset` and `Statefulset`
+We would like to watch if some change happens in `ConfigMap` and `Secret` objects and then perform rolling upgrade on relevant `Deployment`, `Deamonset` and `Statefulset`
 
 ## Solution
 
-Reloader can watch any changes in `ConfigMap` and `Secret` objects and update or recreate Pods for their associated `Deployments`, `Deamonsets` and `Statefulsets`. In this way Pods can get the latest changes in `ConfigMap` or `Secret` objects.
+Reloader can watch changes in `ConfigMap` and `Secret` and do rolling upgrades on Pods with their associated `Deployments`, `Deamonsets` and `Statefulsets`.
 
 **NOTE:** This controller has been inspired from [configmapController](https://github.com/fabric8io/configmapcontroller)
 
@@ -30,11 +30,19 @@ metadata:
     secret.reloader.stakater.com/reload: "foo"
 ```
 
+## How Reloader works
+
 Then, providing `Reloader` is running, whenever you edit the `ConfigMap` or `Secret` called `foo` the Reloader will update the `Deployment` by adding the environment variable:
 
 ```
-STAKATER_FOO_REVISION=${reloaderRevision}
+STAKATER_FOO_CONFIGMAP=${reloaderRevisionHash}
 ```
+Or if the change is detected in secret
+```
+STAKATER_FOO_SECRET=${reloaderRevisionHash}
+```
+
+`reloaderRevisionHash` is the change in secret or configmap that is converted into SHA1. This value gets updated every time when reloader detects any change.
 
 This then triggers a rolling upgrade of your deployment's pods to use the new configuration.
 
@@ -42,27 +50,31 @@ Same procedure can be followed to perform rolling upgrade on `Deamonsets` and `S
 
 ## Deploying to Kubernetes
 
-You can deploy Reloader by running the following kubectl commands:
-
-```bash
-kubectl apply -f rbac.yaml -n <namespace>
-kubectl apply -f deployment.yaml -n <namespace>
-```
+You can deploy Reloader by following methods:
 
 ### Vanilla Manifests
 
 You can apply vanilla manifests by running the following command
 
 ```bash
-kubecl apply -f https://raw.githubusercontent.com/stakater/Reloader/master/deployments/kubernetes/reloader.yaml
+kubectl apply -f https://raw.githubusercontent.com/stakater/Reloader/master/deployments/kubernetes/reloader.yaml
 ```
 
 ### Helm Charts
 
-Or alternatively if you configured `helm` on your cluster, you can deploy Reloader via helm chart located under `deployments/kubernetes/chart/reloader` folder.
+Alternatively if you have configured helm on your cluster, you can add reloader to helm from our public chart repository and deploy it via helm using below mentioned commands
 
-### Monitor All namespaces
-You can monitor all namespaces in cluster by setting the `watchGlobally` flag to `true` in manifest file.
+ ```bash
+helm repo add stakater https://stakater.github.io/stakater-charts
+
+helm repo update
+
+helm install stakater/reloader
+```
+
+## Monitor All namespaces
+
+By default Reloader gets deployed in `default` namespace and watches changes `secrets` and `configmaps` in all namespaces.
 
 ## Help
 
