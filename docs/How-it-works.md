@@ -1,6 +1,6 @@
-# How it works
+# How it works?
 
-Reloader watches for `ConfigMap` and `Secret` objects and detects if there are any changes in data of these objects. After change detection perform rolling upgrade on relevant `Deployment`, `Deamonset` and `Statefulset` and recreates associated pods.
+Reloader watches for `ConfigMap` and `Secret` objects and detects if there are any changes in data of these objects. Once the change has been detected it performs a rolling upgrade on relevant `Deployment`, `Deamonset` and `Statefulset`.
 
 ## How change detection works
 
@@ -15,7 +15,7 @@ To perform rolling upgrade a `deployment`, `daemonset` or `statefulset` must hav
 
 The annotation value is comma separated list of `configmaps` or `secrets`. If any change is detected in these `configmaps` or `secrets`, reloader will perform rolling upgrades on these associated `deployments`, `daemonsets` or `statefulsets`.
 
-### Annotation fof Configmap
+### Annotation for Configmap
 
 For a `Deployment` called `foo` have a `ConfigMap` called `foo`. Then add this annotation to your `Deployment`
 
@@ -25,7 +25,7 @@ metadata:
     configmap.reloader.stakater.com/reload: "foo"
 ```
 
-### Annotation fof Secret
+### Annotation for Secret
 
 For a `Deployment` called `foo` have a `Secret` called `foo`. Then add this annotation to your `Deployment`
 
@@ -37,7 +37,7 @@ metadata:
 
 Above mentioned annotation are also work for `Daemonsets` and `Statefulsets`
 
-## How Rolling upgrade works
+## How Rolling upgrade works?
 
 When reloader detects any changes in configmap. It gets two objects of configmap. First object is an old configmap object which has a state before the latest change. Second object is new configmap object which contains latest changes. Reloader compares both objects and see whether any change in data occurred or not. If reloader finds any change in new configmap object, only then, it move forward with rolling upgrade.
 
@@ -67,7 +67,7 @@ Note: Rolling upgrade also works in the same way for secrets.
 
 Reloader uses SHA1 to compute hash value. SHA1 is used because it is efficient and less prone to collision.
 
-## Monitor All namespaces
+## Monitor All Namespaces
 
 By default reloader deploys in default namespace and monitors changes in all namespaces. To monitor changes in a specific namespace deploy the reloader in that namespace and set the `watchGlobally` flag to `false` in values file located under `deployments/kubernetes/chart/reloader`
 And render manifest file using helm command
