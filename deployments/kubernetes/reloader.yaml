@@ -7,8 +7,8 @@ metadata:
     app: reloader
     group: com.stakater.platform
     provider: stakater
-    version: 0.0.5
-    chart: "reloader-0.0.5"
+    version: 0.0.6
+    chart: "reloader-0.0.6"
     release: "RELEASE-NAME"
     heritage: "Tiller"
   name: reloader
@@ -29,7 +29,7 @@ spec:
     spec:
       containers:
       - env:
-        image: "stakater/reloader:0.0.5"
+        image: "stakater/reloader:0.0.6"
         imagePullPolicy: IfNotPresent
         name: reloader
       serviceAccountName: reloader
@@ -43,8 +43,8 @@ metadata:
     app: reloader
     group: com.stakater.platform
     provider: stakater
-    version: 0.0.5
-    chart: "reloader-0.0.5"
+    version: 0.0.6
+    chart: "reloader-0.0.6"
     release: "RELEASE-NAME"
     heritage: "Tiller"
   name: reloader
@@ -56,12 +56,12 @@ metadata:
     app: reloader
     group: com.stakater.platform
     provider: stakater
-    version: 0.0.5
-    chart: "reloader-0.0.5"
+    version: 0.0.6
+    chart: "reloader-0.0.6"
     release: "RELEASE-NAME"
     heritage: "Tiller"
   name: reloader-role
-  namespace: tools
+  namespace: default
 rules:
   - apiGroups:
       - ""
@@ -93,12 +93,12 @@ metadata:
     app: reloader
     group: com.stakater.platform
     provider: stakater
-    version: 0.0.5
-    chart: "reloader-0.0.5"
+    version: 0.0.6
+    chart: "reloader-0.0.6"
     release: "RELEASE-NAME"
     heritage: "Tiller"
   name: reloader-role-binding
-  namespace: tools
+  namespace: default
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
@@ -106,4 +106,4 @@ roleRef:
 subjects:
   - kind: ServiceAccount
     name: reloader
-    namespace: tools
+    namespace: default
