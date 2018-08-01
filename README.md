@@ -30,26 +30,6 @@ metadata:
     secret.reloader.stakater.com/reload: "foo"
 ```
 
-## How Reloader works
-
-Then, providing `Reloader` is running, whenever you edit the `ConfigMap` or `Secret` called `foo` the Reloader will update the `Deployment` by adding the environment variable:
-
-```
-STAKATER_FOO_CONFIGMAP=${reloaderRevisionHash}
-```
-Or if the change is detected in secret
-```
-STAKATER_FOO_SECRET=${reloaderRevisionHash}
-```
-
-`reloaderRevisionHash` is the change in secret or configmap that is converted into SHA1. This value gets updated every time when reloader detects any change.
-
-This then triggers a rolling upgrade of your deployment's pods to use the new configuration.
-
-Same procedure can be followed to perform rolling upgrade on `Deamonsets` and `Statefulsets` as well.
-
-_Please refer to [this](docs/How-it-works.md) document for detailed working of reloader_.
-
 ## Deploying to Kubernetes
 
 You can deploy Reloader by following methods:
