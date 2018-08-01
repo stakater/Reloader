@@ -390,7 +390,7 @@ func VerifyResourceUpdate(client kubernetes.Interface, config util.Config, envVa
 				}
 			}
 			if matches {
-				envName := constants.EnvVarPrefix + util.ConvertToEnvVarName(annotationValue) + envVarPostfix
+				envName := constants.EnvVarPrefix + util.ConvertToEnvVarName(annotationValue) + "_" + envVarPostfix
 				updated := GetResourceSHA(containers, envName)
 
 				if updated == config.SHAValue {
