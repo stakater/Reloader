@@ -22,7 +22,7 @@ var (
 
 func TestMain(m *testing.M) {
 
-	logrus.Infof("Creating namespace %s", namespace)
+	// Creating namespace
 	testutil.CreateNamespace(namespace, client)
 
 	logrus.Infof("Setting up the test resources")

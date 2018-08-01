@@ -236,7 +236,6 @@ func GetResourceSHA(containers []v1.Container, envar string) string {
 //ConvertResourceToSHA generates SHA from secret or configmap data
 func ConvertResourceToSHA(resourceType string, namespace string, resourceName string, data string) string {
 	values := []string{}
-	logrus.Infof("Generating SHA for secret data")
 	if resourceType == SecretResourceType {
 		secret := GetSecret(namespace, resourceName, data)
 		for k, v := range secret.Data {

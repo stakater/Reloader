@@ -2,9 +2,9 @@ package constants
 
 const (
 	// ConfigmapEnvVarPostfix is a postfix for configmap envVar
-	ConfigmapEnvVarPostfix = "_CONFIGMAP"
+	ConfigmapEnvVarPostfix = "CONFIGMAP"
 	// SecretEnvVarPostfix is a postfix for secret envVar
-	SecretEnvVarPostfix = "_SECRET"
+	SecretEnvVarPostfix = "SECRET"
 	// EnvVarPrefix is a Prefix for environment variable
 	EnvVarPrefix = "STAKATER_"
 )
