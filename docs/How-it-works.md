@@ -1,19 +1,19 @@
 # How it works?
 
-Reloader watches for `ConfigMap` and `Secret` objects and detects if there are any changes in data of these objects. Once the change has been detected it performs a rolling upgrade on relevant `Deployment`, `Deamonset` and `Statefulset`.
+Reloader watches for `ConfigMap` and `Secret` and detects if there are changes in data of these objects. After change detection reloader performs rolling upgrade on relevant Pods via associated `Deployment`, `Deamonset` and `Statefulset`.
 
 ## How change detection works
 
-Reloader watches any changes in `configmaps` and `secrets`. As soon as it detects any change in these objects. It forwards these objects to an update handler which decides if and how to perform the rolling upgrade.
+Reloader watches changes in `configmaps` and `secrets` data. As soon as it detects a change in these. It forwards these objects to an update handler which decides if and how to perform the rolling upgrade.
 
 ## Requirements for rolling upgrade
 
-To perform rolling upgrade a `deployment`, `daemonset` or `statefulset` must have 
+To perform rolling upgrade a `deployment`, `daemonset` or `statefulset` must have
 
 - support for rolling upgrade strategy
 - specific annotation for `configmaps` or `secrets`
 
-The annotation value is comma separated list of `configmaps` or `secrets`. If any change is detected in these `configmaps` or `secrets`, reloader will perform rolling upgrades on these associated `deployments`, `daemonsets` or `statefulsets`.
+The annotation value is comma separated list of `configmaps` or `secrets`. If a change is detected in data of these `configmaps` or `secrets`, reloader will perform rolling upgrades on their associated `deployments`, `daemonsets` or `statefulsets`.
 
 ### Annotation for Configmap
 
@@ -39,7 +39,7 @@ Above mentioned annotation are also work for `Daemonsets` and `Statefulsets`
 
 ## How Rolling upgrade works?
 
-When reloader detects any changes in configmap. It gets two objects of configmap. First object is an old configmap object which has a state before the latest change. Second object is new configmap object which contains latest changes. Reloader compares both objects and see whether any change in data occurred or not. If reloader finds any change in new configmap object, only then, it move forward with rolling upgrade.
+When reloader detects changes in configmap. It gets two objects of configmap. First object is an old configmap object which has a state before the latest change. Second object is new configmap object which contains latest changes. Reloader compares both objects and see whether any change in data occurred or not. If reloader finds any change in new configmap object, only then, it move forward with rolling upgrade.
 
 After that, reloader gets the list of all deployments, daemonsets and statefulset and looks for above mentioned annotation for configmap. If the annotation value contains the configmap name, it then looks for an environment variable which can contain the configmap or secret data change hash.
 
@@ -59,7 +59,7 @@ If Secret name is foo then
 STAKATER_FOO_SECRET
 ```
 
-If the environment variable is found then it gets its value and compares it with new configmap hash value.If old value in environment variable is different from new hash value then reloader updates the environment variable. If the environment variable does not exist then it creates a new environment variable with latest hash value from configmap and updates the relevant `deployment`, `daemonset` or `statefulset`
+If the environment variable is found then it gets its value and compares it with new configmap hash value. If old value in environment variable is different from new hash value then reloader updates the environment variable. If the environment variable does not exist then it creates a new environment variable with latest hash value from configmap and updates the relevant `deployment`, `daemonset` or `statefulset`
 
 Note: Rolling upgrade also works in the same way for secrets.
 
