@@ -23,7 +23,7 @@ type ResourceUpdatedHandler struct {
 // Handle processes the updated resource
 func (r ResourceUpdatedHandler) Handle() error {
 	if r.Resource == nil || r.OldResource == nil {
-		logrus.Errorf("Update Handler received nil object")
+		logrus.Errorf("Resource update handler received nil resource")
 	} else {
 		// process resource based on its type
 		rollingUpgrade(r, callbacks.RollingUpgradeFuncs{
@@ -108,7 +108,7 @@ func PerformRollingUpgrade(client kubernetes.Interface, config util.Config, enva
 	for _, i := range items {
 		containers := upgradeFuncs.ContainersFunc(i)
 		resourceName := util.ToObjectMeta(i).Name
-		logrus.Infof("Changes Detected in %s of type '%s' in namespace: %s", config.ResourceName, envarPostfix, config.Namespace)
+		logrus.Infof("Changes detected in %s of type '%s' in namespace: %s", config.ResourceName, envarPostfix, config.Namespace)
 		// find correct annotation and update the resource
 		annotationValue := util.ToObjectMeta(i).Annotations[config.Annotation]
 		if annotationValue != "" {
@@ -117,7 +117,7 @@ func PerformRollingUpgrade(client kubernetes.Interface, config util.Config, enva
 				if value == config.ResourceName {
 					updated := updateContainers(containers, value, config.SHAValue, envarPostfix)
 					if !updated {
-						logrus.Warnf("Rolling upgrade did not happen for %s of type %s in namespace: %s", resourceName, upgradeFuncs.ResourceType, config.Namespace)
+						logrus.Warnf("Rolling upgrade failed because no container found to add environment variable in %s of type %s in namespace: %s", resourceName, upgradeFuncs.ResourceType, config.Namespace)
 					} else {
 						err = upgradeFuncs.UpdateFunc(client, config.Namespace, i)
 						if err != nil {

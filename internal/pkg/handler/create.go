@@ -12,7 +12,7 @@ type ResourceCreatedHandler struct {
 // Handle processes the newly created resource
 func (r ResourceCreatedHandler) Handle() error {
 	if r.Resource == nil {
-		logrus.Errorf("Create Handler received nil object")
+		logrus.Errorf("Resource creation handler received nil resource")
 	}
 	return nil
 }
