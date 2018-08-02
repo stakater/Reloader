@@ -65,10 +65,10 @@ File a GitHub [issue](https://github.com/stakater/Reloader/issues), or send us a
 
 ### Talk to us on Slack
 
-Join and talk to us on the #tools-imc channel for discussing Reloader
+Join and talk to us on Slack for discussing Reloader
 
 [![Join Slack](https://stakater.github.io/README/stakater-join-slack-btn.png)](https://stakater-slack.herokuapp.com/)
-[![Chat](https://stakater.github.io/README/stakater-chat-btn.png)](https://stakater.slack.com/messages/CAN960CTG/)
+[![Chat](https://stakater.github.io/README/stakater-chat-btn.png)](https://stakater.slack.com/)
 
 ## Contributing
 
