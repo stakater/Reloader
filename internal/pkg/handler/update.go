@@ -25,42 +25,42 @@ func (r ResourceUpdatedHandler) Handle() error {
 	if r.Resource == nil || r.OldResource == nil {
 		logrus.Errorf("Resource update handler received nil resource")
 	} else {
-		// process resource based on its type
-		rollingUpgrade(r, callbacks.RollingUpgradeFuncs{
-			ItemsFunc:      callbacks.GetDeploymentItems,
-			ContainersFunc: callbacks.GetDeploymentContainers,
-			UpdateFunc:     callbacks.UpdateDeployment,
-			ResourceType:   "Deployment",
-		})
-		rollingUpgrade(r, callbacks.RollingUpgradeFuncs{
-			ItemsFunc:      callbacks.GetDaemonSetItems,
-			ContainersFunc: callbacks.GetDaemonSetContainers,
-			UpdateFunc:     callbacks.UpdateDaemonSet,
-			ResourceType:   "DaemonSet",
-		})
-		rollingUpgrade(r, callbacks.RollingUpgradeFuncs{
-			ItemsFunc:      callbacks.GetStatefulSetItems,
-			ContainersFunc: callbacks.GetStatefulsetContainers,
-			UpdateFunc:     callbacks.UpdateStatefulset,
-			ResourceType:   "StatefulSet",
-		})
+		config, envVarPostfix, oldSHAData := getConfig(r)
+		if config.SHAValue != oldSHAData {
+			logrus.Infof("Changes detected in %s of type '%s' in namespace: %s", config.ResourceName, envVarPostfix, config.Namespace)
+			// process resource based on its type
+			rollingUpgrade(r, config, envVarPostfix, callbacks.RollingUpgradeFuncs{
+				ItemsFunc:      callbacks.GetDeploymentItems,
+				ContainersFunc: callbacks.GetDeploymentContainers,
+				UpdateFunc:     callbacks.UpdateDeployment,
+				ResourceType:   "Deployment",
+			})
+			rollingUpgrade(r, config, envVarPostfix, callbacks.RollingUpgradeFuncs{
+				ItemsFunc:      callbacks.GetDaemonSetItems,
+				ContainersFunc: callbacks.GetDaemonSetContainers,
+				UpdateFunc:     callbacks.UpdateDaemonSet,
+				ResourceType:   "DaemonSet",
+			})
+			rollingUpgrade(r, config, envVarPostfix, callbacks.RollingUpgradeFuncs{
+				ItemsFunc:      callbacks.GetStatefulSetItems,
+				ContainersFunc: callbacks.GetStatefulsetContainers,
+				UpdateFunc:     callbacks.UpdateStatefulset,
+				ResourceType:   "StatefulSet",
+			})
+		}
 	}
 	return nil
 }
 
-func rollingUpgrade(r ResourceUpdatedHandler, upgradeFuncs callbacks.RollingUpgradeFuncs) {
+func rollingUpgrade(r ResourceUpdatedHandler, config util.Config, envarPostfix string, upgradeFuncs callbacks.RollingUpgradeFuncs) {
 	client, err := kube.GetClient()
 	if err != nil {
 		logrus.Fatalf("Unable to create Kubernetes client error = %v", err)
 	}
 
-	config, envVarPostfix, oldSHAData := getConfig(r)
-
-	if config.SHAValue != oldSHAData {
-		err = PerformRollingUpgrade(client, config, envVarPostfix, upgradeFuncs)
-		if err != nil {
-			logrus.Errorf("Rolling upgrade for %s failed with error = %v", config.ResourceName, err)
-		}
+	err = PerformRollingUpgrade(client, config, envarPostfix, upgradeFuncs)
+	if err != nil {
+		logrus.Errorf("Rolling upgrade for %s failed with error = %v", config.ResourceName, err)
 	}
 }
 
@@ -104,7 +104,6 @@ func getSecretConfig(r ResourceUpdatedHandler) util.Config {
 // PerformRollingUpgrade upgrades the deployment if there is any change in configmap or secret data
 func PerformRollingUpgrade(client kubernetes.Interface, config util.Config, envarPostfix string, upgradeFuncs callbacks.RollingUpgradeFuncs) error {
 	items := upgradeFuncs.ItemsFunc(client, config.Namespace)
-	logrus.Infof("Changes detected in %s of type '%s' in namespace: %s", config.ResourceName, envarPostfix, config.Namespace)
 	var err error
 	for _, i := range items {
 		containers := upgradeFuncs.ContainersFunc(i)
