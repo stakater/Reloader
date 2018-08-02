@@ -25,7 +25,6 @@ var (
 
 func TestMain(m *testing.M) {
 
-	logrus.Infof("Creating namespace %s", namespace)
 	testutil.CreateNamespace(namespace, client)
 
 	logrus.Infof("Creating controller")
@@ -45,7 +44,6 @@ func TestMain(m *testing.M) {
 	logrus.Infof("Running Testcases")
 	retCode := m.Run()
 
-	logrus.Infof("Deleting namespace %q.\n", namespace)
 	testutil.DeleteNamespace(namespace, client)
 
 	os.Exit(retCode)
@@ -268,7 +266,6 @@ func TestControllerUpdatingSecretShouldCreateEnvInDeployment(t *testing.T) {
 	if !updated {
 		t.Errorf("Deployment was not updated")
 	}
-	//time.Sleep(5 * time.Second)
 
 	// Deleting Deployment
 	err = testutil.DeleteDeployment(client, namespace, secretName)
@@ -330,7 +327,6 @@ func TestControllerUpdatingSecretShouldUpdateEnvInDeployment(t *testing.T) {
 	if !updated {
 		t.Errorf("Deployment was not updated")
 	}
-	//time.Sleep(5 * time.Second)
 
 	// Deleting Deployment
 	err = testutil.DeleteDeployment(client, namespace, secretName)
@@ -385,7 +381,6 @@ func TestControllerUpdatingSecretLabelsShouldNotCreateorUpdateEnvInDeployment(t 
 	if updated {
 		t.Errorf("Deployment should not be updated by changing label in secret")
 	}
-	//time.Sleep(5 * time.Second)
 
 	// Deleting Deployment
 	err = testutil.DeleteDeployment(client, namespace, secretName)
@@ -559,7 +554,6 @@ func TestControllerUpdatingSecretShouldCreateEnvInDaemonSet(t *testing.T) {
 	if !updated {
 		t.Errorf("DaemonSet was not updated")
 	}
-	//time.Sleep(5 * time.Second)
 
 	// Deleting DaemonSet
 	err = testutil.DeleteDaemonSet(client, namespace, secretName)
@@ -622,7 +616,6 @@ func TestControllerUpdatingSecretShouldUpdateEnvInDaemonSet(t *testing.T) {
 	if !updated {
 		t.Errorf("DaemonSet was not updated")
 	}
-	//time.Sleep(5 * time.Second)
 
 	// Deleting DaemonSet
 	err = testutil.DeleteDaemonSet(client, namespace, secretName)
@@ -677,7 +670,6 @@ func TestControllerUpdatingSecretLabelsShouldNotCreateorUpdateEnvInDaemonSet(t *
 	if updated {
 		t.Errorf("DaemonSet should not be updated by changing label in secret")
 	}
-	//time.Sleep(5 * time.Second)
 
 	// Deleting DaemonSet
 	err = testutil.DeleteDaemonSet(client, namespace, secretName)
@@ -851,7 +843,6 @@ func TestControllerUpdatingSecretShouldCreateEnvInStatefulSet(t *testing.T) {
 	if !updated {
 		t.Errorf("StatefulSet was not updated")
 	}
-	//time.Sleep(5 * time.Second)
 
 	// Deleting StatefulSet
 	err = testutil.DeleteStatefulSet(client, namespace, secretName)
@@ -913,7 +904,6 @@ func TestControllerUpdatingSecretShouldUpdateEnvInStatefulSet(t *testing.T) {
 	if !updated {
 		t.Errorf("StatefulSet was not updated")
 	}
-	//time.Sleep(5 * time.Second)
 
 	// Deleting StatefulSet
 	err = testutil.DeleteStatefulSet(client, namespace, secretName)

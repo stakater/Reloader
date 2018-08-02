@@ -23,47 +23,44 @@ type ResourceUpdatedHandler struct {
 // Handle processes the updated resource
 func (r ResourceUpdatedHandler) Handle() error {
 	if r.Resource == nil || r.OldResource == nil {
-		logrus.Errorf("Error in Handler")
+		logrus.Errorf("Resource update handler received nil resource")
 	} else {
-		logrus.Infof("Detected changes in object %s", r.Resource)
-		// process resource based on its type
-		rollingUpgrade(r, callbacks.RollingUpgradeFuncs{
-			ItemsFunc:      callbacks.GetDeploymentItems,
-			ContainersFunc: callbacks.GetDeploymentContainers,
-			UpdateFunc:     callbacks.UpdateDeployment,
-			ResourceType:   "Deployment",
-		})
-		rollingUpgrade(r, callbacks.RollingUpgradeFuncs{
-			ItemsFunc:      callbacks.GetDaemonSetItems,
-			ContainersFunc: callbacks.GetDaemonSetContainers,
-			UpdateFunc:     callbacks.UpdateDaemonSet,
-			ResourceType:   "DaemonSet",
-		})
-		rollingUpgrade(r, callbacks.RollingUpgradeFuncs{
-			ItemsFunc:      callbacks.GetStatefulSetItems,
-			ContainersFunc: callbacks.GetStatefulsetContainers,
-			UpdateFunc:     callbacks.UpdateStatefulset,
-			ResourceType:   "StatefulSet",
-		})
+		config, envVarPostfix, oldSHAData := getConfig(r)
+		if config.SHAValue != oldSHAData {
+			logrus.Infof("Changes detected in %s of type '%s' in namespace: %s", config.ResourceName, envVarPostfix, config.Namespace)
+			// process resource based on its type
+			rollingUpgrade(r, config, envVarPostfix, callbacks.RollingUpgradeFuncs{
+				ItemsFunc:      callbacks.GetDeploymentItems,
+				ContainersFunc: callbacks.GetDeploymentContainers,
+				UpdateFunc:     callbacks.UpdateDeployment,
+				ResourceType:   "Deployment",
+			})
+			rollingUpgrade(r, config, envVarPostfix, callbacks.RollingUpgradeFuncs{
+				ItemsFunc:      callbacks.GetDaemonSetItems,
+				ContainersFunc: callbacks.GetDaemonSetContainers,
+				UpdateFunc:     callbacks.UpdateDaemonSet,
+				ResourceType:   "DaemonSet",
+			})
+			rollingUpgrade(r, config, envVarPostfix, callbacks.RollingUpgradeFuncs{
+				ItemsFunc:      callbacks.GetStatefulSetItems,
+				ContainersFunc: callbacks.GetStatefulsetContainers,
+				UpdateFunc:     callbacks.UpdateStatefulset,
+				ResourceType:   "StatefulSet",
+			})
+		}
 	}
 	return nil
 }
 
-func rollingUpgrade(r ResourceUpdatedHandler, upgradeFuncs callbacks.RollingUpgradeFuncs) {
+func rollingUpgrade(r ResourceUpdatedHandler, config util.Config, envarPostfix string, upgradeFuncs callbacks.RollingUpgradeFuncs) {
 	client, err := kube.GetClient()
 	if err != nil {
 		logrus.Fatalf("Unable to create Kubernetes client error = %v", err)
 	}
 
-	config, envVarPostfix, oldSHAData := getConfig(r)
-
-	if config.SHAValue != oldSHAData {
-		err = PerformRollingUpgrade(client, config, envVarPostfix, upgradeFuncs)
-		if err != nil {
-			logrus.Fatalf("Rolling upgrade failed with error = %v", err)
-		}
-	} else {
-		logrus.Infof("Rolling upgrade will not happend because no actual change in data has been detected")
+	err = PerformRollingUpgrade(client, config, envarPostfix, upgradeFuncs)
+	if err != nil {
+		logrus.Errorf("Rolling upgrade for %s failed with error = %v", config.ResourceName, err)
 	}
 }
 
@@ -71,12 +68,10 @@ func getConfig(r ResourceUpdatedHandler) (util.Config, string, string) {
 	var oldSHAData, envVarPostfix string
 	var config util.Config
 	if _, ok := r.Resource.(*v1.ConfigMap); ok {
-		logrus.Infof("Performing 'Updated' action for resource of type 'configmap'")
 		oldSHAData = getSHAfromConfigmap(r.OldResource.(*v1.ConfigMap).Data)
 		config = getConfigmapConfig(r)
 		envVarPostfix = constants.ConfigmapEnvVarPostfix
 	} else if _, ok := r.Resource.(*v1.Secret); ok {
-		logrus.Infof("Performing 'Updated' action for resource of type 'secret'")
 		oldSHAData = getSHAfromSecret(r.OldResource.(*v1.Secret).Data)
 		config = getSecretConfig(r)
 		envVarPostfix = constants.SecretEnvVarPostfix
@@ -112,6 +107,7 @@ func PerformRollingUpgrade(client kubernetes.Interface, config util.Config, enva
 	var err error
 	for _, i := range items {
 		containers := upgradeFuncs.ContainersFunc(i)
+		resourceName := util.ToObjectMeta(i).Name
 		// find correct annotation and update the resource
 		annotationValue := util.ToObjectMeta(i).Annotations[config.Annotation]
 		if annotationValue != "" {
@@ -120,13 +116,13 @@ func PerformRollingUpgrade(client kubernetes.Interface, config util.Config, enva
 				if value == config.ResourceName {
 					updated := updateContainers(containers, value, config.SHAValue, envarPostfix)
 					if !updated {
-						logrus.Warnf("Rolling upgrade did not happen")
+						logrus.Warnf("Rolling upgrade failed because no container found to add environment variable in %s of type %s in namespace: %s", resourceName, upgradeFuncs.ResourceType, config.Namespace)
 					} else {
 						err = upgradeFuncs.UpdateFunc(client, config.Namespace, i)
 						if err != nil {
-							logrus.Errorf("Update %s failed %v", upgradeFuncs.ResourceType, err)
+							logrus.Errorf("Update for %s of type %s in namespace %s failed with error %v", resourceName, upgradeFuncs.ResourceType, config.Namespace, err)
 						} else {
-							logrus.Infof("Updated %s of type %s", config.ResourceName, upgradeFuncs.ResourceType)
+							logrus.Infof("Updated %s of type %s in namespace: %s ", resourceName, upgradeFuncs.ResourceType, config.Namespace)
 						}
 						break
 					}
@@ -139,8 +135,7 @@ func PerformRollingUpgrade(client kubernetes.Interface, config util.Config, enva
 
 func updateContainers(containers []v1.Container, annotationValue string, shaData string, envarPostfix string) bool {
 	updated := false
-	envar := constants.EnvVarPrefix + util.ConvertToEnvVarName(annotationValue) + envarPostfix
-	logrus.Infof("Generated environment variable: %s", envar)
+	envar := constants.EnvVarPrefix + util.ConvertToEnvVarName(annotationValue)+ "_" + envarPostfix
 	for i := range containers {
 		envs := containers[i].Env
 
@@ -155,7 +150,6 @@ func updateContainers(containers []v1.Container, annotationValue string, shaData
 			}
 			containers[i].Env = append(containers[i].Env, e)
 			updated = true
-			logrus.Infof("%s environment variable does not exist, creating a new envVar", envar)
 		}
 	}
 	return updated
@@ -164,9 +158,7 @@ func updateContainers(containers []v1.Container, annotationValue string, shaData
 func updateEnvVar(envs []v1.EnvVar, envar string, shaData string) bool {
 	for j := range envs {
 		if envs[j].Name == envar {
-			logrus.Infof("%s environment variable found", envar)
 			if envs[j].Value != shaData {
-				logrus.Infof("Updating %s", envar)
 				envs[j].Value = shaData
 				return true
 			}
