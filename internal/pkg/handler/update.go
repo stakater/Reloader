@@ -104,11 +104,11 @@ func getSecretConfig(r ResourceUpdatedHandler) util.Config {
 // PerformRollingUpgrade upgrades the deployment if there is any change in configmap or secret data
 func PerformRollingUpgrade(client kubernetes.Interface, config util.Config, envarPostfix string, upgradeFuncs callbacks.RollingUpgradeFuncs) error {
 	items := upgradeFuncs.ItemsFunc(client, config.Namespace)
+	logrus.Infof("Changes detected in %s of type '%s' in namespace: %s", config.ResourceName, envarPostfix, config.Namespace)
 	var err error
 	for _, i := range items {
 		containers := upgradeFuncs.ContainersFunc(i)
 		resourceName := util.ToObjectMeta(i).Name
-		logrus.Infof("Changes detected in %s of type '%s' in namespace: %s", config.ResourceName, envarPostfix, config.Namespace)
 		// find correct annotation and update the resource
 		annotationValue := util.ToObjectMeta(i).Annotations[config.Annotation]
 		if annotationValue != "" {
