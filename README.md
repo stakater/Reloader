@@ -42,6 +42,8 @@ You can apply vanilla manifests by running the following command
 kubectl apply -f https://raw.githubusercontent.com/stakater/Reloader/master/deployments/kubernetes/reloader.yaml
 ```
 
+By default Reloader gets deployed in `default` namespace and watches changes `secrets` and `configmaps` in all namespaces.
+
 ### Helm Charts
 
 Alternatively if you have configured helm on your cluster, you can add reloader to helm from our public chart repository and deploy it via helm using below mentioned commands
@@ -53,10 +55,6 @@ helm repo update
 
 helm install stakater/reloader
 ```
-
-## Monitor All namespaces
-
-By default Reloader gets deployed in `default` namespace and watches changes `secrets` and `configmaps` in all namespaces.
 
 ## Help
 
