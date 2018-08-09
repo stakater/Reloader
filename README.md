@@ -58,7 +58,10 @@ helm install stakater/reloader
 
 ## Help
 
-**Got a question?**
+### Documentation
+You can find more documentation [here](docs/)
+
+### Have a question?
 File a GitHub [issue](https://github.com/stakater/Reloader/issues), or send us an [email](mailto:stakater@gmail.com).
 
 ### Talk to us on Slack
