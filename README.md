@@ -1,5 +1,16 @@
 # RELOADER
 
+[![Go Report Card](https://goreportcard.com/badge/github.com/stakater/reloader?style=flat-square)](https://goreportcard.com/report/github.com/stakater/reloader)
+[![Go Doc](https://img.shields.io/badge/godoc-reference-blue.svg?style=flat-square)](http://godoc.org/github.com/stakater/reloader)
+[![Release](https://img.shields.io/github/release/stakater/reloader.svg?style=flat-square)](https://github.com/stakater/reloader/releases/latest)
+[![GitHub tag](https://img.shields.io/github/tag/stakater/reloader.svg?style=flat-square)](https://github.com/stakater/reloader/releases/latest)
+[![Docker Pulls](https://img.shields.io/docker/pulls/stakater/reloader.svg?style=flat-square)](https://hub.docker.com/r/stakater/reloader/)
+[![Docker Stars](https://img.shields.io/docker/stars/stakater/reloader.svg?style=flat-square)](https://hub.docker.com/r/stakater/reloader/)
+[![MicroBadger Size](https://img.shields.io/microbadger/image-size/stakater/reloader.svg?style=flat-square)](https://microbadger.com/images/stakater/reloader)
+[![MicroBadger Layers](https://img.shields.io/microbadger/layers/stakater/reloader.svg?style=flat-square)](https://microbadger.com/images/stakater/reloader)
+[![license](https://img.shields.io/github/license/stakater/reloader.svg?style=flat-square)](LICENSE)
+[![Get started with Stakater](https://stakater.github.io/README/stakater-github-banner.png)](http://stakater.com/?utm_source=Chowkidar&utm_medium=github)
+
 ## Problem
 
 We would like to watch if some change happens in `ConfigMap` and/or `Secret`; then perform a rolling upgrade on relevant `Deployment`, `Deamonset` and `Statefulset`
