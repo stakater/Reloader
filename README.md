@@ -1,33 +1,42 @@
 # RELOADER
 
+[![Go Report Card](https://goreportcard.com/badge/github.com/stakater/reloader?style=flat-square)](https://goreportcard.com/report/github.com/stakater/reloader)
+[![Go Doc](https://img.shields.io/badge/godoc-reference-blue.svg?style=flat-square)](http://godoc.org/github.com/stakater/reloader)
+[![Release](https://img.shields.io/github/release/stakater/reloader.svg?style=flat-square)](https://github.com/stakater/reloader/releases/latest)
+[![GitHub tag](https://img.shields.io/github/tag/stakater/reloader.svg?style=flat-square)](https://github.com/stakater/reloader/releases/latest)
+[![Docker Pulls](https://img.shields.io/docker/pulls/stakater/reloader.svg?style=flat-square)](https://hub.docker.com/r/stakater/reloader/)
+[![Docker Stars](https://img.shields.io/docker/stars/stakater/reloader.svg?style=flat-square)](https://hub.docker.com/r/stakater/reloader/)
+[![MicroBadger Size](https://img.shields.io/microbadger/image-size/stakater/reloader.svg?style=flat-square)](https://microbadger.com/images/stakater/reloader)
+[![MicroBadger Layers](https://img.shields.io/microbadger/layers/stakater/reloader.svg?style=flat-square)](https://microbadger.com/images/stakater/reloader)
+[![license](https://img.shields.io/github/license/stakater/reloader.svg?style=flat-square)](LICENSE)
+[![Get started with Stakater](https://stakater.github.io/README/stakater-github-banner.png)](http://stakater.com/?utm_source=Reloader&utm_medium=github)
+
 ## Problem
 
-We would like to watch if some change happens in `ConfigMap` and `Secret` objects and then perform rolling upgrade on relevant `Deployment`, `Deamonset` and `Statefulset`
+We would like to watch if some change happens in `ConfigMap` and/or `Secret`; then perform a rolling upgrade on relevant `Deployment`, `Deamonset` and `Statefulset`
 
 ## Solution
 
 Reloader can watch changes in `ConfigMap` and `Secret` and do rolling upgrades on Pods with their associated `Deployments`, `Deamonsets` and `Statefulsets`.
 
-**NOTE:** This controller has been inspired from [configmapController](https://github.com/fabric8io/configmapcontroller)
-
 ## How to use Reloader
 
-For a `Deployment` called `foo` have a `ConfigMap` called `foo`. Then add this annotation to your `Deployment`
+For a `Deployment` called `foo` have a `ConfigMap` called `foo-configmap`. Then add this annotation to your `Deployment`
 
 ```yaml
 metadata:
   annotations:
-    configmap.reloader.stakater.com/reload: "foo"
+    configmap.reloader.stakater.com/reload: "foo-configmap"
 ```
 
 OR
 
-For a `Deployment` called `foo` have a `Secret` called `foo`. Then add this annotation to your `Deployment`
+For a `Deployment` called `foo` have a `Secret` called `foo-secret`. Then add this annotation to your `Deployment`
 
 ```yaml
 metadata:
   annotations:
-    secret.reloader.stakater.com/reload: "foo"
+    secret.reloader.stakater.com/reload: "foo-secret"
 ```
 
 ## Deploying to Kubernetes
@@ -106,3 +115,7 @@ or contact us in case of professional services and queries on <hello@stakater.co
 
   [website]: http://stakater.com/
   [community]: https://github.com/stakater/
+
+## Acknowledgements
+
+- [ConfigmapController](https://github.com/fabric8io/configmapcontroller); We documented here why we re-created [Reloader](docs/Reloader-vs-ConfigmapController.md)
