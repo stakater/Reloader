@@ -2,32 +2,30 @@
 
 ## Problem
 
-We would like to watch if some change happens in `ConfigMap` and `Secret` objects and then perform rolling upgrade on relevant `Deployment`, `Deamonset` and `Statefulset`
+We would like to watch if some change happens in `ConfigMap` and/or `Secret`; then perform a rolling upgrade on relevant `Deployment`, `Deamonset` and `Statefulset`
 
 ## Solution
 
 Reloader can watch changes in `ConfigMap` and `Secret` and do rolling upgrades on Pods with their associated `Deployments`, `Deamonsets` and `Statefulsets`.
 
-**NOTE:** This controller has been inspired from [configmapController](https://github.com/fabric8io/configmapcontroller)
-
 ## How to use Reloader
 
-For a `Deployment` called `foo` have a `ConfigMap` called `foo`. Then add this annotation to your `Deployment`
+For a `Deployment` called `foo` have a `ConfigMap` called `foo-configmap`. Then add this annotation to your `Deployment`
 
 ```yaml
 metadata:
   annotations:
-    configmap.reloader.stakater.com/reload: "foo"
+    configmap.reloader.stakater.com/reload: "foo-configmap"
 ```
 
 OR
 
-For a `Deployment` called `foo` have a `Secret` called `foo`. Then add this annotation to your `Deployment`
+For a `Deployment` called `foo` have a `Secret` called `foo-secret`. Then add this annotation to your `Deployment`
 
 ```yaml
 metadata:
   annotations:
-    secret.reloader.stakater.com/reload: "foo"
+    secret.reloader.stakater.com/reload: "foo-secret"
 ```
 
 ## Deploying to Kubernetes
@@ -106,3 +104,7 @@ or contact us in case of professional services and queries on <hello@stakater.co
 
   [website]: http://stakater.com/
   [community]: https://github.com/stakater/
+
+## Acknowledgements
+
+- [ConfigmapController](https://github.com/fabric8io/configmapcontroller); We documented here why we re-created [Reloader](docs/Reloader-vs-ConfigmapController.md)
