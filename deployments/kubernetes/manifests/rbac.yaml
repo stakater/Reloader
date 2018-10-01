@@ -7,8 +7,8 @@ metadata:
     app: reloader
     group: com.stakater.platform
     provider: stakater
-    version: 0.0.15
-    chart: "reloader-0.0.15"
+    version: 0.0.16
+    chart: "reloader-0.0.16"
     release: "RELEASE-NAME"
     heritage: "Tiller"
   name: reloader
@@ -20,8 +20,8 @@ metadata:
     app: reloader
     group: com.stakater.platform
     provider: stakater
-    version: 0.0.15
-    chart: "reloader-0.0.15"
+    version: 0.0.16
+    chart: "reloader-0.0.16"
     release: "RELEASE-NAME"
     heritage: "Tiller"
   name: reloader-role
@@ -57,8 +57,8 @@ metadata:
     app: reloader
     group: com.stakater.platform
     provider: stakater
-    version: 0.0.15
-    chart: "reloader-0.0.15"
+    version: 0.0.16
+    chart: "reloader-0.0.16"
     release: "RELEASE-NAME"
     heritage: "Tiller"
   name: reloader-role-binding
