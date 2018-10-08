@@ -36,7 +36,7 @@ Use comma separated list to define multiple configmaps.
 ```yaml
 metadata:
   annotations:
-    configmap.reloader.stakater.com/reload: "foo-configmap, bar-configmap, baz-configmap"
+    configmap.reloader.stakater.com/reload: "foo-configmap,bar-configmap,baz-configmap"
 ```
 
 ### Secret
@@ -54,7 +54,7 @@ Use comma separated list to define multiple secrets.
 ```yaml
 metadata:
   annotations:
-    secret.reloader.stakater.com/reload: "foo-secret, bar-secret, baz-secret"
+    secret.reloader.stakater.com/reload: "foo-secret,bar-secret,baz-secret"
 ```
 
 ## Deploying to Kubernetes
