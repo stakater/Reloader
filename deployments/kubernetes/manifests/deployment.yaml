@@ -7,8 +7,8 @@ metadata:
     app: reloader
     group: com.stakater.platform
     provider: stakater
-    version: 0.0.17
-    chart: "reloader-0.0.17"
+    version: 0.0.18
+    chart: "reloader-0.0.18"
     release: "RELEASE-NAME"
     heritage: "Tiller"
   name: reloader
@@ -29,7 +29,7 @@ spec:
     spec:
       containers:
       - env:
-        image: "stakater/reloader:0.0.17"
+        image: "stakater/reloader:0.0.18"
         imagePullPolicy: IfNotPresent
         name: reloader
       serviceAccountName: reloader
