@@ -38,7 +38,7 @@ Use comma separated list to define multiple configmaps.
 kind: Deployment
 metadata:
   annotations:
-    configmap.reloader.stakater.com/reload: "foo-configmap,bar-configmap"
+    configmap.reloader.stakater.com/reload: "foo-configmap"
 ```
 
 ### Secret
