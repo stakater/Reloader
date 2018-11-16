@@ -58,7 +58,7 @@ Use comma separated list to define multiple secrets.
 kind: Deployment
 metadata:
   annotations:
-    secret.reloader.stakater.com/reload: "foo-secret,bar-secret"
+    secret.reloader.stakater.com/reload: "foo-secret"
 ```
 
 ## Deploying to Kubernetes
