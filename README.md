@@ -87,6 +87,12 @@ helm repo update
 helm install stakater/reloader
 ```
 
+**Note:**  By default reloader watches in all namespaces. To watch in single namespace, please run following command. It will install reloader in `test` namespace which will only watch `Deployments`, `Deamonsets` and `Statefulsets` in `test` namespace.
+
+```bash
+helm install stakater/reloader --set reloader.watchGlobally=false --namespace test
+```
+
 ## Help
 
 ### Documentation

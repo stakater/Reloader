@@ -75,3 +75,6 @@ And render manifest file using helm command
 helm --namespace {replace this with namespace name} template . > reloader.yaml
 ```
 The output file can then be used to deploy reloader in specific namespace.
+
+## Compatibility with helm install and upgrade
+Reloader has no impact on helm deployment cycle. Reloader only injects an environment variable in  `deployment`, `daemonset` or `statefulset`. The environment variable contains the SHA1 value of configmap's or secret's data. So  if a deployment is created using Helm and Reloader updates the deployment, then next time you upgrade the helm release, reloader will do nothing except changing that environment variable value in `deployment` , `daemonset` or `statefulset`.
