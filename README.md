@@ -23,13 +23,16 @@ Reloader can watch changes in `ConfigMap` and `Secret` and do rolling upgrades o
 
 ### Configmap
 
-For a `Deployment` called `foo` have a `ConfigMap` called `foo-configmap`. Then add this annotation to your `Deployment`
+For a `Deployment` called `foo` have a `ConfigMap` called `foo-configmap`. Then add this annotation to main metadata of your `Deployment`
 
 ```yaml
 kind: Deployment
 metadata:
   annotations:
     configmap.reloader.stakater.com/reload: "foo-configmap"
+spec:
+  template:
+    metadata:
 ```
 
 Use comma separated list to define multiple configmaps.
@@ -39,17 +42,23 @@ kind: Deployment
 metadata:
   annotations:
     configmap.reloader.stakater.com/reload: "foo-configmap,bar-configmap,baz-configmap"
+spec:
+  template:
+    metadata:
 ```
 
 ### Secret
 
-For a `Deployment` called `foo` have a `Secret` called `foo-secret`. Then add this annotation to your `Deployment`
+For a `Deployment` called `foo` have a `Secret` called `foo-secret`. Then add this annotation to main metadata of  your `Deployment`
 
 ```yaml
 kind: Deployment
 metadata:
   annotations:
     secret.reloader.stakater.com/reload: "foo-secret"
+spec:
+  template:
+    metadata:
 ```
 
 Use comma separated list to define multiple secrets.
@@ -59,6 +68,9 @@ kind: Deployment
 metadata:
   annotations:
     secret.reloader.stakater.com/reload: "foo-secret,bar-secret,baz-secret"
+spec:
+  template:
+    metadata:
 ```
 
 ## Deploying to Kubernetes
