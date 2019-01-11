@@ -40,7 +40,7 @@ func GetClient() *kubernetes.Clientset {
 func CreateNamespace(namespace string, client kubernetes.Interface) {
 	_, err := client.CoreV1().Namespaces().Create(&v1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: namespace}})
 	if err != nil {
-		logrus.Fatalf("Failed to create namespace for testing", err)
+		logrus.Fatalf("Failed to create namespace for testing %v", err)
 	} else {
 		logrus.Infof("Creating namespace for testing = %s", namespace)
 	}
@@ -50,7 +50,7 @@ func CreateNamespace(namespace string, client kubernetes.Interface) {
 func DeleteNamespace(namespace string, client kubernetes.Interface) {
 	err := client.CoreV1().Namespaces().Delete(namespace, &metav1.DeleteOptions{})
 	if err != nil {
-		logrus.Fatalf("Failed to delete namespace that was created for testing", err)
+		logrus.Fatalf("Failed to delete namespace that was created for testing %v", err)
 	} else {
 		logrus.Infof("Deleting namespace for testing = %s", namespace)
 	}
@@ -392,7 +392,7 @@ func VerifyResourceUpdate(client kubernetes.Interface, config util.Config, envVa
 			if matches {
 				envName := constants.EnvVarPrefix + util.ConvertToEnvVarName(annotationValue) + "_" + envVarPostfix
 				updated := GetResourceSHA(containers, envName)
-
+				
 				if updated == config.SHAValue {
 					return true
 				}

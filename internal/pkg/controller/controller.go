@@ -64,7 +64,7 @@ func (c *Controller) Update(old interface{}, new interface{}) {
 
 // Delete function to add an object to the queue in case of deleting a resource
 func (c *Controller) Delete(old interface{}) {
-	logrus.Infof("Resource deletion has been detected but no further implementation found to take action")
+	// Todo: Any future delete event can be handled here
 }
 
 //Run function for controller which handles the queue
