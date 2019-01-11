@@ -8,6 +8,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/stakater/Reloader/internal/pkg/callbacks"
 	"github.com/stakater/Reloader/internal/pkg/constants"
+	"github.com/stakater/Reloader/internal/pkg/options"
 	"github.com/stakater/Reloader/internal/pkg/testutil"
 	"github.com/stakater/Reloader/internal/pkg/util"
 	"github.com/stakater/Reloader/pkg/kube"
@@ -78,7 +79,7 @@ func TestControllerUpdatingConfigmapShouldCreateEnvInDeployment(t *testing.T) {
 		Namespace:    namespace,
 		ResourceName: configmapName,
 		SHAValue:     shaData,
-		Annotation:   constants.ConfigmapUpdateOnChangeAnnotation,
+		Annotation:   options.ConfigmapUpdateOnChangeAnnotation,
 	}
 	deploymentFuncs := callbacks.RollingUpgradeFuncs{
 		ItemsFunc:      callbacks.GetDeploymentItems,
@@ -140,7 +141,7 @@ func TestControllerForUpdatingConfigmapShouldUpdateDeployment(t *testing.T) {
 		Namespace:    namespace,
 		ResourceName: configmapName,
 		SHAValue:     shaData,
-		Annotation:   constants.ConfigmapUpdateOnChangeAnnotation,
+		Annotation:   options.ConfigmapUpdateOnChangeAnnotation,
 	}
 
 	deploymentFuncs := callbacks.RollingUpgradeFuncs{
@@ -198,7 +199,7 @@ func TestControllerUpdatingConfigmapLabelsShouldNotCreateorUpdateEnvInDeployment
 		Namespace:    namespace,
 		ResourceName: configmapName,
 		SHAValue:     shaData,
-		Annotation:   constants.ConfigmapUpdateOnChangeAnnotation,
+		Annotation:   options.ConfigmapUpdateOnChangeAnnotation,
 	}
 	deploymentFuncs := callbacks.RollingUpgradeFuncs{
 		ItemsFunc:      callbacks.GetDeploymentItems,
@@ -254,7 +255,7 @@ func TestControllerUpdatingSecretShouldCreateEnvInDeployment(t *testing.T) {
 		Namespace:    namespace,
 		ResourceName: secretName,
 		SHAValue:     shaData,
-		Annotation:   constants.SecretUpdateOnChangeAnnotation,
+		Annotation:   options.SecretUpdateOnChangeAnnotation,
 	}
 	deploymentFuncs := callbacks.RollingUpgradeFuncs{
 		ItemsFunc:      callbacks.GetDeploymentItems,
@@ -315,7 +316,7 @@ func TestControllerUpdatingSecretShouldUpdateEnvInDeployment(t *testing.T) {
 		Namespace:    namespace,
 		ResourceName: secretName,
 		SHAValue:     shaData,
-		Annotation:   constants.SecretUpdateOnChangeAnnotation,
+		Annotation:   options.SecretUpdateOnChangeAnnotation,
 	}
 	deploymentFuncs := callbacks.RollingUpgradeFuncs{
 		ItemsFunc:      callbacks.GetDeploymentItems,
@@ -369,7 +370,7 @@ func TestControllerUpdatingSecretLabelsShouldNotCreateorUpdateEnvInDeployment(t 
 		Namespace:    namespace,
 		ResourceName: secretName,
 		SHAValue:     shaData,
-		Annotation:   constants.SecretUpdateOnChangeAnnotation,
+		Annotation:   options.SecretUpdateOnChangeAnnotation,
 	}
 	deploymentFuncs := callbacks.RollingUpgradeFuncs{
 		ItemsFunc:      callbacks.GetDeploymentItems,
@@ -424,7 +425,7 @@ func TestControllerUpdatingConfigmapShouldCreateEnvInDaemonSet(t *testing.T) {
 		Namespace:    namespace,
 		ResourceName: configmapName,
 		SHAValue:     shaData,
-		Annotation:   constants.ConfigmapUpdateOnChangeAnnotation,
+		Annotation:   options.ConfigmapUpdateOnChangeAnnotation,
 	}
 	daemonSetFuncs := callbacks.RollingUpgradeFuncs{
 		ItemsFunc:      callbacks.GetDaemonSetItems,
@@ -486,7 +487,7 @@ func TestControllerForUpdatingConfigmapShouldUpdateDaemonSet(t *testing.T) {
 		Namespace:    namespace,
 		ResourceName: configmapName,
 		SHAValue:     shaData,
-		Annotation:   constants.ConfigmapUpdateOnChangeAnnotation,
+		Annotation:   options.ConfigmapUpdateOnChangeAnnotation,
 	}
 	daemonSetFuncs := callbacks.RollingUpgradeFuncs{
 		ItemsFunc:      callbacks.GetDaemonSetItems,
@@ -542,7 +543,7 @@ func TestControllerUpdatingSecretShouldCreateEnvInDaemonSet(t *testing.T) {
 		Namespace:    namespace,
 		ResourceName: secretName,
 		SHAValue:     shaData,
-		Annotation:   constants.SecretUpdateOnChangeAnnotation,
+		Annotation:   options.SecretUpdateOnChangeAnnotation,
 	}
 	daemonSetFuncs := callbacks.RollingUpgradeFuncs{
 		ItemsFunc:      callbacks.GetDaemonSetItems,
@@ -604,7 +605,7 @@ func TestControllerUpdatingSecretShouldUpdateEnvInDaemonSet(t *testing.T) {
 		Namespace:    namespace,
 		ResourceName: secretName,
 		SHAValue:     shaData,
-		Annotation:   constants.SecretUpdateOnChangeAnnotation,
+		Annotation:   options.SecretUpdateOnChangeAnnotation,
 	}
 	daemonSetFuncs := callbacks.RollingUpgradeFuncs{
 		ItemsFunc:      callbacks.GetDaemonSetItems,
@@ -658,7 +659,7 @@ func TestControllerUpdatingSecretLabelsShouldNotCreateorUpdateEnvInDaemonSet(t *
 		Namespace:    namespace,
 		ResourceName: secretName,
 		SHAValue:     shaData,
-		Annotation:   constants.SecretUpdateOnChangeAnnotation,
+		Annotation:   options.SecretUpdateOnChangeAnnotation,
 	}
 	daemonSetFuncs := callbacks.RollingUpgradeFuncs{
 		ItemsFunc:      callbacks.GetDaemonSetItems,
@@ -713,7 +714,7 @@ func TestControllerUpdatingConfigmapShouldCreateEnvInStatefulSet(t *testing.T) {
 		Namespace:    namespace,
 		ResourceName: configmapName,
 		SHAValue:     shaData,
-		Annotation:   constants.ConfigmapUpdateOnChangeAnnotation,
+		Annotation:   options.ConfigmapUpdateOnChangeAnnotation,
 	}
 	statefulSetFuncs := callbacks.RollingUpgradeFuncs{
 		ItemsFunc:      callbacks.GetStatefulSetItems,
@@ -775,7 +776,7 @@ func TestControllerForUpdatingConfigmapShouldUpdateStatefulSet(t *testing.T) {
 		Namespace:    namespace,
 		ResourceName: configmapName,
 		SHAValue:     shaData,
-		Annotation:   constants.ConfigmapUpdateOnChangeAnnotation,
+		Annotation:   options.ConfigmapUpdateOnChangeAnnotation,
 	}
 	statefulSetFuncs := callbacks.RollingUpgradeFuncs{
 		ItemsFunc:      callbacks.GetStatefulSetItems,
@@ -831,7 +832,7 @@ func TestControllerUpdatingSecretShouldCreateEnvInStatefulSet(t *testing.T) {
 		Namespace:    namespace,
 		ResourceName: secretName,
 		SHAValue:     shaData,
-		Annotation:   constants.SecretUpdateOnChangeAnnotation,
+		Annotation:   options.SecretUpdateOnChangeAnnotation,
 	}
 	statefulSetFuncs := callbacks.RollingUpgradeFuncs{
 		ItemsFunc:      callbacks.GetStatefulSetItems,
@@ -892,7 +893,7 @@ func TestControllerUpdatingSecretShouldUpdateEnvInStatefulSet(t *testing.T) {
 		Namespace:    namespace,
 		ResourceName: secretName,
 		SHAValue:     shaData,
-		Annotation:   constants.SecretUpdateOnChangeAnnotation,
+		Annotation:   options.SecretUpdateOnChangeAnnotation,
 	}
 	statefulSetFuncs := callbacks.RollingUpgradeFuncs{
 		ItemsFunc:      callbacks.GetStatefulSetItems,

@@ -8,6 +8,7 @@ import (
 	"github.com/stakater/Reloader/internal/pkg/callbacks"
 	"github.com/stakater/Reloader/internal/pkg/constants"
 	"github.com/stakater/Reloader/internal/pkg/crypto"
+	"github.com/stakater/Reloader/internal/pkg/options"
 	"github.com/stakater/Reloader/internal/pkg/util"
 	"github.com/stakater/Reloader/pkg/kube"
 	"k8s.io/api/core/v1"
@@ -86,7 +87,7 @@ func getConfigmapConfig(r ResourceUpdatedHandler) util.Config {
 	return util.Config{
 		Namespace:    configmap.Namespace,
 		ResourceName: configmap.Name,
-		Annotation:   constants.ConfigmapUpdateOnChangeAnnotation,
+		Annotation:   options.ConfigmapUpdateOnChangeAnnotation,
 		SHAValue:     getSHAfromConfigmap(configmap.Data),
 	}
 }
@@ -96,7 +97,7 @@ func getSecretConfig(r ResourceUpdatedHandler) util.Config {
 	return util.Config{
 		Namespace:    secret.Namespace,
 		ResourceName: secret.Name,
-		Annotation:   constants.SecretUpdateOnChangeAnnotation,
+		Annotation:   options.SecretUpdateOnChangeAnnotation,
 		SHAValue:     getSHAfromSecret(secret.Data),
 	}
 }

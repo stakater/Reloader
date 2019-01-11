@@ -8,6 +8,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/stakater/Reloader/internal/pkg/callbacks"
 	"github.com/stakater/Reloader/internal/pkg/constants"
+	"github.com/stakater/Reloader/internal/pkg/options"
 	"github.com/stakater/Reloader/internal/pkg/testutil"
 	"github.com/stakater/Reloader/internal/pkg/util"
 	testclient "k8s.io/client-go/kubernetes/fake"
@@ -149,7 +150,7 @@ func TestRollingUpgradeForDeploymentWithConfigmap(t *testing.T) {
 		Namespace:    namespace,
 		ResourceName: configmapName,
 		SHAValue:     shaData,
-		Annotation:   constants.ConfigmapUpdateOnChangeAnnotation,
+		Annotation:   options.ConfigmapUpdateOnChangeAnnotation,
 	}
 	deploymentFuncs := callbacks.RollingUpgradeFuncs{
 		ItemsFunc:      callbacks.GetDeploymentItems,
@@ -177,7 +178,7 @@ func TestRollingUpgradeForDeploymentWithSecret(t *testing.T) {
 		Namespace:    namespace,
 		ResourceName: secretName,
 		SHAValue:     shaData,
-		Annotation:   constants.SecretUpdateOnChangeAnnotation,
+		Annotation:   options.SecretUpdateOnChangeAnnotation,
 	}
 	deploymentFuncs := callbacks.RollingUpgradeFuncs{
 		ItemsFunc:      callbacks.GetDeploymentItems,
@@ -205,7 +206,7 @@ func TestRollingUpgradeForDaemonSetWithConfigmap(t *testing.T) {
 		Namespace:    namespace,
 		ResourceName: configmapName,
 		SHAValue:     shaData,
-		Annotation:   constants.ConfigmapUpdateOnChangeAnnotation,
+		Annotation:   options.ConfigmapUpdateOnChangeAnnotation,
 	}
 	daemonSetFuncs := callbacks.RollingUpgradeFuncs{
 		ItemsFunc:      callbacks.GetDaemonSetItems,
@@ -234,7 +235,7 @@ func TestRollingUpgradeForDaemonSetWithSecret(t *testing.T) {
 		Namespace:    namespace,
 		ResourceName: secretName,
 		SHAValue:     shaData,
-		Annotation:   constants.SecretUpdateOnChangeAnnotation,
+		Annotation:   options.SecretUpdateOnChangeAnnotation,
 	}
 	daemonSetFuncs := callbacks.RollingUpgradeFuncs{
 		ItemsFunc:      callbacks.GetDaemonSetItems,
@@ -263,7 +264,7 @@ func TestRollingUpgradeForStatefulSetWithConfigmap(t *testing.T) {
 		Namespace:    namespace,
 		ResourceName: configmapName,
 		SHAValue:     shaData,
-		Annotation:   constants.ConfigmapUpdateOnChangeAnnotation,
+		Annotation:   options.ConfigmapUpdateOnChangeAnnotation,
 	}
 	statefulSetFuncs := callbacks.RollingUpgradeFuncs{
 		ItemsFunc:      callbacks.GetStatefulSetItems,
@@ -292,7 +293,7 @@ func TestRollingUpgradeForStatefulSetWithSecret(t *testing.T) {
 		Namespace:    namespace,
 		ResourceName: secretName,
 		SHAValue:     shaData,
-		Annotation:   constants.SecretUpdateOnChangeAnnotation,
+		Annotation:   options.SecretUpdateOnChangeAnnotation,
 	}
 	statefulSetFuncs := callbacks.RollingUpgradeFuncs{
 		ItemsFunc:      callbacks.GetStatefulSetItems,

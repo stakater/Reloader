@@ -10,6 +10,7 @@ import (
 	"github.com/stakater/Reloader/internal/pkg/callbacks"
 	"github.com/stakater/Reloader/internal/pkg/constants"
 	"github.com/stakater/Reloader/internal/pkg/crypto"
+	"github.com/stakater/Reloader/internal/pkg/options"
 	"github.com/stakater/Reloader/internal/pkg/util"
 	"github.com/stakater/Reloader/pkg/kube"
 	v1_beta1 "k8s.io/api/apps/v1beta1"
@@ -65,8 +66,8 @@ func GetDeployment(namespace string, deploymentName string) *v1beta1.Deployment 
 			Namespace: namespace,
 			Labels:    map[string]string{"firstLabel": "temp"},
 			Annotations: map[string]string{
-				constants.ConfigmapUpdateOnChangeAnnotation: deploymentName,
-				constants.SecretUpdateOnChangeAnnotation:    deploymentName},
+				options.ConfigmapUpdateOnChangeAnnotation: deploymentName,
+				options.SecretUpdateOnChangeAnnotation:    deploymentName},
 		},
 		Spec: v1beta1.DeploymentSpec{
 			Replicas: &replicaset,
@@ -104,8 +105,8 @@ func GetDaemonSet(namespace string, daemonsetName string) *v1beta1.DaemonSet {
 			Namespace: namespace,
 			Labels:    map[string]string{"firstLabel": "temp"},
 			Annotations: map[string]string{
-				constants.ConfigmapUpdateOnChangeAnnotation: daemonsetName,
-				constants.SecretUpdateOnChangeAnnotation:    daemonsetName},
+				options.ConfigmapUpdateOnChangeAnnotation: daemonsetName,
+				options.SecretUpdateOnChangeAnnotation:    daemonsetName},
 		},
 		Spec: v1beta1.DaemonSetSpec{
 			UpdateStrategy: v1beta1.DaemonSetUpdateStrategy{
@@ -142,8 +143,8 @@ func GetStatefulSet(namespace string, statefulsetName string) *v1_beta1.Stateful
 			Namespace: namespace,
 			Labels:    map[string]string{"firstLabel": "temp"},
 			Annotations: map[string]string{
-				constants.ConfigmapUpdateOnChangeAnnotation: statefulsetName,
-				constants.SecretUpdateOnChangeAnnotation:    statefulsetName},
+				options.ConfigmapUpdateOnChangeAnnotation: statefulsetName,
+				options.SecretUpdateOnChangeAnnotation:    statefulsetName},
 		},
 		Spec: v1_beta1.StatefulSetSpec{
 			UpdateStrategy: v1_beta1.StatefulSetUpdateStrategy{
