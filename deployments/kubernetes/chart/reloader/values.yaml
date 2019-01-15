@@ -11,9 +11,10 @@ reloader:
     labels:
       provider: stakater
       group: com.stakater.platform
+      version: 0.0.19
     image:
       name: stakater/reloader
-      tag: "0.0.18"
+      tag: "0.0.19"
       pullPolicy: IfNotPresent
     # Support for extra environment variables.
     env:
@@ -23,7 +24,6 @@ reloader:
       secret:
       # field supports Key value pair as environment variables. It gets the values from other fields of pod.
       field:
-
   rbac:
     enabled: true
     labels: {}

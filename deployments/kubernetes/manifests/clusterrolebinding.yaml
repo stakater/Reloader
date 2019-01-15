@@ -1,0 +1,23 @@
+---
+# Source: reloader/templates/clusterrolebinding.yaml
+
+---
+apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: ClusterRoleBinding
+metadata:
+  labels:
+    app: reloader
+    chart: "reloader-0.0.19"
+    release: "RELEASE-NAME"
+    heritage: "Tiller"
+  name: reloader-role-binding
+  namespace: default
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: reloader-role
+subjects:
+  - kind: ServiceAccount
+    name: reloader
+    namespace: default
+
