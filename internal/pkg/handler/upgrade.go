@@ -104,8 +104,8 @@ func updateEnvVar(envs []v1.EnvVar, envar string, shaData string) bool {
 		if envs[j].Name == envar {
 			if envs[j].Value != shaData {
 				envs[j].Value = shaData
-				return true
 			}
+			return true
 		}
 	}
 	return false
