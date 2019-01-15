@@ -69,8 +69,6 @@ func (c *Controller) Delete(old interface{}) {
 
 //Run function for controller which handles the queue
 func (c *Controller) Run(threadiness int, stopCh chan struct{}) {
-
-	logrus.Infof("Starting Controller")
 	defer runtime.HandleCrash()
 
 	// Let the workers stop when we are done

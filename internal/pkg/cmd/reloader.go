@@ -43,7 +43,7 @@ func startReloader(cmd *cobra.Command, args []string) {
 		// Now let's start the controller
 		stop := make(chan struct{})
 		defer close(stop)
-
+		logrus.Infof("Starting Controller to watch resource type: %s", k)
 		go c.Run(1, stop)
 	}
 
