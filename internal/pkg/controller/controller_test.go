@@ -314,7 +314,7 @@ func TestControllerCreatingSecretShouldCreateEnvInDeployment(t *testing.T) {
 	}
 	time.Sleep(5 * time.Second)
 
-	_, err = testutil.CreateSecret(client, namespace, secretName, data)
+	_, err = testutil.CreateSecret(client, namespace, secretName, newData)
 	if err != nil {
 		t.Errorf("Error  in secret creation: %v", err)
 	}
