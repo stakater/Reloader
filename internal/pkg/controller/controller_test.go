@@ -336,6 +336,7 @@ func TestControllerCreatingSecretShouldCreateEnvInDeployment(t *testing.T) {
 		UpdateFunc:     callbacks.UpdateDeployment,
 		ResourceType:   "Deployment",
 	}
+	time.Sleep(5 * time.Second)
 	updated := testutil.VerifyResourceUpdate(client, config, constants.SecretEnvVarPostfix, deploymentFuncs)
 	if !updated {
 		t.Errorf("Deployment was not updated")
