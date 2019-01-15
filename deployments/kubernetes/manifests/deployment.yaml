@@ -5,12 +5,13 @@ kind: Deployment
 metadata:
   labels:
     app: reloader
-    group: com.stakater.platform
-    provider: stakater
-    version: 0.0.18
-    chart: "reloader-0.0.18"
+    chart: "reloader-0.0.20"
     release: "RELEASE-NAME"
     heritage: "Tiller"
+    group: com.stakater.platform
+    provider: stakater
+    version: 0.0.20
+    
   name: reloader
 spec:
   replicas: 1
@@ -18,19 +19,23 @@ spec:
   selector:
     matchLabels:
       app: reloader
-      group: com.stakater.platform
-      provider: stakater
+      release: "RELEASE-NAME"
   template:
     metadata:
       labels:
         app: reloader
+        chart: "reloader-0.0.20"
+        release: "RELEASE-NAME"
+        heritage: "Tiller"
         group: com.stakater.platform
         provider: stakater
+        version: 0.0.20
+        
     spec:
       containers:
       - env:
-        image: "stakater/reloader:0.0.18"
+        image: "stakater/reloader:0.0.20"
         imagePullPolicy: IfNotPresent
         name: reloader
       serviceAccountName: reloader
-              
+

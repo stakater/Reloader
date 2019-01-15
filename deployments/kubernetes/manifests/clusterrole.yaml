@@ -1,0 +1,36 @@
+---
+# Source: reloader/templates/clusterrole.yaml
+---
+apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: ClusterRole
+metadata:
+  labels:
+    app: reloader
+    chart: "reloader-0.0.20"
+    release: "RELEASE-NAME"
+    heritage: "Tiller"
+  name: reloader-role
+  namespace: default
+rules:
+  - apiGroups:
+      - ""
+    resources:      
+      - secrets
+      - configmaps
+    verbs:
+      - list
+      - get
+      - watch
+  - apiGroups:
+      - "extensions"
+      - "apps"
+    resources:
+      - deployments
+      - daemonsets
+      - statefulsets
+    verbs:
+      - list
+      - get
+      - update
+      - patch
+
