@@ -51,22 +51,20 @@ func PerformRollingUpgrade(client kubernetes.Interface, config util.Config, enva
 	var err error
 	for _, i := range items {
 		containers := upgradeFuncs.ContainersFunc(i)
-		resourceName := util.ToObjectMeta(i).Name
 		// find correct annotation and update the resource
 		annotationValue := util.ToObjectMeta(i).Annotations[config.Annotation]
-		if annotationValue != "" {
+		if len(containers) > 0 && annotationValue != "" {
+			resourceName := util.ToObjectMeta(i).Name
 			values := strings.Split(annotationValue, ",")
 			for _, value := range values {
 				if value == config.ResourceName {
-					updated := updateContainers(containers, value, config.SHAValue, envarPostfix)
-					if !updated {
-						logrus.Warnf("Rolling upgrade failed because no container found to add environment variable in %s of type %s in namespace: %s", resourceName, upgradeFuncs.ResourceType, config.Namespace)
-					} else {
+					result := updateContainers(containers, value, config.SHAValue, envarPostfix)
+					if result == constants.Updated {
 						err = upgradeFuncs.UpdateFunc(client, config.Namespace, i)
 						if err != nil {
 							logrus.Errorf("Update for %s of type %s in namespace %s failed with error %v", resourceName, upgradeFuncs.ResourceType, config.Namespace, err)
 						} else {
-							logrus.Infof("Updated %s of type %s in namespace: %s ", resourceName, upgradeFuncs.ResourceType, config.Namespace)
+							logrus.Infof("Updated %s of type %s in namespace: %s", resourceName, upgradeFuncs.ResourceType, config.Namespace)
 						}
 						break
 					}
@@ -77,36 +75,36 @@ func PerformRollingUpgrade(client kubernetes.Interface, config util.Config, enva
 	return err
 }
 
-func updateContainers(containers []v1.Container, annotationValue string, shaData string, envarPostfix string) bool {
-	updated := false
+func updateContainers(containers []v1.Container, annotationValue string, shaData string, envarPostfix string) constants.Result {
+	result := constants.NotUpdated
 	envar := constants.EnvVarPrefix + util.ConvertToEnvVarName(annotationValue) + "_" + envarPostfix
-	for i := range containers {
-		envs := containers[i].Env
 
-		//update if env var exists
-		updated = updateEnvVar(envs, envar, shaData)
+	//update if env var exists
+	result = updateEnvVar(containers, envar, shaData)
 
-		// if no existing env var exists lets create one
-		if !updated {
-			e := v1.EnvVar{
-				Name:  envar,
-				Value: shaData,
-			}
-			containers[i].Env = append(containers[i].Env, e)
-			updated = true
+	// if no existing env var exists lets create one
+	if result == constants.NoEnvFound {
+		e := v1.EnvVar{
+			Name:  envar,
+			Value: shaData,
 		}
+		containers[0].Env = append(containers[0].Env, e)
+		result = constants.Updated
 	}
-	return updated
+	return result
 }
 
-func updateEnvVar(envs []v1.EnvVar, envar string, shaData string) bool {
-	for j := range envs {
-		if envs[j].Name == envar {
-			if envs[j].Value != shaData {
-				envs[j].Value = shaData
+func updateEnvVar(containers []v1.Container, envar string, shaData string) constants.Result {
+	for i := range containers {
+		for j := range containers[i].Env {
+			if containers[i].Env[j].Name == envar {
+				if containers[i].Env[j].Value != shaData {
+					containers[i].Env[j].Value = shaData
+					return constants.Updated
+				}
+				return constants.NotUpdated
 			}
-			return true
 		}
 	}
-	return false
+	return constants.NoEnvFound
 }
