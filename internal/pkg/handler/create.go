@@ -18,7 +18,7 @@ func (r ResourceCreatedHandler) Handle() error {
 		logrus.Errorf("Resource creation handler received nil resource")
 	} else {
 		config, envVarPostfix, _ := r.GetConfig()
-		logrus.Infof("Resource %s of type '%s' in namespace %s has created, finding related pods to perform rolling upgrade", config.ResourceName, envVarPostfix, config.Namespace)
+		logrus.Infof("Resource '%s' of type '%s' in namespace '%s' has been created", config.ResourceName, envVarPostfix, config.Namespace)
 		// process resource based on its type
 		doRollingUpgrade(config, envVarPostfix)
 	}

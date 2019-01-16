@@ -8,8 +8,6 @@ const (
 	Updated Result = 1 + iota
 	// NotUpdated is returned when environment variable is found but had value equals to the new value
 	NotUpdated
-	// NoEnvFound is returned when no environment variable is found
-	NoEnvFound
-	// UpdateFailed is returned when environment variable is found but failed to update
-	UpdateFailed
+	// NoEnvVarFound is returned when no environment variable is found
+	NoEnvVarFound
 )

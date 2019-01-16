@@ -41,7 +41,7 @@ func rollingUpgrade(config util.Config, envarPostfix string, upgradeFuncs callba
 
 	err = PerformRollingUpgrade(client, config, envarPostfix, upgradeFuncs)
 	if err != nil {
-		logrus.Errorf("Rolling upgrade for %s failed with error = %v", config.ResourceName, err)
+		logrus.Errorf("Rolling upgrade for '%s' failed with error = %v", config.ResourceName, err)
 	}
 }
 
@@ -62,9 +62,9 @@ func PerformRollingUpgrade(client kubernetes.Interface, config util.Config, enva
 					if result == constants.Updated {
 						err = upgradeFuncs.UpdateFunc(client, config.Namespace, i)
 						if err != nil {
-							logrus.Errorf("Update for %s of type %s in namespace %s failed with error %v", resourceName, upgradeFuncs.ResourceType, config.Namespace, err)
+							logrus.Errorf("Update for '%s' of type '%s' in namespace '%s' failed with error %v", resourceName, upgradeFuncs.ResourceType, config.Namespace, err)
 						} else {
-							logrus.Infof("Updated %s of type %s in namespace: %s", resourceName, upgradeFuncs.ResourceType, config.Namespace)
+							logrus.Infof("Updated '%s' of type '%s' in namespace '%s'", resourceName, upgradeFuncs.ResourceType, config.Namespace)
 						}
 						break
 					}
@@ -83,7 +83,7 @@ func updateContainers(containers []v1.Container, annotationValue string, shaData
 	result = updateEnvVar(containers, envar, shaData)
 
 	// if no existing env var exists lets create one
-	if result == constants.NoEnvFound {
+	if result == constants.NoEnvVarFound {
 		e := v1.EnvVar{
 			Name:  envar,
 			Value: shaData,
@@ -106,5 +106,5 @@ func updateEnvVar(containers []v1.Container, envar string, shaData string) const
 			}
 		}
 	}
-	return constants.NoEnvFound
+	return constants.NoEnvVarFound
 }

@@ -20,7 +20,7 @@ func (r ResourceUpdatedHandler) Handle() error {
 	} else {
 		config, envVarPostfix, oldSHAData := r.GetConfig()
 		if config.SHAValue != oldSHAData {
-			logrus.Infof("Changes detected in %s of type '%s' in namespace: %s", config.ResourceName, envVarPostfix, config.Namespace)
+			logrus.Infof("Changes detected in '%s' of type '%s' in namespace '%s'", config.ResourceName, envVarPostfix, config.Namespace)
 			// process resource based on its type
 			doRollingUpgrade(config, envVarPostfix)
 		}
