@@ -16,6 +16,9 @@ type ItemsFunc func(kubernetes.Interface, string) []interface{}
 //ContainersFunc is a generic func to return containers
 type ContainersFunc func(interface{}) []v1.Container
 
+//VolumesFunc is a generic func to return volumes
+type VolumesFunc func(interface{}) []v1.Volume
+
 //UpdateFunc performs the resource update
 type UpdateFunc func(kubernetes.Interface, string, interface{}) error
 
@@ -24,6 +27,7 @@ type RollingUpgradeFuncs struct {
 	ItemsFunc      ItemsFunc
 	ContainersFunc ContainersFunc
 	UpdateFunc     UpdateFunc
+	VolumesFunc    VolumesFunc
 	ResourceType   string
 }
 
@@ -88,4 +92,19 @@ func UpdateStatefulset(client kubernetes.Interface, namespace string, resource i
 	statefulSet := resource.(apps_v1beta1.StatefulSet)
 	_, err := client.AppsV1beta1().StatefulSets(namespace).Update(&statefulSet)
 	return err
+}
+
+// GetDeploymentVolumes returns the Volumes of given deployment
+func GetDeploymentVolumes(item interface{}) []v1.Volume {
+	return item.(v1beta1.Deployment).Spec.Template.Spec.Volumes
+}
+
+// GetDaemonSetVolumes returns the Volumes of given daemonset
+func GetDaemonSetVolumes(item interface{}) []v1.Volume {
+	return item.(v1beta1.DaemonSet).Spec.Template.Spec.Volumes
+}
+
+// GetStatefulsetVolumes returns the Volumes of given statefulSet
+func GetStatefulsetVolumes(item interface{}) []v1.Volume {
+	return item.(apps_v1beta1.StatefulSet).Spec.Template.Spec.Volumes
 }

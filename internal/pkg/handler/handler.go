@@ -7,5 +7,5 @@ import (
 // ResourceHandler handles the creation and update of resources
 type ResourceHandler interface {
 	Handle() error
-	GetConfig() (util.Config, string, string)
+	GetConfig() (util.Config, string)
 }

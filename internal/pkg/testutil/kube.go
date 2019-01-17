@@ -88,6 +88,36 @@ func GetDeployment(namespace string, deploymentName string) *v1beta1.Deployment 
 									Value: "test",
 								},
 							},
+							VolumeMounts: []v1.VolumeMount{
+								{
+									MountPath: "etc/config",
+									Name:      "configmap",
+								},
+								{
+									MountPath: "etc/sec",
+									Name:      "secret",
+								},
+							},
+						},
+					},
+					Volumes: []v1.Volume{
+						{
+							Name: "configmap",
+							VolumeSource: v1.VolumeSource{
+								ConfigMap: &v1.ConfigMapVolumeSource{
+									LocalObjectReference: v1.LocalObjectReference{
+										Name: deploymentName,
+									},
+								},
+							},
+						},
+						{
+							Name: "secret",
+							VolumeSource: v1.VolumeSource{
+								Secret: &v1.SecretVolumeSource{
+									SecretName: deploymentName,
+								},
+							},
 						},
 					},
 				},
@@ -126,6 +156,36 @@ func GetDaemonSet(namespace string, daemonsetName string) *v1beta1.DaemonSet {
 									Value: "test",
 								},
 							},
+							VolumeMounts: []v1.VolumeMount{
+								{
+									MountPath: "etc/config",
+									Name:      "configmap",
+								},
+								{
+									MountPath: "etc/sec",
+									Name:      "secret",
+								},
+							},
+						},
+					},
+					Volumes: []v1.Volume{
+						{
+							Name: "configmap",
+							VolumeSource: v1.VolumeSource{
+								ConfigMap: &v1.ConfigMapVolumeSource{
+									LocalObjectReference: v1.LocalObjectReference{
+										Name: daemonsetName,
+									},
+								},
+							},
+						},
+						{
+							Name: "secret",
+							VolumeSource: v1.VolumeSource{
+								Secret: &v1.SecretVolumeSource{
+									SecretName: daemonsetName,
+								},
+							},
 						},
 					},
 				},
@@ -162,6 +222,36 @@ func GetStatefulSet(namespace string, statefulsetName string) *v1_beta1.Stateful
 								{
 									Name:  "BUCKET_NAME",
 									Value: "test",
+								},
+							},
+							VolumeMounts: []v1.VolumeMount{
+								{
+									MountPath: "etc/config",
+									Name:      "configmap",
+								},
+								{
+									MountPath: "etc/sec",
+									Name:      "secret",
+								},
+							},
+						},
+					},
+					Volumes: []v1.Volume{
+						{
+							Name: "configmap",
+							VolumeSource: v1.VolumeSource{
+								ConfigMap: &v1.ConfigMapVolumeSource{
+									LocalObjectReference: v1.LocalObjectReference{
+										Name: statefulsetName,
+									},
+								},
+							},
+						},
+						{
+							Name: "secret",
+							VolumeSource: v1.VolumeSource{
+								Secret: &v1.SecretVolumeSource{
+									SecretName: statefulsetName,
 								},
 							},
 						},
@@ -392,7 +482,7 @@ func VerifyResourceUpdate(client kubernetes.Interface, config util.Config, envVa
 			if matches {
 				envName := constants.EnvVarPrefix + util.ConvertToEnvVarName(annotationValue) + "_" + envVarPostfix
 				updated := GetResourceSHA(containers, envName)
-				
+
 				if updated == config.SHAValue {
 					return true
 				}

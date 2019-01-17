@@ -2,6 +2,7 @@ package util
 
 import (
 	"reflect"
+	"strconv"
 
 	"github.com/sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -35,4 +36,15 @@ func ToObjectMeta(kubernetesObject interface{}) ObjectMeta {
 	return ObjectMeta{
 		ObjectMeta: field,
 	}
+}
+
+// ParseBool returns result in bool format after parsing
+func ParseBool(value interface{}) bool {
+	if reflect.Bool == reflect.TypeOf(value).Kind() {
+		return value.(bool)
+	} else if reflect.String == reflect.TypeOf(value).Kind() {
+		result, _ := strconv.ParseBool(value.(string))
+		return result
+	}
+	return false
 }

@@ -10,4 +10,6 @@ const (
 	NotUpdated
 	// NoEnvVarFound is returned when no environment variable is found
 	NoEnvVarFound
+	// NoContainerFound is returned when no environment variable is found
+	NoContainerFound
 )
