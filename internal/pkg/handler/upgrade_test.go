@@ -157,6 +157,7 @@ func TestRollingUpgradeForDeploymentWithConfigmap(t *testing.T) {
 		ItemsFunc:      callbacks.GetDeploymentItems,
 		ContainersFunc: callbacks.GetDeploymentContainers,
 		UpdateFunc:     callbacks.UpdateDeployment,
+		VolumesFunc:    callbacks.GetDeploymentVolumes,
 		ResourceType:   "Deployment",
 	}
 
@@ -186,6 +187,7 @@ func TestRollingUpgradeForDeploymentWithSecret(t *testing.T) {
 		ItemsFunc:      callbacks.GetDeploymentItems,
 		ContainersFunc: callbacks.GetDeploymentContainers,
 		UpdateFunc:     callbacks.UpdateDeployment,
+		VolumesFunc:    callbacks.GetDeploymentVolumes,
 		ResourceType:   "Deployment",
 	}
 
@@ -215,6 +217,7 @@ func TestRollingUpgradeForDaemonSetWithConfigmap(t *testing.T) {
 		ItemsFunc:      callbacks.GetDaemonSetItems,
 		ContainersFunc: callbacks.GetDaemonSetContainers,
 		UpdateFunc:     callbacks.UpdateDaemonSet,
+		VolumesFunc:    callbacks.GetDaemonSetVolumes,
 		ResourceType:   "DaemonSet",
 	}
 
@@ -245,6 +248,7 @@ func TestRollingUpgradeForDaemonSetWithSecret(t *testing.T) {
 		ItemsFunc:      callbacks.GetDaemonSetItems,
 		ContainersFunc: callbacks.GetDaemonSetContainers,
 		UpdateFunc:     callbacks.UpdateDaemonSet,
+		VolumesFunc:    callbacks.GetDaemonSetVolumes,
 		ResourceType:   "DaemonSet",
 	}
 
@@ -275,6 +279,7 @@ func TestRollingUpgradeForStatefulSetWithConfigmap(t *testing.T) {
 		ItemsFunc:      callbacks.GetStatefulSetItems,
 		ContainersFunc: callbacks.GetStatefulsetContainers,
 		UpdateFunc:     callbacks.UpdateStatefulset,
+		VolumesFunc:    callbacks.GetStatefulsetVolumes,
 		ResourceType:   "StatefulSet",
 	}
 
@@ -305,6 +310,7 @@ func TestRollingUpgradeForStatefulSetWithSecret(t *testing.T) {
 		ItemsFunc:      callbacks.GetStatefulSetItems,
 		ContainersFunc: callbacks.GetStatefulsetContainers,
 		UpdateFunc:     callbacks.UpdateStatefulset,
+		VolumesFunc:    callbacks.GetStatefulsetVolumes,
 		ResourceType:   "StatefulSet",
 	}
 
