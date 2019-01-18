@@ -151,6 +151,7 @@ func TestRollingUpgradeForDeploymentWithConfigmap(t *testing.T) {
 		ResourceName: configmapName,
 		SHAValue:     shaData,
 		Annotation:   constants.ConfigmapUpdateOnChangeAnnotation,
+		Type:         constants.ConfigmapEnvVarPostfix,
 	}
 	deploymentFuncs := callbacks.RollingUpgradeFuncs{
 		ItemsFunc:      callbacks.GetDeploymentItems,
@@ -159,7 +160,7 @@ func TestRollingUpgradeForDeploymentWithConfigmap(t *testing.T) {
 		ResourceType:   "Deployment",
 	}
 
-	err := PerformRollingUpgrade(client, config, constants.ConfigmapEnvVarPostfix, deploymentFuncs)
+	err := PerformRollingUpgrade(client, config, deploymentFuncs)
 	time.Sleep(5 * time.Second)
 	if err != nil {
 		t.Errorf("Rolling upgrade failed for Deployment with Configmap")
@@ -179,6 +180,7 @@ func TestRollingUpgradeForDeploymentWithSecret(t *testing.T) {
 		ResourceName: secretName,
 		SHAValue:     shaData,
 		Annotation:   constants.SecretUpdateOnChangeAnnotation,
+		Type:         constants.SecretEnvVarPostfix,
 	}
 	deploymentFuncs := callbacks.RollingUpgradeFuncs{
 		ItemsFunc:      callbacks.GetDeploymentItems,
@@ -187,7 +189,7 @@ func TestRollingUpgradeForDeploymentWithSecret(t *testing.T) {
 		ResourceType:   "Deployment",
 	}
 
-	err := PerformRollingUpgrade(client, config, constants.SecretEnvVarPostfix, deploymentFuncs)
+	err := PerformRollingUpgrade(client, config, deploymentFuncs)
 	time.Sleep(5 * time.Second)
 	if err != nil {
 		t.Errorf("Rolling upgrade failed for Deployment with Secret")
@@ -207,6 +209,7 @@ func TestRollingUpgradeForDaemonSetWithConfigmap(t *testing.T) {
 		ResourceName: configmapName,
 		SHAValue:     shaData,
 		Annotation:   constants.ConfigmapUpdateOnChangeAnnotation,
+		Type:         constants.ConfigmapEnvVarPostfix,
 	}
 	daemonSetFuncs := callbacks.RollingUpgradeFuncs{
 		ItemsFunc:      callbacks.GetDaemonSetItems,
@@ -215,7 +218,7 @@ func TestRollingUpgradeForDaemonSetWithConfigmap(t *testing.T) {
 		ResourceType:   "DaemonSet",
 	}
 
-	err := PerformRollingUpgrade(client, config, constants.ConfigmapEnvVarPostfix, daemonSetFuncs)
+	err := PerformRollingUpgrade(client, config, daemonSetFuncs)
 	time.Sleep(5 * time.Second)
 	if err != nil {
 		t.Errorf("Rolling upgrade failed for DaemonSet with configmap")
@@ -236,6 +239,7 @@ func TestRollingUpgradeForDaemonSetWithSecret(t *testing.T) {
 		ResourceName: secretName,
 		SHAValue:     shaData,
 		Annotation:   constants.SecretUpdateOnChangeAnnotation,
+		Type:         constants.SecretEnvVarPostfix,
 	}
 	daemonSetFuncs := callbacks.RollingUpgradeFuncs{
 		ItemsFunc:      callbacks.GetDaemonSetItems,
@@ -244,7 +248,7 @@ func TestRollingUpgradeForDaemonSetWithSecret(t *testing.T) {
 		ResourceType:   "DaemonSet",
 	}
 
-	err := PerformRollingUpgrade(client, config, constants.SecretEnvVarPostfix, daemonSetFuncs)
+	err := PerformRollingUpgrade(client, config, daemonSetFuncs)
 	time.Sleep(5 * time.Second)
 	if err != nil {
 		t.Errorf("Rolling upgrade failed for DaemonSet with secret")
@@ -265,6 +269,7 @@ func TestRollingUpgradeForStatefulSetWithConfigmap(t *testing.T) {
 		ResourceName: configmapName,
 		SHAValue:     shaData,
 		Annotation:   constants.ConfigmapUpdateOnChangeAnnotation,
+		Type:         constants.ConfigmapEnvVarPostfix,
 	}
 	statefulSetFuncs := callbacks.RollingUpgradeFuncs{
 		ItemsFunc:      callbacks.GetStatefulSetItems,
@@ -273,7 +278,7 @@ func TestRollingUpgradeForStatefulSetWithConfigmap(t *testing.T) {
 		ResourceType:   "StatefulSet",
 	}
 
-	err := PerformRollingUpgrade(client, config, constants.ConfigmapEnvVarPostfix, statefulSetFuncs)
+	err := PerformRollingUpgrade(client, config, statefulSetFuncs)
 	time.Sleep(5 * time.Second)
 	if err != nil {
 		t.Errorf("Rolling upgrade failed for StatefulSet with configmap")
@@ -294,6 +299,7 @@ func TestRollingUpgradeForStatefulSetWithSecret(t *testing.T) {
 		ResourceName: secretName,
 		SHAValue:     shaData,
 		Annotation:   constants.SecretUpdateOnChangeAnnotation,
+		Type:         constants.SecretEnvVarPostfix,
 	}
 	statefulSetFuncs := callbacks.RollingUpgradeFuncs{
 		ItemsFunc:      callbacks.GetStatefulSetItems,
@@ -302,7 +308,7 @@ func TestRollingUpgradeForStatefulSetWithSecret(t *testing.T) {
 		ResourceType:   "StatefulSet",
 	}
 
-	err := PerformRollingUpgrade(client, config, constants.SecretEnvVarPostfix, statefulSetFuncs)
+	err := PerformRollingUpgrade(client, config, statefulSetFuncs)
 	time.Sleep(5 * time.Second)
 	if err != nil {
 		t.Errorf("Rolling upgrade failed for StatefulSet with secret")

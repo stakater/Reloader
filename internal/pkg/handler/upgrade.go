@@ -58,12 +58,12 @@ func PerformRollingUpgrade(client kubernetes.Interface, config util.Config, upgr
 		// find correct annotation and update the resource
 		annotationValue := util.ToObjectMeta(i).Annotations[config.Annotation]
 		reloaderEnabled := util.ToObjectMeta(i).Annotations[constants.ReloaderEnabledAnnotation]
-		if len(containers) > 0 && annotationValue != "" {
+		if len(containers) > 0 {
 			resourceName := util.ToObjectMeta(i).Name
-			var result constants.Result
+			result := constants.NotUpdated
 			if util.ParseBool(reloaderEnabled) {
 				result = updateContainers(volumes, containers, config.ResourceName, config)
-			} else {
+			} else if annotationValue != "" {
 				values := strings.Split(annotationValue, ",")
 				for _, value := range values {
 					if value == config.ResourceName {
@@ -87,11 +87,11 @@ func PerformRollingUpgrade(client kubernetes.Interface, config util.Config, upgr
 	return err
 }
 
-func getVolumeMountName(volumes []v1.Volume, envarPostfix string, volumeName string) string {
+func getVolumeMountName(volumes []v1.Volume, mountType string, volumeName string) string {
 	for i := range volumes {
-		if volumes[i].ConfigMap.Name == volumeName && envarPostfix == constants.ConfigmapEnvVarPostfix {
+		if mountType == constants.ConfigmapEnvVarPostfix && volumes[i].ConfigMap != nil && volumes[i].ConfigMap.Name == volumeName {
 			return volumes[i].Name
-		} else if volumes[i].Secret.SecretName == volumeName && envarPostfix == constants.SecretEnvVarPostfix {
+		} else if mountType == constants.SecretEnvVarPostfix && volumes[i].Secret != nil && volumes[i].Secret.SecretName == volumeName {
 			return volumes[i].Name
 		}
 	}
@@ -100,14 +100,16 @@ func getVolumeMountName(volumes []v1.Volume, envarPostfix string, volumeName str
 
 func getContainerToUpdate(volumes []v1.Volume, containers []v1.Container, envarPostfix string, volumeName string) *v1.Container {
 	// Get the volumeMountName to find volumeMount in container
-	volumeMountName := getVolumeMountName(volumes, envarPostfix, volumeName)
-	// Get the container with mounted configmap/secret
-	if volumeMountName != "" {
-		for i := range containers {
-			volumeMounts := containers[i].VolumeMounts
-			for j := range volumeMounts {
-				if volumeMounts[j].Name == volumeMountName {
-					return &containers[i]
+	if len(volumes) > 0 {
+		volumeMountName := getVolumeMountName(volumes, envarPostfix, volumeName)
+		// Get the container with mounted configmap/secret
+		if volumeMountName != "" {
+			for i := range containers {
+				volumeMounts := containers[i].VolumeMounts
+				for j := range volumeMounts {
+					if volumeMounts[j].Name == volumeMountName {
+						return &containers[i]
+					}
 				}
 			}
 		}
@@ -117,10 +119,13 @@ func getContainerToUpdate(volumes []v1.Volume, containers []v1.Container, envarP
 	for i := range containers {
 		envs := containers[i].Env
 		for j := range envs {
-			if envs[j].ValueFrom.SecretKeyRef.LocalObjectReference.Name == volumeName {
-				return &containers[i]
-			} else if envs[j].ValueFrom.ConfigMapKeyRef.LocalObjectReference.Name == volumeName {
-				return &containers[i]
+			envVarSource := envs[j].ValueFrom
+			if (envVarSource != nil){
+				if envVarSource.SecretKeyRef != nil && envVarSource.SecretKeyRef.LocalObjectReference.Name == volumeName {
+					return &containers[i]
+				} else if envVarSource.ConfigMapKeyRef != nil && envVarSource.ConfigMapKeyRef.LocalObjectReference.Name == volumeName {
+					return &containers[i]
+				}
 			}
 		}
 	}
