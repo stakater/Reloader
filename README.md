@@ -21,7 +21,23 @@ Reloader can watch changes in `ConfigMap` and `Secret` and do rolling upgrades o
 
 ## How to use Reloader
 
+For a `Deployment` called `foo` have a `ConfigMap` called `foo-configmap` or `Secret` called `foo-secret` or both. Then add this annotation to main metadata of your `Deployment`
+
+```yaml
+kind: Deployment
+metadata:
+  annotations:
+    reloader.stakater.com/auto: "true"
+spec:
+  template:
+    metadata:
+```
+
+This will discover deployments/daemonsets/statefulset automatically where `foo-configmap` or `foo-secret` is being used either via environment variable or from volume mount and perform rolling upgrade on related pods.
+
 ### Configmap
+
+To perform rolling upgrade when change happens only on specific configmaps use below annotation.
 
 For a `Deployment` called `foo` have a `ConfigMap` called `foo-configmap`. Then add this annotation to main metadata of your `Deployment`
 
@@ -48,6 +64,8 @@ spec:
 ```
 
 ### Secret
+
+To perform rolling upgrade when change happens only on specific secrets use below annotation.
 
 For a `Deployment` called `foo` have a `Secret` called `foo-secret`. Then add this annotation to main metadata of  your `Deployment`
 
