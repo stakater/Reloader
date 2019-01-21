@@ -76,7 +76,7 @@ func PerformRollingUpgrade(client kubernetes.Interface, config util.Config, upgr
 		reloaderEnabledValue := util.ToObjectMeta(i).Annotations[constants.ReloaderAutoAnnotation]
 		if len(containers) > 0 {
 			resourceName := util.ToObjectMeta(i).Name
-			var result constants.Result
+			result := constants.NotUpdated
 			reloaderEnabled, err := strconv.ParseBool(reloaderEnabledValue)
 			if err == nil && reloaderEnabled {
 				result = updateContainers(volumes, containers, config.ResourceName, config)
@@ -151,7 +151,7 @@ func getContainerToUpdate(volumes []v1.Volume, containers []v1.Container, envarP
 }
 
 func updateContainers(volumes []v1.Volume, containers []v1.Container, annotationValue string, config util.Config) constants.Result {
-	result := constants.NotUpdated
+	var result constants.Result
 	envar := constants.EnvVarPrefix + util.ConvertToEnvVarName(annotationValue) + "_" + config.Type
 	container := getContainerToUpdate(volumes, containers, config.Type, config.ResourceName)
 
