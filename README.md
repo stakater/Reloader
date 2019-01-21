@@ -33,7 +33,10 @@ spec:
     metadata:
 ```
 
-This will discover deployments/daemonsets/statefulset automatically where `foo-configmap` or `foo-secret` is being used either via environment variable or from volume mount and perform rolling upgrade on related pods.
+This will discover deployments/daemonsets/statefulset automatically where `foo-configmap` or `foo-secret` is being used either via environment variable or from volume mount. And it will perform rolling upgrade on related pods when `foo-configmap` or `foo-secret`are updated.
+
+We can also specify a specific configmap or secret which would trigger rolling upgrade only upon change in our specified configmap or secret, this way, it will not trigger rolling upgrade upon changes in all configmaps or secrets used in a deployment, daemonset or statefulset.
+To do this either set `reloader.stakater.com/auto: "false"` or remove this annotation altogather, and use annotations mentioned [here](#Configmap) or [here](#Secret)
 
 ### Configmap
 
@@ -90,6 +93,9 @@ spec:
   template:
     metadata:
 ```
+
+### NOTE
+`reloader.stakater.com/auto: "true"` will always override when use with either `secret.reloader.stakater.com/reload` or `configmap.reloader.stakater.com/reload` annotation.
 
 ## Deploying to Kubernetes
 
