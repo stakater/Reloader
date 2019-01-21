@@ -481,7 +481,9 @@ func VerifyResourceUpdate(client kubernetes.Interface, config util.Config, envVa
 		reloaderEnabledValue := util.ToObjectMeta(i).Annotations[constants.ReloaderEnabledAnnotation]
 		reloaderEnabled, err := strconv.ParseBool(reloaderEnabledValue)
 		matches := false
-		if annotationValue != "" {
+		if err == nil && reloaderEnabled {
+			matches = true
+		} else if annotationValue != "" {
 			values := strings.Split(annotationValue, ",")
 			for _, value := range values {
 				if value == config.ResourceName {
@@ -489,14 +491,11 @@ func VerifyResourceUpdate(client kubernetes.Interface, config util.Config, envVa
 					break
 				}
 			}
-		} else if err == nil && reloaderEnabled {
-			matches = true
 		}
 
 		if matches {
-			envName := constants.EnvVarPrefix + util.ConvertToEnvVarName(annotationValue) + "_" + envVarPostfix
+			envName := constants.EnvVarPrefix + util.ConvertToEnvVarName(config.ResourceName) + "_" + envVarPostfix
 			updated := GetResourceSHA(containers, envName)
-
 			if updated == config.SHAValue {
 				return true
 			}
