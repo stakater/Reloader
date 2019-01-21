@@ -69,7 +69,7 @@ func getObjectMeta(namespace string, name string, autoReload bool) metav1.Object
 func getAnnotations(name string, autoReload bool) map[string]string {
 	if autoReload {
 		return map[string]string{
-			constants.ReloaderEnabledAnnotation: "true"}
+			constants.ReloaderAutoAnnotation: "true"}
 	}
 
 	return map[string]string{
@@ -93,7 +93,7 @@ func getPodTemplateSpecWithEnvVars(name string) v1.PodTemplateSpec {
 							Value: "test",
 						},
 						{
-							Name:  "CONFIGMAP_"+util.ConvertToEnvVarName(name),
+							Name: "CONFIGMAP_" + util.ConvertToEnvVarName(name),
 							ValueFrom: &v1.EnvVarSource{
 								ConfigMapKeyRef: &v1.ConfigMapKeySelector{
 									LocalObjectReference: v1.LocalObjectReference{
@@ -104,7 +104,7 @@ func getPodTemplateSpecWithEnvVars(name string) v1.PodTemplateSpec {
 							},
 						},
 						{
-							Name:  "SECRET_"+util.ConvertToEnvVarName(name),
+							Name: "SECRET_" + util.ConvertToEnvVarName(name),
 							ValueFrom: &v1.EnvVarSource{
 								SecretKeyRef: &v1.SecretKeySelector{
 									LocalObjectReference: v1.LocalObjectReference{
@@ -480,7 +480,7 @@ func VerifyResourceUpdate(client kubernetes.Interface, config util.Config, envVa
 		containers := upgradeFuncs.ContainersFunc(i)
 		// match statefulsets with the correct annotation
 		annotationValue := util.ToObjectMeta(i).Annotations[config.Annotation]
-		reloaderEnabledValue := util.ToObjectMeta(i).Annotations[constants.ReloaderEnabledAnnotation]
+		reloaderEnabledValue := util.ToObjectMeta(i).Annotations[constants.ReloaderAutoAnnotation]
 		reloaderEnabled, err := strconv.ParseBool(reloaderEnabledValue)
 		matches := false
 		if err == nil && reloaderEnabled {

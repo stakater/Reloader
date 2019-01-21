@@ -5,6 +5,6 @@ const (
 	ConfigmapUpdateOnChangeAnnotation = "configmap.reloader.stakater.com/reload"
 	// SecretUpdateOnChangeAnnotation is an annotation to detect changes in secrets
 	SecretUpdateOnChangeAnnotation = "secret.reloader.stakater.com/reload"
-	// ReloaderEnabledAnnotation is an annotation to detect changes in secrets
-	ReloaderEnabledAnnotation = "reloader.stakater.com/enabled"
+	// ReloaderAutoAnnotation is an annotation to detect changes in secrets
+	ReloaderAutoAnnotation = "reloader.stakater.com/auto"
 )

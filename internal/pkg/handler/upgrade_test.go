@@ -270,7 +270,7 @@ func TestRollingUpgradeForDeploymentWithConfigmap(t *testing.T) {
 
 func TestRollingUpgradeForDeploymentWithConfigmapAsEnvVar(t *testing.T) {
 	shaData := testutil.ConvertResourceToSHA(testutil.ConfigmapResourceType, namespace, configmapWithEnvName, "www.stakater.com")
-	config := getConfigWithAnnotations(constants.ConfigmapEnvVarPostfix, configmapWithEnvName, shaData, constants.ReloaderEnabledAnnotation)
+	config := getConfigWithAnnotations(constants.ConfigmapEnvVarPostfix, configmapWithEnvName, shaData, constants.ReloaderAutoAnnotation)
 	deploymentFuncs := GetDeploymentRollingUpgradeFuncs()
 
 	err := PerformRollingUpgrade(client, config, deploymentFuncs)
@@ -306,7 +306,7 @@ func TestRollingUpgradeForDeploymentWithSecret(t *testing.T) {
 
 func TestRollingUpgradeForDeploymentWithSecretAsEnvVar(t *testing.T) {
 	shaData := testutil.ConvertResourceToSHA(testutil.SecretResourceType, namespace, secretWithEnvName, "dGVzdFVwZGF0ZWRTZWNyZXRFbmNvZGluZ0ZvclJlbG9hZGVy")
-	config := getConfigWithAnnotations(constants.SecretEnvVarPostfix, secretWithEnvName, shaData, constants.ReloaderEnabledAnnotation)
+	config := getConfigWithAnnotations(constants.SecretEnvVarPostfix, secretWithEnvName, shaData, constants.ReloaderAutoAnnotation)
 	deploymentFuncs := GetDeploymentRollingUpgradeFuncs()
 
 	err := PerformRollingUpgrade(client, config, deploymentFuncs)
@@ -342,7 +342,7 @@ func TestRollingUpgradeForDaemonSetWithConfigmap(t *testing.T) {
 
 func TestRollingUpgradeForDaemonSetWithConfigmapAsEnvVar(t *testing.T) {
 	shaData := testutil.ConvertResourceToSHA(testutil.ConfigmapResourceType, namespace, configmapWithEnvName, "www.facebook.com")
-	config := getConfigWithAnnotations(constants.ConfigmapEnvVarPostfix, configmapWithEnvName, shaData, constants.ReloaderEnabledAnnotation)
+	config := getConfigWithAnnotations(constants.ConfigmapEnvVarPostfix, configmapWithEnvName, shaData, constants.ReloaderAutoAnnotation)
 	daemonSetFuncs := GetDaemonSetRollingUpgradeFuncs()
 
 	err := PerformRollingUpgrade(client, config, daemonSetFuncs)

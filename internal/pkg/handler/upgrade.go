@@ -73,7 +73,7 @@ func PerformRollingUpgrade(client kubernetes.Interface, config util.Config, upgr
 		volumes := upgradeFuncs.VolumesFunc(i)
 		// find correct annotation and update the resource
 		annotationValue := util.ToObjectMeta(i).Annotations[config.Annotation]
-		reloaderEnabledValue := util.ToObjectMeta(i).Annotations[constants.ReloaderEnabledAnnotation]
+		reloaderEnabledValue := util.ToObjectMeta(i).Annotations[constants.ReloaderAutoAnnotation]
 		if len(containers) > 0 {
 			resourceName := util.ToObjectMeta(i).Name
 			result := constants.NotUpdated
