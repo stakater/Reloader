@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"strconv"
 	"strings"
 
 	"github.com/sirupsen/logrus"
@@ -12,28 +13,43 @@ import (
 	"k8s.io/client-go/kubernetes"
 )
 
-func doRollingUpgrade(config util.Config) {
-	rollingUpgrade(config, callbacks.RollingUpgradeFuncs{
+// GetDeploymentRollingUpgradeFuncs returns all callback funcs for a deployment
+func GetDeploymentRollingUpgradeFuncs() callbacks.RollingUpgradeFuncs {
+	return callbacks.RollingUpgradeFuncs{
 		ItemsFunc:      callbacks.GetDeploymentItems,
 		ContainersFunc: callbacks.GetDeploymentContainers,
 		UpdateFunc:     callbacks.UpdateDeployment,
 		VolumesFunc:    callbacks.GetDeploymentVolumes,
 		ResourceType:   "Deployment",
-	})
-	rollingUpgrade(config, callbacks.RollingUpgradeFuncs{
+	}
+}
+
+// GetDaemonSetRollingUpgradeFuncs returns all callback funcs for a daemonset
+func GetDaemonSetRollingUpgradeFuncs() callbacks.RollingUpgradeFuncs {
+	return callbacks.RollingUpgradeFuncs{
 		ItemsFunc:      callbacks.GetDaemonSetItems,
 		ContainersFunc: callbacks.GetDaemonSetContainers,
 		UpdateFunc:     callbacks.UpdateDaemonSet,
 		VolumesFunc:    callbacks.GetDaemonSetVolumes,
 		ResourceType:   "DaemonSet",
-	})
-	rollingUpgrade(config, callbacks.RollingUpgradeFuncs{
+	}
+}
+
+// GetStatefulSetRollingUpgradeFuncs returns all callback funcs for a statefulSet
+func GetStatefulSetRollingUpgradeFuncs() callbacks.RollingUpgradeFuncs {
+	return callbacks.RollingUpgradeFuncs{
 		ItemsFunc:      callbacks.GetStatefulSetItems,
 		ContainersFunc: callbacks.GetStatefulsetContainers,
 		UpdateFunc:     callbacks.UpdateStatefulset,
 		VolumesFunc:    callbacks.GetStatefulsetVolumes,
 		ResourceType:   "StatefulSet",
-	})
+	}
+}
+
+func doRollingUpgrade(config util.Config) {
+	rollingUpgrade(config, GetDeploymentRollingUpgradeFuncs())
+	rollingUpgrade(config, GetDaemonSetRollingUpgradeFuncs())
+	rollingUpgrade(config, GetStatefulSetRollingUpgradeFuncs())
 }
 
 func rollingUpgrade(config util.Config, upgradeFuncs callbacks.RollingUpgradeFuncs) {
@@ -57,11 +73,12 @@ func PerformRollingUpgrade(client kubernetes.Interface, config util.Config, upgr
 		volumes := upgradeFuncs.VolumesFunc(i)
 		// find correct annotation and update the resource
 		annotationValue := util.ToObjectMeta(i).Annotations[config.Annotation]
-		reloaderEnabled := util.ToObjectMeta(i).Annotations[constants.ReloaderEnabledAnnotation]
+		reloaderEnabledValue := util.ToObjectMeta(i).Annotations[constants.ReloaderEnabledAnnotation]
 		if len(containers) > 0 {
 			resourceName := util.ToObjectMeta(i).Name
 			result := constants.NotUpdated
-			if util.ParseBool(reloaderEnabled) {
+			reloaderEnabled, err := strconv.ParseBool(reloaderEnabledValue)
+			if err == nil && reloaderEnabled {
 				result = updateContainers(volumes, containers, config.ResourceName, config)
 			} else if annotationValue != "" {
 				values := strings.Split(annotationValue, ",")
@@ -120,7 +137,7 @@ func getContainerToUpdate(volumes []v1.Volume, containers []v1.Container, envarP
 		envs := containers[i].Env
 		for j := range envs {
 			envVarSource := envs[j].ValueFrom
-			if (envVarSource != nil){
+			if envVarSource != nil {
 				if envVarSource.SecretKeyRef != nil && envVarSource.SecretKeyRef.LocalObjectReference.Name == volumeName {
 					return &containers[i]
 				} else if envVarSource.ConfigMapKeyRef != nil && envVarSource.ConfigMapKeyRef.LocalObjectReference.Name == volumeName {

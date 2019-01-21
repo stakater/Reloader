@@ -6,8 +6,8 @@ import (
 	"time"
 
 	"github.com/sirupsen/logrus"
-	"github.com/stakater/Reloader/internal/pkg/callbacks"
 	"github.com/stakater/Reloader/internal/pkg/constants"
+	"github.com/stakater/Reloader/internal/pkg/handler"
 	"github.com/stakater/Reloader/internal/pkg/testutil"
 	"github.com/stakater/Reloader/internal/pkg/util"
 	"github.com/stakater/Reloader/pkg/kube"
@@ -60,7 +60,7 @@ func TestControllerUpdatingConfigmapShouldCreateEnvInDeployment(t *testing.T) {
 	}
 
 	// Creating deployment
-	_, err = testutil.CreateDeployment(client, configmapName, namespace)
+	_, err = testutil.CreateDeployment(client, configmapName, namespace, true)
 	if err != nil {
 		t.Errorf("Error  in deployment creation: %v", err)
 	}
@@ -80,12 +80,59 @@ func TestControllerUpdatingConfigmapShouldCreateEnvInDeployment(t *testing.T) {
 		SHAValue:     shaData,
 		Annotation:   constants.ConfigmapUpdateOnChangeAnnotation,
 	}
-	deploymentFuncs := callbacks.RollingUpgradeFuncs{
-		ItemsFunc:      callbacks.GetDeploymentItems,
-		ContainersFunc: callbacks.GetDeploymentContainers,
-		UpdateFunc:     callbacks.UpdateDeployment,
-		ResourceType:   "Deployment",
+	deploymentFuncs := handler.GetDeploymentRollingUpgradeFuncs()
+	updated := testutil.VerifyResourceUpdate(client, config, constants.ConfigmapEnvVarPostfix, deploymentFuncs)
+	if !updated {
+		t.Errorf("Deployment was not updated")
 	}
+	time.Sleep(5 * time.Second)
+
+	// Deleting deployment
+	err = testutil.DeleteDeployment(client, namespace, configmapName)
+	if err != nil {
+		logrus.Errorf("Error while deleting the deployment %v", err)
+	}
+
+	// Deleting configmap
+	err = testutil.DeleteConfigMap(client, namespace, configmapName)
+	if err != nil {
+		logrus.Errorf("Error while deleting the configmap %v", err)
+	}
+	time.Sleep(5 * time.Second)
+}
+
+// Perform rolling upgrade on deployment and create env var upon updating the configmap
+func TestControllerUpdatingConfigmapShouldAutoCreateEnvInDeployment(t *testing.T) {
+
+	// Creating configmap
+	configmapName := configmapNamePrefix + "-update-" + testutil.RandSeq(5)
+	configmapClient, err := testutil.CreateConfigMap(client, namespace, configmapName, "www.google.com")
+	if err != nil {
+		t.Errorf("Error while creating the configmap %v", err)
+	}
+
+	// Creating deployment
+	_, err = testutil.CreateDeployment(client, configmapName, namespace, false)
+	if err != nil {
+		t.Errorf("Error  in deployment creation: %v", err)
+	}
+
+	// Updating configmap for first time
+	updateErr := testutil.UpdateConfigMap(configmapClient, namespace, configmapName, "", "www.stakater.com")
+	if updateErr != nil {
+		t.Errorf("Configmap was not updated")
+	}
+
+	// Verifying deployment update
+	logrus.Infof("Verifying env var has been created")
+	shaData := testutil.ConvertResourceToSHA(testutil.ConfigmapResourceType, namespace, configmapName, "www.stakater.com")
+	config := util.Config{
+		Namespace:    namespace,
+		ResourceName: configmapName,
+		SHAValue:     shaData,
+		Annotation:   constants.ConfigmapUpdateOnChangeAnnotation,
+	}
+	deploymentFuncs := handler.GetDeploymentRollingUpgradeFuncs()
 	updated := testutil.VerifyResourceUpdate(client, config, constants.ConfigmapEnvVarPostfix, deploymentFuncs)
 	if !updated {
 		t.Errorf("Deployment was not updated")
@@ -117,7 +164,7 @@ func TestControllerCreatingConfigmapShouldCreateEnvInDeployment(t *testing.T) {
 	}
 
 	// Creating deployment
-	_, err = testutil.CreateDeployment(client, configmapName, namespace)
+	_, err = testutil.CreateDeployment(client, configmapName, namespace, true)
 	if err != nil {
 		t.Errorf("Error  in deployment creation: %v", err)
 	}
@@ -146,12 +193,7 @@ func TestControllerCreatingConfigmapShouldCreateEnvInDeployment(t *testing.T) {
 		SHAValue:     shaData,
 		Annotation:   constants.ConfigmapUpdateOnChangeAnnotation,
 	}
-	deploymentFuncs := callbacks.RollingUpgradeFuncs{
-		ItemsFunc:      callbacks.GetDeploymentItems,
-		ContainersFunc: callbacks.GetDeploymentContainers,
-		UpdateFunc:     callbacks.UpdateDeployment,
-		ResourceType:   "Deployment",
-	}
+	deploymentFuncs := handler.GetDeploymentRollingUpgradeFuncs()
 	updated := testutil.VerifyResourceUpdate(client, config, constants.ConfigmapEnvVarPostfix, deploymentFuncs)
 	if !updated {
 		t.Errorf("Deployment was not updated")
@@ -182,7 +224,7 @@ func TestControllerForUpdatingConfigmapShouldUpdateDeployment(t *testing.T) {
 	}
 
 	// Creating deployment
-	_, err = testutil.CreateDeployment(client, configmapName, namespace)
+	_, err = testutil.CreateDeployment(client, configmapName, namespace, true)
 	if err != nil {
 		t.Errorf("Error  in deployment creation: %v", err)
 	}
@@ -209,12 +251,7 @@ func TestControllerForUpdatingConfigmapShouldUpdateDeployment(t *testing.T) {
 		Annotation:   constants.ConfigmapUpdateOnChangeAnnotation,
 	}
 
-	deploymentFuncs := callbacks.RollingUpgradeFuncs{
-		ItemsFunc:      callbacks.GetDeploymentItems,
-		ContainersFunc: callbacks.GetDeploymentContainers,
-		UpdateFunc:     callbacks.UpdateDeployment,
-		ResourceType:   "Deployment",
-	}
+	deploymentFuncs := handler.GetDeploymentRollingUpgradeFuncs()
 
 	updated := testutil.VerifyResourceUpdate(client, config, constants.ConfigmapEnvVarPostfix, deploymentFuncs)
 	if !updated {
@@ -246,7 +283,7 @@ func TestControllerUpdatingConfigmapLabelsShouldNotCreateorUpdateEnvInDeployment
 	}
 
 	// Creating deployment
-	_, err = testutil.CreateDeployment(client, configmapName, namespace)
+	_, err = testutil.CreateDeployment(client, configmapName, namespace, true)
 	if err != nil {
 		t.Errorf("Error  in deployment creation: %v", err)
 	}
@@ -266,12 +303,7 @@ func TestControllerUpdatingConfigmapLabelsShouldNotCreateorUpdateEnvInDeployment
 		SHAValue:     shaData,
 		Annotation:   constants.ConfigmapUpdateOnChangeAnnotation,
 	}
-	deploymentFuncs := callbacks.RollingUpgradeFuncs{
-		ItemsFunc:      callbacks.GetDeploymentItems,
-		ContainersFunc: callbacks.GetDeploymentContainers,
-		UpdateFunc:     callbacks.UpdateDeployment,
-		ResourceType:   "Deployment",
-	}
+	deploymentFuncs := handler.GetDeploymentRollingUpgradeFuncs()
 	updated := testutil.VerifyResourceUpdate(client, config, constants.ConfigmapEnvVarPostfix, deploymentFuncs)
 	if updated {
 		t.Errorf("Deployment should not be updated by changing label")
@@ -302,7 +334,7 @@ func TestControllerCreatingSecretShouldCreateEnvInDeployment(t *testing.T) {
 	}
 
 	// Creating deployment
-	_, err = testutil.CreateDeployment(client, secretName, namespace)
+	_, err = testutil.CreateDeployment(client, secretName, namespace, true)
 	if err != nil {
 		t.Errorf("Error  in deployment creation: %v", err)
 	}
@@ -330,12 +362,7 @@ func TestControllerCreatingSecretShouldCreateEnvInDeployment(t *testing.T) {
 		SHAValue:     shaData,
 		Annotation:   constants.SecretUpdateOnChangeAnnotation,
 	}
-	deploymentFuncs := callbacks.RollingUpgradeFuncs{
-		ItemsFunc:      callbacks.GetDeploymentItems,
-		ContainersFunc: callbacks.GetDeploymentContainers,
-		UpdateFunc:     callbacks.UpdateDeployment,
-		ResourceType:   "Deployment",
-	}
+	deploymentFuncs := handler.GetDeploymentRollingUpgradeFuncs()
 	time.Sleep(5 * time.Second)
 	updated := testutil.VerifyResourceUpdate(client, config, constants.SecretEnvVarPostfix, deploymentFuncs)
 	if !updated {
@@ -366,7 +393,7 @@ func TestControllerUpdatingSecretShouldCreateEnvInDeployment(t *testing.T) {
 	}
 
 	// Creating deployment
-	_, err = testutil.CreateDeployment(client, secretName, namespace)
+	_, err = testutil.CreateDeployment(client, secretName, namespace, true)
 	if err != nil {
 		t.Errorf("Error  in deployment creation: %v", err)
 	}
@@ -386,12 +413,7 @@ func TestControllerUpdatingSecretShouldCreateEnvInDeployment(t *testing.T) {
 		SHAValue:     shaData,
 		Annotation:   constants.SecretUpdateOnChangeAnnotation,
 	}
-	deploymentFuncs := callbacks.RollingUpgradeFuncs{
-		ItemsFunc:      callbacks.GetDeploymentItems,
-		ContainersFunc: callbacks.GetDeploymentContainers,
-		UpdateFunc:     callbacks.UpdateDeployment,
-		ResourceType:   "Deployment",
-	}
+	deploymentFuncs := handler.GetDeploymentRollingUpgradeFuncs()
 	updated := testutil.VerifyResourceUpdate(client, config, constants.SecretEnvVarPostfix, deploymentFuncs)
 	if !updated {
 		t.Errorf("Deployment was not updated")
@@ -421,7 +443,7 @@ func TestControllerUpdatingSecretShouldUpdateEnvInDeployment(t *testing.T) {
 	}
 
 	// Creating deployment
-	_, err = testutil.CreateDeployment(client, secretName, namespace)
+	_, err = testutil.CreateDeployment(client, secretName, namespace, true)
 	if err != nil {
 		t.Errorf("Error  in deployment creation: %v", err)
 	}
@@ -447,12 +469,7 @@ func TestControllerUpdatingSecretShouldUpdateEnvInDeployment(t *testing.T) {
 		SHAValue:     shaData,
 		Annotation:   constants.SecretUpdateOnChangeAnnotation,
 	}
-	deploymentFuncs := callbacks.RollingUpgradeFuncs{
-		ItemsFunc:      callbacks.GetDeploymentItems,
-		ContainersFunc: callbacks.GetDeploymentContainers,
-		UpdateFunc:     callbacks.UpdateDeployment,
-		ResourceType:   "Deployment",
-	}
+	deploymentFuncs := handler.GetDeploymentRollingUpgradeFuncs()
 	updated := testutil.VerifyResourceUpdate(client, config, constants.SecretEnvVarPostfix, deploymentFuncs)
 	if !updated {
 		t.Errorf("Deployment was not updated")
@@ -482,7 +499,7 @@ func TestControllerUpdatingSecretLabelsShouldNotCreateorUpdateEnvInDeployment(t 
 	}
 
 	// Creating deployment
-	_, err = testutil.CreateDeployment(client, secretName, namespace)
+	_, err = testutil.CreateDeployment(client, secretName, namespace, true)
 	if err != nil {
 		t.Errorf("Error  in deployment creation: %v", err)
 	}
@@ -501,12 +518,7 @@ func TestControllerUpdatingSecretLabelsShouldNotCreateorUpdateEnvInDeployment(t 
 		SHAValue:     shaData,
 		Annotation:   constants.SecretUpdateOnChangeAnnotation,
 	}
-	deploymentFuncs := callbacks.RollingUpgradeFuncs{
-		ItemsFunc:      callbacks.GetDeploymentItems,
-		ContainersFunc: callbacks.GetDeploymentContainers,
-		UpdateFunc:     callbacks.UpdateDeployment,
-		ResourceType:   "Deployment",
-	}
+	deploymentFuncs := handler.GetDeploymentRollingUpgradeFuncs()
 	updated := testutil.VerifyResourceUpdate(client, config, constants.SecretEnvVarPostfix, deploymentFuncs)
 	if updated {
 		t.Errorf("Deployment should not be updated by changing label in secret")
@@ -536,7 +548,7 @@ func TestControllerUpdatingConfigmapShouldCreateEnvInDaemonSet(t *testing.T) {
 	}
 
 	// Creating DaemonSet
-	_, err = testutil.CreateDaemonSet(client, configmapName, namespace)
+	_, err = testutil.CreateDaemonSet(client, configmapName, namespace, true)
 	if err != nil {
 		t.Errorf("Error  in DaemonSet creation: %v", err)
 	}
@@ -556,12 +568,7 @@ func TestControllerUpdatingConfigmapShouldCreateEnvInDaemonSet(t *testing.T) {
 		SHAValue:     shaData,
 		Annotation:   constants.ConfigmapUpdateOnChangeAnnotation,
 	}
-	daemonSetFuncs := callbacks.RollingUpgradeFuncs{
-		ItemsFunc:      callbacks.GetDaemonSetItems,
-		ContainersFunc: callbacks.GetDaemonSetContainers,
-		UpdateFunc:     callbacks.UpdateDaemonSet,
-		ResourceType:   "DaemonSet",
-	}
+	daemonSetFuncs := handler.GetDaemonSetRollingUpgradeFuncs()
 	updated := testutil.VerifyResourceUpdate(client, config, constants.ConfigmapEnvVarPostfix, daemonSetFuncs)
 	if !updated {
 		t.Errorf("DaemonSet was not updated")
@@ -592,7 +599,7 @@ func TestControllerForUpdatingConfigmapShouldUpdateDaemonSet(t *testing.T) {
 	}
 
 	// Creating DaemonSet
-	_, err = testutil.CreateDaemonSet(client, configmapName, namespace)
+	_, err = testutil.CreateDaemonSet(client, configmapName, namespace, true)
 	if err != nil {
 		t.Errorf("Error  in DaemonSet creation: %v", err)
 	}
@@ -622,12 +629,7 @@ func TestControllerForUpdatingConfigmapShouldUpdateDaemonSet(t *testing.T) {
 		SHAValue:     shaData,
 		Annotation:   constants.ConfigmapUpdateOnChangeAnnotation,
 	}
-	daemonSetFuncs := callbacks.RollingUpgradeFuncs{
-		ItemsFunc:      callbacks.GetDaemonSetItems,
-		ContainersFunc: callbacks.GetDaemonSetContainers,
-		UpdateFunc:     callbacks.UpdateDaemonSet,
-		ResourceType:   "DaemonSet",
-	}
+	daemonSetFuncs := handler.GetDaemonSetRollingUpgradeFuncs()
 	updated := testutil.VerifyResourceUpdate(client, config, constants.ConfigmapEnvVarPostfix, daemonSetFuncs)
 	if !updated {
 		t.Errorf("DaemonSet was not updated")
@@ -658,7 +660,7 @@ func TestControllerUpdatingSecretShouldCreateEnvInDaemonSet(t *testing.T) {
 	}
 
 	// Creating DaemonSet
-	_, err = testutil.CreateDaemonSet(client, secretName, namespace)
+	_, err = testutil.CreateDaemonSet(client, secretName, namespace, true)
 	if err != nil {
 		t.Errorf("Error  in DaemonSet creation: %v", err)
 	}
@@ -678,12 +680,7 @@ func TestControllerUpdatingSecretShouldCreateEnvInDaemonSet(t *testing.T) {
 		SHAValue:     shaData,
 		Annotation:   constants.SecretUpdateOnChangeAnnotation,
 	}
-	daemonSetFuncs := callbacks.RollingUpgradeFuncs{
-		ItemsFunc:      callbacks.GetDaemonSetItems,
-		ContainersFunc: callbacks.GetDaemonSetContainers,
-		UpdateFunc:     callbacks.UpdateDaemonSet,
-		ResourceType:   "DaemonSet",
-	}
+	daemonSetFuncs := handler.GetDaemonSetRollingUpgradeFuncs()
 	updated := testutil.VerifyResourceUpdate(client, config, constants.SecretEnvVarPostfix, daemonSetFuncs)
 	if !updated {
 		t.Errorf("DaemonSet was not updated")
@@ -713,7 +710,7 @@ func TestControllerUpdatingSecretShouldUpdateEnvInDaemonSet(t *testing.T) {
 	}
 
 	// Creating DaemonSet
-	_, err = testutil.CreateDaemonSet(client, secretName, namespace)
+	_, err = testutil.CreateDaemonSet(client, secretName, namespace, true)
 	if err != nil {
 		t.Errorf("Error  in DaemonSet creation: %v", err)
 	}
@@ -740,12 +737,7 @@ func TestControllerUpdatingSecretShouldUpdateEnvInDaemonSet(t *testing.T) {
 		SHAValue:     shaData,
 		Annotation:   constants.SecretUpdateOnChangeAnnotation,
 	}
-	daemonSetFuncs := callbacks.RollingUpgradeFuncs{
-		ItemsFunc:      callbacks.GetDaemonSetItems,
-		ContainersFunc: callbacks.GetDaemonSetContainers,
-		UpdateFunc:     callbacks.UpdateDaemonSet,
-		ResourceType:   "DaemonSet",
-	}
+	daemonSetFuncs := handler.GetDaemonSetRollingUpgradeFuncs()
 	updated := testutil.VerifyResourceUpdate(client, config, constants.SecretEnvVarPostfix, daemonSetFuncs)
 	if !updated {
 		t.Errorf("DaemonSet was not updated")
@@ -775,7 +767,7 @@ func TestControllerUpdatingSecretLabelsShouldNotCreateorUpdateEnvInDaemonSet(t *
 	}
 
 	// Creating DaemonSet
-	_, err = testutil.CreateDaemonSet(client, secretName, namespace)
+	_, err = testutil.CreateDaemonSet(client, secretName, namespace, true)
 	if err != nil {
 		t.Errorf("Error  in DaemonSet creation: %v", err)
 	}
@@ -794,12 +786,7 @@ func TestControllerUpdatingSecretLabelsShouldNotCreateorUpdateEnvInDaemonSet(t *
 		SHAValue:     shaData,
 		Annotation:   constants.SecretUpdateOnChangeAnnotation,
 	}
-	daemonSetFuncs := callbacks.RollingUpgradeFuncs{
-		ItemsFunc:      callbacks.GetDaemonSetItems,
-		ContainersFunc: callbacks.GetDaemonSetContainers,
-		UpdateFunc:     callbacks.UpdateDaemonSet,
-		ResourceType:   "DaemonSet",
-	}
+	daemonSetFuncs := handler.GetDaemonSetRollingUpgradeFuncs()
 	updated := testutil.VerifyResourceUpdate(client, config, constants.SecretEnvVarPostfix, daemonSetFuncs)
 	if updated {
 		t.Errorf("DaemonSet should not be updated by changing label in secret")
@@ -829,7 +816,7 @@ func TestControllerUpdatingConfigmapShouldCreateEnvInStatefulSet(t *testing.T) {
 	}
 
 	// Creating StatefulSet
-	_, err = testutil.CreateStatefulSet(client, configmapName, namespace)
+	_, err = testutil.CreateStatefulSet(client, configmapName, namespace, true)
 	if err != nil {
 		t.Errorf("Error  in StatefulSet creation: %v", err)
 	}
@@ -849,12 +836,7 @@ func TestControllerUpdatingConfigmapShouldCreateEnvInStatefulSet(t *testing.T) {
 		SHAValue:     shaData,
 		Annotation:   constants.ConfigmapUpdateOnChangeAnnotation,
 	}
-	statefulSetFuncs := callbacks.RollingUpgradeFuncs{
-		ItemsFunc:      callbacks.GetStatefulSetItems,
-		ContainersFunc: callbacks.GetStatefulsetContainers,
-		UpdateFunc:     callbacks.UpdateStatefulset,
-		ResourceType:   "StatefulSet",
-	}
+	statefulSetFuncs := handler.GetStatefulSetRollingUpgradeFuncs()
 	updated := testutil.VerifyResourceUpdate(client, config, constants.ConfigmapEnvVarPostfix, statefulSetFuncs)
 	if !updated {
 		t.Errorf("StatefulSet was not updated")
@@ -885,7 +867,7 @@ func TestControllerForUpdatingConfigmapShouldUpdateStatefulSet(t *testing.T) {
 	}
 
 	// Creating StatefulSet
-	_, err = testutil.CreateStatefulSet(client, configmapName, namespace)
+	_, err = testutil.CreateStatefulSet(client, configmapName, namespace, true)
 	if err != nil {
 		t.Errorf("Error  in StatefulSet creation: %v", err)
 	}
@@ -911,12 +893,7 @@ func TestControllerForUpdatingConfigmapShouldUpdateStatefulSet(t *testing.T) {
 		SHAValue:     shaData,
 		Annotation:   constants.ConfigmapUpdateOnChangeAnnotation,
 	}
-	statefulSetFuncs := callbacks.RollingUpgradeFuncs{
-		ItemsFunc:      callbacks.GetStatefulSetItems,
-		ContainersFunc: callbacks.GetStatefulsetContainers,
-		UpdateFunc:     callbacks.UpdateStatefulset,
-		ResourceType:   "StatefulSet",
-	}
+	statefulSetFuncs := handler.GetStatefulSetRollingUpgradeFuncs()
 	updated := testutil.VerifyResourceUpdate(client, config, constants.ConfigmapEnvVarPostfix, statefulSetFuncs)
 	if !updated {
 		t.Errorf("StatefulSet was not updated")
@@ -947,7 +924,7 @@ func TestControllerUpdatingSecretShouldCreateEnvInStatefulSet(t *testing.T) {
 	}
 
 	// Creating StatefulSet
-	_, err = testutil.CreateStatefulSet(client, secretName, namespace)
+	_, err = testutil.CreateStatefulSet(client, secretName, namespace, true)
 	if err != nil {
 		t.Errorf("Error  in StatefulSet creation: %v", err)
 	}
@@ -967,12 +944,7 @@ func TestControllerUpdatingSecretShouldCreateEnvInStatefulSet(t *testing.T) {
 		SHAValue:     shaData,
 		Annotation:   constants.SecretUpdateOnChangeAnnotation,
 	}
-	statefulSetFuncs := callbacks.RollingUpgradeFuncs{
-		ItemsFunc:      callbacks.GetStatefulSetItems,
-		ContainersFunc: callbacks.GetStatefulsetContainers,
-		UpdateFunc:     callbacks.UpdateStatefulset,
-		ResourceType:   "StatefulSet",
-	}
+	statefulSetFuncs := handler.GetStatefulSetRollingUpgradeFuncs()
 	updated := testutil.VerifyResourceUpdate(client, config, constants.SecretEnvVarPostfix, statefulSetFuncs)
 	if !updated {
 		t.Errorf("StatefulSet was not updated")
@@ -1002,7 +974,7 @@ func TestControllerUpdatingSecretShouldUpdateEnvInStatefulSet(t *testing.T) {
 	}
 
 	// Creating StatefulSet
-	_, err = testutil.CreateStatefulSet(client, secretName, namespace)
+	_, err = testutil.CreateStatefulSet(client, secretName, namespace, true)
 	if err != nil {
 		t.Errorf("Error  in StatefulSet creation: %v", err)
 	}
@@ -1028,12 +1000,7 @@ func TestControllerUpdatingSecretShouldUpdateEnvInStatefulSet(t *testing.T) {
 		SHAValue:     shaData,
 		Annotation:   constants.SecretUpdateOnChangeAnnotation,
 	}
-	statefulSetFuncs := callbacks.RollingUpgradeFuncs{
-		ItemsFunc:      callbacks.GetStatefulSetItems,
-		ContainersFunc: callbacks.GetStatefulsetContainers,
-		UpdateFunc:     callbacks.UpdateStatefulset,
-		ResourceType:   "StatefulSet",
-	}
+	statefulSetFuncs := handler.GetStatefulSetRollingUpgradeFuncs()
 	updated := testutil.VerifyResourceUpdate(client, config, constants.SecretEnvVarPostfix, statefulSetFuncs)
 	if !updated {
 		t.Errorf("StatefulSet was not updated")
