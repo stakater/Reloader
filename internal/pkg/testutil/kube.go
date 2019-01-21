@@ -93,6 +93,7 @@ func getPodTemplateSpecWithEnvVars(name string) v1.PodTemplateSpec {
 							Value: "test",
 						},
 						{
+							Name:  "CONFIGMAP_"+util.ConvertToEnvVarName(name),
 							ValueFrom: &v1.EnvVarSource{
 								ConfigMapKeyRef: &v1.ConfigMapKeySelector{
 									LocalObjectReference: v1.LocalObjectReference{
@@ -103,6 +104,7 @@ func getPodTemplateSpecWithEnvVars(name string) v1.PodTemplateSpec {
 							},
 						},
 						{
+							Name:  "SECRET_"+util.ConvertToEnvVarName(name),
 							ValueFrom: &v1.EnvVarSource{
 								SecretKeyRef: &v1.SecretKeySelector{
 									LocalObjectReference: v1.LocalObjectReference{
