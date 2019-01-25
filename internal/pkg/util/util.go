@@ -2,7 +2,10 @@ package util
 
 import (
 	"bytes"
+	"sort"
 	"strings"
+
+	"github.com/stakater/Reloader/internal/pkg/crypto"
 )
 
 // ConvertToEnvVarName converts the given text into a usable env var
@@ -24,4 +27,22 @@ func ConvertToEnvVarName(text string) string {
 		}
 	}
 	return buffer.String()
+}
+
+func GetSHAfromConfigmap(data map[string]string) string {
+	values := []string{}
+	for k, v := range data {
+		values = append(values, k+"="+v)
+	}
+	sort.Strings(values)
+	return crypto.GenerateSHA(strings.Join(values, ";"))
+}
+
+func GetSHAfromSecret(data map[string][]byte) string {
+	values := []string{}
+	for k, v := range data {
+		values = append(values, k+"="+string(v[:]))
+	}
+	sort.Strings(values)
+	return crypto.GenerateSHA(strings.Join(values, ";"))
 }

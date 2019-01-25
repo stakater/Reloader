@@ -3,6 +3,7 @@ package testutil
 import (
 	"math/rand"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -40,7 +41,7 @@ func GetClient() *kubernetes.Clientset {
 func CreateNamespace(namespace string, client kubernetes.Interface) {
 	_, err := client.CoreV1().Namespaces().Create(&v1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: namespace}})
 	if err != nil {
-		logrus.Fatalf("Failed to create namespace for testing", err)
+		logrus.Fatalf("Failed to create namespace for testing %v", err)
 	} else {
 		logrus.Infof("Creating namespace for testing = %s", namespace)
 	}
@@ -50,9 +51,125 @@ func CreateNamespace(namespace string, client kubernetes.Interface) {
 func DeleteNamespace(namespace string, client kubernetes.Interface) {
 	err := client.CoreV1().Namespaces().Delete(namespace, &metav1.DeleteOptions{})
 	if err != nil {
-		logrus.Fatalf("Failed to delete namespace that was created for testing", err)
+		logrus.Fatalf("Failed to delete namespace that was created for testing %v", err)
 	} else {
 		logrus.Infof("Deleting namespace for testing = %s", namespace)
+	}
+}
+
+func getObjectMeta(namespace string, name string, autoReload bool) metav1.ObjectMeta {
+	return metav1.ObjectMeta{
+		Name:        name,
+		Namespace:   namespace,
+		Labels:      map[string]string{"firstLabel": "temp"},
+		Annotations: getAnnotations(name, autoReload),
+	}
+}
+
+func getAnnotations(name string, autoReload bool) map[string]string {
+	if autoReload {
+		return map[string]string{
+			constants.ReloaderAutoAnnotation: "true"}
+	}
+
+	return map[string]string{
+		constants.ConfigmapUpdateOnChangeAnnotation: name,
+		constants.SecretUpdateOnChangeAnnotation:    name}
+}
+
+func getPodTemplateSpecWithEnvVars(name string) v1.PodTemplateSpec {
+	return v1.PodTemplateSpec{
+		ObjectMeta: metav1.ObjectMeta{
+			Labels: map[string]string{"secondLabel": "temp"},
+		},
+		Spec: v1.PodSpec{
+			Containers: []v1.Container{
+				{
+					Image: "tutum/hello-world",
+					Name:  name,
+					Env: []v1.EnvVar{
+						{
+							Name:  "BUCKET_NAME",
+							Value: "test",
+						},
+						{
+							Name: "CONFIGMAP_" + util.ConvertToEnvVarName(name),
+							ValueFrom: &v1.EnvVarSource{
+								ConfigMapKeyRef: &v1.ConfigMapKeySelector{
+									LocalObjectReference: v1.LocalObjectReference{
+										Name: name,
+									},
+									Key: "test.url",
+								},
+							},
+						},
+						{
+							Name: "SECRET_" + util.ConvertToEnvVarName(name),
+							ValueFrom: &v1.EnvVarSource{
+								SecretKeyRef: &v1.SecretKeySelector{
+									LocalObjectReference: v1.LocalObjectReference{
+										Name: name,
+									},
+									Key: "test.url",
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+}
+
+func getPodTemplateSpecWithVolumes(name string) v1.PodTemplateSpec {
+	return v1.PodTemplateSpec{
+		ObjectMeta: metav1.ObjectMeta{
+			Labels: map[string]string{"secondLabel": "temp"},
+		},
+		Spec: v1.PodSpec{
+			Containers: []v1.Container{
+				{
+					Image: "tutum/hello-world",
+					Name:  name,
+					Env: []v1.EnvVar{
+						{
+							Name:  "BUCKET_NAME",
+							Value: "test",
+						},
+					},
+					VolumeMounts: []v1.VolumeMount{
+						{
+							MountPath: "etc/config",
+							Name:      "configmap",
+						},
+						{
+							MountPath: "etc/sec",
+							Name:      "secret",
+						},
+					},
+				},
+			},
+			Volumes: []v1.Volume{
+				{
+					Name: "configmap",
+					VolumeSource: v1.VolumeSource{
+						ConfigMap: &v1.ConfigMapVolumeSource{
+							LocalObjectReference: v1.LocalObjectReference{
+								Name: name,
+							},
+						},
+					},
+				},
+				{
+					Name: "secret",
+					VolumeSource: v1.VolumeSource{
+						Secret: &v1.SecretVolumeSource{
+							SecretName: name,
+						},
+					},
+				},
+			},
+		},
 	}
 }
 
@@ -60,38 +177,27 @@ func DeleteNamespace(namespace string, client kubernetes.Interface) {
 func GetDeployment(namespace string, deploymentName string) *v1beta1.Deployment {
 	replicaset := int32(1)
 	return &v1beta1.Deployment{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      deploymentName,
-			Namespace: namespace,
-			Labels:    map[string]string{"firstLabel": "temp"},
-			Annotations: map[string]string{
-				constants.ConfigmapUpdateOnChangeAnnotation: deploymentName,
-				constants.SecretUpdateOnChangeAnnotation:    deploymentName},
-		},
+		ObjectMeta: getObjectMeta(namespace, deploymentName, false),
 		Spec: v1beta1.DeploymentSpec{
 			Replicas: &replicaset,
 			Strategy: v1beta1.DeploymentStrategy{
 				Type: v1beta1.RollingUpdateDeploymentStrategyType,
 			},
-			Template: v1.PodTemplateSpec{
-				ObjectMeta: metav1.ObjectMeta{
-					Labels: map[string]string{"secondLabel": "temp"},
-				},
-				Spec: v1.PodSpec{
-					Containers: []v1.Container{
-						{
-							Image: "tutum/hello-world",
-							Name:  deploymentName,
-							Env: []v1.EnvVar{
-								{
-									Name:  "BUCKET_NAME",
-									Value: "test",
-								},
-							},
-						},
-					},
-				},
+			Template: getPodTemplateSpecWithVolumes(deploymentName),
+		},
+	}
+}
+
+func GetDeploymentWithEnvVars(namespace string, deploymentName string) *v1beta1.Deployment {
+	replicaset := int32(1)
+	return &v1beta1.Deployment{
+		ObjectMeta: getObjectMeta(namespace, deploymentName, true),
+		Spec: v1beta1.DeploymentSpec{
+			Replicas: &replicaset,
+			Strategy: v1beta1.DeploymentStrategy{
+				Type: v1beta1.RollingUpdateDeploymentStrategyType,
 			},
+			Template: getPodTemplateSpecWithEnvVars(deploymentName),
 		},
 	}
 }
@@ -99,37 +205,24 @@ func GetDeployment(namespace string, deploymentName string) *v1beta1.Deployment 
 // GetDaemonSet provides daemonset for testing
 func GetDaemonSet(namespace string, daemonsetName string) *v1beta1.DaemonSet {
 	return &v1beta1.DaemonSet{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      daemonsetName,
-			Namespace: namespace,
-			Labels:    map[string]string{"firstLabel": "temp"},
-			Annotations: map[string]string{
-				constants.ConfigmapUpdateOnChangeAnnotation: daemonsetName,
-				constants.SecretUpdateOnChangeAnnotation:    daemonsetName},
-		},
+		ObjectMeta: getObjectMeta(namespace, daemonsetName, false),
 		Spec: v1beta1.DaemonSetSpec{
 			UpdateStrategy: v1beta1.DaemonSetUpdateStrategy{
 				Type: v1beta1.RollingUpdateDaemonSetStrategyType,
 			},
-			Template: v1.PodTemplateSpec{
-				ObjectMeta: metav1.ObjectMeta{
-					Labels: map[string]string{"secondLabel": "temp"},
-				},
-				Spec: v1.PodSpec{
-					Containers: []v1.Container{
-						{
-							Image: "tutum/hello-world",
-							Name:  daemonsetName,
-							Env: []v1.EnvVar{
-								{
-									Name:  "BUCKET_NAME",
-									Value: "test",
-								},
-							},
-						},
-					},
-				},
+			Template: getPodTemplateSpecWithVolumes(daemonsetName),
+		},
+	}
+}
+
+func GetDaemonSetWithEnvVars(namespace string, daemonSetName string) *v1beta1.DaemonSet {
+	return &v1beta1.DaemonSet{
+		ObjectMeta: getObjectMeta(namespace, daemonSetName, true),
+		Spec: v1beta1.DaemonSetSpec{
+			UpdateStrategy: v1beta1.DaemonSetUpdateStrategy{
+				Type: v1beta1.RollingUpdateDaemonSetStrategyType,
 			},
+			Template: getPodTemplateSpecWithEnvVars(daemonSetName),
 		},
 	}
 }
@@ -137,37 +230,25 @@ func GetDaemonSet(namespace string, daemonsetName string) *v1beta1.DaemonSet {
 // GetStatefulSet provides statefulset for testing
 func GetStatefulSet(namespace string, statefulsetName string) *v1_beta1.StatefulSet {
 	return &v1_beta1.StatefulSet{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      statefulsetName,
-			Namespace: namespace,
-			Labels:    map[string]string{"firstLabel": "temp"},
-			Annotations: map[string]string{
-				constants.ConfigmapUpdateOnChangeAnnotation: statefulsetName,
-				constants.SecretUpdateOnChangeAnnotation:    statefulsetName},
-		},
+		ObjectMeta: getObjectMeta(namespace, statefulsetName, false),
 		Spec: v1_beta1.StatefulSetSpec{
 			UpdateStrategy: v1_beta1.StatefulSetUpdateStrategy{
 				Type: v1_beta1.RollingUpdateStatefulSetStrategyType,
 			},
-			Template: v1.PodTemplateSpec{
-				ObjectMeta: metav1.ObjectMeta{
-					Labels: map[string]string{"secondLabel": "temp"},
-				},
-				Spec: v1.PodSpec{
-					Containers: []v1.Container{
-						{
-							Image: "tutum/hello-world",
-							Name:  statefulsetName,
-							Env: []v1.EnvVar{
-								{
-									Name:  "BUCKET_NAME",
-									Value: "test",
-								},
-							},
-						},
-					},
-				},
+			Template: getPodTemplateSpecWithVolumes(statefulsetName),
+		},
+	}
+}
+
+// GetStatefulSet provides statefulset for testing
+func GetStatefulSetWithEnvVar(namespace string, statefulsetName string) *v1_beta1.StatefulSet {
+	return &v1_beta1.StatefulSet{
+		ObjectMeta: getObjectMeta(namespace, statefulsetName, true),
+		Spec: v1_beta1.StatefulSetSpec{
+			UpdateStrategy: v1_beta1.StatefulSetUpdateStrategy{
+				Type: v1_beta1.RollingUpdateStatefulSetStrategyType,
 			},
+			Template: getPodTemplateSpecWithEnvVars(statefulsetName),
 		},
 	}
 }
@@ -270,28 +351,46 @@ func CreateSecret(client kubernetes.Interface, namespace string, secretName stri
 }
 
 // CreateDeployment creates a deployment in given namespace and returns the Deployment
-func CreateDeployment(client kubernetes.Interface, deploymentName string, namespace string) (*v1beta1.Deployment, error) {
+func CreateDeployment(client kubernetes.Interface, deploymentName string, namespace string, volumeMount bool) (*v1beta1.Deployment, error) {
 	logrus.Infof("Creating Deployment")
 	deploymentClient := client.ExtensionsV1beta1().Deployments(namespace)
-	deployment, err := deploymentClient.Create(GetDeployment(namespace, deploymentName))
+	var deploymentObj *v1beta1.Deployment
+	if volumeMount {
+		deploymentObj = GetDeployment(namespace, deploymentName)
+	} else {
+		deploymentObj = GetDeploymentWithEnvVars(namespace, deploymentName)
+	}
+	deployment, err := deploymentClient.Create(deploymentObj)
 	time.Sleep(10 * time.Second)
 	return deployment, err
 }
 
 // CreateDaemonSet creates a deployment in given namespace and returns the DaemonSet
-func CreateDaemonSet(client kubernetes.Interface, daemonsetName string, namespace string) (*v1beta1.DaemonSet, error) {
+func CreateDaemonSet(client kubernetes.Interface, daemonsetName string, namespace string, volumeMount bool) (*v1beta1.DaemonSet, error) {
 	logrus.Infof("Creating DaemonSet")
 	daemonsetClient := client.ExtensionsV1beta1().DaemonSets(namespace)
-	daemonset, err := daemonsetClient.Create(GetDaemonSet(namespace, daemonsetName))
+	var daemonsetObj *v1beta1.DaemonSet
+	if volumeMount {
+		daemonsetObj = GetDaemonSet(namespace, daemonsetName)
+	} else {
+		daemonsetObj = GetDaemonSetWithEnvVars(namespace, daemonsetName)
+	}
+	daemonset, err := daemonsetClient.Create(daemonsetObj)
 	time.Sleep(10 * time.Second)
 	return daemonset, err
 }
 
 // CreateStatefulSet creates a deployment in given namespace and returns the StatefulSet
-func CreateStatefulSet(client kubernetes.Interface, statefulsetName string, namespace string) (*v1_beta1.StatefulSet, error) {
+func CreateStatefulSet(client kubernetes.Interface, statefulsetName string, namespace string, volumeMount bool) (*v1_beta1.StatefulSet, error) {
 	logrus.Infof("Creating StatefulSet")
 	statefulsetClient := client.AppsV1beta1().StatefulSets(namespace)
-	statefulset, err := statefulsetClient.Create(GetStatefulSet(namespace, statefulsetName))
+	var statefulsetObj *v1_beta1.StatefulSet
+	if volumeMount {
+		statefulsetObj = GetStatefulSet(namespace, statefulsetName)
+	} else {
+		statefulsetObj = GetStatefulSetWithEnvVar(namespace, statefulsetName)
+	}
+	statefulset, err := statefulsetClient.Create(statefulsetObj)
 	time.Sleep(10 * time.Second)
 	return statefulset, err
 }
@@ -374,28 +473,33 @@ func RandSeq(n int) string {
 	return string(b)
 }
 
+// VerifyResourceUpdate verifies whether the rolling upgrade happened or not
 func VerifyResourceUpdate(client kubernetes.Interface, config util.Config, envVarPostfix string, upgradeFuncs callbacks.RollingUpgradeFuncs) bool {
 	items := upgradeFuncs.ItemsFunc(client, config.Namespace)
 	for _, i := range items {
 		containers := upgradeFuncs.ContainersFunc(i)
 		// match statefulsets with the correct annotation
 		annotationValue := util.ToObjectMeta(i).Annotations[config.Annotation]
-		if annotationValue != "" {
+		reloaderEnabledValue := util.ToObjectMeta(i).Annotations[constants.ReloaderAutoAnnotation]
+		reloaderEnabled, err := strconv.ParseBool(reloaderEnabledValue)
+		matches := false
+		if err == nil && reloaderEnabled {
+			matches = true
+		} else if annotationValue != "" {
 			values := strings.Split(annotationValue, ",")
-			matches := false
 			for _, value := range values {
 				if value == config.ResourceName {
 					matches = true
 					break
 				}
 			}
-			if matches {
-				envName := constants.EnvVarPrefix + util.ConvertToEnvVarName(annotationValue) + "_" + envVarPostfix
-				updated := GetResourceSHA(containers, envName)
+		}
 
-				if updated == config.SHAValue {
-					return true
-				}
+		if matches {
+			envName := constants.EnvVarPrefix + util.ConvertToEnvVarName(config.ResourceName) + "_" + envVarPostfix
+			updated := GetResourceSHA(containers, envName)
+			if updated == config.SHAValue {
+				return true
 			}
 		}
 	}
