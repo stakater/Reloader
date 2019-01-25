@@ -1,12 +1,12 @@
 ---
 # Source: reloader/templates/clusterrole.yaml
----
+
 apiVersion: rbac.authorization.k8s.io/v1beta1
 kind: ClusterRole
 metadata:
   labels:
     app: reloader
-    chart: "reloader-v0.0.21"
+    chart: "reloader-v0.0.22"
     release: "RELEASE-NAME"
     heritage: "Tiller"
   name: reloader-role
