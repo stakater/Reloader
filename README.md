@@ -47,6 +47,17 @@ spec:
     metadata:
 ```
 
+Specify your own custom annotation via the `--ConfigAnnotation` arg.
+```yaml
+kind: Deployment
+metadata:
+  annotations:
+    my.company.com/configmap: "foo-configmap"
+spec:
+  template:
+    metadata:
+```
+
 ### Secret
 
 For a `Deployment` called `foo` have a `Secret` called `foo-secret`. Then add this annotation to main metadata of  your `Deployment`
@@ -72,6 +83,18 @@ spec:
   template:
     metadata:
 ```
+
+Specify your own custom annotation via the `--SecretAnnotation` arg.
+```yaml
+kind: Deployment
+metadata:
+  annotations:
+    my.company.com/secret: "foo-secret"
+spec:
+  template:
+    metadata:
+```
+
 
 ## Deploying to Kubernetes
 
