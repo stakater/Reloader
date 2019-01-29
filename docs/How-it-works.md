@@ -17,23 +17,25 @@ The annotation value is comma separated list of `configmaps` or `secrets`. If a 
 
 ### Annotation for Configmap
 
-For a `Deployment` called `foo` have a `ConfigMap` called `foo`. Then add this annotation to your `Deployment`
+For a `Deployment` called `foo` have a `ConfigMap` called `foo`. Then add this annotation* to your `Deployment`
 
 ```yaml
 metadata:
   annotations:
     configmap.reloader.stakater.com/reload: "foo"
 ```
+<small>*the default annotation can be changed with the `--ConfigAnnotation` flag</small>
 
 ### Annotation for Secret
 
-For a `Deployment` called `foo` have a `Secret` called `foo`. Then add this annotation to your `Deployment`
+For a `Deployment` called `foo` have a `Secret` called `foo`. Then add this annotation* to your `Deployment`
 
 ```yaml
 metadata:
   annotations:
     secret.reloader.stakater.com/reload: "foo"
 ```
+<small>*the default annotation can be changed with the `--SecretAnnotation` flag</small>
 
 Above mentioned annotation are also work for `Daemonsets` and `Statefulsets`
 
