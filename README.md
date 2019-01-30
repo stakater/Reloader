@@ -13,11 +13,11 @@
 
 ## Problem
 
-We would like to watch if some change happens in `ConfigMap` and/or `Secret`; then perform a rolling upgrade on relevant `Deployment`, `Deamonset` and `Statefulset`
+We would like to watch if some change happens in `ConfigMap` and/or `Secret`; then perform a rolling upgrade on relevant `Deployment`, `Daemonset` and `Statefulset`
 
 ## Solution
 
-Reloader can watch changes in `ConfigMap` and `Secret` and do rolling upgrades on Pods with their associated `Deployments`, `Deamonsets` and `Statefulsets`.
+Reloader can watch changes in `ConfigMap` and `Secret` and do rolling upgrades on Pods with their associated `Deployments`, `Daemonsets` and `Statefulsets`.
 
 ## How to use Reloader
 
@@ -123,7 +123,7 @@ helm repo update
 helm install stakater/reloader
 ```
 
-**Note:**  By default reloader watches in all namespaces. To watch in single namespace, please run following command. It will install reloader in `test` namespace which will only watch `Deployments`, `Deamonsets` and `Statefulsets` in `test` namespace.
+**Note:**  By default reloader watches in all namespaces. To watch in single namespace, please run following command. It will install reloader in `test` namespace which will only watch `Deployments`, `Daemonsets` and `Statefulsets` in `test` namespace.
 
 ```bash
 helm install stakater/reloader --set reloader.watchGlobally=false --namespace test
