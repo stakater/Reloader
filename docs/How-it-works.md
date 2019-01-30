@@ -1,6 +1,6 @@
 # How it works?
 
-Reloader watches for `ConfigMap` and `Secret` and detects if there are changes in data of these objects. After change detection reloader performs rolling upgrade on relevant Pods via associated `Deployment`, `Deamonset` and `Statefulset`.
+Reloader watches for `ConfigMap` and `Secret` and detects if there are changes in data of these objects. After change detection reloader performs rolling upgrade on relevant Pods via associated `Deployment`, `Daemonset` and `Statefulset`.
 
 ## How change detection works
 
