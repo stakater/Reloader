@@ -26,3 +26,15 @@ k8s-trigger-controller stores the hash value in an annotation `trigger.k8s.io/[s
 
 #### Reloader:
 Reloader stores the hash value in an environment variable `STAKATER_NAME_[SECRET|CONFIGMAP]`
+
+### Customization
+
+#### k8s-trigger-controller:
+k8s-trigger-controller restricts you to using the `trigger.k8s.io/[secret-configMap]-NAME-last-hash` annotation
+
+#### Reloader:
+Reloader allows you to customize the annotation to fit your needs with command line flags:
+
+- `--auto-annotation <annotation>`
+- `--configmap-annotation <annotation>`
+- `--secret-annotation <annotation>`

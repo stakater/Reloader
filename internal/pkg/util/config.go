@@ -2,6 +2,7 @@ package util
 
 import (
 	"github.com/stakater/Reloader/internal/pkg/constants"
+	"github.com/stakater/Reloader/internal/pkg/options"
 	v1 "k8s.io/api/core/v1"
 )
 
@@ -19,7 +20,7 @@ func GetConfigmapConfig(configmap *v1.ConfigMap) Config {
 	return Config{
 		Namespace:    configmap.Namespace,
 		ResourceName: configmap.Name,
-		Annotation:   constants.ConfigmapUpdateOnChangeAnnotation,
+		Annotation:   options.ConfigmapUpdateOnChangeAnnotation,
 		SHAValue:     GetSHAfromConfigmap(configmap.Data),
 		Type:         constants.ConfigmapEnvVarPostfix,
 	}
@@ -30,7 +31,7 @@ func GetSecretConfig(secret *v1.Secret) Config {
 	return Config{
 		Namespace:    secret.Namespace,
 		ResourceName: secret.Name,
-		Annotation:   constants.SecretUpdateOnChangeAnnotation,
+		Annotation:   options.SecretUpdateOnChangeAnnotation,
 		SHAValue:     GetSHAfromSecret(secret.Data),
 		Type:         constants.SecretEnvVarPostfix,
 	}

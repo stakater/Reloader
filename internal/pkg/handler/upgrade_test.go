@@ -7,6 +7,7 @@ import (
 
 	"github.com/sirupsen/logrus"
 	"github.com/stakater/Reloader/internal/pkg/constants"
+	"github.com/stakater/Reloader/internal/pkg/options"
 	"github.com/stakater/Reloader/internal/pkg/testutil"
 	"github.com/stakater/Reloader/internal/pkg/util"
 	testclient "k8s.io/client-go/kubernetes/fake"
@@ -301,7 +302,7 @@ func getConfigWithAnnotations(resourceType string, name string, shaData string, 
 
 func TestRollingUpgradeForDeploymentWithConfigmap(t *testing.T) {
 	shaData := testutil.ConvertResourceToSHA(testutil.ConfigmapResourceType, namespace, configmapName, "www.stakater.com")
-	config := getConfigWithAnnotations(constants.ConfigmapEnvVarPostfix, configmapName, shaData, constants.ConfigmapUpdateOnChangeAnnotation)
+	config := getConfigWithAnnotations(constants.ConfigmapEnvVarPostfix, configmapName, shaData, options.ConfigmapUpdateOnChangeAnnotation)
 	deploymentFuncs := GetDeploymentRollingUpgradeFuncs()
 
 	err := PerformRollingUpgrade(client, config, deploymentFuncs)
@@ -319,7 +320,7 @@ func TestRollingUpgradeForDeploymentWithConfigmap(t *testing.T) {
 
 func TestRollingUpgradeForDeploymentWithConfigmapAsEnvVar(t *testing.T) {
 	shaData := testutil.ConvertResourceToSHA(testutil.ConfigmapResourceType, namespace, configmapWithEnvName, "www.stakater.com")
-	config := getConfigWithAnnotations(constants.ConfigmapEnvVarPostfix, configmapWithEnvName, shaData, constants.ReloaderAutoAnnotation)
+	config := getConfigWithAnnotations(constants.ConfigmapEnvVarPostfix, configmapWithEnvName, shaData, options.ReloaderAutoAnnotation)
 	deploymentFuncs := GetDeploymentRollingUpgradeFuncs()
 
 	err := PerformRollingUpgrade(client, config, deploymentFuncs)
@@ -337,7 +338,7 @@ func TestRollingUpgradeForDeploymentWithConfigmapAsEnvVar(t *testing.T) {
 
 func TestRollingUpgradeForDeploymentWithConfigmapAsEnvVarFrom(t *testing.T) {
 	shaData := testutil.ConvertResourceToSHA(testutil.ConfigmapResourceType, namespace, configmapWithEnvFromName, "www.stakater.com")
-	config := getConfigWithAnnotations(constants.ConfigmapEnvVarPostfix, configmapWithEnvFromName, shaData, constants.ReloaderAutoAnnotation)
+	config := getConfigWithAnnotations(constants.ConfigmapEnvVarPostfix, configmapWithEnvFromName, shaData, options.ReloaderAutoAnnotation)
 	deploymentFuncs := GetDeploymentRollingUpgradeFuncs()
 
 	err := PerformRollingUpgrade(client, config, deploymentFuncs)
@@ -355,7 +356,7 @@ func TestRollingUpgradeForDeploymentWithConfigmapAsEnvVarFrom(t *testing.T) {
 
 func TestRollingUpgradeForDeploymentWithSecret(t *testing.T) {
 	shaData := testutil.ConvertResourceToSHA(testutil.SecretResourceType, namespace, secretName, "dGVzdFVwZGF0ZWRTZWNyZXRFbmNvZGluZ0ZvclJlbG9hZGVy")
-	config := getConfigWithAnnotations(constants.SecretEnvVarPostfix, secretName, shaData, constants.SecretUpdateOnChangeAnnotation)
+	config := getConfigWithAnnotations(constants.SecretEnvVarPostfix, secretName, shaData, options.SecretUpdateOnChangeAnnotation)
 	deploymentFuncs := GetDeploymentRollingUpgradeFuncs()
 
 	err := PerformRollingUpgrade(client, config, deploymentFuncs)
@@ -373,7 +374,7 @@ func TestRollingUpgradeForDeploymentWithSecret(t *testing.T) {
 
 func TestRollingUpgradeForDeploymentWithSecretAsEnvVar(t *testing.T) {
 	shaData := testutil.ConvertResourceToSHA(testutil.SecretResourceType, namespace, secretWithEnvName, "dGVzdFVwZGF0ZWRTZWNyZXRFbmNvZGluZ0ZvclJlbG9hZGVy")
-	config := getConfigWithAnnotations(constants.SecretEnvVarPostfix, secretWithEnvName, shaData, constants.ReloaderAutoAnnotation)
+	config := getConfigWithAnnotations(constants.SecretEnvVarPostfix, secretWithEnvName, shaData, options.ReloaderAutoAnnotation)
 	deploymentFuncs := GetDeploymentRollingUpgradeFuncs()
 
 	err := PerformRollingUpgrade(client, config, deploymentFuncs)
@@ -391,7 +392,7 @@ func TestRollingUpgradeForDeploymentWithSecretAsEnvVar(t *testing.T) {
 
 func TestRollingUpgradeForDeploymentWithSecretAsEnvVarFrom(t *testing.T) {
 	shaData := testutil.ConvertResourceToSHA(testutil.SecretResourceType, namespace, secretWithEnvFromName, "dGVzdFVwZGF0ZWRTZWNyZXRFbmNvZGluZ0ZvclJlbG9hZGVy")
-	config := getConfigWithAnnotations(constants.SecretEnvVarPostfix, secretWithEnvFromName, shaData, constants.ReloaderAutoAnnotation)
+	config := getConfigWithAnnotations(constants.SecretEnvVarPostfix, secretWithEnvFromName, shaData, options.ReloaderAutoAnnotation)
 	deploymentFuncs := GetDeploymentRollingUpgradeFuncs()
 
 	err := PerformRollingUpgrade(client, config, deploymentFuncs)
@@ -409,7 +410,7 @@ func TestRollingUpgradeForDeploymentWithSecretAsEnvVarFrom(t *testing.T) {
 
 func TestRollingUpgradeForDaemonSetWithConfigmap(t *testing.T) {
 	shaData := testutil.ConvertResourceToSHA(testutil.ConfigmapResourceType, namespace, configmapName, "www.facebook.com")
-	config := getConfigWithAnnotations(constants.ConfigmapEnvVarPostfix, configmapName, shaData, constants.ConfigmapUpdateOnChangeAnnotation)
+	config := getConfigWithAnnotations(constants.ConfigmapEnvVarPostfix, configmapName, shaData, options.ConfigmapUpdateOnChangeAnnotation)
 	daemonSetFuncs := GetDaemonSetRollingUpgradeFuncs()
 
 	err := PerformRollingUpgrade(client, config, daemonSetFuncs)
@@ -427,7 +428,7 @@ func TestRollingUpgradeForDaemonSetWithConfigmap(t *testing.T) {
 
 func TestRollingUpgradeForDaemonSetWithConfigmapAsEnvVar(t *testing.T) {
 	shaData := testutil.ConvertResourceToSHA(testutil.ConfigmapResourceType, namespace, configmapWithEnvName, "www.facebook.com")
-	config := getConfigWithAnnotations(constants.ConfigmapEnvVarPostfix, configmapWithEnvName, shaData, constants.ReloaderAutoAnnotation)
+	config := getConfigWithAnnotations(constants.ConfigmapEnvVarPostfix, configmapWithEnvName, shaData, options.ReloaderAutoAnnotation)
 	daemonSetFuncs := GetDaemonSetRollingUpgradeFuncs()
 
 	err := PerformRollingUpgrade(client, config, daemonSetFuncs)
@@ -445,7 +446,7 @@ func TestRollingUpgradeForDaemonSetWithConfigmapAsEnvVar(t *testing.T) {
 
 func TestRollingUpgradeForDaemonSetWithSecret(t *testing.T) {
 	shaData := testutil.ConvertResourceToSHA(testutil.SecretResourceType, namespace, secretName, "d3d3LmZhY2Vib29rLmNvbQ==")
-	config := getConfigWithAnnotations(constants.SecretEnvVarPostfix, secretName, shaData, constants.SecretUpdateOnChangeAnnotation)
+	config := getConfigWithAnnotations(constants.SecretEnvVarPostfix, secretName, shaData, options.SecretUpdateOnChangeAnnotation)
 	daemonSetFuncs := GetDaemonSetRollingUpgradeFuncs()
 
 	err := PerformRollingUpgrade(client, config, daemonSetFuncs)
@@ -463,7 +464,7 @@ func TestRollingUpgradeForDaemonSetWithSecret(t *testing.T) {
 
 func TestRollingUpgradeForStatefulSetWithConfigmap(t *testing.T) {
 	shaData := testutil.ConvertResourceToSHA(testutil.ConfigmapResourceType, namespace, configmapName, "www.twitter.com")
-	config := getConfigWithAnnotations(constants.ConfigmapEnvVarPostfix, configmapName, shaData, constants.ConfigmapUpdateOnChangeAnnotation)
+	config := getConfigWithAnnotations(constants.ConfigmapEnvVarPostfix, configmapName, shaData, options.ConfigmapUpdateOnChangeAnnotation)
 	statefulSetFuncs := GetStatefulSetRollingUpgradeFuncs()
 
 	err := PerformRollingUpgrade(client, config, statefulSetFuncs)
@@ -481,7 +482,7 @@ func TestRollingUpgradeForStatefulSetWithConfigmap(t *testing.T) {
 
 func TestRollingUpgradeForStatefulSetWithSecret(t *testing.T) {
 	shaData := testutil.ConvertResourceToSHA(testutil.SecretResourceType, namespace, secretName, "d3d3LnR3aXR0ZXIuY29t")
-	config := getConfigWithAnnotations(constants.SecretEnvVarPostfix, secretName, shaData, constants.SecretUpdateOnChangeAnnotation)
+	config := getConfigWithAnnotations(constants.SecretEnvVarPostfix, secretName, shaData, options.SecretUpdateOnChangeAnnotation)
 	statefulSetFuncs := GetStatefulSetRollingUpgradeFuncs()
 
 	err := PerformRollingUpgrade(client, config, statefulSetFuncs)

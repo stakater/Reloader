@@ -11,6 +11,7 @@ import (
 	"github.com/stakater/Reloader/internal/pkg/callbacks"
 	"github.com/stakater/Reloader/internal/pkg/constants"
 	"github.com/stakater/Reloader/internal/pkg/crypto"
+	"github.com/stakater/Reloader/internal/pkg/options"
 	"github.com/stakater/Reloader/internal/pkg/util"
 	"github.com/stakater/Reloader/pkg/kube"
 	v1_beta1 "k8s.io/api/apps/v1beta1"
@@ -69,12 +70,12 @@ func getObjectMeta(namespace string, name string, autoReload bool) metav1.Object
 func getAnnotations(name string, autoReload bool) map[string]string {
 	if autoReload {
 		return map[string]string{
-			constants.ReloaderAutoAnnotation: "true"}
+			options.ReloaderAutoAnnotation: "true"}
 	}
 
 	return map[string]string{
-		constants.ConfigmapUpdateOnChangeAnnotation: name,
-		constants.SecretUpdateOnChangeAnnotation:    name}
+		options.ConfigmapUpdateOnChangeAnnotation: name,
+		options.SecretUpdateOnChangeAnnotation:    name}
 }
 
 func getPodTemplateSpecWithEnvVars(name string) v1.PodTemplateSpec {
@@ -536,7 +537,7 @@ func VerifyResourceUpdate(client kubernetes.Interface, config util.Config, envVa
 		containers := upgradeFuncs.ContainersFunc(i)
 		// match statefulsets with the correct annotation
 		annotationValue := util.ToObjectMeta(i).Annotations[config.Annotation]
-		reloaderEnabledValue := util.ToObjectMeta(i).Annotations[constants.ReloaderAutoAnnotation]
+		reloaderEnabledValue := util.ToObjectMeta(i).Annotations[options.ReloaderAutoAnnotation]
 		reloaderEnabled, err := strconv.ParseBool(reloaderEnabledValue)
 		matches := false
 		if err == nil && reloaderEnabled {

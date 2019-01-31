@@ -1,6 +1,6 @@
-package constants
+package options
 
-const (
+var (
 	// ConfigmapUpdateOnChangeAnnotation is an annotation to detect changes in configmaps
 	ConfigmapUpdateOnChangeAnnotation = "configmap.reloader.stakater.com/reload"
 	// SecretUpdateOnChangeAnnotation is an annotation to detect changes in secrets
