@@ -9,7 +9,7 @@ import (
 	"github.com/stakater/Reloader/internal/pkg/constants"
 	"github.com/stakater/Reloader/internal/pkg/util"
 	"github.com/stakater/Reloader/pkg/kube"
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/kubernetes"
 )
 
@@ -143,6 +143,18 @@ func getContainerToUpdate(volumes []v1.Volume, containers []v1.Container, envarP
 				} else if envVarSource.ConfigMapKeyRef != nil && envVarSource.ConfigMapKeyRef.LocalObjectReference.Name == volumeName {
 					return &containers[i]
 				}
+			}
+		}
+	}
+
+	// Get the container with referenced secret or configmap
+	for i := range containers {
+		envs := containers[i].EnvFrom
+		for j := range envs {
+			if envs[j].SecretRef != nil && envs[j].SecretRef.LocalObjectReference.Name == volumeName {
+				return &containers[i]
+			} else if envs[j].ConfigMapRef != nil && envs[j].ConfigMapRef.LocalObjectReference.Name == volumeName {
+				return &containers[i]
 			}
 		}
 	}

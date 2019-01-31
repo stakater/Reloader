@@ -13,12 +13,14 @@ import (
 )
 
 var (
-	client               = testclient.NewSimpleClientset()
-	namespace            = "test-handler-" + testutil.RandSeq(5)
-	configmapName        = "testconfigmap-handler-" + testutil.RandSeq(5)
-	secretName           = "testsecret-handler-" + testutil.RandSeq(5)
-	configmapWithEnvName = "testconfigmapWithEnv-handler-" + testutil.RandSeq(3)
-	secretWithEnvName    = "testsecretWithEnv-handler-" + testutil.RandSeq(5)
+	client                   = testclient.NewSimpleClientset()
+	namespace                = "test-handler-" + testutil.RandSeq(5)
+	configmapName            = "testconfigmap-handler-" + testutil.RandSeq(5)
+	secretName               = "testsecret-handler-" + testutil.RandSeq(5)
+	configmapWithEnvName     = "testconfigmapWithEnv-handler-" + testutil.RandSeq(3)
+	configmapWithEnvFromName = "testconfigmapWithEnvFrom-handler-" + testutil.RandSeq(3)
+	secretWithEnvName        = "testsecretWithEnv-handler-" + testutil.RandSeq(5)
+	secretWithEnvFromName    = "testsecretWithEnvFrom-handler-" + testutil.RandSeq(5)
 )
 
 func TestMain(m *testing.M) {
@@ -63,6 +65,17 @@ func setup() {
 		logrus.Errorf("Error in secret creation: %v", err)
 	}
 
+	_, err = testutil.CreateConfigMap(client, namespace, configmapWithEnvFromName, "www.google.com")
+	if err != nil {
+		logrus.Errorf("Error in configmap creation: %v", err)
+	}
+
+	// Creating secret
+	_, err = testutil.CreateSecret(client, namespace, secretWithEnvFromName, data)
+	if err != nil {
+		logrus.Errorf("Error in secret creation: %v", err)
+	}
+
 	// Creating Deployment with configmap
 	_, err = testutil.CreateDeployment(client, configmapName, namespace, true)
 	if err != nil {
@@ -85,6 +98,18 @@ func setup() {
 	_, err = testutil.CreateDeployment(client, secretWithEnvName, namespace, false)
 	if err != nil {
 		logrus.Errorf("Error in Deployment with secret configmap as env var source creation: %v", err)
+	}
+
+	// Creating Deployment with envFrom source as secret
+	_, err = testutil.CreateDeploymentWithEnvVarSource(client, configmapWithEnvFromName, namespace)
+	if err != nil {
+		logrus.Errorf("Error in Deployment with secret configmap as envFrom source creation: %v", err)
+	}
+
+	// Creating Deployment with envFrom source as secret
+	_, err = testutil.CreateDeploymentWithEnvVarSource(client, secretWithEnvFromName, namespace)
+	if err != nil {
+		logrus.Errorf("Error in Deployment with secret configmap as envFrom source creation: %v", err)
 	}
 
 	// Creating DaemonSet with configmap
@@ -162,6 +187,18 @@ func teardown() {
 		logrus.Errorf("Error while deleting deployment with secret as env var source %v", deploymentError)
 	}
 
+	// Deleting Deployment with configmap as envFrom source
+	deploymentError = testutil.DeleteDeployment(client, namespace, configmapWithEnvFromName)
+	if deploymentError != nil {
+		logrus.Errorf("Error while deleting deployment with configmap as envFrom source %v", deploymentError)
+	}
+
+	// Deleting Deployment with secret as envFrom source
+	deploymentError = testutil.DeleteDeployment(client, namespace, secretWithEnvFromName)
+	if deploymentError != nil {
+		logrus.Errorf("Error while deleting deployment with secret as envFrom source %v", deploymentError)
+	}
+
 	// Deleting DaemonSet with configmap
 	daemonSetError := testutil.DeleteDaemonSet(client, namespace, configmapName)
 	if daemonSetError != nil {
@@ -234,6 +271,18 @@ func teardown() {
 		logrus.Errorf("Error while deleting the secret used as env var source %v", err)
 	}
 
+	// Deleting Configmap used as env var source
+	err = testutil.DeleteConfigMap(client, namespace, configmapWithEnvFromName)
+	if err != nil {
+		logrus.Errorf("Error while deleting the configmap used as env var source %v", err)
+	}
+
+	// Deleting Secret used as env var source
+	err = testutil.DeleteSecret(client, namespace, secretWithEnvFromName)
+	if err != nil {
+		logrus.Errorf("Error while deleting the secret used as env var source %v", err)
+	}
+
 	// Deleting namespace
 	testutil.DeleteNamespace(namespace, client)
 
@@ -286,6 +335,24 @@ func TestRollingUpgradeForDeploymentWithConfigmapAsEnvVar(t *testing.T) {
 	}
 }
 
+func TestRollingUpgradeForDeploymentWithConfigmapAsEnvVarFrom(t *testing.T) {
+	shaData := testutil.ConvertResourceToSHA(testutil.ConfigmapResourceType, namespace, configmapWithEnvFromName, "www.stakater.com")
+	config := getConfigWithAnnotations(constants.ConfigmapEnvVarPostfix, configmapWithEnvFromName, shaData, constants.ReloaderAutoAnnotation)
+	deploymentFuncs := GetDeploymentRollingUpgradeFuncs()
+
+	err := PerformRollingUpgrade(client, config, deploymentFuncs)
+	time.Sleep(5 * time.Second)
+	if err != nil {
+		t.Errorf("Rolling upgrade failed for Deployment with Configmap used as env var")
+	}
+
+	logrus.Infof("Verifying deployment update")
+	updated := testutil.VerifyResourceUpdate(client, config, constants.ConfigmapEnvVarPostfix, deploymentFuncs)
+	if !updated {
+		t.Errorf("Deployment was not updated")
+	}
+}
+
 func TestRollingUpgradeForDeploymentWithSecret(t *testing.T) {
 	shaData := testutil.ConvertResourceToSHA(testutil.SecretResourceType, namespace, secretName, "dGVzdFVwZGF0ZWRTZWNyZXRFbmNvZGluZ0ZvclJlbG9hZGVy")
 	config := getConfigWithAnnotations(constants.SecretEnvVarPostfix, secretName, shaData, constants.SecretUpdateOnChangeAnnotation)
@@ -307,6 +374,24 @@ func TestRollingUpgradeForDeploymentWithSecret(t *testing.T) {
 func TestRollingUpgradeForDeploymentWithSecretAsEnvVar(t *testing.T) {
 	shaData := testutil.ConvertResourceToSHA(testutil.SecretResourceType, namespace, secretWithEnvName, "dGVzdFVwZGF0ZWRTZWNyZXRFbmNvZGluZ0ZvclJlbG9hZGVy")
 	config := getConfigWithAnnotations(constants.SecretEnvVarPostfix, secretWithEnvName, shaData, constants.ReloaderAutoAnnotation)
+	deploymentFuncs := GetDeploymentRollingUpgradeFuncs()
+
+	err := PerformRollingUpgrade(client, config, deploymentFuncs)
+	time.Sleep(5 * time.Second)
+	if err != nil {
+		t.Errorf("Rolling upgrade failed for Deployment with Secret")
+	}
+
+	logrus.Infof("Verifying deployment update")
+	updated := testutil.VerifyResourceUpdate(client, config, constants.SecretEnvVarPostfix, deploymentFuncs)
+	if !updated {
+		t.Errorf("Deployment was not updated")
+	}
+}
+
+func TestRollingUpgradeForDeploymentWithSecretAsEnvVarFrom(t *testing.T) {
+	shaData := testutil.ConvertResourceToSHA(testutil.SecretResourceType, namespace, secretWithEnvFromName, "dGVzdFVwZGF0ZWRTZWNyZXRFbmNvZGluZ0ZvclJlbG9hZGVy")
+	config := getConfigWithAnnotations(constants.SecretEnvVarPostfix, secretWithEnvFromName, shaData, constants.ReloaderAutoAnnotation)
 	deploymentFuncs := GetDeploymentRollingUpgradeFuncs()
 
 	err := PerformRollingUpgrade(client, config, deploymentFuncs)
