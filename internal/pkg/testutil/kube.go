@@ -415,8 +415,7 @@ func CreateDeployment(client kubernetes.Interface, deploymentName string, namesp
 func CreateDeploymentWithEnvVarSource(client kubernetes.Interface, deploymentName string, namespace string) (*v1beta1.Deployment, error) {
 	logrus.Infof("Creating Deployment")
 	deploymentClient := client.ExtensionsV1beta1().Deployments(namespace)
-	var deploymentObj *v1beta1.Deployment
-	deploymentObj = GetDeploymentWithEnvVarSources(namespace, deploymentName)
+	deploymentObj := GetDeploymentWithEnvVarSources(namespace, deploymentName)
 	deployment, err := deploymentClient.Create(deploymentObj)
 	time.Sleep(10 * time.Second)
 	return deployment, err
