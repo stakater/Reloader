@@ -132,7 +132,7 @@ func getContainerToUpdate(volumes []v1.Volume, containers []v1.Container, envarP
 		}
 	}
 
-	// Get the container with referenced secret or configmap
+	// Get the container with referenced secret or configmap as env var
 	for i := range containers {
 		envs := containers[i].Env
 		for j := range envs {
@@ -145,15 +145,12 @@ func getContainerToUpdate(volumes []v1.Volume, containers []v1.Container, envarP
 				}
 			}
 		}
-	}
 
-	// Get the container with referenced secret or configmap
-	for i := range containers {
-		envs := containers[i].EnvFrom
-		for j := range envs {
-			if envs[j].SecretRef != nil && envs[j].SecretRef.LocalObjectReference.Name == volumeName {
+		envsFrom := containers[i].EnvFrom
+		for j := range envsFrom {
+			if envsFrom[j].SecretRef != nil && envsFrom[j].SecretRef.LocalObjectReference.Name == volumeName {
 				return &containers[i]
-			} else if envs[j].ConfigMapRef != nil && envs[j].ConfigMapRef.LocalObjectReference.Name == volumeName {
+			} else if envsFrom[j].ConfigMapRef != nil && envsFrom[j].ConfigMapRef.LocalObjectReference.Name == volumeName {
 				return &containers[i]
 			}
 		}
