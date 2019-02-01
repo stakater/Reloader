@@ -14,7 +14,7 @@ import (
 	"github.com/stakater/Reloader/internal/pkg/util"
 	"github.com/stakater/Reloader/pkg/kube"
 	v1_beta1 "k8s.io/api/apps/v1beta1"
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	"k8s.io/api/extensions/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
@@ -121,6 +121,38 @@ func getPodTemplateSpecWithEnvVars(name string) v1.PodTemplateSpec {
 	}
 }
 
+func getPodTemplateSpecWithEnvVarSources(name string) v1.PodTemplateSpec {
+	return v1.PodTemplateSpec{
+		ObjectMeta: metav1.ObjectMeta{
+			Labels: map[string]string{"secondLabel": "temp"},
+		},
+		Spec: v1.PodSpec{
+			Containers: []v1.Container{
+				{
+					Image: "tutum/hello-world",
+					Name:  name,
+					EnvFrom: []v1.EnvFromSource{
+						{
+							ConfigMapRef: &v1.ConfigMapEnvSource{
+								LocalObjectReference: v1.LocalObjectReference{
+									Name: name,
+								},
+							},
+						},
+						{
+							SecretRef: &v1.SecretEnvSource{
+								LocalObjectReference: v1.LocalObjectReference{
+									Name: name,
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+}
+
 func getPodTemplateSpecWithVolumes(name string) v1.PodTemplateSpec {
 	return v1.PodTemplateSpec{
 		ObjectMeta: metav1.ObjectMeta{
@@ -198,6 +230,20 @@ func GetDeploymentWithEnvVars(namespace string, deploymentName string) *v1beta1.
 				Type: v1beta1.RollingUpdateDeploymentStrategyType,
 			},
 			Template: getPodTemplateSpecWithEnvVars(deploymentName),
+		},
+	}
+}
+
+func GetDeploymentWithEnvVarSources(namespace string, deploymentName string) *v1beta1.Deployment {
+	replicaset := int32(1)
+	return &v1beta1.Deployment{
+		ObjectMeta: getObjectMeta(namespace, deploymentName, true),
+		Spec: v1beta1.DeploymentSpec{
+			Replicas: &replicaset,
+			Strategy: v1beta1.DeploymentStrategy{
+				Type: v1beta1.RollingUpdateDeploymentStrategyType,
+			},
+			Template: getPodTemplateSpecWithEnvVarSources(deploymentName),
 		},
 	}
 }
@@ -360,6 +406,16 @@ func CreateDeployment(client kubernetes.Interface, deploymentName string, namesp
 	} else {
 		deploymentObj = GetDeploymentWithEnvVars(namespace, deploymentName)
 	}
+	deployment, err := deploymentClient.Create(deploymentObj)
+	time.Sleep(10 * time.Second)
+	return deployment, err
+}
+
+// CreateDeploymentWithEnvVarSource creates a deployment in given namespace and returns the Deployment
+func CreateDeploymentWithEnvVarSource(client kubernetes.Interface, deploymentName string, namespace string) (*v1beta1.Deployment, error) {
+	logrus.Infof("Creating Deployment")
+	deploymentClient := client.ExtensionsV1beta1().Deployments(namespace)
+	deploymentObj := GetDeploymentWithEnvVarSources(namespace, deploymentName)
 	deployment, err := deploymentClient.Create(deploymentObj)
 	time.Sleep(10 * time.Second)
 	return deployment, err
