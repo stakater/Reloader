@@ -8,6 +8,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/stakater/Reloader/internal/pkg/constants"
 	"github.com/stakater/Reloader/internal/pkg/handler"
+	"github.com/stakater/Reloader/internal/pkg/options"
 	"github.com/stakater/Reloader/internal/pkg/testutil"
 	"github.com/stakater/Reloader/internal/pkg/util"
 	"github.com/stakater/Reloader/pkg/kube"
@@ -78,7 +79,7 @@ func TestControllerUpdatingConfigmapShouldCreateEnvInDeployment(t *testing.T) {
 		Namespace:    namespace,
 		ResourceName: configmapName,
 		SHAValue:     shaData,
-		Annotation:   constants.ConfigmapUpdateOnChangeAnnotation,
+		Annotation:   options.ConfigmapUpdateOnChangeAnnotation,
 	}
 	deploymentFuncs := handler.GetDeploymentRollingUpgradeFuncs()
 	updated := testutil.VerifyResourceUpdate(client, config, constants.ConfigmapEnvVarPostfix, deploymentFuncs)
@@ -130,7 +131,7 @@ func TestControllerUpdatingConfigmapShouldAutoCreateEnvInDeployment(t *testing.T
 		Namespace:    namespace,
 		ResourceName: configmapName,
 		SHAValue:     shaData,
-		Annotation:   constants.ConfigmapUpdateOnChangeAnnotation,
+		Annotation:   options.ConfigmapUpdateOnChangeAnnotation,
 	}
 	deploymentFuncs := handler.GetDeploymentRollingUpgradeFuncs()
 	updated := testutil.VerifyResourceUpdate(client, config, constants.ConfigmapEnvVarPostfix, deploymentFuncs)
@@ -191,7 +192,7 @@ func TestControllerCreatingConfigmapShouldCreateEnvInDeployment(t *testing.T) {
 		Namespace:    namespace,
 		ResourceName: configmapName,
 		SHAValue:     shaData,
-		Annotation:   constants.ConfigmapUpdateOnChangeAnnotation,
+		Annotation:   options.ConfigmapUpdateOnChangeAnnotation,
 	}
 	deploymentFuncs := handler.GetDeploymentRollingUpgradeFuncs()
 	updated := testutil.VerifyResourceUpdate(client, config, constants.ConfigmapEnvVarPostfix, deploymentFuncs)
@@ -248,7 +249,7 @@ func TestControllerForUpdatingConfigmapShouldUpdateDeployment(t *testing.T) {
 		Namespace:    namespace,
 		ResourceName: configmapName,
 		SHAValue:     shaData,
-		Annotation:   constants.ConfigmapUpdateOnChangeAnnotation,
+		Annotation:   options.ConfigmapUpdateOnChangeAnnotation,
 	}
 
 	deploymentFuncs := handler.GetDeploymentRollingUpgradeFuncs()
@@ -301,7 +302,7 @@ func TestControllerUpdatingConfigmapLabelsShouldNotCreateorUpdateEnvInDeployment
 		Namespace:    namespace,
 		ResourceName: configmapName,
 		SHAValue:     shaData,
-		Annotation:   constants.ConfigmapUpdateOnChangeAnnotation,
+		Annotation:   options.ConfigmapUpdateOnChangeAnnotation,
 	}
 	deploymentFuncs := handler.GetDeploymentRollingUpgradeFuncs()
 	updated := testutil.VerifyResourceUpdate(client, config, constants.ConfigmapEnvVarPostfix, deploymentFuncs)
@@ -360,7 +361,7 @@ func TestControllerCreatingSecretShouldCreateEnvInDeployment(t *testing.T) {
 		Namespace:    namespace,
 		ResourceName: secretName,
 		SHAValue:     shaData,
-		Annotation:   constants.SecretUpdateOnChangeAnnotation,
+		Annotation:   options.SecretUpdateOnChangeAnnotation,
 	}
 	deploymentFuncs := handler.GetDeploymentRollingUpgradeFuncs()
 	time.Sleep(5 * time.Second)
@@ -411,7 +412,7 @@ func TestControllerUpdatingSecretShouldCreateEnvInDeployment(t *testing.T) {
 		Namespace:    namespace,
 		ResourceName: secretName,
 		SHAValue:     shaData,
-		Annotation:   constants.SecretUpdateOnChangeAnnotation,
+		Annotation:   options.SecretUpdateOnChangeAnnotation,
 	}
 	deploymentFuncs := handler.GetDeploymentRollingUpgradeFuncs()
 	updated := testutil.VerifyResourceUpdate(client, config, constants.SecretEnvVarPostfix, deploymentFuncs)
@@ -467,7 +468,7 @@ func TestControllerUpdatingSecretShouldUpdateEnvInDeployment(t *testing.T) {
 		Namespace:    namespace,
 		ResourceName: secretName,
 		SHAValue:     shaData,
-		Annotation:   constants.SecretUpdateOnChangeAnnotation,
+		Annotation:   options.SecretUpdateOnChangeAnnotation,
 	}
 	deploymentFuncs := handler.GetDeploymentRollingUpgradeFuncs()
 	updated := testutil.VerifyResourceUpdate(client, config, constants.SecretEnvVarPostfix, deploymentFuncs)
@@ -516,7 +517,7 @@ func TestControllerUpdatingSecretLabelsShouldNotCreateorUpdateEnvInDeployment(t 
 		Namespace:    namespace,
 		ResourceName: secretName,
 		SHAValue:     shaData,
-		Annotation:   constants.SecretUpdateOnChangeAnnotation,
+		Annotation:   options.SecretUpdateOnChangeAnnotation,
 	}
 	deploymentFuncs := handler.GetDeploymentRollingUpgradeFuncs()
 	updated := testutil.VerifyResourceUpdate(client, config, constants.SecretEnvVarPostfix, deploymentFuncs)
@@ -566,7 +567,7 @@ func TestControllerUpdatingConfigmapShouldCreateEnvInDaemonSet(t *testing.T) {
 		Namespace:    namespace,
 		ResourceName: configmapName,
 		SHAValue:     shaData,
-		Annotation:   constants.ConfigmapUpdateOnChangeAnnotation,
+		Annotation:   options.ConfigmapUpdateOnChangeAnnotation,
 	}
 	daemonSetFuncs := handler.GetDaemonSetRollingUpgradeFuncs()
 	updated := testutil.VerifyResourceUpdate(client, config, constants.ConfigmapEnvVarPostfix, daemonSetFuncs)
@@ -627,7 +628,7 @@ func TestControllerForUpdatingConfigmapShouldUpdateDaemonSet(t *testing.T) {
 		Namespace:    namespace,
 		ResourceName: configmapName,
 		SHAValue:     shaData,
-		Annotation:   constants.ConfigmapUpdateOnChangeAnnotation,
+		Annotation:   options.ConfigmapUpdateOnChangeAnnotation,
 	}
 	daemonSetFuncs := handler.GetDaemonSetRollingUpgradeFuncs()
 	updated := testutil.VerifyResourceUpdate(client, config, constants.ConfigmapEnvVarPostfix, daemonSetFuncs)
@@ -678,7 +679,7 @@ func TestControllerUpdatingSecretShouldCreateEnvInDaemonSet(t *testing.T) {
 		Namespace:    namespace,
 		ResourceName: secretName,
 		SHAValue:     shaData,
-		Annotation:   constants.SecretUpdateOnChangeAnnotation,
+		Annotation:   options.SecretUpdateOnChangeAnnotation,
 	}
 	daemonSetFuncs := handler.GetDaemonSetRollingUpgradeFuncs()
 	updated := testutil.VerifyResourceUpdate(client, config, constants.SecretEnvVarPostfix, daemonSetFuncs)
@@ -735,7 +736,7 @@ func TestControllerUpdatingSecretShouldUpdateEnvInDaemonSet(t *testing.T) {
 		Namespace:    namespace,
 		ResourceName: secretName,
 		SHAValue:     shaData,
-		Annotation:   constants.SecretUpdateOnChangeAnnotation,
+		Annotation:   options.SecretUpdateOnChangeAnnotation,
 	}
 	daemonSetFuncs := handler.GetDaemonSetRollingUpgradeFuncs()
 	updated := testutil.VerifyResourceUpdate(client, config, constants.SecretEnvVarPostfix, daemonSetFuncs)
@@ -784,7 +785,7 @@ func TestControllerUpdatingSecretLabelsShouldNotCreateorUpdateEnvInDaemonSet(t *
 		Namespace:    namespace,
 		ResourceName: secretName,
 		SHAValue:     shaData,
-		Annotation:   constants.SecretUpdateOnChangeAnnotation,
+		Annotation:   options.SecretUpdateOnChangeAnnotation,
 	}
 	daemonSetFuncs := handler.GetDaemonSetRollingUpgradeFuncs()
 	updated := testutil.VerifyResourceUpdate(client, config, constants.SecretEnvVarPostfix, daemonSetFuncs)
@@ -834,7 +835,7 @@ func TestControllerUpdatingConfigmapShouldCreateEnvInStatefulSet(t *testing.T) {
 		Namespace:    namespace,
 		ResourceName: configmapName,
 		SHAValue:     shaData,
-		Annotation:   constants.ConfigmapUpdateOnChangeAnnotation,
+		Annotation:   options.ConfigmapUpdateOnChangeAnnotation,
 	}
 	statefulSetFuncs := handler.GetStatefulSetRollingUpgradeFuncs()
 	updated := testutil.VerifyResourceUpdate(client, config, constants.ConfigmapEnvVarPostfix, statefulSetFuncs)
@@ -891,7 +892,7 @@ func TestControllerForUpdatingConfigmapShouldUpdateStatefulSet(t *testing.T) {
 		Namespace:    namespace,
 		ResourceName: configmapName,
 		SHAValue:     shaData,
-		Annotation:   constants.ConfigmapUpdateOnChangeAnnotation,
+		Annotation:   options.ConfigmapUpdateOnChangeAnnotation,
 	}
 	statefulSetFuncs := handler.GetStatefulSetRollingUpgradeFuncs()
 	updated := testutil.VerifyResourceUpdate(client, config, constants.ConfigmapEnvVarPostfix, statefulSetFuncs)
@@ -942,7 +943,7 @@ func TestControllerUpdatingSecretShouldCreateEnvInStatefulSet(t *testing.T) {
 		Namespace:    namespace,
 		ResourceName: secretName,
 		SHAValue:     shaData,
-		Annotation:   constants.SecretUpdateOnChangeAnnotation,
+		Annotation:   options.SecretUpdateOnChangeAnnotation,
 	}
 	statefulSetFuncs := handler.GetStatefulSetRollingUpgradeFuncs()
 	updated := testutil.VerifyResourceUpdate(client, config, constants.SecretEnvVarPostfix, statefulSetFuncs)
@@ -998,7 +999,7 @@ func TestControllerUpdatingSecretShouldUpdateEnvInStatefulSet(t *testing.T) {
 		Namespace:    namespace,
 		ResourceName: secretName,
 		SHAValue:     shaData,
-		Annotation:   constants.SecretUpdateOnChangeAnnotation,
+		Annotation:   options.SecretUpdateOnChangeAnnotation,
 	}
 	statefulSetFuncs := handler.GetStatefulSetRollingUpgradeFuncs()
 	updated := testutil.VerifyResourceUpdate(client, config, constants.SecretEnvVarPostfix, statefulSetFuncs)

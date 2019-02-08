@@ -6,6 +6,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/stakater/Reloader/internal/pkg/controller"
+	"github.com/stakater/Reloader/internal/pkg/options"
 	"github.com/stakater/Reloader/pkg/kube"
 	"k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -17,6 +18,12 @@ func NewReloaderCommand() *cobra.Command {
 		Short: "A watcher for your Kubernetes cluster",
 		Run:   startReloader,
 	}
+
+	// options
+	cmd.PersistentFlags().StringVar(&options.ConfigmapUpdateOnChangeAnnotation, "configmap-annotation", "configmap.reloader.stakater.com/reload", "annotation to detect changes in configmaps")
+	cmd.PersistentFlags().StringVar(&options.SecretUpdateOnChangeAnnotation, "secret-annotation", "secret.reloader.stakater.com/reload", "annotation to detect changes in secrets")
+	cmd.PersistentFlags().StringVar(&options.ReloaderAutoAnnotation, "auto-annotation", "reloader.stakater.com/auto", "annotation to detect changes in secrets")
+
 	return cmd
 }
 

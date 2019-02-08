@@ -7,6 +7,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/stakater/Reloader/internal/pkg/callbacks"
 	"github.com/stakater/Reloader/internal/pkg/constants"
+	"github.com/stakater/Reloader/internal/pkg/options"
 	"github.com/stakater/Reloader/internal/pkg/util"
 	"github.com/stakater/Reloader/pkg/kube"
 	v1 "k8s.io/api/core/v1"
@@ -73,7 +74,7 @@ func PerformRollingUpgrade(client kubernetes.Interface, config util.Config, upgr
 		volumes := upgradeFuncs.VolumesFunc(i)
 		// find correct annotation and update the resource
 		annotationValue := util.ToObjectMeta(i).Annotations[config.Annotation]
-		reloaderEnabledValue := util.ToObjectMeta(i).Annotations[constants.ReloaderAutoAnnotation]
+		reloaderEnabledValue := util.ToObjectMeta(i).Annotations[options.ReloaderAutoAnnotation]
 		if len(containers) > 0 {
 			resourceName := util.ToObjectMeta(i).Name
 			result := constants.NotUpdated
