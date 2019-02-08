@@ -11,10 +11,10 @@ reloader:
     labels:
       provider: stakater
       group: com.stakater.platform
-      version: v0.0.23
+      version: v0.0.24
     image:
       name: stakater/reloader
-      tag: "v0.0.23"
+      tag: "v0.0.24"
       pullPolicy: IfNotPresent
     # Support for extra environment variables.
     env:
@@ -40,4 +40,4 @@ reloader:
   #   custom_annotations:
   #     configmap: "my.company.com/configmap"
   #     secret: "my.company.com/secret"
-  custom_annotations: {}
+  custom_annotations: {} 
