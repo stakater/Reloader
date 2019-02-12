@@ -85,4 +85,4 @@ spec:
           - "{{ .Values.reloader.custom_annotations.auto }}"
           {{- end }}
       {{- end }}
-      serviceAccountName: {{ template "serviceAccountName" . }}
+      serviceAccountName: {{ template "reloader-serviceAccountName" . }}
