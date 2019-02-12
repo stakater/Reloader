@@ -25,7 +25,7 @@ heritage: {{ .Release.Service | quote }}
 {{/*
 Create the name of the service account to use
 */}}
-{{- define "serviceAccountName" -}}
+{{- define "reloader-serviceAccountName" -}}
 {{- if .Values.reloader.serviceAccount.create -}}
     {{ default (include "reloader-fullname" .) .Values.reloader.serviceAccount.name }}
 {{- else -}}
