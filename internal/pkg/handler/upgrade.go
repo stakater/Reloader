@@ -115,7 +115,7 @@ func getVolumeMountName(volumes []v1.Volume, mountType string, volumeName string
 	return ""
 }
 
-func getContainerWithVolumeMount(volumes []v1.Volume, containers []v1.Container, volumeMountName string) *v1.Container {
+func getContainerWithVolumeMount(containers []v1.Container, volumeMountName string) *v1.Container {
 	for i := range containers {
 		volumeMounts := containers[i].VolumeMounts
 		for j := range volumeMounts {
@@ -163,9 +163,9 @@ func getContainerToUpdate(upgradeFuncs callbacks.RollingUpgradeFuncs, item inter
 	volumeMountName := getVolumeMountName(volumes, config.Type, config.ResourceName)
 	// Get the container with mounted configmap/secret
 	if volumeMountName != "" {
-		container = getContainerWithVolumeMount(volumes, containers, volumeMountName)
+		container = getContainerWithVolumeMount(containers, volumeMountName)
 		if container == nil && len(initContainers) > 0 {
-			container = getContainerWithVolumeMount(volumes, initContainers, volumeMountName)
+			container = getContainerWithVolumeMount(initContainers, volumeMountName)
 			if container != nil {
 				// if configmap/secret is being used in init container then return the first Pod container to save reloader env
 				return &containers[0]
@@ -179,7 +179,7 @@ func getContainerToUpdate(upgradeFuncs callbacks.RollingUpgradeFuncs, item inter
 	container = getContainerWithEnvReference(containers, config.ResourceName)
 	if container == nil  && len(initContainers) > 0 {
 		container = getContainerWithEnvReference(initContainers, config.ResourceName)
-		if container == nil {
+		if container != nil {
 			// if configmap/secret is being used in init container then return the first Pod container to save reloader env
 			return &containers[0]
 		}
