@@ -206,6 +206,64 @@ func getPodTemplateSpecWithVolumes(name string) v1.PodTemplateSpec {
 	}
 }
 
+func getPodTemplateSpecWithInitContainer(name string) v1.PodTemplateSpec {
+	return v1.PodTemplateSpec{
+		ObjectMeta: metav1.ObjectMeta{
+			Labels: map[string]string{"secondLabel": "temp"},
+		},
+		Spec: v1.PodSpec{
+			InitContainers: []v1.Container{
+				{
+					Image: "busybox",
+					Name:  "busyBox",
+					VolumeMounts: []v1.VolumeMount{
+						{
+							MountPath: "etc/config",
+							Name:      "configmap",
+						},
+						{
+							MountPath: "etc/sec",
+							Name:      "secret",
+						},
+					},
+				},
+			},
+			Containers: []v1.Container{
+				{
+					Image: "tutum/hello-world",
+					Name:  name,
+					Env: []v1.EnvVar{
+						{
+							Name:  "BUCKET_NAME",
+							Value: "test",
+						},
+					},
+				},
+			},
+			Volumes: []v1.Volume{
+				{
+					Name: "configmap",
+					VolumeSource: v1.VolumeSource{
+						ConfigMap: &v1.ConfigMapVolumeSource{
+							LocalObjectReference: v1.LocalObjectReference{
+								Name: name,
+							},
+						},
+					},
+				},
+				{
+					Name: "secret",
+					VolumeSource: v1.VolumeSource{
+						Secret: &v1.SecretVolumeSource{
+							SecretName: name,
+						},
+					},
+				},
+			},
+		},
+	}
+}
+
 // GetDeployment provides deployment for testing
 func GetDeployment(namespace string, deploymentName string) *v1beta1.Deployment {
 	replicaset := int32(1)
@@ -217,6 +275,21 @@ func GetDeployment(namespace string, deploymentName string) *v1beta1.Deployment 
 				Type: v1beta1.RollingUpdateDeploymentStrategyType,
 			},
 			Template: getPodTemplateSpecWithVolumes(deploymentName),
+		},
+	}
+}
+
+// GetDeploymentWithInitContainer provides deployment with init container
+func GetDeploymentWithInitContainer(namespace string, deploymentName string) *v1beta1.Deployment {
+	replicaset := int32(1)
+	return &v1beta1.Deployment{
+		ObjectMeta: getObjectMeta(namespace, deploymentName, false),
+		Spec: v1beta1.DeploymentSpec{
+			Replicas: &replicaset,
+			Strategy: v1beta1.DeploymentStrategy{
+				Type: v1beta1.RollingUpdateDeploymentStrategyType,
+			},
+			Template: getPodTemplateSpecWithInitContainer(deploymentName),
 		},
 	}
 }
@@ -407,6 +480,17 @@ func CreateDeployment(client kubernetes.Interface, deploymentName string, namesp
 	} else {
 		deploymentObj = GetDeploymentWithEnvVars(namespace, deploymentName)
 	}
+	deployment, err := deploymentClient.Create(deploymentObj)
+	time.Sleep(10 * time.Second)
+	return deployment, err
+}
+
+// CreateDeploymentWithInitContainer creates a deployment in given namespace with init container and returns the Deployment
+func CreateDeploymentWithInitContainer(client kubernetes.Interface, deploymentName string, namespace string) (*v1beta1.Deployment, error) {
+	logrus.Infof("Creating Deployment")
+	deploymentClient := client.ExtensionsV1beta1().Deployments(namespace)
+	var deploymentObj *v1beta1.Deployment
+	deploymentObj = GetDeploymentWithInitContainer(namespace, deploymentName)
 	deployment, err := deploymentClient.Create(deploymentObj)
 	time.Sleep(10 * time.Second)
 	return deployment, err

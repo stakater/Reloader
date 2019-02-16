@@ -14,14 +14,16 @@ import (
 )
 
 var (
-	client                   = testclient.NewSimpleClientset()
-	namespace                = "test-handler-" + testutil.RandSeq(5)
-	configmapName            = "testconfigmap-handler-" + testutil.RandSeq(5)
-	secretName               = "testsecret-handler-" + testutil.RandSeq(5)
-	configmapWithEnvName     = "testconfigmapWithEnv-handler-" + testutil.RandSeq(3)
-	configmapWithEnvFromName = "testconfigmapWithEnvFrom-handler-" + testutil.RandSeq(3)
-	secretWithEnvName        = "testsecretWithEnv-handler-" + testutil.RandSeq(5)
-	secretWithEnvFromName    = "testsecretWithEnvFrom-handler-" + testutil.RandSeq(5)
+	client                     = testclient.NewSimpleClientset()
+	namespace                  = "test-handler-" + testutil.RandSeq(5)
+	configmapName              = "testconfigmap-handler-" + testutil.RandSeq(5)
+	secretName                 = "testsecret-handler-" + testutil.RandSeq(5)
+	configmapWithInitContainer = "testconfigmapInitContainerhandler-" + testutil.RandSeq(3)
+	secretWithInitContainer    = "testsecretWithInitContainer-handler-" + testutil.RandSeq(3)
+	configmapWithEnvName       = "testconfigmapWithEnv-handler-" + testutil.RandSeq(3)
+	configmapWithEnvFromName   = "testconfigmapWithEnvFrom-handler-" + testutil.RandSeq(3)
+	secretWithEnvName          = "testsecretWithEnv-handler-" + testutil.RandSeq(5)
+	secretWithEnvFromName      = "testsecretWithEnvFrom-handler-" + testutil.RandSeq(5)
 )
 
 func TestMain(m *testing.M) {
@@ -77,10 +79,33 @@ func setup() {
 		logrus.Errorf("Error in secret creation: %v", err)
 	}
 
+	_, err = testutil.CreateConfigMap(client, namespace, configmapWithInitContainer, "www.google.com")
+	if err != nil {
+		logrus.Errorf("Error in configmap creation: %v", err)
+	}
+
+	// Creating secret
+	_, err = testutil.CreateSecret(client, namespace, secretWithInitContainer, data)
+	if err != nil {
+		logrus.Errorf("Error in secret creation: %v", err)
+	}
+
 	// Creating Deployment with configmap
 	_, err = testutil.CreateDeployment(client, configmapName, namespace, true)
 	if err != nil {
 		logrus.Errorf("Error in Deployment with configmap creation: %v", err)
+	}
+
+	// Creating Deployment with configmap mounted in init container
+	_, err = testutil.CreateDeploymentWithInitContainer(client, configmapWithInitContainer, namespace)
+	if err != nil {
+		logrus.Errorf("Error in Deployment with configmap creation: %v", err)
+	}
+
+	// Creating Deployment with secret mounted in init container
+	_, err = testutil.CreateDeploymentWithInitContainer(client, secretWithInitContainer, namespace)
+	if err != nil {
+		logrus.Errorf("Error in Deployment with secret creation: %v", err)
 	}
 
 	// Creating Deployment with secret
@@ -188,6 +213,18 @@ func teardown() {
 		logrus.Errorf("Error while deleting deployment with secret as env var source %v", deploymentError)
 	}
 
+	// Deleting Deployment with configmap mounted in init container
+	deploymentError = testutil.DeleteDeployment(client, namespace, configmapWithInitContainer)
+	if deploymentError != nil {
+		logrus.Errorf("Error while deleting deployment with configmap mounted in init container %v", deploymentError)
+	}
+
+	// Deleting Deployment with secret mounted in init container
+	deploymentError = testutil.DeleteDeployment(client, namespace, secretWithInitContainer)
+	if deploymentError != nil {
+		logrus.Errorf("Error while deleting deployment with secret mounted in init container %v", deploymentError)
+	}
+
 	// Deleting Deployment with configmap as envFrom source
 	deploymentError = testutil.DeleteDeployment(client, namespace, configmapWithEnvFromName)
 	if deploymentError != nil {
@@ -272,6 +309,18 @@ func teardown() {
 		logrus.Errorf("Error while deleting the secret used as env var source %v", err)
 	}
 
+	// Deleting Configmap used in init container
+	err = testutil.DeleteConfigMap(client, namespace, configmapWithInitContainer)
+	if err != nil {
+		logrus.Errorf("Error while deleting the configmap used in init container %v", err)
+	}
+
+	// Deleting Secret used in init container
+	err = testutil.DeleteSecret(client, namespace, secretWithInitContainer)
+	if err != nil {
+		logrus.Errorf("Error while deleting the secret used in init container %v", err)
+	}
+
 	// Deleting Configmap used as env var source
 	err = testutil.DeleteConfigMap(client, namespace, configmapWithEnvFromName)
 	if err != nil {
@@ -297,12 +346,29 @@ func getConfigWithAnnotations(resourceType string, name string, shaData string, 
 		Annotation:   annotation,
 		Type:         resourceType,
 	}
-
 }
 
 func TestRollingUpgradeForDeploymentWithConfigmap(t *testing.T) {
 	shaData := testutil.ConvertResourceToSHA(testutil.ConfigmapResourceType, namespace, configmapName, "www.stakater.com")
 	config := getConfigWithAnnotations(constants.ConfigmapEnvVarPostfix, configmapName, shaData, options.ConfigmapUpdateOnChangeAnnotation)
+	deploymentFuncs := GetDeploymentRollingUpgradeFuncs()
+
+	err := PerformRollingUpgrade(client, config, deploymentFuncs)
+	time.Sleep(5 * time.Second)
+	if err != nil {
+		t.Errorf("Rolling upgrade failed for Deployment with Configmap")
+	}
+
+	logrus.Infof("Verifying deployment update")
+	updated := testutil.VerifyResourceUpdate(client, config, constants.ConfigmapEnvVarPostfix, deploymentFuncs)
+	if !updated {
+		t.Errorf("Deployment was not updated")
+	}
+}
+
+func TestRollingUpgradeForDeploymentWithConfigmapInInitContainer(t *testing.T) {
+	shaData := testutil.ConvertResourceToSHA(testutil.ConfigmapResourceType, namespace, configmapWithInitContainer, "www.stakater.com")
+	config := getConfigWithAnnotations(constants.ConfigmapEnvVarPostfix, configmapWithInitContainer, shaData, options.ConfigmapUpdateOnChangeAnnotation)
 	deploymentFuncs := GetDeploymentRollingUpgradeFuncs()
 
 	err := PerformRollingUpgrade(client, config, deploymentFuncs)
@@ -357,6 +423,24 @@ func TestRollingUpgradeForDeploymentWithConfigmapAsEnvVarFrom(t *testing.T) {
 func TestRollingUpgradeForDeploymentWithSecret(t *testing.T) {
 	shaData := testutil.ConvertResourceToSHA(testutil.SecretResourceType, namespace, secretName, "dGVzdFVwZGF0ZWRTZWNyZXRFbmNvZGluZ0ZvclJlbG9hZGVy")
 	config := getConfigWithAnnotations(constants.SecretEnvVarPostfix, secretName, shaData, options.SecretUpdateOnChangeAnnotation)
+	deploymentFuncs := GetDeploymentRollingUpgradeFuncs()
+
+	err := PerformRollingUpgrade(client, config, deploymentFuncs)
+	time.Sleep(5 * time.Second)
+	if err != nil {
+		t.Errorf("Rolling upgrade failed for Deployment with Secret")
+	}
+
+	logrus.Infof("Verifying deployment update")
+	updated := testutil.VerifyResourceUpdate(client, config, constants.SecretEnvVarPostfix, deploymentFuncs)
+	if !updated {
+		t.Errorf("Deployment was not updated")
+	}
+}
+
+func TestRollingUpgradeForDeploymentWithSecretinInitContainer(t *testing.T) {
+	shaData := testutil.ConvertResourceToSHA(testutil.SecretResourceType, namespace, secretWithInitContainer, "dGVzdFVwZGF0ZWRTZWNyZXRFbmNvZGluZ0ZvclJlbG9hZGVy")
+	config := getConfigWithAnnotations(constants.SecretEnvVarPostfix, secretWithInitContainer, shaData, options.SecretUpdateOnChangeAnnotation)
 	deploymentFuncs := GetDeploymentRollingUpgradeFuncs()
 
 	err := PerformRollingUpgrade(client, config, deploymentFuncs)
