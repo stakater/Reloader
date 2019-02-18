@@ -128,15 +128,15 @@ func getContainerWithVolumeMount(containers []v1.Container, volumeMountName stri
 	return nil
 }
 
-func getContainerWithEnvReference(containers []v1.Container, resourceName string) *v1.Container {
+func getContainerWithEnvReference(containers []v1.Container, resourceName string, resourceType string) *v1.Container {
 	for i := range containers {
 		envs := containers[i].Env
 		for j := range envs {
 			envVarSource := envs[j].ValueFrom
 			if envVarSource != nil {
-				if envVarSource.SecretKeyRef != nil && envVarSource.SecretKeyRef.LocalObjectReference.Name == resourceName{
+				if resourceType == constants.SecretEnvVarPostfix && envVarSource.SecretKeyRef != nil && envVarSource.SecretKeyRef.LocalObjectReference.Name == resourceName {
 					return &containers[i]
-				} else if envVarSource.ConfigMapKeyRef != nil && envVarSource.ConfigMapKeyRef.LocalObjectReference.Name == resourceName {
+				} else if resourceType == constants.ConfigmapEnvVarPostfix && envVarSource.ConfigMapKeyRef != nil && envVarSource.ConfigMapKeyRef.LocalObjectReference.Name == resourceName {
 					return &containers[i]
 				}
 			}
@@ -144,9 +144,9 @@ func getContainerWithEnvReference(containers []v1.Container, resourceName string
 
 		envsFrom := containers[i].EnvFrom
 		for j := range envsFrom {
-			if envsFrom[j].SecretRef != nil && envsFrom[j].SecretRef.LocalObjectReference.Name == resourceName {
+			if resourceType == constants.SecretEnvVarPostfix && envsFrom[j].SecretRef != nil && envsFrom[j].SecretRef.LocalObjectReference.Name == resourceName {
 				return &containers[i]
-			} else if envsFrom[j].ConfigMapRef != nil && envsFrom[j].ConfigMapRef.LocalObjectReference.Name == resourceName {
+			} else if resourceType == constants.ConfigmapEnvVarPostfix && envsFrom[j].ConfigMapRef != nil && envsFrom[j].ConfigMapRef.LocalObjectReference.Name == resourceName {
 				return &containers[i]
 			}
 		}
@@ -176,9 +176,9 @@ func getContainerToUpdate(upgradeFuncs callbacks.RollingUpgradeFuncs, item inter
 	}
 
 	// Get the container with referenced secret or configmap as env var
-	container = getContainerWithEnvReference(containers, config.ResourceName)
+	container = getContainerWithEnvReference(containers, config.ResourceName, config.Type)
 	if container == nil  && len(initContainers) > 0 {
-		container = getContainerWithEnvReference(initContainers, config.ResourceName)
+		container = getContainerWithEnvReference(initContainers, config.ResourceName, config.Type)
 		if container != nil {
 			// if configmap/secret is being used in init container then return the first Pod container to save reloader env
 			return &containers[0]
