@@ -4,7 +4,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/stakater/Reloader/internal/pkg/util"
 	apps_v1beta1 "k8s.io/api/apps/v1beta1"
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	"k8s.io/api/extensions/v1beta1"
 	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
@@ -16,6 +16,9 @@ type ItemsFunc func(kubernetes.Interface, string) []interface{}
 //ContainersFunc is a generic func to return containers
 type ContainersFunc func(interface{}) []v1.Container
 
+//InitContainersFunc is a generic func to return containers
+type InitContainersFunc func(interface{}) []v1.Container
+
 //VolumesFunc is a generic func to return volumes
 type VolumesFunc func(interface{}) []v1.Volume
 
@@ -24,11 +27,12 @@ type UpdateFunc func(kubernetes.Interface, string, interface{}) error
 
 //RollingUpgradeFuncs contains generic functions to perform rolling upgrade
 type RollingUpgradeFuncs struct {
-	ItemsFunc      ItemsFunc
-	ContainersFunc ContainersFunc
-	UpdateFunc     UpdateFunc
-	VolumesFunc    VolumesFunc
-	ResourceType   string
+	ItemsFunc          ItemsFunc
+	ContainersFunc     ContainersFunc
+	InitContainersFunc InitContainersFunc
+	UpdateFunc         UpdateFunc
+	VolumesFunc        VolumesFunc
+	ResourceType       string
 }
 
 // GetDeploymentItems returns the deployments in given namespace
@@ -71,6 +75,21 @@ func GetDaemonSetContainers(item interface{}) []v1.Container {
 // GetStatefulsetContainers returns the containers of given statefulSet
 func GetStatefulsetContainers(item interface{}) []v1.Container {
 	return item.(apps_v1beta1.StatefulSet).Spec.Template.Spec.Containers
+}
+
+// GetDeploymentInitContainers returns the containers of given deployment
+func GetDeploymentInitContainers(item interface{}) []v1.Container {
+	return item.(v1beta1.Deployment).Spec.Template.Spec.InitContainers
+}
+
+// GetDaemonSetInitContainers returns the containers of given daemonset
+func GetDaemonSetInitContainers(item interface{}) []v1.Container {
+	return item.(v1beta1.DaemonSet).Spec.Template.Spec.InitContainers
+}
+
+// GetStatefulsetInitContainers returns the containers of given statefulSet
+func GetStatefulsetInitContainers(item interface{}) []v1.Container {
+	return item.(apps_v1beta1.StatefulSet).Spec.Template.Spec.InitContainers
 }
 
 // UpdateDeployment performs rolling upgrade on deployment
