@@ -1,16 +1,16 @@
 ---
 # Source: reloader/templates/deployment.yaml
-apiVersion: extensions/v1beta1
+apiVersion: apps/v1
 kind: Deployment
 metadata:
   labels:
     app: reloader
-    chart: "reloader-v0.0.25"
+    chart: "reloader-v0.0.26"
     release: "RELEASE-NAME"
     heritage: "Tiller"
     group: com.stakater.platform
     provider: stakater
-    version: v0.0.25
+    version: v0.0.26
     
   name: reloader
 spec:
@@ -24,17 +24,17 @@ spec:
     metadata:
       labels:
         app: reloader
-        chart: "reloader-v0.0.25"
+        chart: "reloader-v0.0.26"
         release: "RELEASE-NAME"
         heritage: "Tiller"
         group: com.stakater.platform
         provider: stakater
-        version: v0.0.25
+        version: v0.0.26
         
     spec:
       containers:
       - env:
-        image: "stakater/reloader:v0.0.25"
+        image: "stakater/reloader:v0.0.26"
         imagePullPolicy: IfNotPresent
         name: reloader
       serviceAccountName: reloader
