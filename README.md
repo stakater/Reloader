@@ -95,6 +95,7 @@ spec:
 ```
 
 ### NOTES
+- Reloader also supports [sealed-secrets](https://github.com/bitnami-labs/sealed-secrets). [Here](docs/Reloader-with-Sealed-Secrets.md) are the steps to use sealed-secrets with reloader.
 - `reloader.stakater.com/auto: "true"` will always override when use with either `secret.reloader.stakater.com/reload` or `configmap.reloader.stakater.com/reload` annotation.
 - you may override the auto annotation with the `--auto-annotation` flag
 - you may override the configmap annotation with the `--configmap-annotation` flag
