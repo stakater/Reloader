@@ -3,7 +3,7 @@ package handler
 import (
 	"github.com/sirupsen/logrus"
 	"github.com/stakater/Reloader/internal/pkg/util"
-	"k8s.io/api/core/v1"
+    "k8s.io/api/core/v1"
 )
 
 // ResourceUpdatedHandler contains updated objects
@@ -19,7 +19,6 @@ func (r ResourceUpdatedHandler) Handle() error {
 	} else {
 		config, oldSHAData := r.GetConfig()
 		if config.SHAValue != oldSHAData {
-			logrus.Infof("Changes detected in '%s' of type '%s' in namespace '%s'", config.ResourceName, config.Type, config.Namespace)
 			// process resource based on its type
 			doRollingUpgrade(config)
 		}

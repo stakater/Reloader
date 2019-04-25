@@ -98,6 +98,7 @@ func PerformRollingUpgrade(client kubernetes.Interface, config util.Config, upgr
 				logrus.Errorf("Update for '%s' of type '%s' in namespace '%s' failed with error %v", resourceName, upgradeFuncs.ResourceType, config.Namespace, err)
 			} else {
 				logrus.Infof("Updated '%s' of type '%s' in namespace '%s'", resourceName, upgradeFuncs.ResourceType, config.Namespace)
+				logrus.Infof("Changes detected in '%s' of type '%s' in namespace '%s'", config.ResourceName, config.Type, config.Namespace)
 			}
 		}
 	}
@@ -177,7 +178,7 @@ func getContainerToUpdate(upgradeFuncs callbacks.RollingUpgradeFuncs, item inter
 
 	// Get the container with referenced secret or configmap as env var
 	container = getContainerWithEnvReference(containers, config.ResourceName, config.Type)
-	if container == nil  && len(initContainers) > 0 {
+	if container == nil && len(initContainers) > 0 {
 		container = getContainerWithEnvReference(initContainers, config.ResourceName, config.Type)
 		if container != nil {
 			// if configmap/secret is being used in init container then return the first Pod container to save reloader env
