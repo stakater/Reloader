@@ -17,7 +17,6 @@ func (r ResourceCreatedHandler) Handle() error {
 		logrus.Errorf("Resource creation handler received nil resource")
 	} else {
 		config, _ := r.GetConfig()
-		logrus.Infof("Resource '%s' of type '%s' in namespace '%s' has been created", config.ResourceName, config.Type, config.Namespace)
 		// process resource based on its type
 		doRollingUpgrade(config)
 	}
