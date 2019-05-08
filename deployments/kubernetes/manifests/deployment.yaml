@@ -5,12 +5,12 @@ kind: Deployment
 metadata:
   labels:
     app: reloader
-    chart: "reloader-v0.0.27"
+    chart: "reloader-v0.0.28"
     release: "RELEASE-NAME"
     heritage: "Tiller"
     group: com.stakater.platform
     provider: stakater
-    version: v0.0.27
+    version: v0.0.28
     
   name: reloader
 spec:
@@ -24,17 +24,17 @@ spec:
     metadata:
       labels:
         app: reloader
-        chart: "reloader-v0.0.27"
+        chart: "reloader-v0.0.28"
         release: "RELEASE-NAME"
         heritage: "Tiller"
         group: com.stakater.platform
         provider: stakater
-        version: v0.0.27
+        version: v0.0.28
         
     spec:
       containers:
       - env:
-        image: "stakater/reloader:v0.0.27"
+        image: "stakater/reloader:v0.0.28"
         imagePullPolicy: IfNotPresent
         name: reloader
       serviceAccountName: reloader
