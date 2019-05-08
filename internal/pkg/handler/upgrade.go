@@ -79,18 +79,21 @@ func PerformRollingUpgrade(client kubernetes.Interface, config util.Config, upgr
 		result := constants.NotUpdated
 		reloaderEnabled, err := strconv.ParseBool(reloaderEnabledValue)
 		if err == nil && reloaderEnabled {
-			result = updateContainers(upgradeFuncs, i, config)
-		} else if annotationValue != "" {
+			result = updateContainers(upgradeFuncs, i, config, true)
+		}
+
+		if result != constants.Updated && annotationValue != "" {
 			values := strings.Split(annotationValue, ",")
 			for _, value := range values {
 				if value == config.ResourceName {
-					result = updateContainers(upgradeFuncs, i, config)
+					result = updateContainers(upgradeFuncs, i, config, false)
 					if result == constants.Updated {
 						break
 					}
 				}
 			}
 		}
+
 		if result == constants.Updated {
 			err = upgradeFuncs.UpdateFunc(client, config.Namespace, i)
 			resourceName := util.ToObjectMeta(i).Name
@@ -155,7 +158,7 @@ func getContainerWithEnvReference(containers []v1.Container, resourceName string
 	return nil
 }
 
-func getContainerToUpdate(upgradeFuncs callbacks.RollingUpgradeFuncs, item interface{}, config util.Config) *v1.Container {
+func getContainerToUpdate(upgradeFuncs callbacks.RollingUpgradeFuncs, item interface{}, config util.Config, autoReload bool) *v1.Container {
 	volumes := upgradeFuncs.VolumesFunc(item)
 	containers := upgradeFuncs.ContainersFunc(item)
 	initContainers := upgradeFuncs.InitContainersFunc(item)
@@ -185,13 +188,19 @@ func getContainerToUpdate(upgradeFuncs callbacks.RollingUpgradeFuncs, item inter
 			return &containers[0]
 		}
 	}
+
+	// Get the first container if the annotation is related to specified configmap or secret i.e. configmap.reloader.stakater.com/reload
+	if container == nil && !autoReload {
+		return &containers[0]
+	}
+
 	return container
 }
 
-func updateContainers(upgradeFuncs callbacks.RollingUpgradeFuncs, item interface{}, config util.Config) constants.Result {
+func updateContainers(upgradeFuncs callbacks.RollingUpgradeFuncs, item interface{}, config util.Config, autoReload bool) constants.Result {
 	var result constants.Result
 	envar := constants.EnvVarPrefix + util.ConvertToEnvVarName(config.ResourceName) + "_" + config.Type
-	container := getContainerToUpdate(upgradeFuncs, item, config)
+	container := getContainerToUpdate(upgradeFuncs, item, config, autoReload)
 
 	if container == nil {
 		return constants.NoContainerFound

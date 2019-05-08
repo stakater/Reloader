@@ -96,7 +96,8 @@ spec:
 
 ### NOTES
 - Reloader also supports [sealed-secrets](https://github.com/bitnami-labs/sealed-secrets). [Here](docs/Reloader-with-Sealed-Secrets.md) are the steps to use sealed-secrets with reloader.
-- `reloader.stakater.com/auto: "true"` will always override when use with either `secret.reloader.stakater.com/reload` or `configmap.reloader.stakater.com/reload` annotation.
+- `reloader.stakater.com/auto: "true"` will only reload the pod, if the configmap or secret is used (as a volume mount or as an env) in `Deployment/Daemonsets/Statefulsets`
+- `secret.reloader.stakater.com/reload` or `configmap.reloader.stakater.com/reload` annotation will reload the pod upon changes in specified configmap or secret, irrespective of the usage of configmap or secret.
 - you may override the auto annotation with the `--auto-annotation` flag
 - you may override the configmap annotation with the `--configmap-annotation` flag
 - you may override the secret annotation with the `--secret-annotation` flag
