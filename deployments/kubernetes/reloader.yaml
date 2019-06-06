@@ -15,7 +15,7 @@ metadata:
     group: com.stakater.platform
     provider: stakater
     version: v0.0.29
-    
+
   name: reloader
 spec:
   replicas: 1
@@ -34,7 +34,7 @@ spec:
         group: com.stakater.platform
         provider: stakater
         version: v0.0.29
-        
+
     spec:
       containers:
       - env:
@@ -59,7 +59,7 @@ metadata:
 rules:
   - apiGroups:
       - ""
-    resources:      
+    resources:
       - secrets
       - configmaps
     verbs:
@@ -67,12 +67,21 @@ rules:
       - get
       - watch
   - apiGroups:
-      - "extensions"
       - "apps"
     resources:
       - deployments
       - daemonsets
       - statefulsets
+    verbs:
+      - list
+      - get
+      - update
+      - patch
+  - apiGroups:
+      - "extensions"
+    resources:
+      - deployments
+      - daemonsets
     verbs:
       - list
       - get

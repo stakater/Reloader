@@ -14,7 +14,7 @@ metadata:
 rules:
   - apiGroups:
       - ""
-    resources:      
+    resources:
       - secrets
       - configmaps
     verbs:
@@ -22,12 +22,21 @@ rules:
       - get
       - watch
   - apiGroups:
-      - "extensions"
       - "apps"
     resources:
       - deployments
       - daemonsets
       - statefulsets
+    verbs:
+      - list
+      - get
+      - update
+      - patch
+  - apiGroups:
+      - "extensions"
+    resources:
+      - deployments
+      - daemonsets
     verbs:
       - list
       - get
