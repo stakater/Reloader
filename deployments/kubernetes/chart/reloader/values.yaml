@@ -5,6 +5,8 @@ kubernetes:
 
 reloader:
   watchGlobally: true
+  # Set to true if you have a pod security policy that enforces readOnlyRootFilesystem
+  readOnlyRootFileSystem: false
   matchLabels: {}
   deployment:
     annotations: {}
@@ -40,4 +42,4 @@ reloader:
   #   custom_annotations:
   #     configmap: "my.company.com/configmap"
   #     secret: "my.company.com/secret"
-  custom_annotations: {} 
+  custom_annotations: {}
