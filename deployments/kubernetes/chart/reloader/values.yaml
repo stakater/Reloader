@@ -10,6 +10,8 @@ reloader:
   matchLabels: {}
   deployment:
     annotations: {}
+    nodeSelector:
+    # cloud.google.com/gke-nodepool: default-pool
     labels:
       provider: stakater
       group: com.stakater.platform

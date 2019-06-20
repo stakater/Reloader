@@ -35,6 +35,10 @@ spec:
 {{ toYaml .Values.reloader.matchLabels | indent 8 }}
 {{- end }}
     spec:
+      nodeSelector:
+{{ toYaml .Values.deployment.nodeSelector | indent 8 }}
+      {{- end }}
+      {{- if .Values.deployment.tolerations }}
       containers:
       - env:
       {{- range $name, $value := .Values.reloader.deployment.env.open }}
