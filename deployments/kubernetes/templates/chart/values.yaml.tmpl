@@ -11,6 +11,26 @@ reloader:
   deployment:
     nodeSelector:
     # cloud.google.com/gke-nodepool: default-pool
+
+    # An affinity stanza to be applied to the Deployment.
+    # Example:
+    #   affinity:
+    #     nodeAffinity:
+    #       requiredDuringSchedulingIgnoredDuringExecution:
+    #         nodeSelectorTerms:
+    #         - matchExpressions:
+    #           - key: "node-role.kubernetes.io/infra-worker"
+    #             operator: "Exists"
+    affinity: {}
+
+    # A list of tolerations to be applied to the Deployment.
+    # Example:
+    #   tolerations:
+    #   - key: "node-role.kubernetes.io/infra-worker"
+    #     operator: "Exists"
+    #     effect: "NoSchedule"
+    tolerations: []
+
     annotations: {}
     labels:
       provider: stakater
@@ -28,6 +48,18 @@ reloader:
       secret:
       # field supports Key value pair as environment variables. It gets the values from other fields of pod.
       field:
+
+    # Specify resource requests/limits for the deployment.
+    # Example:
+    # resources:
+    #   limits:
+    #     cpu: "100m"
+    #     memory: "512Mi"
+    #   requests:
+    #     cpu: "10m"
+    #     memory: "128Mi"
+    resources: {}
+
   rbac:
     enabled: true
     labels: {}

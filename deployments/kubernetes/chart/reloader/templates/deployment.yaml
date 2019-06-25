@@ -39,6 +39,14 @@ spec:
       nodeSelector:
 {{ toYaml .Values.reloader.deployment.nodeSelector | indent 8 }}
       {{- end }}
+      {{- if .Values.reloader.deployment.affinity }}
+      affinity:
+{{ toYaml .Values.reloader.deployment.affinity | indent 8 }}
+      {{- end }}
+      {{- if .Values.reloader.deployment.tolerations }}
+      tolerations:
+{{ toYaml .Values.reloader.deployment.tolerations | indent 8 }}
+      {{- end }}
       containers:
       - env:
       {{- range $name, $value := .Values.reloader.deployment.env.open }}
@@ -93,6 +101,10 @@ spec:
           - "--auto-annotation"
           - "{{ .Values.reloader.custom_annotations.auto }}"
           {{- end }}
+      {{- end }}
+      {{- if .Values.reloader.deployment.resources }}
+        resources:
+{{ toYaml .Values.reloader.deployment.resources | indent 10 }}
       {{- end }}
       serviceAccountName: {{ template "reloader-serviceAccountName" . }}
     {{- if eq .Values.reloader.readOnlyRootFileSystem true }}
