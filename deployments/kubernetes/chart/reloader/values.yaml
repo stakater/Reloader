@@ -9,6 +9,8 @@ reloader:
   readOnlyRootFileSystem: false
   matchLabels: {}
   deployment:
+    nodeSelector:
+    # cloud.google.com/gke-nodepool: default-pool
     annotations: {}
     labels:
       provider: stakater
