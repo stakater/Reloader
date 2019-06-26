@@ -23,6 +23,7 @@ func NewReloaderCommand() *cobra.Command {
 	cmd.PersistentFlags().StringVar(&options.ConfigmapUpdateOnChangeAnnotation, "configmap-annotation", "configmap.reloader.stakater.com/reload", "annotation to detect changes in configmaps")
 	cmd.PersistentFlags().StringVar(&options.SecretUpdateOnChangeAnnotation, "secret-annotation", "secret.reloader.stakater.com/reload", "annotation to detect changes in secrets")
 	cmd.PersistentFlags().StringVar(&options.ReloaderAutoAnnotation, "auto-annotation", "reloader.stakater.com/auto", "annotation to detect changes in secrets")
+	cmd.PersistentFlags().Bool("ignore-secrets", false, "disable detection of changes in secrets")
 
 	return cmd
 }
@@ -39,6 +40,16 @@ func startReloader(cmd *cobra.Command, args []string) {
 	clientset, err := kube.GetClient()
 	if err != nil {
 		logrus.Fatal(err)
+	}
+
+	resources := kube.ResourceMap
+	ignoreSecrets, err := cmd.Flags().GetBool("ignore-secrets")
+	if err != nil {
+		logrus.Fatal(err)
+	}
+
+	if ignoreSecrets {
+		delete(resources, "ignore-secrets")
 	}
 
 	for k := range kube.ResourceMap {
