@@ -1,11 +1,10 @@
----
 # Generated from deployments/kubernetes/templates/chart/Chart.yaml.tmpl
 
 apiVersion: v1
 name: reloader
 description: Reloader chart that runs on kubernetes
-version: v0.0.31
-appVersion: v0.0.31
+version: v0.0.32
+appVersion: v0.0.32
 keywords:
   - Reloader
   - kubernetes
