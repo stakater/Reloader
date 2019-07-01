@@ -116,6 +116,30 @@ kubectl apply -f https://raw.githubusercontent.com/stakater/Reloader/master/depl
 
 By default Reloader gets deployed in `default` namespace and watches changes `secrets` and `configmaps` in all namespaces.
 
+### Vanilla kustomize
+
+You can also apply the vanilla manifests by running the following command
+```bash
+kubectl apply -k https://github.com/stakater/Reloader/deployments/kubernetes
+```
+Similarly to vanilla manifests get deployed in `default` namespace and watches changes `secrets` and `configmaps` in all namespaces.
+
+### Kustomize
+
+You can write your own `kustomization.yaml` using ours as a 'base' and write patches to tweak the configuration.
+
+```yaml
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namePrefix: reloader-
+
+bases:
+  - https://github.com/stakater/Reloader/deployments/kubernetes
+
+namespace: reloader
+```
+
 ### Helm Charts
 
 Alternatively if you have configured helm on your cluster, you can add reloader to helm from our public chart repository and deploy it via helm using below mentioned commands
