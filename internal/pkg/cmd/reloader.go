@@ -23,12 +23,15 @@ func NewReloaderCommand() *cobra.Command {
 	cmd.PersistentFlags().StringVar(&options.ConfigmapUpdateOnChangeAnnotation, "configmap-annotation", "configmap.reloader.stakater.com/reload", "annotation to detect changes in configmaps")
 	cmd.PersistentFlags().StringVar(&options.SecretUpdateOnChangeAnnotation, "secret-annotation", "secret.reloader.stakater.com/reload", "annotation to detect changes in secrets")
 	cmd.PersistentFlags().StringVar(&options.ReloaderAutoAnnotation, "auto-annotation", "reloader.stakater.com/auto", "annotation to detect changes in secrets")
-	cmd.PersistentFlags().Bool("ignore-secrets", false, "disable detection of changes in secrets")
+	cmd.PersistentFlags().StringSlice("resources-to-watch", []string{"configMaps", "secrets"}, "list of resources to watch (valid options 'configMaps', 'secrets')")
 
 	return cmd
 }
 
 func startReloader(cmd *cobra.Command, args []string) {
+	var watchList List
+	var err error
+
 	logrus.Info("Starting Reloader")
 	currentNamespace := os.Getenv("KUBERNETES_NAMESPACE")
 	if len(currentNamespace) == 0 {
@@ -42,17 +45,22 @@ func startReloader(cmd *cobra.Command, args []string) {
 		logrus.Fatal(err)
 	}
 
-	resources := kube.ResourceMap
-	ignoreSecrets, err := cmd.Flags().GetBool("ignore-secrets")
+	watchList, err = cmd.Flags().GetStringSlice("resources-to-watch")
 	if err != nil {
 		logrus.Fatal(err)
 	}
 
-	if ignoreSecrets {
-		delete(resources, "ignore-secrets")
+	for _, v := range watchList {
+		if v != "configMaps" && v != "secrets" {
+			logrus.Fatalf("'resources-to-watch' only accepts 'configMaps' and 'secrets', not '%s'", v)
+		}
 	}
 
 	for k := range kube.ResourceMap {
+		if !watchList.Contains(k) {
+			continue
+		}
+
 		c, err := controller.NewController(clientset, k, currentNamespace)
 		if err != nil {
 			logrus.Fatalf("%s", err)
@@ -67,4 +75,15 @@ func startReloader(cmd *cobra.Command, args []string) {
 
 	// Wait forever
 	select {}
+}
+
+type List []string
+
+func (l *List) Contains(s string) bool {
+	for _, v := range *l {
+		if v == s {
+			return true
+		}
+	}
+	return false
 }
