@@ -16,10 +16,10 @@ rules:
   - apiGroups:
       - ""
     resources:
-{{- if eq .Values.reloader.watchSecrets true }}
+{{- if .Values.reloader.ignoreSecrets }}{{- else }}
       - secrets
 {{- end }}
-{{- if eq .Values.reloader.watchConfigMaps true }}
+{{- if .Values.reloader.ignoreConfigMaps }}{{- else }}
       - configmaps
 {{- end }}
     verbs:

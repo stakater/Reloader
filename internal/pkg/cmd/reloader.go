@@ -24,13 +24,13 @@ func NewReloaderCommand() *cobra.Command {
 	cmd.PersistentFlags().StringVar(&options.ConfigmapUpdateOnChangeAnnotation, "configmap-annotation", "configmap.reloader.stakater.com/reload", "annotation to detect changes in configmaps")
 	cmd.PersistentFlags().StringVar(&options.SecretUpdateOnChangeAnnotation, "secret-annotation", "secret.reloader.stakater.com/reload", "annotation to detect changes in secrets")
 	cmd.PersistentFlags().StringVar(&options.ReloaderAutoAnnotation, "auto-annotation", "reloader.stakater.com/auto", "annotation to detect changes in secrets")
-	cmd.PersistentFlags().StringSlice("resources-to-watch", []string{"configMaps", "secrets"}, "list of resources to watch (valid options 'configMaps', 'secrets')")
+	cmd.PersistentFlags().StringSlice("resources-to-ignore", []string{}, "list of resources to ignore (valid options 'configMaps', 'secrets')")
 
 	return cmd
 }
 
 func startReloader(cmd *cobra.Command, args []string) {
-	var watchList util.List
+	var ignoreList util.List
 	var err error
 
 	logrus.Info("Starting Reloader")
@@ -46,19 +46,19 @@ func startReloader(cmd *cobra.Command, args []string) {
 		logrus.Fatal(err)
 	}
 
-	watchList, err = cmd.Flags().GetStringSlice("resources-to-watch")
+	ignoreList, err = cmd.Flags().GetStringSlice("resources-to-ignore")
 	if err != nil {
 		logrus.Fatal(err)
 	}
 
-	for _, v := range watchList {
+	for _, v := range ignoreList {
 		if v != "configMaps" && v != "secrets" {
-			logrus.Fatalf("'resources-to-watch' only accepts 'configMaps' and 'secrets', not '%s'", v)
+			logrus.Fatalf("'resources-to-ignore' only accepts 'configMaps' or 'secrets', not '%s'", v)
 		}
 	}
 
 	for k := range kube.ResourceMap {
-		if !watchList.Contains(k) {
+		if ignoreList.Contains(k) {
 			continue
 		}
 

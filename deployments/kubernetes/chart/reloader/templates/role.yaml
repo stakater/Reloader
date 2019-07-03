@@ -16,12 +16,12 @@ rules:
   - apiGroups:
       - ""
     resources:
-      {{- if .Values.reloader.watchSecrets }}
+{{- if .Values.reloader.ignoreSecrets }}{{- else }}
       - secrets
-      {{- end }}
-      {{- if .Values.reloader.watchConfigMaps }}
+{{- end }}
+{{- if .Values.reloader.ignoreConfigMaps }}{{- else }}
       - configmaps
-      {{- end }}
+{{- end }}
     verbs:
       - list
       - get
