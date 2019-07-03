@@ -7,6 +7,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/stakater/Reloader/internal/pkg/controller"
 	"github.com/stakater/Reloader/internal/pkg/options"
+	"github.com/stakater/Reloader/internal/pkg/util"
 	"github.com/stakater/Reloader/pkg/kube"
 	"k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -29,7 +30,7 @@ func NewReloaderCommand() *cobra.Command {
 }
 
 func startReloader(cmd *cobra.Command, args []string) {
-	var watchList List
+	var watchList util.List
 	var err error
 
 	logrus.Info("Starting Reloader")
@@ -75,15 +76,4 @@ func startReloader(cmd *cobra.Command, args []string) {
 
 	// Wait forever
 	select {}
-}
-
-type List []string
-
-func (l *List) Contains(s string) bool {
-	for _, v := range *l {
-		if v == s {
-			return true
-		}
-	}
-	return false
 }
