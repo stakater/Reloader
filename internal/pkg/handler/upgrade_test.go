@@ -18,12 +18,12 @@ var (
 	namespace                  = "test-handler-" + testutil.RandSeq(5)
 	configmapName              = "testconfigmap-handler-" + testutil.RandSeq(5)
 	secretName                 = "testsecret-handler-" + testutil.RandSeq(5)
-	configmapWithInitContainer = "testconfigmapInitContainerhandler-" + testutil.RandSeq(3)
-	secretWithInitContainer    = "testsecretWithInitContainer-handler-" + testutil.RandSeq(3)
-	configmapWithInitEnv       = "configmapWithInitEnv-" + testutil.RandSeq(3)
-	secretWithInitEnv          = "secretWithInitEnv-handler-" + testutil.RandSeq(3)
-	configmapWithEnvName       = "testconfigmapWithEnv-handler-" + testutil.RandSeq(3)
-	configmapWithEnvFromName   = "testconfigmapWithEnvFrom-handler-" + testutil.RandSeq(3)
+	configmapWithInitContainer = "testconfigmapInitContainerhandler-" + testutil.RandSeq(5)
+	secretWithInitContainer    = "testsecretWithInitContainer-handler-" + testutil.RandSeq(5)
+	configmapWithInitEnv       = "configmapWithInitEnv-" + testutil.RandSeq(5)
+	secretWithInitEnv          = "secretWithInitEnv-handler-" + testutil.RandSeq(5)
+	configmapWithEnvName       = "testconfigmapWithEnv-handler-" + testutil.RandSeq(5)
+	configmapWithEnvFromName   = "testconfigmapWithEnvFrom-handler-" + testutil.RandSeq(5)
 	secretWithEnvName          = "testsecretWithEnv-handler-" + testutil.RandSeq(5)
 	secretWithEnvFromName      = "testsecretWithEnvFrom-handler-" + testutil.RandSeq(5)
 )
@@ -92,7 +92,7 @@ func setup() {
 		logrus.Errorf("Error in secret creation: %v", err)
 	}
 
-	_, err = testutil.CreateConfigMap(client, namespace, configmapWithInitContainer, "www.google.com")
+	_, err = testutil.CreateConfigMap(client, namespace, configmapWithInitEnv, "www.google.com")
 	if err != nil {
 		logrus.Errorf("Error in configmap creation: %v", err)
 	}
