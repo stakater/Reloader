@@ -93,6 +93,12 @@ spec:
           - "--auto-annotation"
           - "{{ .Values.reloader.custom_annotations.auto }}"
           {{- end }}
+          {{- if eq .Values.reloader.watchSecrets true }}
+          - "--resources-to-watch=secrets"
+          {{- end }}
+          {{- if eq .Values.reloader.watchConfigMaps true }}
+          - "--resources-to-watch=configMaps"
+          {{- end }}
       {{- end }}
       serviceAccountName: {{ template "reloader-serviceAccountName" . }}
     {{- if eq .Values.reloader.readOnlyRootFileSystem true }}
