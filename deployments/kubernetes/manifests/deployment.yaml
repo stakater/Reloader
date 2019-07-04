@@ -37,8 +37,5 @@ spec:
         image: "stakater/reloader:v0.0.31"
         imagePullPolicy: IfNotPresent
         name: reloader
-        args:
-          - "--resources-to-watch=secrets"
-          - "--resources-to-watch=configMaps"
       serviceAccountName: reloader
 
