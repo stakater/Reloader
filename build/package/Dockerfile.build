@@ -11,7 +11,7 @@ RUN apk -v --update \
 ADD . "$GOPATH/src/github.com/stakater/Reloader"
 
 RUN cd "$GOPATH/src/github.com/stakater/Reloader" && \
-    glide update && \
+    glide install --strip-vendor && \
     CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -a --installsuffix cgo --ldflags="-s" -o /Reloader
 
 COPY build/package/Dockerfile.run /
