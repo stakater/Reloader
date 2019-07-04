@@ -1,4 +1,4 @@
-FROM stakater/go-glide:1.9.3
+FROM stakater/go-glide:1.12.6
 MAINTAINER "Stakater Team"
 
 RUN apk update
