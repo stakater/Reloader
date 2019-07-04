@@ -7,6 +7,8 @@ import (
 	"strings"
 	"time"
 
+	openshiftv1 "github.com/openshift/api/apps/v1"
+	appsclient "github.com/openshift/client-go/apps/clientset/versioned"
 	"github.com/sirupsen/logrus"
 	"github.com/stakater/Reloader/internal/pkg/callbacks"
 	"github.com/stakater/Reloader/internal/pkg/constants"
@@ -292,6 +294,22 @@ func GetDeployment(namespace string, deploymentName string) *v1beta1.Deployment 
 	}
 }
 
+// GetDeploymentConfig provides deployment for testing
+func GetDeploymentConfig(namespace string, deploymentConfigName string) *openshiftv1.DeploymentConfig {
+	replicaset := int32(1)
+	podTemplateSpecWithVolume := getPodTemplateSpecWithVolumes(deploymentConfigName)
+	return &openshiftv1.DeploymentConfig{
+		ObjectMeta: getObjectMeta(namespace, deploymentConfigName, false),
+		Spec: openshiftv1.DeploymentConfigSpec{
+			Replicas: replicaset,
+			Strategy: openshiftv1.DeploymentStrategy{
+				Type: openshiftv1.DeploymentStrategyTypeRolling,
+			},
+			Template: &podTemplateSpecWithVolume,
+		},
+	}
+}
+
 // GetDeploymentWithInitContainer provides deployment with init container and volumeMounts
 func GetDeploymentWithInitContainer(namespace string, deploymentName string) *v1beta1.Deployment {
 	replicaset := int32(1)
@@ -332,6 +350,21 @@ func GetDeploymentWithEnvVars(namespace string, deploymentName string) *v1beta1.
 				Type: v1beta1.RollingUpdateDeploymentStrategyType,
 			},
 			Template: getPodTemplateSpecWithEnvVars(deploymentName),
+		},
+	}
+}
+
+func GetDeploymentConfigWithEnvVars(namespace string, deploymentConfigName string) *openshiftv1.DeploymentConfig {
+	replicaset := int32(1)
+	podTemplateSpecWithEnvVars := getPodTemplateSpecWithEnvVars(deploymentConfigName)
+	return &openshiftv1.DeploymentConfig{
+		ObjectMeta: getObjectMeta(namespace, deploymentConfigName, false),
+		Spec: openshiftv1.DeploymentConfigSpec{
+			Replicas: replicaset,
+			Strategy: openshiftv1.DeploymentStrategy{
+				Type: openshiftv1.DeploymentStrategyTypeRolling,
+			},
+			Template: &podTemplateSpecWithEnvVars,
 		},
 	}
 }
@@ -513,6 +546,21 @@ func CreateDeployment(client kubernetes.Interface, deploymentName string, namesp
 	return deployment, err
 }
 
+// CreateDeploymentConfig creates a deploymentConfig in given namespace and returns the DeploymentConfig
+func CreateDeploymentConfig(client appsclient.Interface, deploymentName string, namespace string, volumeMount bool) (*openshiftv1.DeploymentConfig, error) {
+	logrus.Infof("Creating DeploymentConfig")
+	deploymentConfigsClient := client.AppsV1().DeploymentConfigs(namespace)
+	var deploymentConfigObj *openshiftv1.DeploymentConfig
+	if volumeMount {
+		deploymentConfigObj = GetDeploymentConfig(namespace, deploymentName)
+	} else {
+		deploymentConfigObj = GetDeploymentConfigWithEnvVars(namespace, deploymentName)
+	}
+	deploymentConfig, err := deploymentConfigsClient.Create(deploymentConfigObj)
+	time.Sleep(5 * time.Second)
+	return deploymentConfig, err
+}
+
 // CreateDeploymentWithInitContainer creates a deployment in given namespace with init container and returns the Deployment
 func CreateDeploymentWithInitContainer(client kubernetes.Interface, deploymentName string, namespace string, volumeMount bool) (*v1beta1.Deployment, error) {
 	logrus.Infof("Creating Deployment")
@@ -574,6 +622,14 @@ func DeleteDeployment(client kubernetes.Interface, namespace string, deploymentN
 	deploymentError := client.ExtensionsV1beta1().Deployments(namespace).Delete(deploymentName, &metav1.DeleteOptions{})
 	time.Sleep(3 * time.Second)
 	return deploymentError
+}
+
+// DeleteDeploymentConfig deletes a deploymentConfig in given namespace and returns the error if any
+func DeleteDeploymentConfig(client appsclient.Interface, namespace string, deploymentConfigName string) error {
+	logrus.Infof("Deleting DeploymentConfig")
+	deploymentConfigError := client.AppsV1().DeploymentConfigs(namespace).Delete(deploymentConfigName, &metav1.DeleteOptions{})
+	time.Sleep(3 * time.Second)
+	return deploymentConfigError
 }
 
 // DeleteDaemonSet creates a daemonset in given namespace and returns the error if any
@@ -647,8 +703,8 @@ func RandSeq(n int) string {
 }
 
 // VerifyResourceUpdate verifies whether the rolling upgrade happened or not
-func VerifyResourceUpdate(client kubernetes.Interface, config util.Config, envVarPostfix string, upgradeFuncs callbacks.RollingUpgradeFuncs) bool {
-	items := upgradeFuncs.ItemsFunc(client, config.Namespace)
+func VerifyResourceUpdate(clients kube.Clients, config util.Config, envVarPostfix string, upgradeFuncs callbacks.RollingUpgradeFuncs) bool {
+	items := upgradeFuncs.ItemsFunc(clients, config.Namespace)
 	for _, i := range items {
 		containers := upgradeFuncs.ContainersFunc(i)
 		// match statefulsets with the correct annotation
