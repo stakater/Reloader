@@ -12,12 +12,14 @@ import (
 	"k8s.io/client-go/rest"
 )
 
+// Client struct exposes interfaces for kubernetes as well as openshift if available
 type Clients struct {
 	KubernetesClient    kubernetes.Interface
 	OpenshiftAppsClient appsclient.Interface
 	IsOpenshift         bool
 }
 
+// GetClients returns a `Clients` object containing both openshift and kubernetes clients with an openshift identifier
 func GetClients() Clients {
 	client, err := GetClient()
 	isOpenshift := true
@@ -49,6 +51,7 @@ func isOpenshift() bool {
 	return false
 }
 
+// GetOpenshiftAppsClient returns an Openshift Client that can query on Apps
 func GetOpenshiftAppsClient() (*appsclient.Clientset, error) {
 	if !isOpenshift() {
 		return nil, errors.New("Not running on Openshift")

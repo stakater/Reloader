@@ -49,6 +49,7 @@ func GetStatefulSetRollingUpgradeFuncs() callbacks.RollingUpgradeFuncs {
 	}
 }
 
+// GetDeploymentConfigRollingUpgradeFuncs returns all callback funcs for a deploymentConfig
 func GetDeploymentConfigRollingUpgradeFuncs() callbacks.RollingUpgradeFuncs {
 	return callbacks.RollingUpgradeFuncs{
 		ItemsFunc:          callbacks.GetDeploymentConfigItems,
