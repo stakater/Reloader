@@ -15,10 +15,12 @@ import (
 type Clients struct {
 	KubernetesClient    kubernetes.Interface
 	OpenshiftAppsClient appsclient.Interface
+	IsOpenshift         bool
 }
 
 func GetClients() Clients {
 	client, err := GetClient()
+	isOpenshift := true
 	if err != nil {
 		logrus.Fatalf("Unable to create Kubernetes client error = %v", err)
 	}
@@ -26,14 +28,16 @@ func GetClients() Clients {
 	appsClient, err := GetOpenshiftAppsClient()
 	if err != nil {
 		logrus.Warnf("Unable to create Openshift Apps client error = %v", err)
+		isOpenshift = false
 	}
 	return Clients{
 		KubernetesClient:    client,
 		OpenshiftAppsClient: appsClient,
+		IsOpenshift:         isOpenshift,
 	}
 }
 
-func IsOpenshift() bool {
+func isOpenshift() bool {
 	client, err := GetClient()
 	if err != nil {
 		logrus.Fatalf("Unable to create Kubernetes client error = %v", err)
@@ -46,7 +50,7 @@ func IsOpenshift() bool {
 }
 
 func GetOpenshiftAppsClient() (*appsclient.Clientset, error) {
-	if !IsOpenshift() {
+	if !isOpenshift() {
 		return nil, errors.New("Not running on Openshift")
 	}
 	config, err := getConfig()

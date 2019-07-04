@@ -67,7 +67,7 @@ func doRollingUpgrade(config util.Config) {
 	rollingUpgrade(clients, config, GetDaemonSetRollingUpgradeFuncs())
 	rollingUpgrade(clients, config, GetStatefulSetRollingUpgradeFuncs())
 
-	if clients.OpenshiftAppsClient != nil {
+	if clients.IsOpenshift {
 		rollingUpgrade(clients, config, GetDeploymentConfigRollingUpgradeFuncs())
 	}
 }

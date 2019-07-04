@@ -53,7 +53,7 @@ func TestMain(m *testing.M) {
 // Perform rolling upgrade on deploymentConfig and create env var upon updating the configmap
 func TestControllerUpdatingConfigmapShouldCreateEnvInDeploymentConfig(t *testing.T) {
 	// Don't run test on non-openshift environment
-	if !kube.IsOpenshift() {
+	if !clients.IsOpenshift {
 		return
 	}
 
