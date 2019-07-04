@@ -8,7 +8,7 @@ import (
 	"github.com/stakater/Reloader/internal/pkg/controller"
 	"github.com/stakater/Reloader/internal/pkg/options"
 	"github.com/stakater/Reloader/pkg/kube"
-	"k8s.io/apimachinery/pkg/apis/meta/v1"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 // NewReloaderCommand starts the reloader controller
