@@ -22,6 +22,18 @@ rules:
       - list
       - get
       - watch
+{{- if .Capabilities.APIVersions.Has "apps.openshift.io/v1" }}
+  - apiGroups:
+      - "apps.openshift.io"
+      - ""
+    resources:
+      - deploymentconfigs
+    verbs:
+      - list
+      - get
+      - update
+      - patch
+{{- end }}
   - apiGroups:
       - "apps"
     resources:
