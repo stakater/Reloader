@@ -24,7 +24,7 @@ func NewReloaderCommand() *cobra.Command {
 	cmd.PersistentFlags().StringVar(&options.ConfigmapUpdateOnChangeAnnotation, "configmap-annotation", "configmap.reloader.stakater.com/reload", "annotation to detect changes in configmaps")
 	cmd.PersistentFlags().StringVar(&options.SecretUpdateOnChangeAnnotation, "secret-annotation", "secret.reloader.stakater.com/reload", "annotation to detect changes in secrets")
 	cmd.PersistentFlags().StringVar(&options.ReloaderAutoAnnotation, "auto-annotation", "reloader.stakater.com/auto", "annotation to detect changes in secrets")
-	cmd.PersistentFlags().StringSlice("resources-to-ignore", []string{}, "list of resources to ignore (valid options 'configMaps', 'secrets')")
+	cmd.PersistentFlags().StringSlice("resources-to-ignore", []string{}, "list of resources to ignore (valid options 'configMaps' or 'secrets')")
 
 	return cmd
 }
@@ -55,6 +55,10 @@ func startReloader(cmd *cobra.Command, args []string) {
 		if v != "configMaps" && v != "secrets" {
 			logrus.Fatalf("'resources-to-ignore' only accepts 'configMaps' or 'secrets', not '%s'", v)
 		}
+	}
+
+	if len(ignoreList) > 1 {
+		logrus.Fatal("'resources-to-ignore' only accepts 'configMaps' or 'secrets', not both")
 	}
 
 	for k := range kube.ResourceMap {
