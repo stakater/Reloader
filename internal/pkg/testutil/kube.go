@@ -32,14 +32,6 @@ var (
 	SecretResourceType = "secrets"
 )
 
-func GetClient() *kubernetes.Clientset {
-	newClient, err := kube.GetClient()
-	if err != nil {
-		logrus.Fatalf("Unable to create Kubernetes client error = %v", err)
-	}
-	return newClient
-}
-
 // CreateNamespace creates namespace for testing
 func CreateNamespace(namespace string, client kubernetes.Interface) {
 	_, err := client.CoreV1().Namespaces().Create(&v1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: namespace}})
