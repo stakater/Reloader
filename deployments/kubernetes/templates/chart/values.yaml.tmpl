@@ -4,6 +4,8 @@ kubernetes:
   host: https://kubernetes.default
 
 reloader:
+  ignoreSecrets: false
+  ignoreConfigMaps: false
   watchGlobally: true
   # Set to true if you have a pod security policy that enforces readOnlyRootFilesystem
   readOnlyRootFileSystem: false

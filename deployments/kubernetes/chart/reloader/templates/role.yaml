@@ -16,8 +16,12 @@ rules:
   - apiGroups:
       - ""
     resources:
+{{- if .Values.reloader.ignoreSecrets }}{{- else }}
       - secrets
+{{- end }}
+{{- if .Values.reloader.ignoreConfigMaps }}{{- else }}
       - configmaps
+{{- end }}
     verbs:
       - list
       - get

@@ -101,6 +101,12 @@ spec:
           - "--auto-annotation"
           - "{{ .Values.reloader.custom_annotations.auto }}"
           {{- end }}
+          {{- if eq .Values.reloader.ignoreSecrets true }}
+          - "--resources-to-ignore=secrets"
+          {{- end }}
+          {{- if eq .Values.reloader.ignoreConfigMaps true }}
+          - "--resources-to-ignore=configMaps"
+          {{- end }}
       {{- end }}
       {{- if .Values.reloader.deployment.resources }}
         resources:

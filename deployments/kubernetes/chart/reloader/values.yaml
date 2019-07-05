@@ -4,6 +4,8 @@ kubernetes:
   host: https://kubernetes.default
 
 reloader:
+  ignoreSecrets: false
+  ignoreConfigMaps: false
   watchGlobally: true
   # Set to true if you have a pod security policy that enforces readOnlyRootFilesystem
   readOnlyRootFileSystem: false
@@ -35,10 +37,10 @@ reloader:
     labels:
       provider: stakater
       group: com.stakater.platform
-      version: v0.0.34
+      version: v0.0.35
     image:
       name: stakater/reloader
-      tag: "v0.0.34"
+      tag: "v0.0.35"
       pullPolicy: IfNotPresent
     # Support for extra environment variables.
     env:
