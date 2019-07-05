@@ -1,7 +1,6 @@
 package kube
 
 import (
-	"errors"
 	"os"
 
 	"k8s.io/client-go/tools/clientcmd"
@@ -12,50 +11,55 @@ import (
 	"k8s.io/client-go/rest"
 )
 
-// Client struct exposes interfaces for kubernetes as well as openshift if available
+// Clients struct exposes interfaces for kubernetes as well as openshift if available
 type Clients struct {
 	KubernetesClient    kubernetes.Interface
 	OpenshiftAppsClient appsclient.Interface
-	IsOpenshift         bool
 }
+
+var (
+	// IsOpenshift is true if environment is Openshift, it is false if environment is Kubernetes
+	IsOpenshift = isOpenshift()
+)
 
 // GetClients returns a `Clients` object containing both openshift and kubernetes clients with an openshift identifier
 func GetClients() Clients {
-	client, err := GetClient()
-	isOpenshift := true
+	client, err := GetKubernetesClient()
 	if err != nil {
 		logrus.Fatalf("Unable to create Kubernetes client error = %v", err)
 	}
 
-	appsClient, err := GetOpenshiftAppsClient()
-	if err != nil {
-		logrus.Warnf("Unable to create Openshift Apps client error = %v", err)
-		isOpenshift = false
+	var appsClient *appsclient.Clientset
+
+	if IsOpenshift {
+		appsClient, err = GetOpenshiftAppsClient()
+		if err != nil {
+			logrus.Warnf("Unable to create Openshift Apps client error = %v", err)
+		}
 	}
+
 	return Clients{
 		KubernetesClient:    client,
 		OpenshiftAppsClient: appsClient,
-		IsOpenshift:         isOpenshift,
 	}
 }
 
 func isOpenshift() bool {
-	client, err := GetClient()
+	client, err := GetKubernetesClient()
 	if err != nil {
 		logrus.Fatalf("Unable to create Kubernetes client error = %v", err)
 	}
 	_, err = client.RESTClient().Get().AbsPath("/apis/project.openshift.io").Do().Raw()
 	if err == nil {
+		logrus.Info("Environment: Openshift")
 		return true
 	}
+	logrus.Info("Environment: Kubernetes")
 	return false
 }
 
 // GetOpenshiftAppsClient returns an Openshift Client that can query on Apps
 func GetOpenshiftAppsClient() (*appsclient.Clientset, error) {
-	if !isOpenshift() {
-		return nil, errors.New("Not running on Openshift")
-	}
 	config, err := getConfig()
 	if err != nil {
 		return nil, err
@@ -63,8 +67,8 @@ func GetOpenshiftAppsClient() (*appsclient.Clientset, error) {
 	return appsclient.NewForConfig(config)
 }
 
-// GetClient gets the client for k8s, if ~/.kube/config exists so get that config else incluster config
-func GetClient() (*kubernetes.Clientset, error) {
+// GetKubernetesClient gets the client for k8s, if ~/.kube/config exists so get that config else incluster config
+func GetKubernetesClient() (*kubernetes.Clientset, error) {
 	config, err := getConfig()
 	if err != nil {
 		return nil, err

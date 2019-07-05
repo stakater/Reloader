@@ -36,7 +36,7 @@ func startReloader(cmd *cobra.Command, args []string) {
 	}
 
 	// create the clientset
-	clientset, err := kube.GetClient()
+	clientset, err := kube.GetKubernetesClient()
 	if err != nil {
 		logrus.Fatal(err)
 	}

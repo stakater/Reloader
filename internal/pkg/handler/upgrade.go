@@ -68,7 +68,7 @@ func doRollingUpgrade(config util.Config) {
 	rollingUpgrade(clients, config, GetDaemonSetRollingUpgradeFuncs())
 	rollingUpgrade(clients, config, GetStatefulSetRollingUpgradeFuncs())
 
-	if clients.IsOpenshift {
+	if kube.IsOpenshift {
 		rollingUpgrade(clients, config, GetDeploymentConfigRollingUpgradeFuncs())
 	}
 }
