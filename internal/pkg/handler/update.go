@@ -3,7 +3,7 @@ package handler
 import (
 	"github.com/sirupsen/logrus"
 	"github.com/stakater/Reloader/internal/pkg/util"
-    "k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 )
 
 // ResourceUpdatedHandler contains updated objects

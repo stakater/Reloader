@@ -9,7 +9,7 @@ import (
 	"github.com/stakater/Reloader/internal/pkg/options"
 	"github.com/stakater/Reloader/internal/pkg/util"
 	"github.com/stakater/Reloader/pkg/kube"
-	"k8s.io/apimachinery/pkg/apis/meta/v1"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 // NewReloaderCommand starts the reloader controller
@@ -41,7 +41,7 @@ func startReloader(cmd *cobra.Command, args []string) {
 	}
 
 	// create the clientset
-	clientset, err := kube.GetClient()
+	clientset, err := kube.GetKubernetesClient()
 	if err != nil {
 		logrus.Fatal(err)
 	}

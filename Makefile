@@ -20,7 +20,7 @@ LDFLAGS =
 default: build test
 
 install:
-	"$(GLIDECMD)" install
+	"$(GLIDECMD)" install --strip-vendor
 
 build:
 	"$(GOCMD)" build ${GOFLAGS} ${LDFLAGS} -o "${BINARY}"

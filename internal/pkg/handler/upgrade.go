@@ -11,7 +11,6 @@ import (
 	"github.com/stakater/Reloader/internal/pkg/util"
 	"github.com/stakater/Reloader/pkg/kube"
 	v1 "k8s.io/api/core/v1"
-	"k8s.io/client-go/kubernetes"
 )
 
 // GetDeploymentRollingUpgradeFuncs returns all callback funcs for a deployment
@@ -50,27 +49,41 @@ func GetStatefulSetRollingUpgradeFuncs() callbacks.RollingUpgradeFuncs {
 	}
 }
 
-func doRollingUpgrade(config util.Config) {
-	rollingUpgrade(config, GetDeploymentRollingUpgradeFuncs())
-	rollingUpgrade(config, GetDaemonSetRollingUpgradeFuncs())
-	rollingUpgrade(config, GetStatefulSetRollingUpgradeFuncs())
+// GetDeploymentConfigRollingUpgradeFuncs returns all callback funcs for a deploymentConfig
+func GetDeploymentConfigRollingUpgradeFuncs() callbacks.RollingUpgradeFuncs {
+	return callbacks.RollingUpgradeFuncs{
+		ItemsFunc:          callbacks.GetDeploymentConfigItems,
+		ContainersFunc:     callbacks.GetDeploymentConfigContainers,
+		InitContainersFunc: callbacks.GetDeploymentConfigInitContainers,
+		UpdateFunc:         callbacks.UpdateDeploymentConfig,
+		VolumesFunc:        callbacks.GetDeploymentConfigVolumes,
+		ResourceType:       "DeploymentConfig",
+	}
 }
 
-func rollingUpgrade(config util.Config, upgradeFuncs callbacks.RollingUpgradeFuncs) {
-	client, err := kube.GetClient()
-	if err != nil {
-		logrus.Fatalf("Unable to create Kubernetes client error = %v", err)
-	}
+func doRollingUpgrade(config util.Config) {
+	clients := kube.GetClients()
 
-	err = PerformRollingUpgrade(client, config, upgradeFuncs)
+	rollingUpgrade(clients, config, GetDeploymentRollingUpgradeFuncs())
+	rollingUpgrade(clients, config, GetDaemonSetRollingUpgradeFuncs())
+	rollingUpgrade(clients, config, GetStatefulSetRollingUpgradeFuncs())
+
+	if kube.IsOpenshift {
+		rollingUpgrade(clients, config, GetDeploymentConfigRollingUpgradeFuncs())
+	}
+}
+
+func rollingUpgrade(clients kube.Clients, config util.Config, upgradeFuncs callbacks.RollingUpgradeFuncs) {
+
+	err := PerformRollingUpgrade(clients, config, upgradeFuncs)
 	if err != nil {
 		logrus.Errorf("Rolling upgrade for '%s' failed with error = %v", config.ResourceName, err)
 	}
 }
 
 // PerformRollingUpgrade upgrades the deployment if there is any change in configmap or secret data
-func PerformRollingUpgrade(client kubernetes.Interface, config util.Config, upgradeFuncs callbacks.RollingUpgradeFuncs) error {
-	items := upgradeFuncs.ItemsFunc(client, config.Namespace)
+func PerformRollingUpgrade(clients kube.Clients, config util.Config, upgradeFuncs callbacks.RollingUpgradeFuncs) error {
+	items := upgradeFuncs.ItemsFunc(clients, config.Namespace)
 	var err error
 	for _, i := range items {
 		// find correct annotation and update the resource
@@ -95,7 +108,7 @@ func PerformRollingUpgrade(client kubernetes.Interface, config util.Config, upgr
 		}
 
 		if result == constants.Updated {
-			err = upgradeFuncs.UpdateFunc(client, config.Namespace, i)
+			err = upgradeFuncs.UpdateFunc(clients, config.Namespace, i)
 			resourceName := util.ToObjectMeta(i).Name
 			if err != nil {
 				logrus.Errorf("Update for '%s' of type '%s' in namespace '%s' failed with error %v", resourceName, upgradeFuncs.ResourceType, config.Namespace, err)

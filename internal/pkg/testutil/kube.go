@@ -7,6 +7,8 @@ import (
 	"strings"
 	"time"
 
+	openshiftv1 "github.com/openshift/api/apps/v1"
+	appsclient "github.com/openshift/client-go/apps/clientset/versioned"
 	"github.com/sirupsen/logrus"
 	"github.com/stakater/Reloader/internal/pkg/callbacks"
 	"github.com/stakater/Reloader/internal/pkg/constants"
@@ -29,14 +31,6 @@ var (
 	// SecretResourceType is a resource type which controller watches for changes
 	SecretResourceType = "secrets"
 )
-
-func GetClient() *kubernetes.Clientset {
-	newClient, err := kube.GetClient()
-	if err != nil {
-		logrus.Fatalf("Unable to create Kubernetes client error = %v", err)
-	}
-	return newClient
-}
 
 // CreateNamespace creates namespace for testing
 func CreateNamespace(namespace string, client kubernetes.Interface) {
@@ -185,8 +179,8 @@ func getPodTemplateSpecWithEnvVarSources(name string) v1.PodTemplateSpec {
 		Spec: v1.PodSpec{
 			Containers: []v1.Container{
 				{
-					Image: "tutum/hello-world",
-					Name:  name,
+					Image:   "tutum/hello-world",
+					Name:    name,
 					EnvFrom: getEnvVarSources(name),
 				},
 			},
@@ -226,8 +220,8 @@ func getPodTemplateSpecWithInitContainer(name string) v1.PodTemplateSpec {
 		Spec: v1.PodSpec{
 			InitContainers: []v1.Container{
 				{
-					Image: "busybox",
-					Name:  "busyBox",
+					Image:        "busybox",
+					Name:         "busyBox",
 					VolumeMounts: getVolumeMounts(name),
 				},
 			},
@@ -256,8 +250,8 @@ func getPodTemplateSpecWithInitContainerAndEnv(name string) v1.PodTemplateSpec {
 		Spec: v1.PodSpec{
 			InitContainers: []v1.Container{
 				{
-					Image: "busybox",
-					Name:  "busyBox",
+					Image:   "busybox",
+					Name:    "busyBox",
 					EnvFrom: getEnvVarSources(name),
 				},
 			},
@@ -288,6 +282,22 @@ func GetDeployment(namespace string, deploymentName string) *v1beta1.Deployment 
 				Type: v1beta1.RollingUpdateDeploymentStrategyType,
 			},
 			Template: getPodTemplateSpecWithVolumes(deploymentName),
+		},
+	}
+}
+
+// GetDeploymentConfig provides deployment for testing
+func GetDeploymentConfig(namespace string, deploymentConfigName string) *openshiftv1.DeploymentConfig {
+	replicaset := int32(1)
+	podTemplateSpecWithVolume := getPodTemplateSpecWithVolumes(deploymentConfigName)
+	return &openshiftv1.DeploymentConfig{
+		ObjectMeta: getObjectMeta(namespace, deploymentConfigName, false),
+		Spec: openshiftv1.DeploymentConfigSpec{
+			Replicas: replicaset,
+			Strategy: openshiftv1.DeploymentStrategy{
+				Type: openshiftv1.DeploymentStrategyTypeRolling,
+			},
+			Template: &podTemplateSpecWithVolume,
 		},
 	}
 }
@@ -332,6 +342,21 @@ func GetDeploymentWithEnvVars(namespace string, deploymentName string) *v1beta1.
 				Type: v1beta1.RollingUpdateDeploymentStrategyType,
 			},
 			Template: getPodTemplateSpecWithEnvVars(deploymentName),
+		},
+	}
+}
+
+func GetDeploymentConfigWithEnvVars(namespace string, deploymentConfigName string) *openshiftv1.DeploymentConfig {
+	replicaset := int32(1)
+	podTemplateSpecWithEnvVars := getPodTemplateSpecWithEnvVars(deploymentConfigName)
+	return &openshiftv1.DeploymentConfig{
+		ObjectMeta: getObjectMeta(namespace, deploymentConfigName, false),
+		Spec: openshiftv1.DeploymentConfigSpec{
+			Replicas: replicaset,
+			Strategy: openshiftv1.DeploymentStrategy{
+				Type: openshiftv1.DeploymentStrategyTypeRolling,
+			},
+			Template: &podTemplateSpecWithEnvVars,
 		},
 	}
 }
@@ -485,7 +510,7 @@ func CreateConfigMap(client kubernetes.Interface, namespace string, configmapNam
 	logrus.Infof("Creating configmap")
 	configmapClient := client.CoreV1().ConfigMaps(namespace)
 	_, err := configmapClient.Create(GetConfigmap(namespace, configmapName, data))
-	time.Sleep(10 * time.Second)
+	time.Sleep(3 * time.Second)
 	return configmapClient, err
 }
 
@@ -494,7 +519,7 @@ func CreateSecret(client kubernetes.Interface, namespace string, secretName stri
 	logrus.Infof("Creating secret")
 	secretClient := client.CoreV1().Secrets(namespace)
 	_, err := secretClient.Create(GetSecret(namespace, secretName, data))
-	time.Sleep(10 * time.Second)
+	time.Sleep(3 * time.Second)
 	return secretClient, err
 }
 
@@ -509,8 +534,23 @@ func CreateDeployment(client kubernetes.Interface, deploymentName string, namesp
 		deploymentObj = GetDeploymentWithEnvVars(namespace, deploymentName)
 	}
 	deployment, err := deploymentClient.Create(deploymentObj)
-	time.Sleep(10 * time.Second)
+	time.Sleep(3 * time.Second)
 	return deployment, err
+}
+
+// CreateDeploymentConfig creates a deploymentConfig in given namespace and returns the DeploymentConfig
+func CreateDeploymentConfig(client appsclient.Interface, deploymentName string, namespace string, volumeMount bool) (*openshiftv1.DeploymentConfig, error) {
+	logrus.Infof("Creating DeploymentConfig")
+	deploymentConfigsClient := client.AppsV1().DeploymentConfigs(namespace)
+	var deploymentConfigObj *openshiftv1.DeploymentConfig
+	if volumeMount {
+		deploymentConfigObj = GetDeploymentConfig(namespace, deploymentName)
+	} else {
+		deploymentConfigObj = GetDeploymentConfigWithEnvVars(namespace, deploymentName)
+	}
+	deploymentConfig, err := deploymentConfigsClient.Create(deploymentConfigObj)
+	time.Sleep(5 * time.Second)
+	return deploymentConfig, err
 }
 
 // CreateDeploymentWithInitContainer creates a deployment in given namespace with init container and returns the Deployment
@@ -519,12 +559,12 @@ func CreateDeploymentWithInitContainer(client kubernetes.Interface, deploymentNa
 	deploymentClient := client.ExtensionsV1beta1().Deployments(namespace)
 	var deploymentObj *v1beta1.Deployment
 	if volumeMount {
-	deploymentObj = GetDeploymentWithInitContainer(namespace, deploymentName)
+		deploymentObj = GetDeploymentWithInitContainer(namespace, deploymentName)
 	} else {
 		deploymentObj = GetDeploymentWithInitContainerAndEnv(namespace, deploymentName)
 	}
 	deployment, err := deploymentClient.Create(deploymentObj)
-	time.Sleep(10 * time.Second)
+	time.Sleep(3 * time.Second)
 	return deployment, err
 }
 
@@ -534,7 +574,7 @@ func CreateDeploymentWithEnvVarSource(client kubernetes.Interface, deploymentNam
 	deploymentClient := client.ExtensionsV1beta1().Deployments(namespace)
 	deploymentObj := GetDeploymentWithEnvVarSources(namespace, deploymentName)
 	deployment, err := deploymentClient.Create(deploymentObj)
-	time.Sleep(10 * time.Second)
+	time.Sleep(3 * time.Second)
 	return deployment, err
 }
 
@@ -549,7 +589,7 @@ func CreateDaemonSet(client kubernetes.Interface, daemonsetName string, namespac
 		daemonsetObj = GetDaemonSetWithEnvVars(namespace, daemonsetName)
 	}
 	daemonset, err := daemonsetClient.Create(daemonsetObj)
-	time.Sleep(10 * time.Second)
+	time.Sleep(3 * time.Second)
 	return daemonset, err
 }
 
@@ -564,7 +604,7 @@ func CreateStatefulSet(client kubernetes.Interface, statefulsetName string, name
 		statefulsetObj = GetStatefulSetWithEnvVar(namespace, statefulsetName)
 	}
 	statefulset, err := statefulsetClient.Create(statefulsetObj)
-	time.Sleep(10 * time.Second)
+	time.Sleep(3 * time.Second)
 	return statefulset, err
 }
 
@@ -572,15 +612,23 @@ func CreateStatefulSet(client kubernetes.Interface, statefulsetName string, name
 func DeleteDeployment(client kubernetes.Interface, namespace string, deploymentName string) error {
 	logrus.Infof("Deleting Deployment")
 	deploymentError := client.ExtensionsV1beta1().Deployments(namespace).Delete(deploymentName, &metav1.DeleteOptions{})
-	time.Sleep(10 * time.Second)
+	time.Sleep(3 * time.Second)
 	return deploymentError
+}
+
+// DeleteDeploymentConfig deletes a deploymentConfig in given namespace and returns the error if any
+func DeleteDeploymentConfig(client appsclient.Interface, namespace string, deploymentConfigName string) error {
+	logrus.Infof("Deleting DeploymentConfig")
+	deploymentConfigError := client.AppsV1().DeploymentConfigs(namespace).Delete(deploymentConfigName, &metav1.DeleteOptions{})
+	time.Sleep(3 * time.Second)
+	return deploymentConfigError
 }
 
 // DeleteDaemonSet creates a daemonset in given namespace and returns the error if any
 func DeleteDaemonSet(client kubernetes.Interface, namespace string, daemonsetName string) error {
 	logrus.Infof("Deleting DaemonSet %s", daemonsetName)
 	daemonsetError := client.ExtensionsV1beta1().DaemonSets(namespace).Delete(daemonsetName, &metav1.DeleteOptions{})
-	time.Sleep(10 * time.Second)
+	time.Sleep(3 * time.Second)
 	return daemonsetError
 }
 
@@ -588,7 +636,7 @@ func DeleteDaemonSet(client kubernetes.Interface, namespace string, daemonsetNam
 func DeleteStatefulSet(client kubernetes.Interface, namespace string, statefulsetName string) error {
 	logrus.Infof("Deleting StatefulSet %s", statefulsetName)
 	statefulsetError := client.AppsV1beta1().StatefulSets(namespace).Delete(statefulsetName, &metav1.DeleteOptions{})
-	time.Sleep(10 * time.Second)
+	time.Sleep(3 * time.Second)
 	return statefulsetError
 }
 
@@ -602,7 +650,7 @@ func UpdateConfigMap(configmapClient core_v1.ConfigMapInterface, namespace strin
 		configmap = GetConfigmap(namespace, configmapName, data)
 	}
 	_, updateErr := configmapClient.Update(configmap)
-	time.Sleep(10 * time.Second)
+	time.Sleep(3 * time.Second)
 	return updateErr
 }
 
@@ -616,7 +664,7 @@ func UpdateSecret(secretClient core_v1.SecretInterface, namespace string, secret
 		secret = GetSecret(namespace, secretName, data)
 	}
 	_, updateErr := secretClient.Update(secret)
-	time.Sleep(10 * time.Second)
+	time.Sleep(3 * time.Second)
 	return updateErr
 }
 
@@ -624,7 +672,7 @@ func UpdateSecret(secretClient core_v1.SecretInterface, namespace string, secret
 func DeleteConfigMap(client kubernetes.Interface, namespace string, configmapName string) error {
 	logrus.Infof("Deleting configmap %q.\n", configmapName)
 	err := client.CoreV1().ConfigMaps(namespace).Delete(configmapName, &metav1.DeleteOptions{})
-	time.Sleep(10 * time.Second)
+	time.Sleep(3 * time.Second)
 	return err
 }
 
@@ -632,7 +680,7 @@ func DeleteConfigMap(client kubernetes.Interface, namespace string, configmapNam
 func DeleteSecret(client kubernetes.Interface, namespace string, secretName string) error {
 	logrus.Infof("Deleting secret %q.\n", secretName)
 	err := client.CoreV1().Secrets(namespace).Delete(secretName, &metav1.DeleteOptions{})
-	time.Sleep(10 * time.Second)
+	time.Sleep(3 * time.Second)
 	return err
 }
 
@@ -647,8 +695,8 @@ func RandSeq(n int) string {
 }
 
 // VerifyResourceUpdate verifies whether the rolling upgrade happened or not
-func VerifyResourceUpdate(client kubernetes.Interface, config util.Config, envVarPostfix string, upgradeFuncs callbacks.RollingUpgradeFuncs) bool {
-	items := upgradeFuncs.ItemsFunc(client, config.Namespace)
+func VerifyResourceUpdate(clients kube.Clients, config util.Config, envVarPostfix string, upgradeFuncs callbacks.RollingUpgradeFuncs) bool {
+	items := upgradeFuncs.ItemsFunc(clients, config.Namespace)
 	for _, i := range items {
 		containers := upgradeFuncs.ContainersFunc(i)
 		// match statefulsets with the correct annotation
