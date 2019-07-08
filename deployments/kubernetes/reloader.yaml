@@ -9,12 +9,12 @@ kind: Deployment
 metadata:
   labels:
     app: reloader
-    chart: "reloader-v0.0.35"
+    chart: "reloader-v0.0.36"
     release: "RELEASE-NAME"
     heritage: "Tiller"
     group: com.stakater.platform
     provider: stakater
-    version: v0.0.35
+    version: v0.0.36
     
   name: reloader
 spec:
@@ -28,19 +28,20 @@ spec:
     metadata:
       labels:
         app: reloader
-        chart: "reloader-v0.0.35"
+        chart: "reloader-v0.0.36"
         release: "RELEASE-NAME"
         heritage: "Tiller"
         group: com.stakater.platform
         provider: stakater
-        version: v0.0.35
+        version: v0.0.36
         
     spec:
       containers:
       - env:
-        image: "stakater/reloader:v0.0.35"
+        image: "stakater/reloader:v0.0.36"
         imagePullPolicy: IfNotPresent
         name: reloader
+        args:
       serviceAccountName: reloader
 
 ---
@@ -51,7 +52,7 @@ kind: ClusterRole
 metadata:
   labels:
     app: reloader
-    chart: "reloader-v0.0.35"
+    chart: "reloader-v0.0.36"
     release: "RELEASE-NAME"
     heritage: "Tiller"
   name: reloader-role
@@ -100,7 +101,7 @@ kind: ClusterRoleBinding
 metadata:
   labels:
     app: reloader
-    chart: "reloader-v0.0.35"
+    chart: "reloader-v0.0.36"
     release: "RELEASE-NAME"
     heritage: "Tiller"
   name: reloader-role-binding
@@ -122,7 +123,7 @@ kind: ServiceAccount
 metadata:
   labels:
     app: reloader
-    chart: "reloader-v0.0.35"
+    chart: "reloader-v0.0.36"
     release: "RELEASE-NAME"
     heritage: "Tiller"
   name: reloader
