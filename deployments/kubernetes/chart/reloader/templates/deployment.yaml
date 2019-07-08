@@ -87,27 +87,30 @@ spec:
           - mountPath: /tmp/
             name: tmp-volume
       {{- end }}
-      {{- if .Values.reloader.custom_annotations }}
         args:
-          {{- if .Values.reloader.custom_annotations.configmap }}
-          - "--configmap-annotation"
-          - "{{ .Values.reloader.custom_annotations.configmap }}"
-          {{- end }}
-          {{- if .Values.reloader.custom_annotations.secret }}
-          - "--secret-annotation"
-          - "{{ .Values.reloader.custom_annotations.secret }}"
-          {{- end }}
-          {{- if .Values.reloader.custom_annotations.auto }}
-          - "--auto-annotation"
-          - "{{ .Values.reloader.custom_annotations.auto }}"
-          {{- end }}
-          {{- if eq .Values.reloader.ignoreSecrets true }}
+          
+          {{- if .Values.reloader.ignoreSecrets }}
           - "--resources-to-ignore=secrets"
           {{- end }}
           {{- if eq .Values.reloader.ignoreConfigMaps true }}
           - "--resources-to-ignore=configMaps"
           {{- end }}
-      {{- end }}
+
+          {{- if .Values.reloader.custom_annotations }}
+            {{- if .Values.reloader.custom_annotations.configmap }}
+            - "--configmap-annotation"
+            - "{{ .Values.reloader.custom_annotations.configmap }}"
+            {{- end }}
+            {{- if .Values.reloader.custom_annotations.secret }}
+            - "--secret-annotation"
+            - "{{ .Values.reloader.custom_annotations.secret }}"
+            {{- end }}
+            {{- if .Values.reloader.custom_annotations.auto }}
+            - "--auto-annotation"
+            - "{{ .Values.reloader.custom_annotations.auto }}"
+            {{- end }}
+          {{- end }}
+
       {{- if .Values.reloader.deployment.resources }}
         resources:
 {{ toYaml .Values.reloader.deployment.resources | indent 10 }}
