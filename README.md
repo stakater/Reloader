@@ -123,6 +123,7 @@ Reloader can be configured to ignore the resources `secrets` and `configmaps` by
 | --resources-to-ignore=configMaps | To ignore configMaps |
 | --resources-to-ignore=secrets | To ignore secrets |
 
+`Note`: At one time only one of these resource can be ignored, trying to do it will cause error in Reloader. Workaround for ignoring both resources is by scaling down the reloader pods to `0`. 
 
 
 ### Vanilla kustomize
@@ -169,10 +170,13 @@ helm install stakater/reloader --set reloader.watchGlobally=false --namespace te
 
 Reloader can be configured to ignore the resources `secrets` and `configmaps` by using the following parameters of `values.yaml` file:
 
-| Parameter | Description |
+| Parameter | Description | Type | 
 |---|---|
-| ignoreSecrets | To ignore secrets |
-| ignoreConfigMaps | To ignore configMaps |
+| ignoreSecrets | To ignore secrets. Valid value are either `true` or `false` | boolean |
+| ignoreConfigMaps | To ignore configMaps. Valid value are either `true` or `false` | boolean |
+
+`Note`: At one time only one of these resource can be ignored, trying to do it will cause error in helm template compilation.
+
 
 
 ## Help
