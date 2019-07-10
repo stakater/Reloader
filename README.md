@@ -114,7 +114,16 @@ You can apply vanilla manifests by running the following command
 kubectl apply -f https://raw.githubusercontent.com/stakater/Reloader/master/deployments/kubernetes/reloader.yaml
 ```
 
-By default Reloader gets deployed in `default` namespace and watches changes `secrets` and `configmaps` in all namespaces.
+By default Reloader gets deployed in `default` namespace and watches changes `secrets` and `configmaps` in all namespaces. 
+
+Reloader can be configured to ignore the resources `secrets` and `configmaps` by passing the following args (`spec.template.spec.containers.args`) to its container :
+
+| Args | Description |
+|---|---|
+| --resources-to-ignore=configMaps | To ignore configMaps |
+| --resources-to-ignore=secrets | To ignore secrets |
+
+
 
 ### Vanilla kustomize
 
@@ -157,6 +166,14 @@ helm install stakater/reloader
 ```bash
 helm install stakater/reloader --set reloader.watchGlobally=false --namespace test
 ```
+
+Reloader can be configured to ignore the resources `secrets` and `configmaps` by using the following parameters of `values.yaml` file:
+
+| Parameter | Description |
+|---|---|
+| ignoreSecrets | To ignore secrets |
+| ignoreConfigMaps | To ignore configMaps |
+
 
 ## Help
 
