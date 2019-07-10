@@ -170,8 +170,8 @@ helm install stakater/reloader --set reloader.watchGlobally=false --namespace te
 
 Reloader can be configured to ignore the resources `secrets` and `configmaps` by using the following parameters of `values.yaml` file:
 
-| Parameter | Description | Type | 
-|---|---|
+| Parameter | Description | Type |
+|---|---|---|
 | ignoreSecrets | To ignore secrets. Valid value are either `true` or `false` | boolean |
 | ignoreConfigMaps | To ignore configMaps. Valid value are either `true` or `false` | boolean |
 
