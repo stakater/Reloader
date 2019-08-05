@@ -26,7 +26,7 @@ rules:
       - list
       - get
       - watch
-{{- if .Capabilities.APIVersions.Has "apps.openshift.io/v1" }}
+{{- if or (.Capabilities.APIVersions.Has "apps.openshift.io/v1") (.Values.isOpenshift) }}
   - apiGroups:
       - "apps.openshift.io"
       - ""
