@@ -13,13 +13,13 @@ metadata:
 {{- if .Values.reloader.matchLabels }}
 {{ toYaml .Values.reloader.matchLabels | indent 4 }}
 {{- end }}
-  name: {{ template "reloader-name" . }}
+  name: {{ template "reloader-fullname" . }}
 spec:
   replicas: 1
   revisionHistoryLimit: 2
   selector:
     matchLabels:
-      app: {{ template "reloader-name" . }}
+      app: {{ template "reloader-fullname" . }}
       release: {{ .Release.Name | quote }}
 {{- if .Values.reloader.matchLabels }}
 {{ toYaml .Values.reloader.matchLabels | indent 6 }}
@@ -81,7 +81,7 @@ spec:
       {{- end }}
         image: "{{ .Values.reloader.deployment.image.name }}:{{ .Values.reloader.deployment.image.tag }}"
         imagePullPolicy: {{ .Values.reloader.deployment.image.pullPolicy }}
-        name: {{ template "reloader-name" . }}
+        name: {{ template "reloader-fullname" . }}
       {{- if eq .Values.reloader.readOnlyRootFileSystem true }}
         volumeMounts:
           - mountPath: /tmp/

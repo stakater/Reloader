@@ -2,6 +2,7 @@
 {{/*
 Expand the name of the chart.
 */}}
+
 {{- define "reloader-name" -}}
 {{- default .Chart.Name .Values.nameOverride | trunc 63 | trimSuffix "-" | lower -}}
 {{- end -}}
@@ -16,7 +17,7 @@ We truncate at 63 chars because some Kubernetes name fields are limited to this 
 {{- end -}}
 
 {{- define "reloader-labels.chart" -}}
-app: {{ template "reloader-name" . }}
+app: {{ template "reloader-fullname" . }}
 chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
 release: {{ .Release.Name | quote }}
 heritage: {{ .Release.Service | quote }}

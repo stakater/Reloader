@@ -32,6 +32,9 @@ spec:
         version: v0.0.38
         
     spec:
+      nodeSelector:
+      affinity:
+      tolerations:
       containers:
       - env:
         image: "stakater/reloader:v0.0.38"
