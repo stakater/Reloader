@@ -4,42 +4,39 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   labels:
-    app: reloader
-    chart: "reloader-v0.0.38"
+    app: RELEASE-NAME-reloader
+    chart: "reloader-v0.0.39"
     release: "RELEASE-NAME"
     heritage: "Tiller"
     group: com.stakater.platform
     provider: stakater
-    version: v0.0.38
+    version: v0.0.39
     
-  name: reloader
+  name: RELEASE-NAME-reloader
 spec:
   replicas: 1
   revisionHistoryLimit: 2
   selector:
     matchLabels:
-      app: reloader
+      app: RELEASE-NAME-reloader
       release: "RELEASE-NAME"
   template:
     metadata:
       labels:
-        app: reloader
-        chart: "reloader-v0.0.38"
+        app: RELEASE-NAME-reloader
+        chart: "reloader-v0.0.39"
         release: "RELEASE-NAME"
         heritage: "Tiller"
         group: com.stakater.platform
         provider: stakater
-        version: v0.0.38
+        version: v0.0.39
         
     spec:
-      nodeSelector:
-      affinity:
-      tolerations:
       containers:
       - env:
-        image: "stakater/reloader:v0.0.38"
+        image: "stakater/reloader:v0.0.39"
         imagePullPolicy: IfNotPresent
-        name: reloader
+        name: RELEASE-NAME-reloader
         args:
       serviceAccountName: reloader
 
