@@ -30,7 +30,7 @@ func TestMain(m *testing.M) {
 
 	logrus.Infof("Creating controller")
 	for k := range kube.ResourceMap {
-		c, err := NewController(clients.KubernetesClient, k, namespace)
+		c, err := NewController(clients.KubernetesClient, k, namespace, []string{})
 		if err != nil {
 			logrus.Fatalf("%s", err)
 		}
@@ -1075,4 +1075,26 @@ func TestControllerUpdatingSecretShouldUpdateEnvInStatefulSet(t *testing.T) {
 		logrus.Errorf("Error while deleting the secret %v", err)
 	}
 	time.Sleep(3 * time.Second)
+}
+
+// Verify filtering of namespaces
+func TestInAllowedNamespace(t *testing.T) {
+
+	config := testutil.GetSecret("kube-system", "test", "test")
+	secret := testutil.GetConfigmap("kube-system", "test", "test")
+
+	if inAllowedNamespace(config, []string{"kube-system"}) {
+		t.Errorf("Should not be allowed to run")
+	}
+	if inAllowedNamespace(secret, []string{"kube-system"}) {
+		t.Errorf("Should not be allowed to run")
+	}
+
+	if !inAllowedNamespace(config, []string{"my-app-namespace"}) {
+		t.Errorf("Should be allowed to run")
+	}
+
+	if !inAllowedNamespace(secret, []string{"my-app-namespace"}) {
+		t.Errorf("Should be allowed to run")
+	}
 }

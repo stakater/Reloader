@@ -25,12 +25,14 @@ func NewReloaderCommand() *cobra.Command {
 	cmd.PersistentFlags().StringVar(&options.SecretUpdateOnChangeAnnotation, "secret-annotation", "secret.reloader.stakater.com/reload", "annotation to detect changes in secrets")
 	cmd.PersistentFlags().StringVar(&options.ReloaderAutoAnnotation, "auto-annotation", "reloader.stakater.com/auto", "annotation to detect changes in secrets")
 	cmd.PersistentFlags().StringSlice("resources-to-ignore", []string{}, "list of resources to ignore (valid options 'configMaps' or 'secrets')")
+	cmd.PersistentFlags().StringSlice("namespaces-to-ignore", []string{}, "list of namespaces to ignore (for example 'kube-system,nginx-ingress' )")
 
 	return cmd
 }
 
 func startReloader(cmd *cobra.Command, args []string) {
 	var ignoreList util.List
+	var namespacesIgnoreList util.List
 	var err error
 
 	logrus.Info("Starting Reloader")
@@ -51,6 +53,11 @@ func startReloader(cmd *cobra.Command, args []string) {
 		logrus.Fatal(err)
 	}
 
+	namespacesIgnoreList, err = cmd.Flags().GetStringSlice("namespaces-to-ignore")
+	if err != nil {
+		logrus.Fatal(err)
+	}
+
 	for _, v := range ignoreList {
 		if v != "configMaps" && v != "secrets" {
 			logrus.Fatalf("'resources-to-ignore' only accepts 'configMaps' or 'secrets', not '%s'", v)
@@ -66,7 +73,7 @@ func startReloader(cmd *cobra.Command, args []string) {
 			continue
 		}
 
-		c, err := controller.NewController(clientset, k, currentNamespace)
+		c, err := controller.NewController(clientset, k, currentNamespace, namespacesIgnoreList)
 		if err != nil {
 			logrus.Fatalf("%s", err)
 		}

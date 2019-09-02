@@ -7,6 +7,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/stakater/Reloader/internal/pkg/handler"
 	"github.com/stakater/Reloader/pkg/kube"
+	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/apimachinery/pkg/util/wait"
@@ -17,16 +18,17 @@ import (
 
 // Controller for checking events
 type Controller struct {
-	client    kubernetes.Interface
-	indexer   cache.Indexer
-	queue     workqueue.RateLimitingInterface
-	informer  cache.Controller
-	namespace string
+	client             kubernetes.Interface
+	indexer            cache.Indexer
+	queue              workqueue.RateLimitingInterface
+	informer           cache.Controller
+	namespace          string
+	excludedNamespaces []string
 }
 
 // NewController for initializing a Controller
 func NewController(
-	client kubernetes.Interface, resource string, namespace string) (*Controller, error) {
+	client kubernetes.Interface, resource string, namespace string, excludedNamespaces []string) (*Controller, error) {
 
 	c := Controller{
 		client:    client,
@@ -44,22 +46,27 @@ func NewController(
 	c.indexer = indexer
 	c.informer = informer
 	c.queue = queue
+	c.excludedNamespaces = excludedNamespaces
 	return &c, nil
 }
 
 // Add function to add a new object to the queue in case of creating a resource
 func (c *Controller) Add(obj interface{}) {
-	c.queue.Add(handler.ResourceCreatedHandler{
-		Resource: obj,
-	})
+	if inAllowedNamespace(obj, c.excludedNamespaces) {
+		c.queue.Add(handler.ResourceCreatedHandler{
+			Resource: obj,
+		})
+	}
 }
 
 // Update function to add an old object and a new object to the queue in case of updating a resource
 func (c *Controller) Update(old interface{}, new interface{}) {
-	c.queue.Add(handler.ResourceUpdatedHandler{
-		Resource:    new,
-		OldResource: old,
-	})
+	if inAllowedNamespace(new, c.excludedNamespaces) {
+		c.queue.Add(handler.ResourceUpdatedHandler{
+			Resource:    new,
+			OldResource: old,
+		})
+	}
 }
 
 // Delete function to add an object to the queue in case of deleting a resource
@@ -137,4 +144,17 @@ func (c *Controller) handleErr(err error, key interface{}) {
 	// Report to an external entity that, even after several retries, we could not successfully process this key
 	runtime.HandleError(err)
 	logrus.Infof("Dropping the key %q out of the queue: %v", key, err)
+}
+
+func inAllowedNamespace(raw interface{}, namespaces []string) bool {
+	switch object := raw.(type) {
+	case *v1.ConfigMap:
+	case *v1.Secret:
+		for _, namespace := range namespaces {
+			if object.ObjectMeta.Namespace == namespace {
+				return false
+			}
+		}
+	}
+	return true
 }
