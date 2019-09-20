@@ -1,7 +1,5 @@
 #!/usr/bin/groovy
-@Library('github.com/stakater/fabric8-pipeline-library@v2.10.8')
-
-def dummy
+@Library('github.com/stakater/stakater-pipeline-library@v2.16.4')_
 
 goBuildAndRelease {
     chartRepositoryURL = 'https://chartmuseum.release.stakater.com'
