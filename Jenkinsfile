@@ -1,5 +1,5 @@
 #!/usr/bin/groovy
-@Library('github.com/stakater/stakater-pipeline-library@update-helm-template-command')_
+@Library('github.com/stakater/stakater-pipeline-library@v2.16.6')_
 
 goBuildAndRelease {
     chartRepositoryURL = 'https://chartmuseum.release.stakater.com'
