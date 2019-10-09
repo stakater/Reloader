@@ -111,7 +111,7 @@ You can deploy Reloader by following methods:
 You can apply vanilla manifests by changing `RELEASE-NAME` placeholder provided in manifest with a proper value and apply it by running the command given below:
 
 ```bash
-curl https://raw.githubusercontent.com/stakater/Reloader/master/deployments/kubernetes/reloader.yaml | sed 's/RELEASE-NAME-//g' |sed 's/RELEASE-NAME/v0.0.40/g'|kubectl apply -f -
+kubectl apply -f https://raw.githubusercontent.com/stakater/Reloader/master/deployments/kubernetes/reloader.yaml
 ```
 
 By default Reloader gets deployed in `default` namespace and watches changes `secrets` and `configmaps` in all namespaces. 
