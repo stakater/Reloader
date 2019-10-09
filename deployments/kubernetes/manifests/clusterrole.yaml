@@ -5,11 +5,11 @@ apiVersion: rbac.authorization.k8s.io/v1beta1
 kind: ClusterRole
 metadata:
   labels:
-    app: RELEASE-NAME-reloader
-    chart: "reloader-v0.0.40"
-    release: "RELEASE-NAME"
+    app: reloader-reloader
+    chart: "reloader-v0.0.41"
+    release: "reloader"
     heritage: "Tiller"
-  name: RELEASE-NAME-reloader-role
+  name: reloader-reloader-role
   namespace: default
 rules:
   - apiGroups:

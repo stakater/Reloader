@@ -5,18 +5,18 @@ apiVersion: rbac.authorization.k8s.io/v1beta1
 kind: ClusterRoleBinding
 metadata:
   labels:
-    app: RELEASE-NAME-reloader
-    chart: "reloader-v0.0.40"
-    release: "RELEASE-NAME"
+    app: reloader-reloader
+    chart: "reloader-v0.0.41"
+    release: "reloader"
     heritage: "Tiller"
-  name: RELEASE-NAME-reloader-role-binding
+  name: reloader-reloader-role-binding
   namespace: default
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
-  name: RELEASE-NAME-reloader-role
+  name: reloader-reloader-role
 subjects:
   - kind: ServiceAccount
-    name: RELEASE-NAME-reloader
+    name: reloader-reloader
     namespace: default
 

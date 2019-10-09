@@ -8,41 +8,41 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   labels:
-    app: RELEASE-NAME-reloader
-    chart: "reloader-v0.0.40"
-    release: "RELEASE-NAME"
+    app: reloader-reloader
+    chart: "reloader-v0.0.41"
+    release: "reloader"
     heritage: "Tiller"
     group: com.stakater.platform
     provider: stakater
-    version: v0.0.40
+    version: v0.0.41
     
-  name: RELEASE-NAME-reloader
+  name: reloader-reloader
 spec:
   replicas: 1
   revisionHistoryLimit: 2
   selector:
     matchLabels:
-      app: RELEASE-NAME-reloader
-      release: "RELEASE-NAME"
+      app: reloader-reloader
+      release: "reloader"
   template:
     metadata:
       labels:
-        app: RELEASE-NAME-reloader
-        chart: "reloader-v0.0.40"
-        release: "RELEASE-NAME"
+        app: reloader-reloader
+        chart: "reloader-v0.0.41"
+        release: "reloader"
         heritage: "Tiller"
         group: com.stakater.platform
         provider: stakater
-        version: v0.0.40
+        version: v0.0.41
         
     spec:
       containers:
       - env:
-        image: "stakater/reloader:v0.0.40"
+        image: "stakater/reloader:v0.0.41"
         imagePullPolicy: IfNotPresent
-        name: RELEASE-NAME-reloader
+        name: reloader-reloader
         args:
-      serviceAccountName: RELEASE-NAME-reloader
+      serviceAccountName: reloader-reloader
 
 ---
 # Source: reloader/templates/clusterrole.yaml
@@ -51,11 +51,11 @@ apiVersion: rbac.authorization.k8s.io/v1beta1
 kind: ClusterRole
 metadata:
   labels:
-    app: RELEASE-NAME-reloader
-    chart: "reloader-v0.0.40"
-    release: "RELEASE-NAME"
+    app: reloader-reloader
+    chart: "reloader-v0.0.41"
+    release: "reloader"
     heritage: "Tiller"
-  name: RELEASE-NAME-reloader-role
+  name: reloader-reloader-role
   namespace: default
 rules:
   - apiGroups:
@@ -100,19 +100,19 @@ apiVersion: rbac.authorization.k8s.io/v1beta1
 kind: ClusterRoleBinding
 metadata:
   labels:
-    app: RELEASE-NAME-reloader
-    chart: "reloader-v0.0.40"
-    release: "RELEASE-NAME"
+    app: reloader-reloader
+    chart: "reloader-v0.0.41"
+    release: "reloader"
     heritage: "Tiller"
-  name: RELEASE-NAME-reloader-role-binding
+  name: reloader-reloader-role-binding
   namespace: default
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
-  name: RELEASE-NAME-reloader-role
+  name: reloader-reloader-role
 subjects:
   - kind: ServiceAccount
-    name: RELEASE-NAME-reloader
+    name: reloader-reloader
     namespace: default
 
 ---
@@ -122,9 +122,9 @@ apiVersion: v1
 kind: ServiceAccount
 metadata:
   labels:
-    app: RELEASE-NAME-reloader
-    chart: "reloader-v0.0.40"
-    release: "RELEASE-NAME"
+    app: reloader-reloader
+    chart: "reloader-v0.0.41"
+    release: "reloader"
     heritage: "Tiller"
-  name: RELEASE-NAME-reloader
+  name: reloader-reloader
 
