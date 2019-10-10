@@ -88,7 +88,6 @@ spec:
             name: tmp-volume
       {{- end }}
         args:
-          
           {{- if .Values.reloader.ignoreSecrets }}
           - "--resources-to-ignore=secrets"
           {{- end }}
@@ -115,6 +114,9 @@ spec:
         resources:
 {{ toYaml .Values.reloader.deployment.resources | indent 10 }}
       {{- end }}
+{{- if .Values.reloader.deployment.securityContext }}
+      securityContext: {{ toYaml .Values.reloader.deployment.securityContext | nindent 8 }}
+{{- end }}
       serviceAccountName: {{ template "reloader-serviceAccountName" . }}
     {{- if eq .Values.reloader.readOnlyRootFileSystem true }}
       volumes:
