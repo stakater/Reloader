@@ -1,4 +1,10 @@
 # Generated from deployments/kubernetes/templates/chart/values.yaml.tmpl
+global:
+  ## Reference to one or more secrets to be used when pulling images
+  ## ref: https://kubernetes.io/docs/tasks/configure-pod-container/pull-image-private-registry/
+  ##
+  imagePullSecrets: []
+  # - name: "image-pull-secret"
 
 kubernetes:
   host: https://kubernetes.default
@@ -62,6 +68,9 @@ reloader:
     #     cpu: "10m"
     #     memory: "128Mi"
     resources: {}
+    # https://kubernetes.io/docs/tasks/configure-pod-container/security-context/
+    securityContext: {}
+    # runAsUser: 1000
 
   rbac:
     enabled: true
@@ -73,7 +82,7 @@ reloader:
     labels: {}
     # The name of the ServiceAccount to use.
     # If not set and create is true, a name is generated using the fullname template
-    name: 
+    name:
   # Optional flags to pass to the Reloader entrypoint
   # Example:
   #   custom_annotations:
