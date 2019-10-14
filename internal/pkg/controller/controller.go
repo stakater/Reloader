@@ -73,10 +73,12 @@ func (c *Controller) resourceInIgnoredNamespace(raw interface{}) bool {
 
 // Update function to add an old object and a new object to the queue in case of updating a resource
 func (c *Controller) Update(old interface{}, new interface{}) {
-	c.queue.Add(handler.ResourceUpdatedHandler{
-		Resource:    new,
-		OldResource: old,
-	})
+	if !c.resourceInIgnoredNamespace(new) {
+		c.queue.Add(handler.ResourceUpdatedHandler{
+			Resource:    new,
+			OldResource: old,
+		})
+	}
 }
 
 // Delete function to add an object to the queue in case of deleting a resource
