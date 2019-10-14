@@ -12,6 +12,9 @@ import (
 	"github.com/stakater/Reloader/internal/pkg/testutil"
 	"github.com/stakater/Reloader/internal/pkg/util"
 	"github.com/stakater/Reloader/pkg/kube"
+	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/tools/cache"
+	"k8s.io/client-go/util/workqueue"
 )
 
 var (
@@ -30,7 +33,7 @@ func TestMain(m *testing.M) {
 
 	logrus.Infof("Creating controller")
 	for k := range kube.ResourceMap {
-		c, err := NewController(clients.KubernetesClient, k, namespace)
+		c, err := NewController(clients.KubernetesClient, k, namespace, []string{})
 		if err != nil {
 			logrus.Fatalf("%s", err)
 		}
@@ -1075,4 +1078,88 @@ func TestControllerUpdatingSecretShouldUpdateEnvInStatefulSet(t *testing.T) {
 		logrus.Errorf("Error while deleting the secret %v", err)
 	}
 	time.Sleep(3 * time.Second)
+}
+
+func TestController_resourceInIgnoredNamespace(t *testing.T) {
+	type fields struct {
+		client            kubernetes.Interface
+		indexer           cache.Indexer
+		queue             workqueue.RateLimitingInterface
+		informer          cache.Controller
+		namespace         string
+		ignoredNamespaces util.List
+	}
+	type args struct {
+		raw interface{}
+	}
+	tests := []struct {
+		name   string
+		fields fields
+		args   args
+		want   bool
+	}{
+		{
+			name: "TestConfigMapResourceInIgnoredNamespaceShouldReturnTrue",
+			fields: fields{
+				ignoredNamespaces: util.List{
+					"system",
+				},
+			},
+			args: args{
+				raw: testutil.GetConfigmap("system", "testcm", "test"),
+			},
+			want: true,
+		},
+		{
+			name: "TestSecretResourceInIgnoredNamespaceShouldReturnTrue",
+			fields: fields{
+				ignoredNamespaces: util.List{
+					"system",
+				},
+			},
+			args: args{
+				raw: testutil.GetSecret("system", "testsecret", "test"),
+			},
+			want: true,
+		},
+		{
+			name: "TestConfigMapResourceInIgnoredNamespaceShouldReturnFalse",
+			fields: fields{
+				ignoredNamespaces: util.List{
+					"system",
+				},
+			},
+			args: args{
+				raw: testutil.GetConfigmap("some-other-namespace", "testcm", "test"),
+			},
+			want: false,
+		},
+		{
+			name: "TestConfigMapResourceInIgnoredNamespaceShouldReturnFalse",
+			fields: fields{
+				ignoredNamespaces: util.List{
+					"system",
+				},
+			},
+			args: args{
+				raw: testutil.GetSecret("some-other-namespace", "testsecret", "test"),
+			},
+			want: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			c := &Controller{
+				client:            tt.fields.client,
+				indexer:           tt.fields.indexer,
+				queue:             tt.fields.queue,
+				informer:          tt.fields.informer,
+				namespace:         tt.fields.namespace,
+				ignoredNamespaces: tt.fields.ignoredNamespaces,
+			}
+			if got := c.resourceInIgnoredNamespace(tt.args.raw); got != tt.want {
+				t.Errorf("Controller.resourceInIgnoredNamespace() = %v, want %v", got, tt.want)
+			}
+		})
+	}
 }

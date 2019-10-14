@@ -6,6 +6,7 @@ import (
 
 	"github.com/sirupsen/logrus"
 	"github.com/stakater/Reloader/internal/pkg/handler"
+	"github.com/stakater/Reloader/internal/pkg/util"
 	"github.com/stakater/Reloader/pkg/kube"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/util/runtime"
@@ -13,24 +14,28 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/workqueue"
+
+	v1 "k8s.io/api/core/v1"
 )
 
 // Controller for checking events
 type Controller struct {
-	client    kubernetes.Interface
-	indexer   cache.Indexer
-	queue     workqueue.RateLimitingInterface
-	informer  cache.Controller
-	namespace string
+	client            kubernetes.Interface
+	indexer           cache.Indexer
+	queue             workqueue.RateLimitingInterface
+	informer          cache.Controller
+	namespace         string
+	ignoredNamespaces util.List
 }
 
 // NewController for initializing a Controller
 func NewController(
-	client kubernetes.Interface, resource string, namespace string) (*Controller, error) {
+	client kubernetes.Interface, resource string, namespace string, ignoredNamespaces []string) (*Controller, error) {
 
 	c := Controller{
-		client:    client,
-		namespace: namespace,
+		client:            client,
+		namespace:         namespace,
+		ignoredNamespaces: ignoredNamespaces,
 	}
 
 	queue := workqueue.NewRateLimitingQueue(workqueue.DefaultControllerRateLimiter())
@@ -49,9 +54,21 @@ func NewController(
 
 // Add function to add a new object to the queue in case of creating a resource
 func (c *Controller) Add(obj interface{}) {
-	c.queue.Add(handler.ResourceCreatedHandler{
-		Resource: obj,
-	})
+	if !c.resourceInIgnoredNamespace(obj) {
+		c.queue.Add(handler.ResourceCreatedHandler{
+			Resource: obj,
+		})
+	}
+}
+
+func (c *Controller) resourceInIgnoredNamespace(raw interface{}) bool {
+	switch object := raw.(type) {
+	case *v1.ConfigMap:
+		return c.ignoredNamespaces.Contains(object.ObjectMeta.Namespace)
+	case *v1.Secret:
+		return c.ignoredNamespaces.Contains(object.ObjectMeta.Namespace)
+	}
+	return false
 }
 
 // Update function to add an old object and a new object to the queue in case of updating a resource

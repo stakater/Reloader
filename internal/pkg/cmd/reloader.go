@@ -1,6 +1,8 @@
 package cmd
 
 import (
+	"errors"
+	"fmt"
 	"os"
 
 	"github.com/sirupsen/logrus"
@@ -25,14 +27,11 @@ func NewReloaderCommand() *cobra.Command {
 	cmd.PersistentFlags().StringVar(&options.SecretUpdateOnChangeAnnotation, "secret-annotation", "secret.reloader.stakater.com/reload", "annotation to detect changes in secrets")
 	cmd.PersistentFlags().StringVar(&options.ReloaderAutoAnnotation, "auto-annotation", "reloader.stakater.com/auto", "annotation to detect changes in secrets")
 	cmd.PersistentFlags().StringSlice("resources-to-ignore", []string{}, "list of resources to ignore (valid options 'configMaps' or 'secrets')")
-
+	cmd.PersistentFlags().StringSlice("namespaces-to-ignore", []string{}, "list of namespaces to ignore")
 	return cmd
 }
 
 func startReloader(cmd *cobra.Command, args []string) {
-	var ignoreList util.List
-	var err error
-
 	logrus.Info("Starting Reloader")
 	currentNamespace := os.Getenv("KUBERNETES_NAMESPACE")
 	if len(currentNamespace) == 0 {
@@ -46,27 +45,22 @@ func startReloader(cmd *cobra.Command, args []string) {
 		logrus.Fatal(err)
 	}
 
-	ignoreList, err = cmd.Flags().GetStringSlice("resources-to-ignore")
+	ignoredResourcesList, err := getIgnoredResourcesList(cmd)
 	if err != nil {
 		logrus.Fatal(err)
 	}
 
-	for _, v := range ignoreList {
-		if v != "configMaps" && v != "secrets" {
-			logrus.Fatalf("'resources-to-ignore' only accepts 'configMaps' or 'secrets', not '%s'", v)
-		}
-	}
-
-	if len(ignoreList) > 1 {
-		logrus.Fatal("'resources-to-ignore' only accepts 'configMaps' or 'secrets', not both")
+	ignoredNamespacesList, err := getIgnoredNamespacesList(cmd)
+	if err != nil {
+		logrus.Fatal(err)
 	}
 
 	for k := range kube.ResourceMap {
-		if ignoreList.Contains(k) {
+		if ignoredResourcesList.Contains(k) {
 			continue
 		}
 
-		c, err := controller.NewController(clientset, k, currentNamespace)
+		c, err := controller.NewController(clientset, k, currentNamespace, ignoredNamespacesList)
 		if err != nil {
 			logrus.Fatalf("%s", err)
 		}
@@ -80,4 +74,37 @@ func startReloader(cmd *cobra.Command, args []string) {
 
 	// Wait forever
 	select {}
+}
+
+func getIgnoredNamespacesList(cmd *cobra.Command) (util.List, error) {
+	return getStringSliceFromFlags(cmd, "namespaces-to-ignore")
+}
+
+func getStringSliceFromFlags(cmd *cobra.Command, flag string) ([]string, error) {
+	slice, err := cmd.Flags().GetStringSlice(flag)
+	if err != nil {
+		return nil, err
+	}
+
+	return slice, nil
+}
+
+func getIgnoredResourcesList(cmd *cobra.Command) (util.List, error) {
+
+	ignoredResourcesList, err := getStringSliceFromFlags(cmd, "resources-to-ignore")
+	if err != nil {
+		return nil, err
+	}
+
+	for _, v := range ignoredResourcesList {
+		if v != "configMaps" && v != "secrets" {
+			return nil, fmt.Errorf("'resources-to-ignore' only accepts 'configMaps' or 'secrets', not '%s'", v)
+		}
+	}
+
+	if len(ignoredResourcesList) > 1 {
+		return nil, errors.New("'resources-to-ignore' only accepts 'configMaps' or 'secrets', not both")
+	}
+
+	return ignoredResourcesList, nil
 }
