@@ -13,14 +13,13 @@ VERSION=$(shell cat .version)
 BUILD=
 
 GOCMD = go
-GLIDECMD = glide
 GOFLAGS ?= $(GOFLAGS:)
 LDFLAGS =
 
 default: build test
 
 install:
-	"$(GLIDECMD)" install --strip-vendor
+	"$(GOCMD)" mod download
 
 build:
 	"$(GOCMD)" build ${GOFLAGS} ${LDFLAGS} -o "${BINARY}"
