@@ -1,4 +1,4 @@
-FROM stakater/go-glide:1.12.6
+FROM golang:1.13.1-alpine
 MAINTAINER "Stakater Team"
 
 RUN apk update
@@ -11,7 +11,7 @@ RUN apk -v --update \
 ADD . "$GOPATH/src/github.com/stakater/Reloader"
 
 RUN cd "$GOPATH/src/github.com/stakater/Reloader" && \
-    glide install --strip-vendor && \
+    go mod download && \
     CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -a --installsuffix cgo --ldflags="-s" -o /Reloader
 
 COPY build/package/Dockerfile.run /

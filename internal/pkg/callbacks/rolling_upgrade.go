@@ -66,7 +66,7 @@ func GetStatefulSetItems(clients kube.Clients, namespace string) []interface{} {
 
 // GetDeploymentConfigItems returns the deploymentConfigs in given namespace
 func GetDeploymentConfigItems(clients kube.Clients, namespace string) []interface{} {
-	deploymentConfigs, err := clients.OpenshiftAppsClient.Apps().DeploymentConfigs(namespace).List(meta_v1.ListOptions{})
+	deploymentConfigs, err := clients.OpenshiftAppsClient.AppsV1().DeploymentConfigs(namespace).List(meta_v1.ListOptions{})
 	if err != nil {
 		logrus.Errorf("Failed to list deploymentConfigs %v", err)
 	}
