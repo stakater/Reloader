@@ -4,7 +4,6 @@ global:
   ## ref: https://kubernetes.io/docs/tasks/configure-pod-container/pull-image-private-registry/
   ##
   imagePullSecrets: []
-  # - name: "image-pull-secret"
 
 kubernetes:
   host: https://kubernetes.default
@@ -44,10 +43,10 @@ reloader:
     labels:
       provider: stakater
       group: com.stakater.platform
-      version: v0.0.41
+      version: v0.0.42
     image:
       name: stakater/reloader
-      tag: "v0.0.41"
+      tag: "v0.0.42"
       pullPolicy: IfNotPresent
     # Support for extra environment variables.
     env:
@@ -68,9 +67,6 @@ reloader:
     #     cpu: "10m"
     #     memory: "128Mi"
     resources: {}
-    # https://kubernetes.io/docs/tasks/configure-pod-container/security-context/
-    securityContext: {}
-    # runAsUser: 1000
 
   rbac:
     enabled: true
@@ -82,7 +78,7 @@ reloader:
     labels: {}
     # The name of the ServiceAccount to use.
     # If not set and create is true, a name is generated using the fullname template
-    name:
+    name: 
   # Optional flags to pass to the Reloader entrypoint
   # Example:
   #   custom_annotations:
