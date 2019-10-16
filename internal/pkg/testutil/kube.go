@@ -277,7 +277,7 @@ func GetDeployment(namespace string, deploymentName string) *appsv1.Deployment {
 		ObjectMeta: getObjectMeta(namespace, deploymentName, false),
 		Spec: appsv1.DeploymentSpec{
 			Selector: &metav1.LabelSelector{
-				MatchLabels: map[string]string{"firstLabel": "temp"},
+				MatchLabels: map[string]string{"secondLabel": "temp"},
 			},
 			Replicas: &replicaset,
 			Strategy: appsv1.DeploymentStrategy{
@@ -311,7 +311,7 @@ func GetDeploymentWithInitContainer(namespace string, deploymentName string) *ap
 		ObjectMeta: getObjectMeta(namespace, deploymentName, false),
 		Spec: appsv1.DeploymentSpec{
 			Selector: &metav1.LabelSelector{
-				MatchLabels: map[string]string{"firstLabel": "temp"},
+				MatchLabels: map[string]string{"secondLabel": "temp"},
 			},
 			Replicas: &replicaset,
 			Strategy: appsv1.DeploymentStrategy{
@@ -329,7 +329,7 @@ func GetDeploymentWithInitContainerAndEnv(namespace string, deploymentName strin
 		ObjectMeta: getObjectMeta(namespace, deploymentName, true),
 		Spec: appsv1.DeploymentSpec{
 			Selector: &metav1.LabelSelector{
-				MatchLabels: map[string]string{"firstLabel": "temp"},
+				MatchLabels: map[string]string{"secondLabel": "temp"},
 			},
 			Replicas: &replicaset,
 			Strategy: appsv1.DeploymentStrategy{
@@ -346,7 +346,7 @@ func GetDeploymentWithEnvVars(namespace string, deploymentName string) *appsv1.D
 		ObjectMeta: getObjectMeta(namespace, deploymentName, true),
 		Spec: appsv1.DeploymentSpec{
 			Selector: &metav1.LabelSelector{
-				MatchLabels: map[string]string{"firstLabel": "temp"},
+				MatchLabels: map[string]string{"secondLabel": "temp"},
 			},
 			Replicas: &replicaset,
 			Strategy: appsv1.DeploymentStrategy{
@@ -378,7 +378,7 @@ func GetDeploymentWithEnvVarSources(namespace string, deploymentName string) *ap
 		ObjectMeta: getObjectMeta(namespace, deploymentName, true),
 		Spec: appsv1.DeploymentSpec{
 			Selector: &metav1.LabelSelector{
-				MatchLabels: map[string]string{"firstLabel": "temp"},
+				MatchLabels: map[string]string{"secondLabel": "temp"},
 			},
 			Replicas: &replicaset,
 			Strategy: appsv1.DeploymentStrategy{
@@ -395,7 +395,7 @@ func GetDaemonSet(namespace string, daemonsetName string) *appsv1.DaemonSet {
 		ObjectMeta: getObjectMeta(namespace, daemonsetName, false),
 		Spec: appsv1.DaemonSetSpec{
 			Selector: &metav1.LabelSelector{
-				MatchLabels: map[string]string{"firstLabel": "temp"},
+				MatchLabels: map[string]string{"secondLabel": "temp"},
 			},
 			UpdateStrategy: appsv1.DaemonSetUpdateStrategy{
 				Type: appsv1.RollingUpdateDaemonSetStrategyType,
@@ -410,7 +410,7 @@ func GetDaemonSetWithEnvVars(namespace string, daemonSetName string) *appsv1.Dae
 		ObjectMeta: getObjectMeta(namespace, daemonSetName, true),
 		Spec: appsv1.DaemonSetSpec{
 			Selector: &metav1.LabelSelector{
-				MatchLabels: map[string]string{"firstLabel": "temp"},
+				MatchLabels: map[string]string{"secondLabel": "temp"},
 			},
 			UpdateStrategy: appsv1.DaemonSetUpdateStrategy{
 				Type: appsv1.RollingUpdateDaemonSetStrategyType,
@@ -426,7 +426,7 @@ func GetStatefulSet(namespace string, statefulsetName string) *appsv1.StatefulSe
 		ObjectMeta: getObjectMeta(namespace, statefulsetName, false),
 		Spec: appsv1.StatefulSetSpec{
 			Selector: &metav1.LabelSelector{
-				MatchLabels: map[string]string{"firstLabel": "temp"},
+				MatchLabels: map[string]string{"secondLabel": "temp"},
 			},
 			UpdateStrategy: appsv1.StatefulSetUpdateStrategy{
 				Type: appsv1.RollingUpdateStatefulSetStrategyType,
@@ -442,7 +442,7 @@ func GetStatefulSetWithEnvVar(namespace string, statefulsetName string) *appsv1.
 		ObjectMeta: getObjectMeta(namespace, statefulsetName, true),
 		Spec: appsv1.StatefulSetSpec{
 			Selector: &metav1.LabelSelector{
-				MatchLabels: map[string]string{"firstLabel": "temp"},
+				MatchLabels: map[string]string{"secondLabel": "temp"},
 			},
 			UpdateStrategy: appsv1.StatefulSetUpdateStrategy{
 				Type: appsv1.RollingUpdateStatefulSetStrategyType,
