@@ -4,9 +4,8 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/stakater/Reloader/internal/pkg/util"
 	"github.com/stakater/Reloader/pkg/kube"
-	apps_v1beta1 "k8s.io/api/apps/v1beta1"
+	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
-	"k8s.io/api/extensions/v1beta1"
 	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	openshiftv1 "github.com/openshift/api/apps/v1"
@@ -39,7 +38,7 @@ type RollingUpgradeFuncs struct {
 
 // GetDeploymentItems returns the deployments in given namespace
 func GetDeploymentItems(clients kube.Clients, namespace string) []interface{} {
-	deployments, err := clients.KubernetesClient.ExtensionsV1beta1().Deployments(namespace).List(meta_v1.ListOptions{})
+	deployments, err := clients.KubernetesClient.AppsV1().Deployments(namespace).List(meta_v1.ListOptions{})
 	if err != nil {
 		logrus.Errorf("Failed to list deployments %v", err)
 	}
@@ -48,7 +47,7 @@ func GetDeploymentItems(clients kube.Clients, namespace string) []interface{} {
 
 // GetDaemonSetItems returns the daemonSets in given namespace
 func GetDaemonSetItems(clients kube.Clients, namespace string) []interface{} {
-	daemonSets, err := clients.KubernetesClient.ExtensionsV1beta1().DaemonSets(namespace).List(meta_v1.ListOptions{})
+	daemonSets, err := clients.KubernetesClient.AppsV1().DaemonSets(namespace).List(meta_v1.ListOptions{})
 	if err != nil {
 		logrus.Errorf("Failed to list daemonSets %v", err)
 	}
@@ -57,7 +56,7 @@ func GetDaemonSetItems(clients kube.Clients, namespace string) []interface{} {
 
 // GetStatefulSetItems returns the statefulSets in given namespace
 func GetStatefulSetItems(clients kube.Clients, namespace string) []interface{} {
-	statefulSets, err := clients.KubernetesClient.AppsV1beta1().StatefulSets(namespace).List(meta_v1.ListOptions{})
+	statefulSets, err := clients.KubernetesClient.AppsV1().StatefulSets(namespace).List(meta_v1.ListOptions{})
 	if err != nil {
 		logrus.Errorf("Failed to list statefulSets %v", err)
 	}
@@ -75,17 +74,17 @@ func GetDeploymentConfigItems(clients kube.Clients, namespace string) []interfac
 
 // GetDeploymentContainers returns the containers of given deployment
 func GetDeploymentContainers(item interface{}) []v1.Container {
-	return item.(v1beta1.Deployment).Spec.Template.Spec.Containers
+	return item.(appsv1.Deployment).Spec.Template.Spec.Containers
 }
 
 // GetDaemonSetContainers returns the containers of given daemonset
 func GetDaemonSetContainers(item interface{}) []v1.Container {
-	return item.(v1beta1.DaemonSet).Spec.Template.Spec.Containers
+	return item.(appsv1.DaemonSet).Spec.Template.Spec.Containers
 }
 
 // GetStatefulsetContainers returns the containers of given statefulSet
 func GetStatefulsetContainers(item interface{}) []v1.Container {
-	return item.(apps_v1beta1.StatefulSet).Spec.Template.Spec.Containers
+	return item.(appsv1.StatefulSet).Spec.Template.Spec.Containers
 }
 
 // GetDeploymentConfigContainers returns the containers of given deploymentConfig
@@ -95,17 +94,17 @@ func GetDeploymentConfigContainers(item interface{}) []v1.Container {
 
 // GetDeploymentInitContainers returns the containers of given deployment
 func GetDeploymentInitContainers(item interface{}) []v1.Container {
-	return item.(v1beta1.Deployment).Spec.Template.Spec.InitContainers
+	return item.(appsv1.Deployment).Spec.Template.Spec.InitContainers
 }
 
 // GetDaemonSetInitContainers returns the containers of given daemonset
 func GetDaemonSetInitContainers(item interface{}) []v1.Container {
-	return item.(v1beta1.DaemonSet).Spec.Template.Spec.InitContainers
+	return item.(appsv1.DaemonSet).Spec.Template.Spec.InitContainers
 }
 
 // GetStatefulsetInitContainers returns the containers of given statefulSet
 func GetStatefulsetInitContainers(item interface{}) []v1.Container {
-	return item.(apps_v1beta1.StatefulSet).Spec.Template.Spec.InitContainers
+	return item.(appsv1.StatefulSet).Spec.Template.Spec.InitContainers
 }
 
 // GetDeploymentConfigInitContainers returns the containers of given deploymentConfig
@@ -115,22 +114,22 @@ func GetDeploymentConfigInitContainers(item interface{}) []v1.Container {
 
 // UpdateDeployment performs rolling upgrade on deployment
 func UpdateDeployment(clients kube.Clients, namespace string, resource interface{}) error {
-	deployment := resource.(v1beta1.Deployment)
-	_, err := clients.KubernetesClient.ExtensionsV1beta1().Deployments(namespace).Update(&deployment)
+	deployment := resource.(appsv1.Deployment)
+	_, err := clients.KubernetesClient.AppsV1().Deployments(namespace).Update(&deployment)
 	return err
 }
 
 // UpdateDaemonSet performs rolling upgrade on daemonSet
 func UpdateDaemonSet(clients kube.Clients, namespace string, resource interface{}) error {
-	daemonSet := resource.(v1beta1.DaemonSet)
-	_, err := clients.KubernetesClient.ExtensionsV1beta1().DaemonSets(namespace).Update(&daemonSet)
+	daemonSet := resource.(appsv1.DaemonSet)
+	_, err := clients.KubernetesClient.AppsV1().DaemonSets(namespace).Update(&daemonSet)
 	return err
 }
 
 // UpdateStatefulset performs rolling upgrade on statefulSet
 func UpdateStatefulset(clients kube.Clients, namespace string, resource interface{}) error {
-	statefulSet := resource.(apps_v1beta1.StatefulSet)
-	_, err := clients.KubernetesClient.AppsV1beta1().StatefulSets(namespace).Update(&statefulSet)
+	statefulSet := resource.(appsv1.StatefulSet)
+	_, err := clients.KubernetesClient.AppsV1().StatefulSets(namespace).Update(&statefulSet)
 	return err
 }
 
@@ -143,17 +142,17 @@ func UpdateDeploymentConfig(clients kube.Clients, namespace string, resource int
 
 // GetDeploymentVolumes returns the Volumes of given deployment
 func GetDeploymentVolumes(item interface{}) []v1.Volume {
-	return item.(v1beta1.Deployment).Spec.Template.Spec.Volumes
+	return item.(appsv1.Deployment).Spec.Template.Spec.Volumes
 }
 
 // GetDaemonSetVolumes returns the Volumes of given daemonset
 func GetDaemonSetVolumes(item interface{}) []v1.Volume {
-	return item.(v1beta1.DaemonSet).Spec.Template.Spec.Volumes
+	return item.(appsv1.DaemonSet).Spec.Template.Spec.Volumes
 }
 
 // GetStatefulsetVolumes returns the Volumes of given statefulSet
 func GetStatefulsetVolumes(item interface{}) []v1.Volume {
-	return item.(apps_v1beta1.StatefulSet).Spec.Template.Spec.Volumes
+	return item.(appsv1.StatefulSet).Spec.Template.Spec.Volumes
 }
 
 // GetDeploymentConfigVolumes returns the Volumes of given deploymentConfig
