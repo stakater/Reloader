@@ -19,6 +19,10 @@ We would like to watch if some change happens in `ConfigMap` and/or `Secret`; th
 
 Reloader can watch changes in `ConfigMap` and `Secret` and do rolling upgrades on Pods with their associated `DeploymentConfigs`, `Deployments`, `Daemonsets` and `Statefulsets`.
 
+## Compatibility
+
+Reloader is compatible with kubernetes >= 1.9
+
 ## How to use Reloader
 
 For a `Deployment` called `foo` have a `ConfigMap` called `foo-configmap` or `Secret` called `foo-secret` or both. Then add your annotation (by default `reloader.stakater.com/auto`) to main metadata of your `Deployment`

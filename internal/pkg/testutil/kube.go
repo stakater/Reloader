@@ -16,9 +16,8 @@ import (
 	"github.com/stakater/Reloader/internal/pkg/options"
 	"github.com/stakater/Reloader/internal/pkg/util"
 	"github.com/stakater/Reloader/pkg/kube"
-	v1_beta1 "k8s.io/api/apps/v1beta1"
+	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
-	"k8s.io/api/extensions/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	core_v1 "k8s.io/client-go/kubernetes/typed/core/v1"
@@ -272,14 +271,17 @@ func getPodTemplateSpecWithInitContainerAndEnv(name string) v1.PodTemplateSpec {
 }
 
 // GetDeployment provides deployment for testing
-func GetDeployment(namespace string, deploymentName string) *v1beta1.Deployment {
+func GetDeployment(namespace string, deploymentName string) *appsv1.Deployment {
 	replicaset := int32(1)
-	return &v1beta1.Deployment{
+	return &appsv1.Deployment{
 		ObjectMeta: getObjectMeta(namespace, deploymentName, false),
-		Spec: v1beta1.DeploymentSpec{
+		Spec: appsv1.DeploymentSpec{
+			Selector: &metav1.LabelSelector{
+				MatchLabels: map[string]string{"secondLabel": "temp"},
+			},
 			Replicas: &replicaset,
-			Strategy: v1beta1.DeploymentStrategy{
-				Type: v1beta1.RollingUpdateDeploymentStrategyType,
+			Strategy: appsv1.DeploymentStrategy{
+				Type: appsv1.RollingUpdateDeploymentStrategyType,
 			},
 			Template: getPodTemplateSpecWithVolumes(deploymentName),
 		},
@@ -303,14 +305,17 @@ func GetDeploymentConfig(namespace string, deploymentConfigName string) *openshi
 }
 
 // GetDeploymentWithInitContainer provides deployment with init container and volumeMounts
-func GetDeploymentWithInitContainer(namespace string, deploymentName string) *v1beta1.Deployment {
+func GetDeploymentWithInitContainer(namespace string, deploymentName string) *appsv1.Deployment {
 	replicaset := int32(1)
-	return &v1beta1.Deployment{
+	return &appsv1.Deployment{
 		ObjectMeta: getObjectMeta(namespace, deploymentName, false),
-		Spec: v1beta1.DeploymentSpec{
+		Spec: appsv1.DeploymentSpec{
+			Selector: &metav1.LabelSelector{
+				MatchLabels: map[string]string{"secondLabel": "temp"},
+			},
 			Replicas: &replicaset,
-			Strategy: v1beta1.DeploymentStrategy{
-				Type: v1beta1.RollingUpdateDeploymentStrategyType,
+			Strategy: appsv1.DeploymentStrategy{
+				Type: appsv1.RollingUpdateDeploymentStrategyType,
 			},
 			Template: getPodTemplateSpecWithInitContainer(deploymentName),
 		},
@@ -318,28 +323,34 @@ func GetDeploymentWithInitContainer(namespace string, deploymentName string) *v1
 }
 
 // GetDeploymentWithInitContainerAndEnv provides deployment with init container and EnvSource
-func GetDeploymentWithInitContainerAndEnv(namespace string, deploymentName string) *v1beta1.Deployment {
+func GetDeploymentWithInitContainerAndEnv(namespace string, deploymentName string) *appsv1.Deployment {
 	replicaset := int32(1)
-	return &v1beta1.Deployment{
+	return &appsv1.Deployment{
 		ObjectMeta: getObjectMeta(namespace, deploymentName, true),
-		Spec: v1beta1.DeploymentSpec{
+		Spec: appsv1.DeploymentSpec{
+			Selector: &metav1.LabelSelector{
+				MatchLabels: map[string]string{"secondLabel": "temp"},
+			},
 			Replicas: &replicaset,
-			Strategy: v1beta1.DeploymentStrategy{
-				Type: v1beta1.RollingUpdateDeploymentStrategyType,
+			Strategy: appsv1.DeploymentStrategy{
+				Type: appsv1.RollingUpdateDeploymentStrategyType,
 			},
 			Template: getPodTemplateSpecWithInitContainerAndEnv(deploymentName),
 		},
 	}
 }
 
-func GetDeploymentWithEnvVars(namespace string, deploymentName string) *v1beta1.Deployment {
+func GetDeploymentWithEnvVars(namespace string, deploymentName string) *appsv1.Deployment {
 	replicaset := int32(1)
-	return &v1beta1.Deployment{
+	return &appsv1.Deployment{
 		ObjectMeta: getObjectMeta(namespace, deploymentName, true),
-		Spec: v1beta1.DeploymentSpec{
+		Spec: appsv1.DeploymentSpec{
+			Selector: &metav1.LabelSelector{
+				MatchLabels: map[string]string{"secondLabel": "temp"},
+			},
 			Replicas: &replicaset,
-			Strategy: v1beta1.DeploymentStrategy{
-				Type: v1beta1.RollingUpdateDeploymentStrategyType,
+			Strategy: appsv1.DeploymentStrategy{
+				Type: appsv1.RollingUpdateDeploymentStrategyType,
 			},
 			Template: getPodTemplateSpecWithEnvVars(deploymentName),
 		},
@@ -361,14 +372,17 @@ func GetDeploymentConfigWithEnvVars(namespace string, deploymentConfigName strin
 	}
 }
 
-func GetDeploymentWithEnvVarSources(namespace string, deploymentName string) *v1beta1.Deployment {
+func GetDeploymentWithEnvVarSources(namespace string, deploymentName string) *appsv1.Deployment {
 	replicaset := int32(1)
-	return &v1beta1.Deployment{
+	return &appsv1.Deployment{
 		ObjectMeta: getObjectMeta(namespace, deploymentName, true),
-		Spec: v1beta1.DeploymentSpec{
+		Spec: appsv1.DeploymentSpec{
+			Selector: &metav1.LabelSelector{
+				MatchLabels: map[string]string{"secondLabel": "temp"},
+			},
 			Replicas: &replicaset,
-			Strategy: v1beta1.DeploymentStrategy{
-				Type: v1beta1.RollingUpdateDeploymentStrategyType,
+			Strategy: appsv1.DeploymentStrategy{
+				Type: appsv1.RollingUpdateDeploymentStrategyType,
 			},
 			Template: getPodTemplateSpecWithEnvVarSources(deploymentName),
 		},
@@ -376,24 +390,30 @@ func GetDeploymentWithEnvVarSources(namespace string, deploymentName string) *v1
 }
 
 // GetDaemonSet provides daemonset for testing
-func GetDaemonSet(namespace string, daemonsetName string) *v1beta1.DaemonSet {
-	return &v1beta1.DaemonSet{
+func GetDaemonSet(namespace string, daemonsetName string) *appsv1.DaemonSet {
+	return &appsv1.DaemonSet{
 		ObjectMeta: getObjectMeta(namespace, daemonsetName, false),
-		Spec: v1beta1.DaemonSetSpec{
-			UpdateStrategy: v1beta1.DaemonSetUpdateStrategy{
-				Type: v1beta1.RollingUpdateDaemonSetStrategyType,
+		Spec: appsv1.DaemonSetSpec{
+			Selector: &metav1.LabelSelector{
+				MatchLabels: map[string]string{"secondLabel": "temp"},
+			},
+			UpdateStrategy: appsv1.DaemonSetUpdateStrategy{
+				Type: appsv1.RollingUpdateDaemonSetStrategyType,
 			},
 			Template: getPodTemplateSpecWithVolumes(daemonsetName),
 		},
 	}
 }
 
-func GetDaemonSetWithEnvVars(namespace string, daemonSetName string) *v1beta1.DaemonSet {
-	return &v1beta1.DaemonSet{
+func GetDaemonSetWithEnvVars(namespace string, daemonSetName string) *appsv1.DaemonSet {
+	return &appsv1.DaemonSet{
 		ObjectMeta: getObjectMeta(namespace, daemonSetName, true),
-		Spec: v1beta1.DaemonSetSpec{
-			UpdateStrategy: v1beta1.DaemonSetUpdateStrategy{
-				Type: v1beta1.RollingUpdateDaemonSetStrategyType,
+		Spec: appsv1.DaemonSetSpec{
+			Selector: &metav1.LabelSelector{
+				MatchLabels: map[string]string{"secondLabel": "temp"},
+			},
+			UpdateStrategy: appsv1.DaemonSetUpdateStrategy{
+				Type: appsv1.RollingUpdateDaemonSetStrategyType,
 			},
 			Template: getPodTemplateSpecWithEnvVars(daemonSetName),
 		},
@@ -401,12 +421,15 @@ func GetDaemonSetWithEnvVars(namespace string, daemonSetName string) *v1beta1.Da
 }
 
 // GetStatefulSet provides statefulset for testing
-func GetStatefulSet(namespace string, statefulsetName string) *v1_beta1.StatefulSet {
-	return &v1_beta1.StatefulSet{
+func GetStatefulSet(namespace string, statefulsetName string) *appsv1.StatefulSet {
+	return &appsv1.StatefulSet{
 		ObjectMeta: getObjectMeta(namespace, statefulsetName, false),
-		Spec: v1_beta1.StatefulSetSpec{
-			UpdateStrategy: v1_beta1.StatefulSetUpdateStrategy{
-				Type: v1_beta1.RollingUpdateStatefulSetStrategyType,
+		Spec: appsv1.StatefulSetSpec{
+			Selector: &metav1.LabelSelector{
+				MatchLabels: map[string]string{"secondLabel": "temp"},
+			},
+			UpdateStrategy: appsv1.StatefulSetUpdateStrategy{
+				Type: appsv1.RollingUpdateStatefulSetStrategyType,
 			},
 			Template: getPodTemplateSpecWithVolumes(statefulsetName),
 		},
@@ -414,12 +437,15 @@ func GetStatefulSet(namespace string, statefulsetName string) *v1_beta1.Stateful
 }
 
 // GetStatefulSet provides statefulset for testing
-func GetStatefulSetWithEnvVar(namespace string, statefulsetName string) *v1_beta1.StatefulSet {
-	return &v1_beta1.StatefulSet{
+func GetStatefulSetWithEnvVar(namespace string, statefulsetName string) *appsv1.StatefulSet {
+	return &appsv1.StatefulSet{
 		ObjectMeta: getObjectMeta(namespace, statefulsetName, true),
-		Spec: v1_beta1.StatefulSetSpec{
-			UpdateStrategy: v1_beta1.StatefulSetUpdateStrategy{
-				Type: v1_beta1.RollingUpdateStatefulSetStrategyType,
+		Spec: appsv1.StatefulSetSpec{
+			Selector: &metav1.LabelSelector{
+				MatchLabels: map[string]string{"secondLabel": "temp"},
+			},
+			UpdateStrategy: appsv1.StatefulSetUpdateStrategy{
+				Type: appsv1.RollingUpdateStatefulSetStrategyType,
 			},
 			Template: getPodTemplateSpecWithEnvVars(statefulsetName),
 		},
@@ -524,10 +550,10 @@ func CreateSecret(client kubernetes.Interface, namespace string, secretName stri
 }
 
 // CreateDeployment creates a deployment in given namespace and returns the Deployment
-func CreateDeployment(client kubernetes.Interface, deploymentName string, namespace string, volumeMount bool) (*v1beta1.Deployment, error) {
+func CreateDeployment(client kubernetes.Interface, deploymentName string, namespace string, volumeMount bool) (*appsv1.Deployment, error) {
 	logrus.Infof("Creating Deployment")
-	deploymentClient := client.ExtensionsV1beta1().Deployments(namespace)
-	var deploymentObj *v1beta1.Deployment
+	deploymentClient := client.AppsV1().Deployments(namespace)
+	var deploymentObj *appsv1.Deployment
 	if volumeMount {
 		deploymentObj = GetDeployment(namespace, deploymentName)
 	} else {
@@ -554,10 +580,10 @@ func CreateDeploymentConfig(client appsclient.Interface, deploymentName string, 
 }
 
 // CreateDeploymentWithInitContainer creates a deployment in given namespace with init container and returns the Deployment
-func CreateDeploymentWithInitContainer(client kubernetes.Interface, deploymentName string, namespace string, volumeMount bool) (*v1beta1.Deployment, error) {
+func CreateDeploymentWithInitContainer(client kubernetes.Interface, deploymentName string, namespace string, volumeMount bool) (*appsv1.Deployment, error) {
 	logrus.Infof("Creating Deployment")
-	deploymentClient := client.ExtensionsV1beta1().Deployments(namespace)
-	var deploymentObj *v1beta1.Deployment
+	deploymentClient := client.AppsV1().Deployments(namespace)
+	var deploymentObj *appsv1.Deployment
 	if volumeMount {
 		deploymentObj = GetDeploymentWithInitContainer(namespace, deploymentName)
 	} else {
@@ -569,9 +595,9 @@ func CreateDeploymentWithInitContainer(client kubernetes.Interface, deploymentNa
 }
 
 // CreateDeploymentWithEnvVarSource creates a deployment in given namespace and returns the Deployment
-func CreateDeploymentWithEnvVarSource(client kubernetes.Interface, deploymentName string, namespace string) (*v1beta1.Deployment, error) {
+func CreateDeploymentWithEnvVarSource(client kubernetes.Interface, deploymentName string, namespace string) (*appsv1.Deployment, error) {
 	logrus.Infof("Creating Deployment")
-	deploymentClient := client.ExtensionsV1beta1().Deployments(namespace)
+	deploymentClient := client.AppsV1().Deployments(namespace)
 	deploymentObj := GetDeploymentWithEnvVarSources(namespace, deploymentName)
 	deployment, err := deploymentClient.Create(deploymentObj)
 	time.Sleep(3 * time.Second)
@@ -579,10 +605,10 @@ func CreateDeploymentWithEnvVarSource(client kubernetes.Interface, deploymentNam
 }
 
 // CreateDaemonSet creates a deployment in given namespace and returns the DaemonSet
-func CreateDaemonSet(client kubernetes.Interface, daemonsetName string, namespace string, volumeMount bool) (*v1beta1.DaemonSet, error) {
+func CreateDaemonSet(client kubernetes.Interface, daemonsetName string, namespace string, volumeMount bool) (*appsv1.DaemonSet, error) {
 	logrus.Infof("Creating DaemonSet")
-	daemonsetClient := client.ExtensionsV1beta1().DaemonSets(namespace)
-	var daemonsetObj *v1beta1.DaemonSet
+	daemonsetClient := client.AppsV1().DaemonSets(namespace)
+	var daemonsetObj *appsv1.DaemonSet
 	if volumeMount {
 		daemonsetObj = GetDaemonSet(namespace, daemonsetName)
 	} else {
@@ -594,10 +620,10 @@ func CreateDaemonSet(client kubernetes.Interface, daemonsetName string, namespac
 }
 
 // CreateStatefulSet creates a deployment in given namespace and returns the StatefulSet
-func CreateStatefulSet(client kubernetes.Interface, statefulsetName string, namespace string, volumeMount bool) (*v1_beta1.StatefulSet, error) {
+func CreateStatefulSet(client kubernetes.Interface, statefulsetName string, namespace string, volumeMount bool) (*appsv1.StatefulSet, error) {
 	logrus.Infof("Creating StatefulSet")
-	statefulsetClient := client.AppsV1beta1().StatefulSets(namespace)
-	var statefulsetObj *v1_beta1.StatefulSet
+	statefulsetClient := client.AppsV1().StatefulSets(namespace)
+	var statefulsetObj *appsv1.StatefulSet
 	if volumeMount {
 		statefulsetObj = GetStatefulSet(namespace, statefulsetName)
 	} else {
@@ -611,7 +637,7 @@ func CreateStatefulSet(client kubernetes.Interface, statefulsetName string, name
 // DeleteDeployment creates a deployment in given namespace and returns the error if any
 func DeleteDeployment(client kubernetes.Interface, namespace string, deploymentName string) error {
 	logrus.Infof("Deleting Deployment")
-	deploymentError := client.ExtensionsV1beta1().Deployments(namespace).Delete(deploymentName, &metav1.DeleteOptions{})
+	deploymentError := client.AppsV1().Deployments(namespace).Delete(deploymentName, &metav1.DeleteOptions{})
 	time.Sleep(3 * time.Second)
 	return deploymentError
 }
@@ -627,7 +653,7 @@ func DeleteDeploymentConfig(client appsclient.Interface, namespace string, deplo
 // DeleteDaemonSet creates a daemonset in given namespace and returns the error if any
 func DeleteDaemonSet(client kubernetes.Interface, namespace string, daemonsetName string) error {
 	logrus.Infof("Deleting DaemonSet %s", daemonsetName)
-	daemonsetError := client.ExtensionsV1beta1().DaemonSets(namespace).Delete(daemonsetName, &metav1.DeleteOptions{})
+	daemonsetError := client.AppsV1().DaemonSets(namespace).Delete(daemonsetName, &metav1.DeleteOptions{})
 	time.Sleep(3 * time.Second)
 	return daemonsetError
 }
@@ -635,7 +661,7 @@ func DeleteDaemonSet(client kubernetes.Interface, namespace string, daemonsetNam
 // DeleteStatefulSet creates a statefulset in given namespace and returns the error if any
 func DeleteStatefulSet(client kubernetes.Interface, namespace string, statefulsetName string) error {
 	logrus.Infof("Deleting StatefulSet %s", statefulsetName)
-	statefulsetError := client.AppsV1beta1().StatefulSets(namespace).Delete(statefulsetName, &metav1.DeleteOptions{})
+	statefulsetError := client.AppsV1().StatefulSets(namespace).Delete(statefulsetName, &metav1.DeleteOptions{})
 	time.Sleep(3 * time.Second)
 	return statefulsetError
 }
