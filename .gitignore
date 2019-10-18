@@ -8,3 +8,4 @@ _gopath/
 .DS_Store
 .vscode
 vendor
+dist
