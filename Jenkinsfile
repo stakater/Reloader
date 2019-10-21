@@ -1,5 +1,5 @@
 #!/usr/bin/groovy
-@Library('github.com/stakater/stakater-pipeline-library@v2.16.9') _
+@Library('github.com/stakater/stakater-pipeline-library@v2.16.10') _
 
 goBuildViaGoReleaser {
     publicChartRepositoryURL = 'https://stakater.github.io/stakater-charts'
