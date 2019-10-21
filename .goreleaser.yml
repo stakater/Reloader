@@ -11,7 +11,7 @@ builds:
   - arm
   - arm64
 archives:
-  name_template: "{{ .ProjectName }}_v{{ .Version }}_{{ .Os }}_{{ .Arch }}{{ if .Arm }}v{{ .Arm }}{{ end }}"
+- name_template: "{{ .ProjectName }}_v{{ .Version }}_{{ .Os }}_{{ .Arch }}{{ if .Arm }}v{{ .Arm }}{{ end }}"
 snapshot:
   name_template: "{{ .Tag }}-next"
 checksum:
