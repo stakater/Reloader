@@ -26,6 +26,10 @@ spec:
 {{- end }}
   template:
     metadata:
+{{- if .Values.reloader.deployment.pod.annotations }}
+      annotations:
+{{ toYaml .Values.reloader.deployment.pod.annotations | indent 8 }}
+{{- end }}
       labels:
 {{ include "reloader-labels.chart" . | indent 8 }}
 {{- if .Values.reloader.deployment.labels }}
