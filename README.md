@@ -103,6 +103,7 @@ spec:
 - you may override the secret annotation with the `--secret-annotation` flag
 - you may want to prevent watching certain namespaces with the `--namespaces-to-ignore` flag
 - you may want to prevent watching certain resources with the `--resources-to-ignore` flag
+- you can configure logging in JSON format with the `--log-format=json` option
 
 ## Deploying to Kubernetes
 
