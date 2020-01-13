@@ -12,6 +12,7 @@ reloader:
   isOpenshift: false
   ignoreSecrets: false
   ignoreConfigMaps: false
+  logFormat: "" #json
   watchGlobally: true
   # Set to true if you have a pod security policy that enforces readOnlyRootFilesystem
   readOnlyRootFileSystem: false
