@@ -181,6 +181,8 @@ Reloader can be configured to ignore the resources `secrets` and `configmaps` by
 
 `Note`: At one time only one of these resource can be ignored, trying to do it will cause error in helm template compilation.
 
+You can also set the log format of Reloader to json by setting `logFormat` to `json` in values.yaml and apply the chart
+
 ## Help
 
 ### Documentation
