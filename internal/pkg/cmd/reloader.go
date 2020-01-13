@@ -26,12 +26,31 @@ func NewReloaderCommand() *cobra.Command {
 	cmd.PersistentFlags().StringVar(&options.ConfigmapUpdateOnChangeAnnotation, "configmap-annotation", "configmap.reloader.stakater.com/reload", "annotation to detect changes in configmaps")
 	cmd.PersistentFlags().StringVar(&options.SecretUpdateOnChangeAnnotation, "secret-annotation", "secret.reloader.stakater.com/reload", "annotation to detect changes in secrets")
 	cmd.PersistentFlags().StringVar(&options.ReloaderAutoAnnotation, "auto-annotation", "reloader.stakater.com/auto", "annotation to detect changes in secrets")
+	cmd.PersistentFlags().StringVar(&options.LogFormat, "log-format", "", "Log format to use (empty string for text, or JSON")
 	cmd.PersistentFlags().StringSlice("resources-to-ignore", []string{}, "list of resources to ignore (valid options 'configMaps' or 'secrets')")
 	cmd.PersistentFlags().StringSlice("namespaces-to-ignore", []string{}, "list of namespaces to ignore")
 	return cmd
 }
 
+func configureLogging(logFormat string) error {
+	switch logFormat {
+	case "json":
+		logrus.SetFormatter(&logrus.JSONFormatter{})
+	default:
+		// just let the library use default on empty string.
+		if logFormat != "" {
+			return fmt.Errorf("unsupported logging formatter: %q", logFormat)
+		}
+	}
+	return nil
+}
+
 func startReloader(cmd *cobra.Command, args []string) {
+	err := configureLogging(options.LogFormat)
+	if err != nil {
+		logrus.Warn(err)
+	}
+
 	logrus.Info("Starting Reloader")
 	currentNamespace := os.Getenv("KUBERNETES_NAMESPACE")
 	if len(currentNamespace) == 0 {
