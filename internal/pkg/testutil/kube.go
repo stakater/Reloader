@@ -389,6 +389,28 @@ func GetDeploymentWithEnvVarSources(namespace string, deploymentName string) *ap
 	}
 }
 
+func GetDeploymentWithPodAnnotations(namespace string, deploymentName string, both bool) *appsv1.Deployment {
+	replicaset := int32(1)
+	deployment := &appsv1.Deployment{
+		ObjectMeta: getObjectMeta(namespace, deploymentName, false),
+		Spec: appsv1.DeploymentSpec{
+			Selector: &metav1.LabelSelector{
+				MatchLabels: map[string]string{"secondLabel": "temp"},
+			},
+			Replicas: &replicaset,
+			Strategy: appsv1.DeploymentStrategy{
+				Type: appsv1.RollingUpdateDeploymentStrategyType,
+			},
+			Template: getPodTemplateSpecWithEnvVarSources(deploymentName),
+		},
+	}
+	if !both {
+		deployment.ObjectMeta.Annotations = nil
+	}
+	deployment.Spec.Template.ObjectMeta.Annotations = getAnnotations(deploymentName, true)
+	return deployment
+}
+
 // GetDaemonSet provides daemonset for testing
 func GetDaemonSet(namespace string, daemonsetName string) *appsv1.DaemonSet {
 	return &appsv1.DaemonSet{
@@ -599,6 +621,16 @@ func CreateDeploymentWithEnvVarSource(client kubernetes.Interface, deploymentNam
 	logrus.Infof("Creating Deployment")
 	deploymentClient := client.AppsV1().Deployments(namespace)
 	deploymentObj := GetDeploymentWithEnvVarSources(namespace, deploymentName)
+	deployment, err := deploymentClient.Create(deploymentObj)
+	time.Sleep(3 * time.Second)
+	return deployment, err
+}
+
+// CreateDeployment creates a deployment in given namespace and returns the Deployment
+func CreateDeploymentWithPodAnnotations(client kubernetes.Interface, deploymentName string, namespace string, both bool) (*appsv1.Deployment, error) {
+	logrus.Infof("Creating Deployment")
+	deploymentClient := client.AppsV1().Deployments(namespace)
+	deploymentObj := GetDeploymentWithPodAnnotations(namespace, deploymentName, both)
 	deployment, err := deploymentClient.Create(deploymentObj)
 	time.Sleep(3 * time.Second)
 	return deployment, err
