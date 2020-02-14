@@ -17,6 +17,8 @@ import (
 func GetDeploymentRollingUpgradeFuncs() callbacks.RollingUpgradeFuncs {
 	return callbacks.RollingUpgradeFuncs{
 		ItemsFunc:          callbacks.GetDeploymentItems,
+		AnnotationsFunc:    callbacks.GetDeploymentAnnotations,
+		PodAnnotationsFunc: callbacks.GetDeploymentPodAnnotations,
 		ContainersFunc:     callbacks.GetDeploymentContainers,
 		InitContainersFunc: callbacks.GetDeploymentInitContainers,
 		UpdateFunc:         callbacks.UpdateDeployment,
@@ -29,6 +31,8 @@ func GetDeploymentRollingUpgradeFuncs() callbacks.RollingUpgradeFuncs {
 func GetDaemonSetRollingUpgradeFuncs() callbacks.RollingUpgradeFuncs {
 	return callbacks.RollingUpgradeFuncs{
 		ItemsFunc:          callbacks.GetDaemonSetItems,
+		AnnotationsFunc:    callbacks.GetDaemonSetAnnotations,
+		PodAnnotationsFunc: callbacks.GetDaemonSetPodAnnotations,
 		ContainersFunc:     callbacks.GetDaemonSetContainers,
 		InitContainersFunc: callbacks.GetDaemonSetInitContainers,
 		UpdateFunc:         callbacks.UpdateDaemonSet,
@@ -41,10 +45,12 @@ func GetDaemonSetRollingUpgradeFuncs() callbacks.RollingUpgradeFuncs {
 func GetStatefulSetRollingUpgradeFuncs() callbacks.RollingUpgradeFuncs {
 	return callbacks.RollingUpgradeFuncs{
 		ItemsFunc:          callbacks.GetStatefulSetItems,
-		ContainersFunc:     callbacks.GetStatefulsetContainers,
-		InitContainersFunc: callbacks.GetStatefulsetInitContainers,
-		UpdateFunc:         callbacks.UpdateStatefulset,
-		VolumesFunc:        callbacks.GetStatefulsetVolumes,
+		AnnotationsFunc:    callbacks.GetStatefulSetAnnotations,
+		PodAnnotationsFunc: callbacks.GetStatefulSetPodAnnotations,
+		ContainersFunc:     callbacks.GetStatefulSetContainers,
+		InitContainersFunc: callbacks.GetStatefulSetInitContainers,
+		UpdateFunc:         callbacks.UpdateStatefulSet,
+		VolumesFunc:        callbacks.GetStatefulSetVolumes,
 		ResourceType:       "StatefulSet",
 	}
 }
@@ -53,6 +59,8 @@ func GetStatefulSetRollingUpgradeFuncs() callbacks.RollingUpgradeFuncs {
 func GetDeploymentConfigRollingUpgradeFuncs() callbacks.RollingUpgradeFuncs {
 	return callbacks.RollingUpgradeFuncs{
 		ItemsFunc:          callbacks.GetDeploymentConfigItems,
+		AnnotationsFunc:    callbacks.GetDeploymentConfigAnnotations,
+		PodAnnotationsFunc: callbacks.GetDeploymentConfigPodAnnotations,
 		ContainersFunc:     callbacks.GetDeploymentConfigContainers,
 		InitContainersFunc: callbacks.GetDeploymentConfigInitContainers,
 		UpdateFunc:         callbacks.UpdateDeploymentConfig,
@@ -87,8 +95,14 @@ func PerformRollingUpgrade(clients kube.Clients, config util.Config, upgradeFunc
 	var err error
 	for _, i := range items {
 		// find correct annotation and update the resource
-		annotationValue := util.ToObjectMeta(i).Annotations[config.Annotation]
-		reloaderEnabledValue := util.ToObjectMeta(i).Annotations[options.ReloaderAutoAnnotation]
+		annotations := upgradeFuncs.AnnotationsFunc(i)
+		annotationValue, found := annotations[config.Annotation]
+		reloaderEnabledValue, foundAuto := annotations[options.ReloaderAutoAnnotation]
+		if !found && !foundAuto {
+			annotations = upgradeFuncs.PodAnnotationsFunc(i)
+			annotationValue = annotations[config.Annotation]
+			reloaderEnabledValue = annotations[options.ReloaderAutoAnnotation]
+		}
 		result := constants.NotUpdated
 		reloaderEnabled, err := strconv.ParseBool(reloaderEnabledValue)
 		if err == nil && reloaderEnabled {

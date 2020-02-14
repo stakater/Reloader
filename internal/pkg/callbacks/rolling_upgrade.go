@@ -26,9 +26,17 @@ type VolumesFunc func(interface{}) []v1.Volume
 //UpdateFunc performs the resource update
 type UpdateFunc func(kube.Clients, string, interface{}) error
 
+//AnnotationsFunc is a generic func to return annotations
+type AnnotationsFunc func(interface{}) map[string]string
+
+//PodAnnotationsFunc is a generic func to return annotations
+type PodAnnotationsFunc func(interface{}) map[string]string
+
 //RollingUpgradeFuncs contains generic functions to perform rolling upgrade
 type RollingUpgradeFuncs struct {
 	ItemsFunc          ItemsFunc
+	AnnotationsFunc    AnnotationsFunc
+	PodAnnotationsFunc PodAnnotationsFunc
 	ContainersFunc     ContainersFunc
 	InitContainersFunc InitContainersFunc
 	UpdateFunc         UpdateFunc
@@ -72,18 +80,58 @@ func GetDeploymentConfigItems(clients kube.Clients, namespace string) []interfac
 	return util.InterfaceSlice(deploymentConfigs.Items)
 }
 
+// GetDeploymentAnnotations returns the annotations of given deployment
+func GetDeploymentAnnotations(item interface{}) map[string]string {
+	return item.(appsv1.Deployment).ObjectMeta.Annotations
+}
+
+// GetDaemonSetAnnotations returns the annotations of given daemonSet
+func GetDaemonSetAnnotations(item interface{}) map[string]string {
+	return item.(appsv1.DaemonSet).ObjectMeta.Annotations
+}
+
+// GetStatefulSetAnnotations returns the annotations of given statefulSet
+func GetStatefulSetAnnotations(item interface{}) map[string]string {
+	return item.(appsv1.StatefulSet).ObjectMeta.Annotations
+}
+
+// GetDeploymentConfigAnnotations returns the annotations of given deploymentConfig
+func GetDeploymentConfigAnnotations(item interface{}) map[string]string {
+	return item.(openshiftv1.DeploymentConfig).ObjectMeta.Annotations
+}
+
+// GetDeploymentPodAnnotations returns the pod's annotations of given deployment
+func GetDeploymentPodAnnotations(item interface{}) map[string]string {
+	return item.(appsv1.Deployment).Spec.Template.ObjectMeta.Annotations
+}
+
+// GetDaemonSetPodAnnotations returns the pod's annotations of given daemonSet
+func GetDaemonSetPodAnnotations(item interface{}) map[string]string {
+	return item.(appsv1.DaemonSet).Spec.Template.ObjectMeta.Annotations
+}
+
+// GetStatefulSetPodAnnotations returns the pod's annotations of given statefulSet
+func GetStatefulSetPodAnnotations(item interface{}) map[string]string {
+	return item.(appsv1.StatefulSet).Spec.Template.ObjectMeta.Annotations
+}
+
+// GetDeploymentConfigPodAnnotations returns the pod's annotations of given deploymentConfig
+func GetDeploymentConfigPodAnnotations(item interface{}) map[string]string {
+	return item.(openshiftv1.DeploymentConfig).Spec.Template.ObjectMeta.Annotations
+}
+
 // GetDeploymentContainers returns the containers of given deployment
 func GetDeploymentContainers(item interface{}) []v1.Container {
 	return item.(appsv1.Deployment).Spec.Template.Spec.Containers
 }
 
-// GetDaemonSetContainers returns the containers of given daemonset
+// GetDaemonSetContainers returns the containers of given daemonSet
 func GetDaemonSetContainers(item interface{}) []v1.Container {
 	return item.(appsv1.DaemonSet).Spec.Template.Spec.Containers
 }
 
-// GetStatefulsetContainers returns the containers of given statefulSet
-func GetStatefulsetContainers(item interface{}) []v1.Container {
+// GetStatefulSetContainers returns the containers of given statefulSet
+func GetStatefulSetContainers(item interface{}) []v1.Container {
 	return item.(appsv1.StatefulSet).Spec.Template.Spec.Containers
 }
 
@@ -97,13 +145,13 @@ func GetDeploymentInitContainers(item interface{}) []v1.Container {
 	return item.(appsv1.Deployment).Spec.Template.Spec.InitContainers
 }
 
-// GetDaemonSetInitContainers returns the containers of given daemonset
+// GetDaemonSetInitContainers returns the containers of given daemonSet
 func GetDaemonSetInitContainers(item interface{}) []v1.Container {
 	return item.(appsv1.DaemonSet).Spec.Template.Spec.InitContainers
 }
 
-// GetStatefulsetInitContainers returns the containers of given statefulSet
-func GetStatefulsetInitContainers(item interface{}) []v1.Container {
+// GetStatefulSetInitContainers returns the containers of given statefulSet
+func GetStatefulSetInitContainers(item interface{}) []v1.Container {
 	return item.(appsv1.StatefulSet).Spec.Template.Spec.InitContainers
 }
 
@@ -126,8 +174,8 @@ func UpdateDaemonSet(clients kube.Clients, namespace string, resource interface{
 	return err
 }
 
-// UpdateStatefulset performs rolling upgrade on statefulSet
-func UpdateStatefulset(clients kube.Clients, namespace string, resource interface{}) error {
+// UpdateStatefulSet performs rolling upgrade on statefulSet
+func UpdateStatefulSet(clients kube.Clients, namespace string, resource interface{}) error {
 	statefulSet := resource.(appsv1.StatefulSet)
 	_, err := clients.KubernetesClient.AppsV1().StatefulSets(namespace).Update(&statefulSet)
 	return err
@@ -145,13 +193,13 @@ func GetDeploymentVolumes(item interface{}) []v1.Volume {
 	return item.(appsv1.Deployment).Spec.Template.Spec.Volumes
 }
 
-// GetDaemonSetVolumes returns the Volumes of given daemonset
+// GetDaemonSetVolumes returns the Volumes of given daemonSet
 func GetDaemonSetVolumes(item interface{}) []v1.Volume {
 	return item.(appsv1.DaemonSet).Spec.Template.Spec.Volumes
 }
 
-// GetStatefulsetVolumes returns the Volumes of given statefulSet
-func GetStatefulsetVolumes(item interface{}) []v1.Volume {
+// GetStatefulSetVolumes returns the Volumes of given statefulSet
+func GetStatefulSetVolumes(item interface{}) []v1.Volume {
 	return item.(appsv1.StatefulSet).Spec.Template.Spec.Volumes
 }
 

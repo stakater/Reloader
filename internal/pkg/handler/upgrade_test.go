@@ -15,18 +15,20 @@ import (
 )
 
 var (
-	clients                    = kube.Clients{KubernetesClient: testclient.NewSimpleClientset()}
-	namespace                  = "test-handler-" + testutil.RandSeq(5)
-	configmapName              = "testconfigmap-handler-" + testutil.RandSeq(5)
-	secretName                 = "testsecret-handler-" + testutil.RandSeq(5)
-	configmapWithInitContainer = "testconfigmapInitContainerhandler-" + testutil.RandSeq(5)
-	secretWithInitContainer    = "testsecretWithInitContainer-handler-" + testutil.RandSeq(5)
-	configmapWithInitEnv       = "configmapWithInitEnv-" + testutil.RandSeq(5)
-	secretWithInitEnv          = "secretWithInitEnv-handler-" + testutil.RandSeq(5)
-	configmapWithEnvName       = "testconfigmapWithEnv-handler-" + testutil.RandSeq(5)
-	configmapWithEnvFromName   = "testconfigmapWithEnvFrom-handler-" + testutil.RandSeq(5)
-	secretWithEnvName          = "testsecretWithEnv-handler-" + testutil.RandSeq(5)
-	secretWithEnvFromName      = "testsecretWithEnvFrom-handler-" + testutil.RandSeq(5)
+	clients                      = kube.Clients{KubernetesClient: testclient.NewSimpleClientset()}
+	namespace                    = "test-handler-" + testutil.RandSeq(5)
+	configmapName                = "testconfigmap-handler-" + testutil.RandSeq(5)
+	secretName                   = "testsecret-handler-" + testutil.RandSeq(5)
+	configmapWithInitContainer   = "testconfigmapInitContainerhandler-" + testutil.RandSeq(5)
+	secretWithInitContainer      = "testsecretWithInitContainer-handler-" + testutil.RandSeq(5)
+	configmapWithInitEnv         = "configmapWithInitEnv-" + testutil.RandSeq(5)
+	secretWithInitEnv            = "secretWithInitEnv-handler-" + testutil.RandSeq(5)
+	configmapWithEnvName         = "testconfigmapWithEnv-handler-" + testutil.RandSeq(5)
+	configmapWithEnvFromName     = "testconfigmapWithEnvFrom-handler-" + testutil.RandSeq(5)
+	secretWithEnvName            = "testsecretWithEnv-handler-" + testutil.RandSeq(5)
+	secretWithEnvFromName        = "testsecretWithEnvFrom-handler-" + testutil.RandSeq(5)
+	configmapWithPodAnnotations  = "testconfigmapPodAnnotations-handler-" + testutil.RandSeq(5)
+	configmapWithBothAnnotations = "testconfigmapBothAnnotations-handler-" + testutil.RandSeq(5)
 )
 
 func TestMain(m *testing.M) {
@@ -102,6 +104,11 @@ func setup() {
 	_, err = testutil.CreateSecret(clients.KubernetesClient, namespace, secretWithInitContainer, data)
 	if err != nil {
 		logrus.Errorf("Error in secret creation: %v", err)
+	}
+
+	_, err = testutil.CreateConfigMap(clients.KubernetesClient, namespace, configmapWithPodAnnotations, "www.google.com")
+	if err != nil {
+		logrus.Errorf("Error in configmap creation: %v", err)
 	}
 
 	// Creating Deployment with configmap
@@ -212,6 +219,17 @@ func setup() {
 		logrus.Errorf("Error in StatefulSet with secret configmap as env var source creation: %v", err)
 	}
 
+	// Creating Deployment with pod annotations
+	_, err = testutil.CreateDeploymentWithPodAnnotations(clients.KubernetesClient, configmapWithPodAnnotations, namespace, false)
+	if err != nil {
+		logrus.Errorf("Error in Deployment with pod annotations: %v", err)
+	}
+
+	// Creating Deployment with both annotations
+	_, err = testutil.CreateDeploymentWithPodAnnotations(clients.KubernetesClient, configmapWithBothAnnotations, namespace, true)
+	if err != nil {
+		logrus.Errorf("Error in Deployment with both annotations: %v", err)
+	}
 }
 
 func teardown() {
@@ -273,6 +291,18 @@ func teardown() {
 	deploymentError = testutil.DeleteDeployment(clients.KubernetesClient, namespace, secretWithEnvFromName)
 	if deploymentError != nil {
 		logrus.Errorf("Error while deleting deployment with secret as envFrom source %v", deploymentError)
+	}
+
+	// Deleting Deployment with pod annotations
+	deploymentError = testutil.DeleteDeployment(clients.KubernetesClient, namespace, configmapWithPodAnnotations)
+	if deploymentError != nil {
+		logrus.Errorf("Error while deleting deployment with pod annotations %v", deploymentError)
+	}
+
+	// Deleting Deployment with both annotations
+	deploymentError = testutil.DeleteDeployment(clients.KubernetesClient, namespace, configmapWithBothAnnotations)
+	if deploymentError != nil {
+		logrus.Errorf("Error while deleting deployment with both annotations %v", deploymentError)
 	}
 
 	// Deleting DaemonSet with configmap
@@ -381,6 +411,11 @@ func teardown() {
 	err = testutil.DeleteSecret(clients.KubernetesClient, namespace, secretWithInitEnv)
 	if err != nil {
 		logrus.Errorf("Error while deleting the secret used as env var source in init container %v", err)
+	}
+
+	err = testutil.DeleteConfigMap(clients.KubernetesClient, namespace, configmapWithPodAnnotations)
+	if err != nil {
+		logrus.Errorf("Error while deleting the configmap used with pod annotations: %v", err)
 	}
 
 	// Deleting namespace
@@ -665,5 +700,47 @@ func TestRollingUpgradeForStatefulSetWithSecret(t *testing.T) {
 	updated := testutil.VerifyResourceUpdate(clients, config, constants.SecretEnvVarPostfix, statefulSetFuncs)
 	if !updated {
 		t.Errorf("StatefulSet was not updated")
+	}
+}
+
+func TestRollingUpgradeForDeploymentWithPodAnnotations(t *testing.T) {
+	shaData := testutil.ConvertResourceToSHA(testutil.ConfigmapResourceType, namespace, configmapWithPodAnnotations, "www.stakater.com")
+	config := getConfigWithAnnotations(constants.ConfigmapEnvVarPostfix, configmapWithPodAnnotations, shaData, options.ConfigmapUpdateOnChangeAnnotation)
+	deploymentFuncs := GetDeploymentRollingUpgradeFuncs()
+
+	err := PerformRollingUpgrade(clients, config, deploymentFuncs)
+	time.Sleep(5 * time.Second)
+	if err != nil {
+		t.Errorf("Rolling upgrade failed for Deployment with pod annotations")
+	}
+
+	logrus.Infof("Verifying deployment update")
+	envName := constants.EnvVarPrefix + util.ConvertToEnvVarName(config.ResourceName) + "_" + constants.ConfigmapEnvVarPostfix
+	items := deploymentFuncs.ItemsFunc(clients, config.Namespace)
+	var foundPod, foundBoth bool
+	for _, i := range items {
+		name := util.ToObjectMeta(i).Name
+		if name == configmapWithPodAnnotations {
+			containers := deploymentFuncs.ContainersFunc(i)
+			updated := testutil.GetResourceSHA(containers, envName)
+			if updated != config.SHAValue {
+				t.Errorf("Deployment was not updated")
+			}
+			foundPod = true
+		}
+		if name == configmapWithBothAnnotations {
+			containers := deploymentFuncs.ContainersFunc(i)
+			updated := testutil.GetResourceSHA(containers, envName)
+			if updated == config.SHAValue {
+				t.Errorf("Deployment was updated")
+			}
+			foundBoth = true
+		}
+	}
+	if !foundPod {
+		t.Errorf("Deployment with pod annotations was not found")
+	}
+	if !foundBoth {
+		t.Errorf("Deployment with both annotations was not found")
 	}
 }
