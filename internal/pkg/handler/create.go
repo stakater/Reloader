@@ -2,13 +2,15 @@ package handler
 
 import (
 	"github.com/sirupsen/logrus"
+	"github.com/stakater/Reloader/internal/pkg/metrics"
 	"github.com/stakater/Reloader/internal/pkg/util"
 	v1 "k8s.io/api/core/v1"
 )
 
 // ResourceCreatedHandler contains new objects
 type ResourceCreatedHandler struct {
-	Resource interface{}
+	Resource   interface{}
+	Collectors metrics.Collectors
 }
 
 // Handle processes the newly created resource
@@ -18,7 +20,7 @@ func (r ResourceCreatedHandler) Handle() error {
 	} else {
 		config, _ := r.GetConfig()
 		// process resource based on its type
-		doRollingUpgrade(config)
+		doRollingUpgrade(config, r.Collectors)
 	}
 	return nil
 }

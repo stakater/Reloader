@@ -1,12 +1,16 @@
 package handler
 
 import (
+	"fmt"
 	"os"
 	"testing"
 	"time"
 
+	"github.com/prometheus/client_golang/prometheus"
+	promtestutil "github.com/prometheus/client_golang/prometheus/testutil"
 	"github.com/sirupsen/logrus"
 	"github.com/stakater/Reloader/internal/pkg/constants"
+	"github.com/stakater/Reloader/internal/pkg/metrics"
 	"github.com/stakater/Reloader/internal/pkg/options"
 	"github.com/stakater/Reloader/internal/pkg/testutil"
 	"github.com/stakater/Reloader/internal/pkg/util"
@@ -433,12 +437,20 @@ func getConfigWithAnnotations(resourceType string, name string, shaData string, 
 	}
 }
 
+func getCollectors() metrics.Collectors {
+	return metrics.NewCollectors()
+}
+
+var labelSucceeded = prometheus.Labels{"success": "true"}
+var labelFailed = prometheus.Labels{"success": "false"}
+
 func TestRollingUpgradeForDeploymentWithConfigmap(t *testing.T) {
 	shaData := testutil.ConvertResourceToSHA(testutil.ConfigmapResourceType, namespace, configmapName, "www.stakater.com")
 	config := getConfigWithAnnotations(constants.ConfigmapEnvVarPostfix, configmapName, shaData, options.ConfigmapUpdateOnChangeAnnotation)
 	deploymentFuncs := GetDeploymentRollingUpgradeFuncs()
+	collectors := getCollectors()
 
-	err := PerformRollingUpgrade(clients, config, deploymentFuncs)
+	err := PerformRollingUpgrade(clients, config, deploymentFuncs, collectors)
 	time.Sleep(5 * time.Second)
 	if err != nil {
 		t.Errorf("Rolling upgrade failed for Deployment with Configmap")
@@ -448,6 +460,10 @@ func TestRollingUpgradeForDeploymentWithConfigmap(t *testing.T) {
 	updated := testutil.VerifyResourceUpdate(clients, config, constants.ConfigmapEnvVarPostfix, deploymentFuncs)
 	if !updated {
 		t.Errorf("Deployment was not updated")
+	}
+
+	if promtestutil.ToFloat64(collectors.Reloaded.With(labelSucceeded)) != 1 {
+		t.Errorf("Counter was not increased")
 	}
 }
 
@@ -455,8 +471,9 @@ func TestRollingUpgradeForDeploymentWithConfigmapInInitContainer(t *testing.T) {
 	shaData := testutil.ConvertResourceToSHA(testutil.ConfigmapResourceType, namespace, configmapWithInitContainer, "www.stakater.com")
 	config := getConfigWithAnnotations(constants.ConfigmapEnvVarPostfix, configmapWithInitContainer, shaData, options.ConfigmapUpdateOnChangeAnnotation)
 	deploymentFuncs := GetDeploymentRollingUpgradeFuncs()
+	collectors := getCollectors()
 
-	err := PerformRollingUpgrade(clients, config, deploymentFuncs)
+	err := PerformRollingUpgrade(clients, config, deploymentFuncs, collectors)
 	time.Sleep(5 * time.Second)
 	if err != nil {
 		t.Errorf("Rolling upgrade failed for Deployment with Configmap")
@@ -467,14 +484,19 @@ func TestRollingUpgradeForDeploymentWithConfigmapInInitContainer(t *testing.T) {
 	if !updated {
 		t.Errorf("Deployment was not updated")
 	}
+
+	if promtestutil.ToFloat64(collectors.Reloaded.With(labelSucceeded)) != 1 {
+		t.Errorf("Counter was not increased")
+	}
 }
 
 func TestRollingUpgradeForDeploymentWithConfigmapAsEnvVar(t *testing.T) {
 	shaData := testutil.ConvertResourceToSHA(testutil.ConfigmapResourceType, namespace, configmapWithEnvName, "www.stakater.com")
 	config := getConfigWithAnnotations(constants.ConfigmapEnvVarPostfix, configmapWithEnvName, shaData, options.ReloaderAutoAnnotation)
 	deploymentFuncs := GetDeploymentRollingUpgradeFuncs()
+	collectors := getCollectors()
 
-	err := PerformRollingUpgrade(clients, config, deploymentFuncs)
+	err := PerformRollingUpgrade(clients, config, deploymentFuncs, collectors)
 	time.Sleep(5 * time.Second)
 	if err != nil {
 		t.Errorf("Rolling upgrade failed for Deployment with Configmap used as env var")
@@ -484,6 +506,10 @@ func TestRollingUpgradeForDeploymentWithConfigmapAsEnvVar(t *testing.T) {
 	updated := testutil.VerifyResourceUpdate(clients, config, constants.ConfigmapEnvVarPostfix, deploymentFuncs)
 	if !updated {
 		t.Errorf("Deployment was not updated")
+	}
+
+	if promtestutil.ToFloat64(collectors.Reloaded.With(labelSucceeded)) != 1 {
+		t.Errorf("Counter was not increased")
 	}
 }
 
@@ -491,8 +517,9 @@ func TestRollingUpgradeForDeploymentWithConfigmapAsEnvVarInInitContainer(t *test
 	shaData := testutil.ConvertResourceToSHA(testutil.ConfigmapResourceType, namespace, configmapWithInitEnv, "www.stakater.com")
 	config := getConfigWithAnnotations(constants.ConfigmapEnvVarPostfix, configmapWithInitEnv, shaData, options.ReloaderAutoAnnotation)
 	deploymentFuncs := GetDeploymentRollingUpgradeFuncs()
+	collectors := getCollectors()
 
-	err := PerformRollingUpgrade(clients, config, deploymentFuncs)
+	err := PerformRollingUpgrade(clients, config, deploymentFuncs, collectors)
 	time.Sleep(5 * time.Second)
 	if err != nil {
 		t.Errorf("Rolling upgrade failed for Deployment with Configmap used as env var")
@@ -502,6 +529,10 @@ func TestRollingUpgradeForDeploymentWithConfigmapAsEnvVarInInitContainer(t *test
 	updated := testutil.VerifyResourceUpdate(clients, config, constants.ConfigmapEnvVarPostfix, deploymentFuncs)
 	if !updated {
 		t.Errorf("Deployment was not updated")
+	}
+
+	if promtestutil.ToFloat64(collectors.Reloaded.With(labelSucceeded)) != 1 {
+		t.Errorf("Counter was not increased")
 	}
 }
 
@@ -509,8 +540,9 @@ func TestRollingUpgradeForDeploymentWithConfigmapAsEnvVarFrom(t *testing.T) {
 	shaData := testutil.ConvertResourceToSHA(testutil.ConfigmapResourceType, namespace, configmapWithEnvFromName, "www.stakater.com")
 	config := getConfigWithAnnotations(constants.ConfigmapEnvVarPostfix, configmapWithEnvFromName, shaData, options.ReloaderAutoAnnotation)
 	deploymentFuncs := GetDeploymentRollingUpgradeFuncs()
+	collectors := getCollectors()
 
-	err := PerformRollingUpgrade(clients, config, deploymentFuncs)
+	err := PerformRollingUpgrade(clients, config, deploymentFuncs, collectors)
 	time.Sleep(5 * time.Second)
 	if err != nil {
 		t.Errorf("Rolling upgrade failed for Deployment with Configmap used as env var")
@@ -521,14 +553,19 @@ func TestRollingUpgradeForDeploymentWithConfigmapAsEnvVarFrom(t *testing.T) {
 	if !updated {
 		t.Errorf("Deployment was not updated")
 	}
+
+	if promtestutil.ToFloat64(collectors.Reloaded.With(labelSucceeded)) != 1 {
+		t.Errorf("Counter was not increased")
+	}
 }
 
 func TestRollingUpgradeForDeploymentWithSecret(t *testing.T) {
 	shaData := testutil.ConvertResourceToSHA(testutil.SecretResourceType, namespace, secretName, "dGVzdFVwZGF0ZWRTZWNyZXRFbmNvZGluZ0ZvclJlbG9hZGVy")
 	config := getConfigWithAnnotations(constants.SecretEnvVarPostfix, secretName, shaData, options.SecretUpdateOnChangeAnnotation)
 	deploymentFuncs := GetDeploymentRollingUpgradeFuncs()
+	collectors := getCollectors()
 
-	err := PerformRollingUpgrade(clients, config, deploymentFuncs)
+	err := PerformRollingUpgrade(clients, config, deploymentFuncs, collectors)
 	time.Sleep(5 * time.Second)
 	if err != nil {
 		t.Errorf("Rolling upgrade failed for Deployment with Secret")
@@ -538,6 +575,10 @@ func TestRollingUpgradeForDeploymentWithSecret(t *testing.T) {
 	updated := testutil.VerifyResourceUpdate(clients, config, constants.SecretEnvVarPostfix, deploymentFuncs)
 	if !updated {
 		t.Errorf("Deployment was not updated")
+	}
+
+	if promtestutil.ToFloat64(collectors.Reloaded.With(labelSucceeded)) != 1 {
+		t.Errorf("Counter was not increased")
 	}
 }
 
@@ -545,8 +586,9 @@ func TestRollingUpgradeForDeploymentWithSecretinInitContainer(t *testing.T) {
 	shaData := testutil.ConvertResourceToSHA(testutil.SecretResourceType, namespace, secretWithInitContainer, "dGVzdFVwZGF0ZWRTZWNyZXRFbmNvZGluZ0ZvclJlbG9hZGVy")
 	config := getConfigWithAnnotations(constants.SecretEnvVarPostfix, secretWithInitContainer, shaData, options.SecretUpdateOnChangeAnnotation)
 	deploymentFuncs := GetDeploymentRollingUpgradeFuncs()
+	collectors := getCollectors()
 
-	err := PerformRollingUpgrade(clients, config, deploymentFuncs)
+	err := PerformRollingUpgrade(clients, config, deploymentFuncs, collectors)
 	time.Sleep(5 * time.Second)
 	if err != nil {
 		t.Errorf("Rolling upgrade failed for Deployment with Secret")
@@ -556,6 +598,10 @@ func TestRollingUpgradeForDeploymentWithSecretinInitContainer(t *testing.T) {
 	updated := testutil.VerifyResourceUpdate(clients, config, constants.SecretEnvVarPostfix, deploymentFuncs)
 	if !updated {
 		t.Errorf("Deployment was not updated")
+	}
+
+	if promtestutil.ToFloat64(collectors.Reloaded.With(labelSucceeded)) != 1 {
+		t.Errorf("Counter was not increased")
 	}
 }
 
@@ -563,8 +609,9 @@ func TestRollingUpgradeForDeploymentWithSecretAsEnvVar(t *testing.T) {
 	shaData := testutil.ConvertResourceToSHA(testutil.SecretResourceType, namespace, secretWithEnvName, "dGVzdFVwZGF0ZWRTZWNyZXRFbmNvZGluZ0ZvclJlbG9hZGVy")
 	config := getConfigWithAnnotations(constants.SecretEnvVarPostfix, secretWithEnvName, shaData, options.ReloaderAutoAnnotation)
 	deploymentFuncs := GetDeploymentRollingUpgradeFuncs()
+	collectors := getCollectors()
 
-	err := PerformRollingUpgrade(clients, config, deploymentFuncs)
+	err := PerformRollingUpgrade(clients, config, deploymentFuncs, collectors)
 	time.Sleep(5 * time.Second)
 	if err != nil {
 		t.Errorf("Rolling upgrade failed for Deployment with Secret")
@@ -574,6 +621,10 @@ func TestRollingUpgradeForDeploymentWithSecretAsEnvVar(t *testing.T) {
 	updated := testutil.VerifyResourceUpdate(clients, config, constants.SecretEnvVarPostfix, deploymentFuncs)
 	if !updated {
 		t.Errorf("Deployment was not updated")
+	}
+
+	if promtestutil.ToFloat64(collectors.Reloaded.With(labelSucceeded)) != 1 {
+		t.Errorf("Counter was not increased")
 	}
 }
 
@@ -581,8 +632,9 @@ func TestRollingUpgradeForDeploymentWithSecretAsEnvVarFrom(t *testing.T) {
 	shaData := testutil.ConvertResourceToSHA(testutil.SecretResourceType, namespace, secretWithEnvFromName, "dGVzdFVwZGF0ZWRTZWNyZXRFbmNvZGluZ0ZvclJlbG9hZGVy")
 	config := getConfigWithAnnotations(constants.SecretEnvVarPostfix, secretWithEnvFromName, shaData, options.ReloaderAutoAnnotation)
 	deploymentFuncs := GetDeploymentRollingUpgradeFuncs()
+	collectors := getCollectors()
 
-	err := PerformRollingUpgrade(clients, config, deploymentFuncs)
+	err := PerformRollingUpgrade(clients, config, deploymentFuncs, collectors)
 	time.Sleep(5 * time.Second)
 	if err != nil {
 		t.Errorf("Rolling upgrade failed for Deployment with Secret")
@@ -592,6 +644,10 @@ func TestRollingUpgradeForDeploymentWithSecretAsEnvVarFrom(t *testing.T) {
 	updated := testutil.VerifyResourceUpdate(clients, config, constants.SecretEnvVarPostfix, deploymentFuncs)
 	if !updated {
 		t.Errorf("Deployment was not updated")
+	}
+
+	if promtestutil.ToFloat64(collectors.Reloaded.With(labelSucceeded)) != 1 {
+		t.Errorf("Counter was not increased")
 	}
 }
 
@@ -599,8 +655,9 @@ func TestRollingUpgradeForDeploymentWithSecretAsEnvVarInInitContainer(t *testing
 	shaData := testutil.ConvertResourceToSHA(testutil.SecretResourceType, namespace, secretWithInitEnv, "dGVzdFVwZGF0ZWRTZWNyZXRFbmNvZGluZ0ZvclJlbG9hZGVy")
 	config := getConfigWithAnnotations(constants.SecretEnvVarPostfix, secretWithInitEnv, shaData, options.ReloaderAutoAnnotation)
 	deploymentFuncs := GetDeploymentRollingUpgradeFuncs()
+	collectors := getCollectors()
 
-	err := PerformRollingUpgrade(clients, config, deploymentFuncs)
+	err := PerformRollingUpgrade(clients, config, deploymentFuncs, collectors)
 	time.Sleep(5 * time.Second)
 	if err != nil {
 		t.Errorf("Rolling upgrade failed for Deployment with Secret")
@@ -611,14 +668,19 @@ func TestRollingUpgradeForDeploymentWithSecretAsEnvVarInInitContainer(t *testing
 	if !updated {
 		t.Errorf("Deployment was not updated")
 	}
+
+	if promtestutil.ToFloat64(collectors.Reloaded.With(labelSucceeded)) != 1 {
+		t.Errorf("Counter was not increased")
+	}
 }
 
 func TestRollingUpgradeForDaemonSetWithConfigmap(t *testing.T) {
 	shaData := testutil.ConvertResourceToSHA(testutil.ConfigmapResourceType, namespace, configmapName, "www.facebook.com")
 	config := getConfigWithAnnotations(constants.ConfigmapEnvVarPostfix, configmapName, shaData, options.ConfigmapUpdateOnChangeAnnotation)
 	daemonSetFuncs := GetDaemonSetRollingUpgradeFuncs()
+	collectors := getCollectors()
 
-	err := PerformRollingUpgrade(clients, config, daemonSetFuncs)
+	err := PerformRollingUpgrade(clients, config, daemonSetFuncs, collectors)
 	time.Sleep(5 * time.Second)
 	if err != nil {
 		t.Errorf("Rolling upgrade failed for DaemonSet with configmap")
@@ -629,14 +691,19 @@ func TestRollingUpgradeForDaemonSetWithConfigmap(t *testing.T) {
 	if !updated {
 		t.Errorf("DaemonSet was not updated")
 	}
+
+	if promtestutil.ToFloat64(collectors.Reloaded.With(labelSucceeded)) != 1 {
+		t.Errorf("Counter was not increased")
+	}
 }
 
 func TestRollingUpgradeForDaemonSetWithConfigmapAsEnvVar(t *testing.T) {
 	shaData := testutil.ConvertResourceToSHA(testutil.ConfigmapResourceType, namespace, configmapWithEnvName, "www.facebook.com")
 	config := getConfigWithAnnotations(constants.ConfigmapEnvVarPostfix, configmapWithEnvName, shaData, options.ReloaderAutoAnnotation)
 	daemonSetFuncs := GetDaemonSetRollingUpgradeFuncs()
+	collectors := getCollectors()
 
-	err := PerformRollingUpgrade(clients, config, daemonSetFuncs)
+	err := PerformRollingUpgrade(clients, config, daemonSetFuncs, collectors)
 	time.Sleep(5 * time.Second)
 	if err != nil {
 		t.Errorf("Rolling upgrade failed for DaemonSet with configmap used as env var")
@@ -647,14 +714,19 @@ func TestRollingUpgradeForDaemonSetWithConfigmapAsEnvVar(t *testing.T) {
 	if !updated {
 		t.Errorf("DaemonSet was not updated")
 	}
+
+	if promtestutil.ToFloat64(collectors.Reloaded.With(labelSucceeded)) != 1 {
+		t.Errorf("Counter was not increased")
+	}
 }
 
 func TestRollingUpgradeForDaemonSetWithSecret(t *testing.T) {
 	shaData := testutil.ConvertResourceToSHA(testutil.SecretResourceType, namespace, secretName, "d3d3LmZhY2Vib29rLmNvbQ==")
 	config := getConfigWithAnnotations(constants.SecretEnvVarPostfix, secretName, shaData, options.SecretUpdateOnChangeAnnotation)
 	daemonSetFuncs := GetDaemonSetRollingUpgradeFuncs()
+	collectors := getCollectors()
 
-	err := PerformRollingUpgrade(clients, config, daemonSetFuncs)
+	err := PerformRollingUpgrade(clients, config, daemonSetFuncs, collectors)
 	time.Sleep(5 * time.Second)
 	if err != nil {
 		t.Errorf("Rolling upgrade failed for DaemonSet with secret")
@@ -665,14 +737,19 @@ func TestRollingUpgradeForDaemonSetWithSecret(t *testing.T) {
 	if !updated {
 		t.Errorf("DaemonSet was not updated")
 	}
+
+	if promtestutil.ToFloat64(collectors.Reloaded.With(labelSucceeded)) != 1 {
+		t.Errorf("Counter was not increased")
+	}
 }
 
 func TestRollingUpgradeForStatefulSetWithConfigmap(t *testing.T) {
 	shaData := testutil.ConvertResourceToSHA(testutil.ConfigmapResourceType, namespace, configmapName, "www.twitter.com")
 	config := getConfigWithAnnotations(constants.ConfigmapEnvVarPostfix, configmapName, shaData, options.ConfigmapUpdateOnChangeAnnotation)
 	statefulSetFuncs := GetStatefulSetRollingUpgradeFuncs()
+	collectors := getCollectors()
 
-	err := PerformRollingUpgrade(clients, config, statefulSetFuncs)
+	err := PerformRollingUpgrade(clients, config, statefulSetFuncs, collectors)
 	time.Sleep(5 * time.Second)
 	if err != nil {
 		t.Errorf("Rolling upgrade failed for StatefulSet with configmap")
@@ -683,14 +760,19 @@ func TestRollingUpgradeForStatefulSetWithConfigmap(t *testing.T) {
 	if !updated {
 		t.Errorf("StatefulSet was not updated")
 	}
+
+	if promtestutil.ToFloat64(collectors.Reloaded.With(labelSucceeded)) != 1 {
+		t.Errorf("Counter was not increased")
+	}
 }
 
 func TestRollingUpgradeForStatefulSetWithSecret(t *testing.T) {
 	shaData := testutil.ConvertResourceToSHA(testutil.SecretResourceType, namespace, secretName, "d3d3LnR3aXR0ZXIuY29t")
 	config := getConfigWithAnnotations(constants.SecretEnvVarPostfix, secretName, shaData, options.SecretUpdateOnChangeAnnotation)
 	statefulSetFuncs := GetStatefulSetRollingUpgradeFuncs()
+	collectors := getCollectors()
 
-	err := PerformRollingUpgrade(clients, config, statefulSetFuncs)
+	err := PerformRollingUpgrade(clients, config, statefulSetFuncs, collectors)
 	time.Sleep(5 * time.Second)
 	if err != nil {
 		t.Errorf("Rolling upgrade failed for StatefulSet with secret")
@@ -701,14 +783,19 @@ func TestRollingUpgradeForStatefulSetWithSecret(t *testing.T) {
 	if !updated {
 		t.Errorf("StatefulSet was not updated")
 	}
+
+	if promtestutil.ToFloat64(collectors.Reloaded.With(labelSucceeded)) != 1 {
+		t.Errorf("Counter was not increased")
+	}
 }
 
 func TestRollingUpgradeForDeploymentWithPodAnnotations(t *testing.T) {
 	shaData := testutil.ConvertResourceToSHA(testutil.ConfigmapResourceType, namespace, configmapWithPodAnnotations, "www.stakater.com")
 	config := getConfigWithAnnotations(constants.ConfigmapEnvVarPostfix, configmapWithPodAnnotations, shaData, options.ConfigmapUpdateOnChangeAnnotation)
 	deploymentFuncs := GetDeploymentRollingUpgradeFuncs()
+	collectors := getCollectors()
 
-	err := PerformRollingUpgrade(clients, config, deploymentFuncs)
+	err := PerformRollingUpgrade(clients, config, deploymentFuncs, collectors)
 	time.Sleep(5 * time.Second)
 	if err != nil {
 		t.Errorf("Rolling upgrade failed for Deployment with pod annotations")
@@ -742,5 +829,25 @@ func TestRollingUpgradeForDeploymentWithPodAnnotations(t *testing.T) {
 	}
 	if !foundBoth {
 		t.Errorf("Deployment with both annotations was not found")
+	}
+
+	if promtestutil.ToFloat64(collectors.Reloaded.With(labelSucceeded)) != 1 {
+		t.Errorf("Counter was not increased")
+	}
+}
+
+func TestFailedRollingUpgrade(t *testing.T) {
+	shaData := testutil.ConvertResourceToSHA(testutil.ConfigmapResourceType, namespace, configmapName, "fail.stakater.com")
+	config := getConfigWithAnnotations(constants.ConfigmapEnvVarPostfix, configmapName, shaData, options.ConfigmapUpdateOnChangeAnnotation)
+	deploymentFuncs := GetDeploymentRollingUpgradeFuncs()
+	deploymentFuncs.UpdateFunc = func(_ kube.Clients, _ string, _ interface{}) error {
+		return fmt.Errorf("error")
+	}
+	collectors := getCollectors()
+
+	_ = PerformRollingUpgrade(clients, config, deploymentFuncs, collectors)
+
+	if promtestutil.ToFloat64(collectors.Reloaded.With(labelFailed)) != 1 {
+		t.Errorf("Counter was not increased")
 	}
 }

@@ -9,6 +9,7 @@ require (
 	github.com/onsi/gomega v1.7.0 // indirect
 	github.com/openshift/api v3.9.1-0.20190923092516-169848dd8137+incompatible
 	github.com/openshift/client-go v0.0.0-20190923092832-6afefc9bb372
+	github.com/prometheus/client_golang v1.4.1
 	github.com/sirupsen/logrus v1.0.5
 	github.com/spf13/cobra v0.0.0-20160722081547-f62e98d28ab7
 	github.com/stretchr/testify v1.4.0 // indirect

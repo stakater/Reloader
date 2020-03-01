@@ -6,6 +6,7 @@ import (
 
 	"github.com/sirupsen/logrus"
 	"github.com/stakater/Reloader/internal/pkg/handler"
+	"github.com/stakater/Reloader/internal/pkg/metrics"
 	"github.com/stakater/Reloader/internal/pkg/util"
 	"github.com/stakater/Reloader/pkg/kube"
 	"k8s.io/apimachinery/pkg/fields"
@@ -26,11 +27,12 @@ type Controller struct {
 	informer          cache.Controller
 	namespace         string
 	ignoredNamespaces util.List
+	collectors        metrics.Collectors
 }
 
 // NewController for initializing a Controller
 func NewController(
-	client kubernetes.Interface, resource string, namespace string, ignoredNamespaces []string) (*Controller, error) {
+	client kubernetes.Interface, resource string, namespace string, ignoredNamespaces []string, collectors metrics.Collectors) (*Controller, error) {
 
 	c := Controller{
 		client:            client,
@@ -49,6 +51,7 @@ func NewController(
 	c.indexer = indexer
 	c.informer = informer
 	c.queue = queue
+	c.collectors = collectors
 	return &c, nil
 }
 
@@ -56,7 +59,8 @@ func NewController(
 func (c *Controller) Add(obj interface{}) {
 	if !c.resourceInIgnoredNamespace(obj) {
 		c.queue.Add(handler.ResourceCreatedHandler{
-			Resource: obj,
+			Resource:   obj,
+			Collectors: c.collectors,
 		})
 	}
 }
@@ -77,6 +81,7 @@ func (c *Controller) Update(old interface{}, new interface{}) {
 		c.queue.Add(handler.ResourceUpdatedHandler{
 			Resource:    new,
 			OldResource: old,
+			Collectors:  c.collectors,
 		})
 	}
 }
