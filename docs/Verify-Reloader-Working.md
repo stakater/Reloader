@@ -1,6 +1,6 @@
 # Verify Reloader's Working
 
-Reloader's working can be verified by two ways.
+Reloader's working can be verified by three ways.
 
 ## Verify from logs
 
@@ -48,4 +48,14 @@ After a change in `secret` or `configmap`. Run the below mentioned command and v
 
 ```bash
 kubectl get pods <pod name> -n <namespace name>
+```
+
+## Verify from metrics
+Some metrics are exported to prometheus endpoint `/metrics` on port `9090`.
+
+When reloader is unable to reload, `reloader_reload_executed_total{success="false"}` metric gets incremented and when it reloads successfully, `reloader_reload_executed_total{success="true"}` gets incremented. You will be able to see the following metrics, with some other metrics, at `/metrics` endpoint.
+
+```
+reloader_reload_executed_total{success="false"} 15
+reloader_reload_executed_total{success="true"} 12
 ```

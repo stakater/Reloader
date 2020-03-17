@@ -8,6 +8,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/stakater/Reloader/internal/pkg/controller"
+	"github.com/stakater/Reloader/internal/pkg/metrics"
 	"github.com/stakater/Reloader/internal/pkg/options"
 	"github.com/stakater/Reloader/internal/pkg/util"
 	"github.com/stakater/Reloader/pkg/kube"
@@ -74,12 +75,14 @@ func startReloader(cmd *cobra.Command, args []string) {
 		logrus.Fatal(err)
 	}
 
+	collectors := metrics.SetupPrometheusEndpoint()
+
 	for k := range kube.ResourceMap {
 		if ignoredResourcesList.Contains(k) {
 			continue
 		}
 
-		c, err := controller.NewController(clientset, k, currentNamespace, ignoredNamespacesList)
+		c, err := controller.NewController(clientset, k, currentNamespace, ignoredNamespacesList, collectors)
 		if err != nil {
 			logrus.Fatalf("%s", err)
 		}

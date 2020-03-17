@@ -4,9 +4,11 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/prometheus/client_golang/prometheus"
 	"github.com/sirupsen/logrus"
 	"github.com/stakater/Reloader/internal/pkg/callbacks"
 	"github.com/stakater/Reloader/internal/pkg/constants"
+	"github.com/stakater/Reloader/internal/pkg/metrics"
 	"github.com/stakater/Reloader/internal/pkg/options"
 	"github.com/stakater/Reloader/internal/pkg/util"
 	"github.com/stakater/Reloader/pkg/kube"
@@ -69,28 +71,28 @@ func GetDeploymentConfigRollingUpgradeFuncs() callbacks.RollingUpgradeFuncs {
 	}
 }
 
-func doRollingUpgrade(config util.Config) {
+func doRollingUpgrade(config util.Config, collectors metrics.Collectors) {
 	clients := kube.GetClients()
 
-	rollingUpgrade(clients, config, GetDeploymentRollingUpgradeFuncs())
-	rollingUpgrade(clients, config, GetDaemonSetRollingUpgradeFuncs())
-	rollingUpgrade(clients, config, GetStatefulSetRollingUpgradeFuncs())
+	rollingUpgrade(clients, config, GetDeploymentRollingUpgradeFuncs(), collectors)
+	rollingUpgrade(clients, config, GetDaemonSetRollingUpgradeFuncs(), collectors)
+	rollingUpgrade(clients, config, GetStatefulSetRollingUpgradeFuncs(), collectors)
 
 	if kube.IsOpenshift {
-		rollingUpgrade(clients, config, GetDeploymentConfigRollingUpgradeFuncs())
+		rollingUpgrade(clients, config, GetDeploymentConfigRollingUpgradeFuncs(), collectors)
 	}
 }
 
-func rollingUpgrade(clients kube.Clients, config util.Config, upgradeFuncs callbacks.RollingUpgradeFuncs) {
+func rollingUpgrade(clients kube.Clients, config util.Config, upgradeFuncs callbacks.RollingUpgradeFuncs, collectors metrics.Collectors) {
 
-	err := PerformRollingUpgrade(clients, config, upgradeFuncs)
+	err := PerformRollingUpgrade(clients, config, upgradeFuncs, collectors)
 	if err != nil {
 		logrus.Errorf("Rolling upgrade for '%s' failed with error = %v", config.ResourceName, err)
 	}
 }
 
 // PerformRollingUpgrade upgrades the deployment if there is any change in configmap or secret data
-func PerformRollingUpgrade(clients kube.Clients, config util.Config, upgradeFuncs callbacks.RollingUpgradeFuncs) error {
+func PerformRollingUpgrade(clients kube.Clients, config util.Config, upgradeFuncs callbacks.RollingUpgradeFuncs, collectors metrics.Collectors) error {
 	items := upgradeFuncs.ItemsFunc(clients, config.Namespace)
 	var err error
 	for _, i := range items {
@@ -126,9 +128,11 @@ func PerformRollingUpgrade(clients kube.Clients, config util.Config, upgradeFunc
 			resourceName := util.ToObjectMeta(i).Name
 			if err != nil {
 				logrus.Errorf("Update for '%s' of type '%s' in namespace '%s' failed with error %v", resourceName, upgradeFuncs.ResourceType, config.Namespace, err)
+				collectors.Reloaded.With(prometheus.Labels{"success": "false"}).Inc()
 			} else {
 				logrus.Infof("Changes detected in '%s' of type '%s' in namespace '%s'", config.ResourceName, config.Type, config.Namespace)
 				logrus.Infof("Updated '%s' of type '%s' in namespace '%s'", resourceName, upgradeFuncs.ResourceType, config.Namespace)
+				collectors.Reloaded.With(prometheus.Labels{"success": "true"}).Inc()
 			}
 		}
 	}

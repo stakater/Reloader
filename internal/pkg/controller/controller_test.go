@@ -1,6 +1,7 @@
 package controller
 
 import (
+	"github.com/stakater/Reloader/internal/pkg/metrics"
 	"os"
 	"testing"
 	"time"
@@ -25,6 +26,7 @@ var (
 	data                = "dGVzdFNlY3JldEVuY29kaW5nRm9yUmVsb2FkZXI="
 	newData             = "dGVzdE5ld1NlY3JldEVuY29kaW5nRm9yUmVsb2FkZXI="
 	updatedData         = "dGVzdFVwZGF0ZWRTZWNyZXRFbmNvZGluZ0ZvclJlbG9hZGVy"
+	collectors          = metrics.NewCollectors()
 )
 
 func TestMain(m *testing.M) {
@@ -33,7 +35,7 @@ func TestMain(m *testing.M) {
 
 	logrus.Infof("Creating controller")
 	for k := range kube.ResourceMap {
-		c, err := NewController(clients.KubernetesClient, k, namespace, []string{})
+		c, err := NewController(clients.KubernetesClient, k, namespace, []string{}, collectors)
 		if err != nil {
 			logrus.Fatalf("%s", err)
 		}

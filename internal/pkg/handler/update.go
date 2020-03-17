@@ -2,6 +2,7 @@ package handler
 
 import (
 	"github.com/sirupsen/logrus"
+	"github.com/stakater/Reloader/internal/pkg/metrics"
 	"github.com/stakater/Reloader/internal/pkg/util"
 	v1 "k8s.io/api/core/v1"
 )
@@ -10,6 +11,7 @@ import (
 type ResourceUpdatedHandler struct {
 	Resource    interface{}
 	OldResource interface{}
+	Collectors  metrics.Collectors
 }
 
 // Handle processes the updated resource
@@ -20,7 +22,7 @@ func (r ResourceUpdatedHandler) Handle() error {
 		config, oldSHAData := r.GetConfig()
 		if config.SHAValue != oldSHAData {
 			// process resource based on its type
-			doRollingUpgrade(config)
+			doRollingUpgrade(config, r.Collectors)
 		}
 	}
 	return nil
