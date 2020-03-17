@@ -51,9 +51,9 @@ kubectl get pods <pod name> -n <namespace name>
 ```
 
 ## Verify from metrics
-Some metrics is exported from prometheus endpoint `/metrics` on port `9090`.
+Some metrics are exported to prometheus endpoint `/metrics` on port `9090`.
 
-When reloader failed to reload, `reloader_reload_executed_total{success="false"}`
+When reloader is unable to reload, `reloader_reload_executed_total{success="false"}` metric gets incremented and when it reloads successfully, `reloader_reload_executed_total{success="true"}` gets incremented. You will be able to see the following metrics, with some other metrics, at `/metrics` endpoint.
 
 ```
 reloader_reload_executed_total{success="false"} 15
