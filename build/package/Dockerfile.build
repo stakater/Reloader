@@ -1,18 +1,23 @@
 FROM golang:1.13.1-alpine
-MAINTAINER "Stakater Team"
+LABEL maintainer "Stakater Team"
 
 RUN apk update
 
 RUN apk -v --update \
-    add git build-base && \
-    rm -rf /var/cache/apk/* && \
-    mkdir -p "$GOPATH/src/github.com/stakater/Reloader"
+    --no-cache \
+    add git build-base
 
-ADD . "$GOPATH/src/github.com/stakater/Reloader"
+WORKDIR "$GOPATH/src/github.com/stakater/Reloader"
 
-RUN cd "$GOPATH/src/github.com/stakater/Reloader" && \
-    go mod download && \
-    CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -a --installsuffix cgo --ldflags="-s" -o /Reloader
+COPY go.mod go.sum ./
+
+RUN go mod download
+
+COPY . .
+
+ENV CGO_ENABLED=0 GOOS=linux GOARCH=amd64
+
+RUN go build -a --installsuffix cgo --ldflags="-s" -o /Reloader
 
 COPY build/package/Dockerfile.run /
 

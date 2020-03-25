@@ -1,7 +1,7 @@
-FROM alpine:3.9
-MAINTAINER "Stakater Team"
+FROM alpine:3.11
+LABEL maintainer "Stakater Team"
 
-RUN apk add --update ca-certificates
+RUN apk add --update --no-cache ca-certificates
 
 COPY Reloader /bin/Reloader
 
