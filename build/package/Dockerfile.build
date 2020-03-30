@@ -1,7 +1,5 @@
-FROM golang:1.13.1-alpine
+FROM golang:1.13.9-alpine
 LABEL maintainer "Stakater Team"
-
-RUN apk update
 
 RUN apk -v --update \
     --no-cache \
