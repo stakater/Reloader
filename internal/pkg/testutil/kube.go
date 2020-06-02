@@ -93,6 +93,38 @@ func getEnvVarSources(name string) []v1.EnvFromSource {
 func getVolumes(name string) []v1.Volume {
 	return []v1.Volume{
 		{
+			Name: "projectedconfigmap",
+			VolumeSource: v1.VolumeSource{
+				Projected: &v1.ProjectedVolumeSource{
+					Sources: []v1.VolumeProjection{
+						v1.VolumeProjection{
+							ConfigMap: &v1.ConfigMapProjection{
+								LocalObjectReference: v1.LocalObjectReference{
+									Name: name,
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			Name: "projectedsecret",
+			VolumeSource: v1.VolumeSource{
+				Projected: &v1.ProjectedVolumeSource{
+					Sources: []v1.VolumeProjection{
+						v1.VolumeProjection{
+							Secret: &v1.SecretProjection{
+								LocalObjectReference: v1.LocalObjectReference{
+									Name: name,
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		{
 			Name: "configmap",
 			VolumeSource: v1.VolumeSource{
 				ConfigMap: &v1.ConfigMapVolumeSource{
@@ -122,6 +154,14 @@ func getVolumeMounts(name string) []v1.VolumeMount {
 		{
 			MountPath: "etc/sec",
 			Name:      "secret",
+		},
+		{
+			MountPath: "etc/projectedconfig",
+			Name:      "projectedconfigmap",
+		},
+		{
+			MountPath: "etc/projectedsec",
+			Name:      "projectedsecret",
 		},
 	}
 }
@@ -570,7 +610,6 @@ func CreateSecret(client kubernetes.Interface, namespace string, secretName stri
 	time.Sleep(3 * time.Second)
 	return secretClient, err
 }
-
 // CreateDeployment creates a deployment in given namespace and returns the Deployment
 func CreateDeployment(client kubernetes.Interface, deploymentName string, namespace string, volumeMount bool) (*appsv1.Deployment, error) {
 	logrus.Infof("Creating Deployment")

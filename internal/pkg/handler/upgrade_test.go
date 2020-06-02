@@ -19,20 +19,24 @@ import (
 )
 
 var (
-	clients                      = kube.Clients{KubernetesClient: testclient.NewSimpleClientset()}
-	namespace                    = "test-handler-" + testutil.RandSeq(5)
-	configmapName                = "testconfigmap-handler-" + testutil.RandSeq(5)
-	secretName                   = "testsecret-handler-" + testutil.RandSeq(5)
-	configmapWithInitContainer   = "testconfigmapInitContainerhandler-" + testutil.RandSeq(5)
-	secretWithInitContainer      = "testsecretWithInitContainer-handler-" + testutil.RandSeq(5)
-	configmapWithInitEnv         = "configmapWithInitEnv-" + testutil.RandSeq(5)
-	secretWithInitEnv            = "secretWithInitEnv-handler-" + testutil.RandSeq(5)
-	configmapWithEnvName         = "testconfigmapWithEnv-handler-" + testutil.RandSeq(5)
-	configmapWithEnvFromName     = "testconfigmapWithEnvFrom-handler-" + testutil.RandSeq(5)
-	secretWithEnvName            = "testsecretWithEnv-handler-" + testutil.RandSeq(5)
-	secretWithEnvFromName        = "testsecretWithEnvFrom-handler-" + testutil.RandSeq(5)
-	configmapWithPodAnnotations  = "testconfigmapPodAnnotations-handler-" + testutil.RandSeq(5)
-	configmapWithBothAnnotations = "testconfigmapBothAnnotations-handler-" + testutil.RandSeq(5)
+	clients                             = kube.Clients{KubernetesClient: testclient.NewSimpleClientset()}
+	namespace                           = "test-handler-" + testutil.RandSeq(5)
+	configmapName                       = "testconfigmap-handler-" + testutil.RandSeq(5)
+	secretName                          = "testsecret-handler-" + testutil.RandSeq(5)
+	projectedConfigMapName              = "testprojectedconfigmap-handler-" + testutil.RandSeq(5)
+	projectedSecretName                 = "testprojectedsecret-handler-" + testutil.RandSeq(5)
+	configmapWithInitContainer          = "testconfigmapInitContainerhandler-" + testutil.RandSeq(5)
+	secretWithInitContainer             = "testsecretWithInitContainer-handler-" + testutil.RandSeq(5)
+	projectedConfigMapWithInitContainer = "testProjectedConfigMapWithInitContainer-handler" + testutil.RandSeq(5)
+	projectedSecretWithInitContainer    = "testProjectedSecretWithInitContainer-handler" + testutil.RandSeq(5)
+	configmapWithInitEnv                = "configmapWithInitEnv-" + testutil.RandSeq(5)
+	secretWithInitEnv                   = "secretWithInitEnv-handler-" + testutil.RandSeq(5)
+	configmapWithEnvName                = "testconfigmapWithEnv-handler-" + testutil.RandSeq(5)
+	configmapWithEnvFromName            = "testconfigmapWithEnvFrom-handler-" + testutil.RandSeq(5)
+	secretWithEnvName                   = "testsecretWithEnv-handler-" + testutil.RandSeq(5)
+	secretWithEnvFromName               = "testsecretWithEnvFrom-handler-" + testutil.RandSeq(5)
+	configmapWithPodAnnotations         = "testconfigmapPodAnnotations-handler-" + testutil.RandSeq(5)
+	configmapWithBothAnnotations        = "testconfigmapBothAnnotations-handler-" + testutil.RandSeq(5)
 )
 
 func TestMain(m *testing.M) {
@@ -62,6 +66,30 @@ func setup() {
 	// Creating secret
 	data := "dGVzdFNlY3JldEVuY29kaW5nRm9yUmVsb2FkZXI="
 	_, err = testutil.CreateSecret(clients.KubernetesClient, namespace, secretName, data)
+	if err != nil {
+		logrus.Errorf("Error in secret creation: %v", err)
+	}
+
+	// Creating configmap will be used in projected volume
+	_, err = testutil.CreateConfigMap(clients.KubernetesClient, namespace, projectedConfigMapName, "www.google.com")
+	if err != nil {
+		logrus.Errorf("Error in configmap creation: %v", err)
+	}
+
+	// Creating secret will be used in projected volume
+	_, err = testutil.CreateSecret(clients.KubernetesClient, namespace, projectedSecretName, data)
+	if err != nil {
+		logrus.Errorf("Error in secret creation: %v", err)
+	}
+
+	// Creating configmap will be used in projected volume in init containers
+	_, err = testutil.CreateConfigMap(clients.KubernetesClient, namespace, projectedConfigMapWithInitContainer, "www.google.com")
+	if err != nil {
+		logrus.Errorf("Error in configmap creation: %v", err)
+	}
+
+	// Creating secret will be used in projected volume in init containers
+	_, err = testutil.CreateSecret(clients.KubernetesClient, namespace, projectedSecretWithInitContainer, data)
 	if err != nil {
 		logrus.Errorf("Error in secret creation: %v", err)
 	}
@@ -127,6 +155,30 @@ func setup() {
 		logrus.Errorf("Error in Deployment with configmap creation: %v", err)
 	}
 
+	// Creating Deployment with configmap in projected volume
+	_, err = testutil.CreateDeployment(clients.KubernetesClient, projectedConfigMapName, namespace, true)
+	if err != nil {
+		logrus.Errorf("Error in Deployment with configmap creation: %v", err)
+	}
+
+	// Creating Deployment with configmap in projected volume mounted in init container
+	_, err = testutil.CreateDeploymentWithInitContainer(clients.KubernetesClient, projectedConfigMapWithInitContainer, namespace, true)
+	if err != nil {
+		logrus.Errorf("Error in Deployment with configmap creation: %v", err)
+	}
+
+	// Creating Deployment with secret in projected volume
+	_, err = testutil.CreateDeployment(clients.KubernetesClient, projectedSecretName, namespace, true)
+	if err != nil {
+		logrus.Errorf("Error in Deployment with secret creation: %v", err)
+	}
+
+	// Creating Deployment with secret in projected volume mounted in init container
+	_, err = testutil.CreateDeploymentWithInitContainer(clients.KubernetesClient, projectedSecretWithInitContainer, namespace, true)
+	if err != nil {
+		logrus.Errorf("Error in Deployment with secret creation: %v", err)
+	}
+
 	// Creating Deployment with secret mounted in init container
 	_, err = testutil.CreateDeploymentWithInitContainer(clients.KubernetesClient, secretWithInitContainer, namespace, true)
 	if err != nil {
@@ -187,6 +239,18 @@ func setup() {
 		logrus.Errorf("Error in DaemonSet with secret creation: %v", err)
 	}
 
+	// Creating DaemonSet with configmap in projected volume
+	_, err = testutil.CreateDaemonSet(clients.KubernetesClient, projectedConfigMapName, namespace, true)
+	if err != nil {
+		logrus.Errorf("Error in DaemonSet with configmap creation: %v", err)
+	}
+
+	// Creating DaemonSet with secret in projected volume
+	_, err = testutil.CreateDaemonSet(clients.KubernetesClient, projectedSecretName, namespace, true)
+	if err != nil {
+		logrus.Errorf("Error in DaemonSet with secret creation: %v", err)
+	}
+
 	// Creating DaemonSet with env var source as configmap
 	_, err = testutil.CreateDaemonSet(clients.KubernetesClient, configmapWithEnvName, namespace, false)
 	if err != nil {
@@ -209,6 +273,18 @@ func setup() {
 	_, err = testutil.CreateStatefulSet(clients.KubernetesClient, secretName, namespace, true)
 	if err != nil {
 		logrus.Errorf("Error in StatefulSet with secret creation: %v", err)
+	}
+
+	// Creating StatefulSet with configmap in projected volume
+	_, err = testutil.CreateStatefulSet(clients.KubernetesClient, projectedConfigMapName, namespace, true)
+	if err != nil {
+		logrus.Errorf("Error in StatefulSet with configmap creation: %v", err)
+	}
+
+	// Creating StatefulSet with secret in projected volume
+	_, err = testutil.CreateStatefulSet(clients.KubernetesClient, projectedSecretName, namespace, true)
+	if err != nil {
+		logrus.Errorf("Error in StatefulSet with configmap creation: %v", err)
 	}
 
 	// Creating StatefulSet with env var source as configmap
@@ -247,6 +323,30 @@ func teardown() {
 	deploymentError = testutil.DeleteDeployment(clients.KubernetesClient, namespace, secretName)
 	if deploymentError != nil {
 		logrus.Errorf("Error while deleting deployment with secret %v", deploymentError)
+	}
+
+	// Deleting Deployment with configmap in projected volume
+	deploymentError = testutil.DeleteDeployment(clients.KubernetesClient, namespace, projectedConfigMapName)
+	if deploymentError != nil {
+		logrus.Errorf("Error while deleting deployment with configmap %v", deploymentError)
+	}
+
+	// Deleting Deployment with configmap in projected volume mounted in init  container
+	deploymentError = testutil.DeleteDeployment(clients.KubernetesClient, namespace, projectedConfigMapWithInitContainer)
+	if deploymentError != nil {
+		logrus.Errorf("Error while deleting deployment with configmap %v", deploymentError)
+	}
+
+	// Deleting Deployment with secret in projected volume
+	deploymentError = testutil.DeleteDeployment(clients.KubernetesClient, namespace, projectedSecretName)
+	if deploymentError != nil {
+		logrus.Errorf("Error while deleting deployment with configmap %v", deploymentError)
+	}
+
+	// Deleting Deployment with secret in projected volume mounted in init container
+	deploymentError = testutil.DeleteDeployment(clients.KubernetesClient, namespace, projectedSecretWithInitContainer)
+	if deploymentError != nil {
+		logrus.Errorf("Error while deleting deployment with configmap %v", deploymentError)
 	}
 
 	// Deleting Deployment with configmap as env var source
@@ -321,6 +421,18 @@ func teardown() {
 		logrus.Errorf("Error while deleting daemonSet with secret %v", daemonSetError)
 	}
 
+	// Deleting DaemonSet with configmap in projected volume
+	daemonSetError = testutil.DeleteDaemonSet(clients.KubernetesClient, namespace, projectedConfigMapName)
+	if daemonSetError != nil {
+		logrus.Errorf("Error while deleting daemonSet with configmap %v", daemonSetError)
+	}
+
+	// Deleting Deployment with secret in projected volume
+	daemonSetError = testutil.DeleteDaemonSet(clients.KubernetesClient, namespace, projectedSecretName)
+	if daemonSetError != nil {
+		logrus.Errorf("Error while deleting daemonSet with secret %v", daemonSetError)
+	}
+
 	// Deleting Deployment with configmap as env var source
 	daemonSetError = testutil.DeleteDaemonSet(clients.KubernetesClient, namespace, configmapWithEnvName)
 	if daemonSetError != nil {
@@ -345,6 +457,18 @@ func teardown() {
 		logrus.Errorf("Error while deleting statefulSet with secret %v", statefulSetError)
 	}
 
+	// Deleting StatefulSet with configmap in projected volume
+	statefulSetError = testutil.DeleteStatefulSet(clients.KubernetesClient, namespace, projectedConfigMapName)
+	if statefulSetError != nil {
+		logrus.Errorf("Error while deleting statefulSet with configmap %v", statefulSetError)
+	}
+
+	// Deleting Deployment with secret in projected volume
+	statefulSetError = testutil.DeleteStatefulSet(clients.KubernetesClient, namespace, projectedSecretName)
+	if statefulSetError != nil {
+		logrus.Errorf("Error while deleting statefulSet with secret %v", statefulSetError)
+	}
+
 	// Deleting StatefulSet with configmap as env var source
 	statefulSetError = testutil.DeleteStatefulSet(clients.KubernetesClient, namespace, configmapWithEnvName)
 	if statefulSetError != nil {
@@ -365,6 +489,30 @@ func teardown() {
 
 	// Deleting Secret
 	err = testutil.DeleteSecret(clients.KubernetesClient, namespace, secretName)
+	if err != nil {
+		logrus.Errorf("Error while deleting the secret %v", err)
+	}
+
+	// Deleting configmap used in projected volume
+	err = testutil.DeleteConfigMap(clients.KubernetesClient, namespace, projectedConfigMapName)
+	if err != nil {
+		logrus.Errorf("Error while deleting the configmap %v", err)
+	}
+
+	// Deleting Secret used in projected volume
+	err = testutil.DeleteSecret(clients.KubernetesClient, namespace, projectedSecretName)
+	if err != nil {
+		logrus.Errorf("Error while deleting the secret %v", err)
+	}
+
+	// Deleting configmap used in projected volume in init containers
+	err = testutil.DeleteConfigMap(clients.KubernetesClient, namespace, projectedConfigMapWithInitContainer)
+	if err != nil {
+		logrus.Errorf("Error while deleting the configmap %v", err)
+	}
+
+	// Deleting Configmap used projected volume in init containers
+	err = testutil.DeleteSecret(clients.KubernetesClient, namespace, projectedSecretWithInitContainer)
 	if err != nil {
 		logrus.Errorf("Error while deleting the secret %v", err)
 	}
@@ -467,6 +615,29 @@ func TestRollingUpgradeForDeploymentWithConfigmap(t *testing.T) {
 	}
 }
 
+func TestRollingUpgradeForDeploymentWithConfigmapInProjectedVolume(t *testing.T) {
+	shaData := testutil.ConvertResourceToSHA(testutil.ConfigmapResourceType, namespace, projectedConfigMapName, "www.stakater.com")
+	config := getConfigWithAnnotations(constants.ConfigmapEnvVarPostfix, projectedConfigMapName, shaData, options.ConfigmapUpdateOnChangeAnnotation)
+	deploymentFuncs := GetDeploymentRollingUpgradeFuncs()
+	collectors := getCollectors()
+
+	err := PerformRollingUpgrade(clients, config, deploymentFuncs, collectors)
+	time.Sleep(5 * time.Second)
+	if err != nil {
+		t.Errorf("Rolling upgrade failed for Deployment with Configmap in projected volume")
+	}
+
+	logrus.Infof("Verifying deployment update")
+	updated := testutil.VerifyResourceUpdate(clients, config, constants.ConfigmapEnvVarPostfix, deploymentFuncs)
+	if !updated {
+		t.Errorf("Deployment was not updated")
+	}
+
+	if promtestutil.ToFloat64(collectors.Reloaded.With(labelSucceeded)) != 1 {
+		t.Errorf("Counter was not increased")
+	}
+}
+
 func TestRollingUpgradeForDeploymentWithConfigmapInInitContainer(t *testing.T) {
 	shaData := testutil.ConvertResourceToSHA(testutil.ConfigmapResourceType, namespace, configmapWithInitContainer, "www.stakater.com")
 	config := getConfigWithAnnotations(constants.ConfigmapEnvVarPostfix, configmapWithInitContainer, shaData, options.ConfigmapUpdateOnChangeAnnotation)
@@ -477,6 +648,29 @@ func TestRollingUpgradeForDeploymentWithConfigmapInInitContainer(t *testing.T) {
 	time.Sleep(5 * time.Second)
 	if err != nil {
 		t.Errorf("Rolling upgrade failed for Deployment with Configmap")
+	}
+
+	logrus.Infof("Verifying deployment update")
+	updated := testutil.VerifyResourceUpdate(clients, config, constants.ConfigmapEnvVarPostfix, deploymentFuncs)
+	if !updated {
+		t.Errorf("Deployment was not updated")
+	}
+
+	if promtestutil.ToFloat64(collectors.Reloaded.With(labelSucceeded)) != 1 {
+		t.Errorf("Counter was not increased")
+	}
+}
+
+func TestRollingUpgradeForDeploymentWithConfigmapInProjectVolumeInInitContainer(t *testing.T) {
+	shaData := testutil.ConvertResourceToSHA(testutil.ConfigmapResourceType, namespace, projectedConfigMapWithInitContainer, "www.stakater.com")
+	config := getConfigWithAnnotations(constants.ConfigmapEnvVarPostfix, projectedConfigMapWithInitContainer, shaData, options.ConfigmapUpdateOnChangeAnnotation)
+	deploymentFuncs := GetDeploymentRollingUpgradeFuncs()
+	collectors := getCollectors()
+
+	err := PerformRollingUpgrade(clients, config, deploymentFuncs, collectors)
+	time.Sleep(5 * time.Second)
+	if err != nil {
+		t.Errorf("Rolling upgrade failed for Deployment with Configmap in projected volume")
 	}
 
 	logrus.Infof("Verifying deployment update")
@@ -582,6 +776,29 @@ func TestRollingUpgradeForDeploymentWithSecret(t *testing.T) {
 	}
 }
 
+func TestRollingUpgradeForDeploymentWithSecretInProjectedVolume(t *testing.T) {
+	shaData := testutil.ConvertResourceToSHA(testutil.SecretResourceType, namespace, projectedSecretName, "dGVzdFVwZGF0ZWRTZWNyZXRFbmNvZGluZ0ZvclJlbG9hZGVy")
+	config := getConfigWithAnnotations(constants.SecretEnvVarPostfix, projectedSecretName, shaData, options.SecretUpdateOnChangeAnnotation)
+	deploymentFuncs := GetDeploymentRollingUpgradeFuncs()
+	collectors := getCollectors()
+
+	err := PerformRollingUpgrade(clients, config, deploymentFuncs, collectors)
+	time.Sleep(5 * time.Second)
+	if err != nil {
+		t.Errorf("Rolling upgrade failed for Deployment with Secret in projected volume")
+	}
+
+	logrus.Infof("Verifying deployment update")
+	updated := testutil.VerifyResourceUpdate(clients, config, constants.SecretEnvVarPostfix, deploymentFuncs)
+	if !updated {
+		t.Errorf("Deployment was not updated")
+	}
+
+	if promtestutil.ToFloat64(collectors.Reloaded.With(labelSucceeded)) != 1 {
+		t.Errorf("Counter was not increased")
+	}
+}
+
 func TestRollingUpgradeForDeploymentWithSecretinInitContainer(t *testing.T) {
 	shaData := testutil.ConvertResourceToSHA(testutil.SecretResourceType, namespace, secretWithInitContainer, "dGVzdFVwZGF0ZWRTZWNyZXRFbmNvZGluZ0ZvclJlbG9hZGVy")
 	config := getConfigWithAnnotations(constants.SecretEnvVarPostfix, secretWithInitContainer, shaData, options.SecretUpdateOnChangeAnnotation)
@@ -592,6 +809,29 @@ func TestRollingUpgradeForDeploymentWithSecretinInitContainer(t *testing.T) {
 	time.Sleep(5 * time.Second)
 	if err != nil {
 		t.Errorf("Rolling upgrade failed for Deployment with Secret")
+	}
+
+	logrus.Infof("Verifying deployment update")
+	updated := testutil.VerifyResourceUpdate(clients, config, constants.SecretEnvVarPostfix, deploymentFuncs)
+	if !updated {
+		t.Errorf("Deployment was not updated")
+	}
+
+	if promtestutil.ToFloat64(collectors.Reloaded.With(labelSucceeded)) != 1 {
+		t.Errorf("Counter was not increased")
+	}
+}
+
+func TestRollingUpgradeForDeploymentWithSecretInProjectedVolumeinInitContainer(t *testing.T) {
+	shaData := testutil.ConvertResourceToSHA(testutil.SecretResourceType, namespace, projectedSecretWithInitContainer, "dGVzdFVwZGF0ZWRTZWNyZXRFbmNvZGluZ0ZvclJlbG9hZGVy")
+	config := getConfigWithAnnotations(constants.SecretEnvVarPostfix, projectedSecretWithInitContainer, shaData, options.SecretUpdateOnChangeAnnotation)
+	deploymentFuncs := GetDeploymentRollingUpgradeFuncs()
+	collectors := getCollectors()
+
+	err := PerformRollingUpgrade(clients, config, deploymentFuncs, collectors)
+	time.Sleep(5 * time.Second)
+	if err != nil {
+		t.Errorf("Rolling upgrade failed for Deployment with Secret in projected volume")
 	}
 
 	logrus.Infof("Verifying deployment update")
@@ -697,6 +937,29 @@ func TestRollingUpgradeForDaemonSetWithConfigmap(t *testing.T) {
 	}
 }
 
+func TestRollingUpgradeForDaemonSetWithConfigmapInProjectedVolume(t *testing.T) {
+	shaData := testutil.ConvertResourceToSHA(testutil.ConfigmapResourceType, namespace, projectedConfigMapName, "www.facebook.com")
+	config := getConfigWithAnnotations(constants.ConfigmapEnvVarPostfix, projectedConfigMapName, shaData, options.ConfigmapUpdateOnChangeAnnotation)
+	daemonSetFuncs := GetDaemonSetRollingUpgradeFuncs()
+	collectors := getCollectors()
+
+	err := PerformRollingUpgrade(clients, config, daemonSetFuncs, collectors)
+	time.Sleep(5 * time.Second)
+	if err != nil {
+		t.Errorf("Rolling upgrade failed for DaemonSet with configmap in projected volume")
+	}
+
+	logrus.Infof("Verifying daemonSet update")
+	updated := testutil.VerifyResourceUpdate(clients, config, constants.ConfigmapEnvVarPostfix, daemonSetFuncs)
+	if !updated {
+		t.Errorf("DaemonSet was not updated")
+	}
+
+	if promtestutil.ToFloat64(collectors.Reloaded.With(labelSucceeded)) != 1 {
+		t.Errorf("Counter was not increased")
+	}
+}
+
 func TestRollingUpgradeForDaemonSetWithConfigmapAsEnvVar(t *testing.T) {
 	shaData := testutil.ConvertResourceToSHA(testutil.ConfigmapResourceType, namespace, configmapWithEnvName, "www.facebook.com")
 	config := getConfigWithAnnotations(constants.ConfigmapEnvVarPostfix, configmapWithEnvName, shaData, options.ReloaderAutoAnnotation)
@@ -743,6 +1006,29 @@ func TestRollingUpgradeForDaemonSetWithSecret(t *testing.T) {
 	}
 }
 
+func TestRollingUpgradeForDaemonSetWithSecretInProjectedVolume(t *testing.T) {
+	shaData := testutil.ConvertResourceToSHA(testutil.SecretResourceType, namespace, projectedSecretName, "d3d3LmZhY2Vib29rLmNvbQ==")
+	config := getConfigWithAnnotations(constants.SecretEnvVarPostfix, projectedSecretName, shaData, options.SecretUpdateOnChangeAnnotation)
+	daemonSetFuncs := GetDaemonSetRollingUpgradeFuncs()
+	collectors := getCollectors()
+
+	err := PerformRollingUpgrade(clients, config, daemonSetFuncs, collectors)
+	time.Sleep(5 * time.Second)
+	if err != nil {
+		t.Errorf("Rolling upgrade failed for DaemonSet with secret in projected volume")
+	}
+
+	logrus.Infof("Verifying daemonSet update")
+	updated := testutil.VerifyResourceUpdate(clients, config, constants.SecretEnvVarPostfix, daemonSetFuncs)
+	if !updated {
+		t.Errorf("DaemonSet was not updated")
+	}
+
+	if promtestutil.ToFloat64(collectors.Reloaded.With(labelSucceeded)) != 1 {
+		t.Errorf("Counter was not increased")
+	}
+}
+
 func TestRollingUpgradeForStatefulSetWithConfigmap(t *testing.T) {
 	shaData := testutil.ConvertResourceToSHA(testutil.ConfigmapResourceType, namespace, configmapName, "www.twitter.com")
 	config := getConfigWithAnnotations(constants.ConfigmapEnvVarPostfix, configmapName, shaData, options.ConfigmapUpdateOnChangeAnnotation)
@@ -766,6 +1052,29 @@ func TestRollingUpgradeForStatefulSetWithConfigmap(t *testing.T) {
 	}
 }
 
+func TestRollingUpgradeForStatefulSetWithConfigmapInProjectedVolume(t *testing.T) {
+	shaData := testutil.ConvertResourceToSHA(testutil.ConfigmapResourceType, namespace, projectedConfigMapName, "www.twitter.com")
+	config := getConfigWithAnnotations(constants.ConfigmapEnvVarPostfix, projectedConfigMapName, shaData, options.ConfigmapUpdateOnChangeAnnotation)
+	statefulSetFuncs := GetStatefulSetRollingUpgradeFuncs()
+	collectors := getCollectors()
+
+	err := PerformRollingUpgrade(clients, config, statefulSetFuncs, collectors)
+	time.Sleep(5 * time.Second)
+	if err != nil {
+		t.Errorf("Rolling upgrade failed for StatefulSet with configmap in projected volume")
+	}
+
+	logrus.Infof("Verifying statefulSet update")
+	updated := testutil.VerifyResourceUpdate(clients, config, constants.ConfigmapEnvVarPostfix, statefulSetFuncs)
+	if !updated {
+		t.Errorf("StatefulSet was not updated")
+	}
+
+	if promtestutil.ToFloat64(collectors.Reloaded.With(labelSucceeded)) != 1 {
+		t.Errorf("Counter was not increased")
+	}
+}
+
 func TestRollingUpgradeForStatefulSetWithSecret(t *testing.T) {
 	shaData := testutil.ConvertResourceToSHA(testutil.SecretResourceType, namespace, secretName, "d3d3LnR3aXR0ZXIuY29t")
 	config := getConfigWithAnnotations(constants.SecretEnvVarPostfix, secretName, shaData, options.SecretUpdateOnChangeAnnotation)
@@ -776,6 +1085,29 @@ func TestRollingUpgradeForStatefulSetWithSecret(t *testing.T) {
 	time.Sleep(5 * time.Second)
 	if err != nil {
 		t.Errorf("Rolling upgrade failed for StatefulSet with secret")
+	}
+
+	logrus.Infof("Verifying statefulSet update")
+	updated := testutil.VerifyResourceUpdate(clients, config, constants.SecretEnvVarPostfix, statefulSetFuncs)
+	if !updated {
+		t.Errorf("StatefulSet was not updated")
+	}
+
+	if promtestutil.ToFloat64(collectors.Reloaded.With(labelSucceeded)) != 1 {
+		t.Errorf("Counter was not increased")
+	}
+}
+
+func TestRollingUpgradeForStatefulSetWithSecretInProjectedVolume(t *testing.T) {
+	shaData := testutil.ConvertResourceToSHA(testutil.SecretResourceType, namespace, projectedSecretName, "d3d3LnR3aXR0ZXIuY29t")
+	config := getConfigWithAnnotations(constants.SecretEnvVarPostfix, projectedSecretName, shaData, options.SecretUpdateOnChangeAnnotation)
+	statefulSetFuncs := GetStatefulSetRollingUpgradeFuncs()
+	collectors := getCollectors()
+
+	err := PerformRollingUpgrade(clients, config, statefulSetFuncs, collectors)
+	time.Sleep(5 * time.Second)
+	if err != nil {
+		t.Errorf("Rolling upgrade failed for StatefulSet with secret in projected volume")
 	}
 
 	logrus.Infof("Verifying statefulSet update")

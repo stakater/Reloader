@@ -141,12 +141,33 @@ func PerformRollingUpgrade(clients kube.Clients, config util.Config, upgradeFunc
 
 func getVolumeMountName(volumes []v1.Volume, mountType string, volumeName string) string {
 	for i := range volumes {
-		if mountType == constants.ConfigmapEnvVarPostfix && volumes[i].ConfigMap != nil && volumes[i].ConfigMap.Name == volumeName {
-			return volumes[i].Name
-		} else if mountType == constants.SecretEnvVarPostfix && volumes[i].Secret != nil && volumes[i].Secret.SecretName == volumeName {
-			return volumes[i].Name
+		if mountType == constants.ConfigmapEnvVarPostfix {
+			if volumes[i].ConfigMap != nil && volumes[i].ConfigMap.Name == volumeName {
+				return volumes[i].Name
+			}
+
+			if volumes[i].Projected != nil {
+				for j := range volumes[i].Projected.Sources {
+					if volumes[i].Projected.Sources[j].ConfigMap != nil && volumes[i].Projected.Sources[j].ConfigMap.Name == volumeName {
+						return volumes[i].Name
+					}
+				}
+			}
+		} else if mountType == constants.SecretEnvVarPostfix {
+			if volumes[i].Secret != nil && volumes[i].Secret.SecretName == volumeName {
+				return volumes[i].Name
+			}
+
+			if volumes[i].Projected != nil {
+				for j := range volumes[i].Projected.Sources {
+					if volumes[i].Projected.Sources[j].Secret != nil && volumes[i].Projected.Sources[j].Secret.Name == volumeName {
+						return volumes[i].Name
+					}
+				}
+			}
 		}
 	}
+
 	return ""
 }
 
