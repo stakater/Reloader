@@ -15,6 +15,7 @@ import (
 	"github.com/stakater/Reloader/internal/pkg/testutil"
 	"github.com/stakater/Reloader/internal/pkg/util"
 	"github.com/stakater/Reloader/pkg/kube"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	testclient "k8s.io/client-go/kubernetes/fake"
 )
 
@@ -622,7 +623,6 @@ func TestRollingUpgradeForDeploymentWithConfigmapInProjectedVolume(t *testing.T)
 	collectors := getCollectors()
 
 	err := PerformRollingUpgrade(clients, config, deploymentFuncs, collectors)
-	time.Sleep(5 * time.Second)
 	if err != nil {
 		t.Errorf("Rolling upgrade failed for Deployment with Configmap in projected volume")
 	}
@@ -638,6 +638,166 @@ func TestRollingUpgradeForDeploymentWithConfigmapInProjectedVolume(t *testing.T)
 	}
 }
 
+func TestRollingUpgradeForDeploymentWithConfigmapViaSearchAnnotation(t *testing.T) {
+	annotatedConfigmapName := "testconfigmapAnnotated-handler-" + testutil.RandSeq(5)
+	configmapObj := testutil.GetConfigmap(namespace, annotatedConfigmapName, "www.google.com")
+	configmapObj.Annotations = map[string]string{"test-annotation": "test"}
+	configmap, err := clients.KubernetesClient.CoreV1().ConfigMaps(namespace).Create(configmapObj)
+	if err != nil {
+		t.Errorf("Failed to create config map with annotation.")
+	}
+	defer clients.KubernetesClient.CoreV1().ConfigMaps(namespace).Delete(configmap.Name, &v1.DeleteOptions{})
+	deploymentObj := testutil.GetDeploymentWithEnvVars(namespace, annotatedConfigmapName)
+	deploymentObj.Annotations = map[string]string{options.ConfigmapUpdateAutoSearchAnnotation: "test-annotation=test"}
+	deployment, err := clients.KubernetesClient.AppsV1().Deployments(namespace).Create(deploymentObj)
+	if err != nil {
+		t.Errorf("Failed to create deployment with search annotation.")
+	}
+	defer clients.KubernetesClient.AppsV1().Deployments(namespace).Delete(deployment.Name, &v1.DeleteOptions{})
+
+	shaData := testutil.ConvertResourceToSHA(testutil.ConfigmapResourceType, namespace, annotatedConfigmapName, "www.stakater.com")
+	config := getConfigWithAnnotations(constants.ConfigmapEnvVarPostfix, annotatedConfigmapName, shaData, "")
+	config.SearchAnnotation = options.ConfigmapUpdateAutoSearchAnnotation
+	config.ResourceAnnotations = configmap.Annotations
+	deploymentFuncs := GetDeploymentRollingUpgradeFuncs()
+	collectors := getCollectors()
+
+	err = PerformRollingUpgrade(clients, config, deploymentFuncs, collectors)
+	if err != nil {
+		t.Errorf("Rolling upgrade failed for Deployment with Configmap")
+	}
+
+	logrus.Infof("Verifying deployment update")
+	updated := testutil.VerifyResourceUpdate(clients, config, constants.ConfigmapEnvVarPostfix, deploymentFuncs)
+	if !updated {
+		t.Errorf("Deployment was not updated")
+	}
+
+	if promtestutil.ToFloat64(collectors.Reloaded.With(labelSucceeded)) != 1 {
+		t.Errorf("Counter was not increased")
+	}
+}
+
+func TestRollingUpgradeForDeploymentWithConfigmapViaSearchAnnotationNoValue(t *testing.T) {
+	annotatedConfigmapName := "testconfigmapAnnotated-handler-" + testutil.RandSeq(5)
+	configmapObj := testutil.GetConfigmap(namespace, annotatedConfigmapName, "www.google.com")
+	configmapObj.Annotations = map[string]string{"test-annotation": "test"}
+	configmap, err := clients.KubernetesClient.CoreV1().ConfigMaps(namespace).Create(configmapObj)
+	if err != nil {
+		t.Errorf("Failed to create config map with annotation.")
+	}
+	defer clients.KubernetesClient.CoreV1().ConfigMaps(namespace).Delete(configmap.Name, &v1.DeleteOptions{})
+	deploymentObj := testutil.GetDeploymentWithEnvVars(namespace, annotatedConfigmapName)
+	deploymentObj.Annotations = map[string]string{options.ConfigmapUpdateAutoSearchAnnotation: "test-annotation"}
+	deployment, err := clients.KubernetesClient.AppsV1().Deployments(namespace).Create(deploymentObj)
+	if err != nil {
+		t.Errorf("Failed to create deployment with search annotation.")
+	}
+	defer clients.KubernetesClient.AppsV1().Deployments(namespace).Delete(deployment.Name, &v1.DeleteOptions{})
+
+	shaData := testutil.ConvertResourceToSHA(testutil.ConfigmapResourceType, namespace, annotatedConfigmapName, "www.stakater.com")
+	config := getConfigWithAnnotations(constants.ConfigmapEnvVarPostfix, annotatedConfigmapName, shaData, "")
+	config.SearchAnnotation = options.ConfigmapUpdateAutoSearchAnnotation
+	config.ResourceAnnotations = configmap.Annotations
+	deploymentFuncs := GetDeploymentRollingUpgradeFuncs()
+	collectors := getCollectors()
+
+	err = PerformRollingUpgrade(clients, config, deploymentFuncs, collectors)
+	if err != nil {
+		t.Errorf("Rolling upgrade failed for Deployment with Configmap")
+	}
+
+	logrus.Infof("Verifying deployment update")
+	updated := testutil.VerifyResourceUpdate(clients, config, constants.ConfigmapEnvVarPostfix, deploymentFuncs)
+	if !updated {
+		t.Errorf("Deployment was not updated")
+	}
+
+	if promtestutil.ToFloat64(collectors.Reloaded.With(labelSucceeded)) != 1 {
+		t.Errorf("Counter was not increased")
+	}
+}
+
+func TestRollingUpgradeForDeploymentWithConfigmapViaSearchAnnotationNotFound(t *testing.T) {
+	annotatedConfigmapName := "testconfigmapAnnotated-handler-" + testutil.RandSeq(5)
+	configmapObj := testutil.GetConfigmap(namespace, annotatedConfigmapName, "www.google.com")
+	configmapObj.Annotations = map[string]string{"test-annotation": "test"}
+	configmap, err := clients.KubernetesClient.CoreV1().ConfigMaps(namespace).Create(configmapObj)
+	if err != nil {
+		t.Errorf("Failed to create config map with annotation.")
+	}
+	defer clients.KubernetesClient.CoreV1().ConfigMaps(namespace).Delete(configmap.Name, &v1.DeleteOptions{})
+	deploymentObj := testutil.GetDeploymentWithEnvVars(namespace, annotatedConfigmapName)
+	deploymentObj.Annotations = map[string]string{options.ConfigmapUpdateAutoSearchAnnotation: "test-annotation=not-found"}
+	deployment, err := clients.KubernetesClient.AppsV1().Deployments(namespace).Create(deploymentObj)
+	if err != nil {
+		t.Errorf("Failed to create deployment with search annotation.")
+	}
+	defer clients.KubernetesClient.AppsV1().Deployments(namespace).Delete(deployment.Name, &v1.DeleteOptions{})
+
+	shaData := testutil.ConvertResourceToSHA(testutil.ConfigmapResourceType, namespace, annotatedConfigmapName, "www.stakater.com")
+	config := getConfigWithAnnotations(constants.ConfigmapEnvVarPostfix, annotatedConfigmapName, shaData, "")
+	config.SearchAnnotation = options.ConfigmapUpdateAutoSearchAnnotation
+	config.ResourceAnnotations = configmap.Annotations
+	deploymentFuncs := GetDeploymentRollingUpgradeFuncs()
+	collectors := getCollectors()
+
+	err = PerformRollingUpgrade(clients, config, deploymentFuncs, collectors)
+	if err != nil {
+		t.Errorf("Rolling upgrade failed for Deployment with Configmap")
+	}
+
+	logrus.Infof("Verifying deployment update")
+	updated := testutil.VerifyResourceUpdate(clients, config, constants.ConfigmapEnvVarPostfix, deploymentFuncs)
+	if updated {
+		t.Errorf("Deployment was updated unexpectedly")
+	}
+
+	if promtestutil.ToFloat64(collectors.Reloaded.With(labelSucceeded)) > 0 {
+		t.Errorf("Counter was increased unexpectedly")
+	}
+}
+
+func TestRollingUpgradeForDeploymentWithConfigmapViaSearchAnnotationNotMapped(t *testing.T) {
+	annotatedConfigmapName := "testconfigmapAnnotated-handler-" + testutil.RandSeq(5)
+	configmapObj := testutil.GetConfigmap(namespace, annotatedConfigmapName, "www.google.com")
+	configmapObj.Annotations = map[string]string{"test-annotation": "test"}
+	configmap, err := clients.KubernetesClient.CoreV1().ConfigMaps(namespace).Create(configmapObj)
+	if err != nil {
+		t.Errorf("Failed to create config map with annotation.")
+	}
+	defer clients.KubernetesClient.CoreV1().ConfigMaps(namespace).Delete(configmap.Name, &v1.DeleteOptions{})
+	deploymentObj := testutil.GetDeploymentWithEnvVars(namespace, annotatedConfigmapName+"-different")
+	deploymentObj.Annotations = map[string]string{options.ConfigmapUpdateAutoSearchAnnotation: "test-annotation=test"}
+	deployment, err := clients.KubernetesClient.AppsV1().Deployments(namespace).Create(deploymentObj)
+	if err != nil {
+		t.Errorf("Failed to create deployment with search annotation.")
+	}
+	defer clients.KubernetesClient.AppsV1().Deployments(namespace).Delete(deployment.Name, &v1.DeleteOptions{})
+
+	shaData := testutil.ConvertResourceToSHA(testutil.ConfigmapResourceType, namespace, annotatedConfigmapName, "www.stakater.com")
+	config := getConfigWithAnnotations(constants.ConfigmapEnvVarPostfix, annotatedConfigmapName, shaData, "")
+	config.SearchAnnotation = options.ConfigmapUpdateAutoSearchAnnotation
+	config.ResourceAnnotations = configmap.Annotations
+	deploymentFuncs := GetDeploymentRollingUpgradeFuncs()
+	collectors := getCollectors()
+
+	err = PerformRollingUpgrade(clients, config, deploymentFuncs, collectors)
+	if err != nil {
+		t.Errorf("Rolling upgrade failed for Deployment with Configmap")
+	}
+
+	logrus.Infof("Verifying deployment update")
+	updated := testutil.VerifyResourceUpdate(clients, config, constants.ConfigmapEnvVarPostfix, deploymentFuncs)
+	if updated {
+		t.Errorf("Deployment was updated unexpectedly")
+	}
+
+	if promtestutil.ToFloat64(collectors.Reloaded.With(labelSucceeded)) > 0 {
+		t.Errorf("Counter was increased unexpectedly")
+	}
+}
+
 func TestRollingUpgradeForDeploymentWithConfigmapInInitContainer(t *testing.T) {
 	shaData := testutil.ConvertResourceToSHA(testutil.ConfigmapResourceType, namespace, configmapWithInitContainer, "www.stakater.com")
 	config := getConfigWithAnnotations(constants.ConfigmapEnvVarPostfix, configmapWithInitContainer, shaData, options.ConfigmapUpdateOnChangeAnnotation)
@@ -645,7 +805,6 @@ func TestRollingUpgradeForDeploymentWithConfigmapInInitContainer(t *testing.T) {
 	collectors := getCollectors()
 
 	err := PerformRollingUpgrade(clients, config, deploymentFuncs, collectors)
-	time.Sleep(5 * time.Second)
 	if err != nil {
 		t.Errorf("Rolling upgrade failed for Deployment with Configmap")
 	}
@@ -691,7 +850,6 @@ func TestRollingUpgradeForDeploymentWithConfigmapAsEnvVar(t *testing.T) {
 	collectors := getCollectors()
 
 	err := PerformRollingUpgrade(clients, config, deploymentFuncs, collectors)
-	time.Sleep(5 * time.Second)
 	if err != nil {
 		t.Errorf("Rolling upgrade failed for Deployment with Configmap used as env var")
 	}
@@ -714,7 +872,6 @@ func TestRollingUpgradeForDeploymentWithConfigmapAsEnvVarInInitContainer(t *test
 	collectors := getCollectors()
 
 	err := PerformRollingUpgrade(clients, config, deploymentFuncs, collectors)
-	time.Sleep(5 * time.Second)
 	if err != nil {
 		t.Errorf("Rolling upgrade failed for Deployment with Configmap used as env var")
 	}
@@ -737,7 +894,6 @@ func TestRollingUpgradeForDeploymentWithConfigmapAsEnvVarFrom(t *testing.T) {
 	collectors := getCollectors()
 
 	err := PerformRollingUpgrade(clients, config, deploymentFuncs, collectors)
-	time.Sleep(5 * time.Second)
 	if err != nil {
 		t.Errorf("Rolling upgrade failed for Deployment with Configmap used as env var")
 	}
@@ -760,7 +916,6 @@ func TestRollingUpgradeForDeploymentWithSecret(t *testing.T) {
 	collectors := getCollectors()
 
 	err := PerformRollingUpgrade(clients, config, deploymentFuncs, collectors)
-	time.Sleep(5 * time.Second)
 	if err != nil {
 		t.Errorf("Rolling upgrade failed for Deployment with Secret")
 	}
@@ -806,7 +961,6 @@ func TestRollingUpgradeForDeploymentWithSecretinInitContainer(t *testing.T) {
 	collectors := getCollectors()
 
 	err := PerformRollingUpgrade(clients, config, deploymentFuncs, collectors)
-	time.Sleep(5 * time.Second)
 	if err != nil {
 		t.Errorf("Rolling upgrade failed for Deployment with Secret")
 	}
@@ -852,7 +1006,6 @@ func TestRollingUpgradeForDeploymentWithSecretAsEnvVar(t *testing.T) {
 	collectors := getCollectors()
 
 	err := PerformRollingUpgrade(clients, config, deploymentFuncs, collectors)
-	time.Sleep(5 * time.Second)
 	if err != nil {
 		t.Errorf("Rolling upgrade failed for Deployment with Secret")
 	}
@@ -875,7 +1028,6 @@ func TestRollingUpgradeForDeploymentWithSecretAsEnvVarFrom(t *testing.T) {
 	collectors := getCollectors()
 
 	err := PerformRollingUpgrade(clients, config, deploymentFuncs, collectors)
-	time.Sleep(5 * time.Second)
 	if err != nil {
 		t.Errorf("Rolling upgrade failed for Deployment with Secret")
 	}
@@ -898,7 +1050,6 @@ func TestRollingUpgradeForDeploymentWithSecretAsEnvVarInInitContainer(t *testing
 	collectors := getCollectors()
 
 	err := PerformRollingUpgrade(clients, config, deploymentFuncs, collectors)
-	time.Sleep(5 * time.Second)
 	if err != nil {
 		t.Errorf("Rolling upgrade failed for Deployment with Secret")
 	}
@@ -921,7 +1072,6 @@ func TestRollingUpgradeForDaemonSetWithConfigmap(t *testing.T) {
 	collectors := getCollectors()
 
 	err := PerformRollingUpgrade(clients, config, daemonSetFuncs, collectors)
-	time.Sleep(5 * time.Second)
 	if err != nil {
 		t.Errorf("Rolling upgrade failed for DaemonSet with configmap")
 	}
@@ -967,7 +1117,6 @@ func TestRollingUpgradeForDaemonSetWithConfigmapAsEnvVar(t *testing.T) {
 	collectors := getCollectors()
 
 	err := PerformRollingUpgrade(clients, config, daemonSetFuncs, collectors)
-	time.Sleep(5 * time.Second)
 	if err != nil {
 		t.Errorf("Rolling upgrade failed for DaemonSet with configmap used as env var")
 	}
@@ -990,7 +1139,6 @@ func TestRollingUpgradeForDaemonSetWithSecret(t *testing.T) {
 	collectors := getCollectors()
 
 	err := PerformRollingUpgrade(clients, config, daemonSetFuncs, collectors)
-	time.Sleep(5 * time.Second)
 	if err != nil {
 		t.Errorf("Rolling upgrade failed for DaemonSet with secret")
 	}
@@ -1036,7 +1184,6 @@ func TestRollingUpgradeForStatefulSetWithConfigmap(t *testing.T) {
 	collectors := getCollectors()
 
 	err := PerformRollingUpgrade(clients, config, statefulSetFuncs, collectors)
-	time.Sleep(5 * time.Second)
 	if err != nil {
 		t.Errorf("Rolling upgrade failed for StatefulSet with configmap")
 	}
@@ -1082,7 +1229,6 @@ func TestRollingUpgradeForStatefulSetWithSecret(t *testing.T) {
 	collectors := getCollectors()
 
 	err := PerformRollingUpgrade(clients, config, statefulSetFuncs, collectors)
-	time.Sleep(5 * time.Second)
 	if err != nil {
 		t.Errorf("Rolling upgrade failed for StatefulSet with secret")
 	}
@@ -1128,7 +1274,6 @@ func TestRollingUpgradeForDeploymentWithPodAnnotations(t *testing.T) {
 	collectors := getCollectors()
 
 	err := PerformRollingUpgrade(clients, config, deploymentFuncs, collectors)
-	time.Sleep(5 * time.Second)
 	if err != nil {
 		t.Errorf("Rolling upgrade failed for Deployment with pod annotations")
 	}

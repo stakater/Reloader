@@ -24,9 +24,11 @@ func NewReloaderCommand() *cobra.Command {
 	}
 
 	// options
-	cmd.PersistentFlags().StringVar(&options.ConfigmapUpdateOnChangeAnnotation, "configmap-annotation", "configmap.reloader.stakater.com/reload", "annotation to detect changes in configmaps")
-	cmd.PersistentFlags().StringVar(&options.SecretUpdateOnChangeAnnotation, "secret-annotation", "secret.reloader.stakater.com/reload", "annotation to detect changes in secrets")
+	cmd.PersistentFlags().StringVar(&options.ConfigmapUpdateOnChangeAnnotation, "configmap-annotation", "configmap.reloader.stakater.com/reload", "annotation to detect changes in configmaps, specified by name")
+	cmd.PersistentFlags().StringVar(&options.SecretUpdateOnChangeAnnotation, "secret-annotation", "secret.reloader.stakater.com/reload", "annotation to detect changes in secrets, specified by name")
 	cmd.PersistentFlags().StringVar(&options.ReloaderAutoAnnotation, "auto-annotation", "reloader.stakater.com/auto", "annotation to detect changes in secrets")
+	cmd.PersistentFlags().StringVar(&options.ConfigmapUpdateAutoSearchAnnotation, "configmap-auto-by-annotation", "configmap.reloader.stakater.com/reload-by-annotation", "annotation to detect changes in configmaps, searched by annotation")
+	cmd.PersistentFlags().StringVar(&options.SecretUpdateAutoSearchAnnotation, "secret-auto-by-annotation", "secret.reloader.stakater.com/reload-by-annotation", "annotation to detect changes in secret, searched by annotations")
 	cmd.PersistentFlags().StringVar(&options.LogFormat, "log-format", "", "Log format to use (empty string for text, or JSON")
 	cmd.PersistentFlags().StringSlice("resources-to-ignore", []string{}, "list of resources to ignore (valid options 'configMaps' or 'secrets')")
 	cmd.PersistentFlags().StringSlice("namespaces-to-ignore", []string{}, "list of namespaces to ignore")
