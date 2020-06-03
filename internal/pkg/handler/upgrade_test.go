@@ -15,6 +15,7 @@ import (
 	"github.com/stakater/Reloader/internal/pkg/testutil"
 	"github.com/stakater/Reloader/internal/pkg/util"
 	"github.com/stakater/Reloader/pkg/kube"
+	core_v1 "k8s.io/api/core/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	testclient "k8s.io/client-go/kubernetes/fake"
 )
@@ -638,18 +639,25 @@ func TestRollingUpgradeForDeploymentWithConfigmapInProjectedVolume(t *testing.T)
 	}
 }
 
+func createConfigMap(clients *kube.Clients, namespace, name string, annotations map[string]string) (*core_v1.ConfigMap, error) {
+	configmapObj := testutil.GetConfigmap(namespace, name, "www.google.com")
+	configmapObj.Annotations = annotations
+	return clients.KubernetesClient.CoreV1().ConfigMaps(namespace).Create(configmapObj)
+}
+
 func TestRollingUpgradeForDeploymentWithConfigmapViaSearchAnnotation(t *testing.T) {
 	annotatedConfigmapName := "testconfigmapAnnotated-handler-" + testutil.RandSeq(5)
-	configmapObj := testutil.GetConfigmap(namespace, annotatedConfigmapName, "www.google.com")
-	configmapObj.Annotations = map[string]string{"test-annotation": "test"}
-	configmap, err := clients.KubernetesClient.CoreV1().ConfigMaps(namespace).Create(configmapObj)
+	configmap, err := createConfigMap(&clients, namespace, annotatedConfigmapName, map[string]string{"test-annotation": "test"})
 	if err != nil {
 		t.Errorf("Failed to create config map with annotation.")
 	}
 	defer clients.KubernetesClient.CoreV1().ConfigMaps(namespace).Delete(configmap.Name, &v1.DeleteOptions{})
-	deploymentObj := testutil.GetDeploymentWithEnvVars(namespace, annotatedConfigmapName)
-	deploymentObj.Annotations = map[string]string{options.ConfigmapUpdateAutoSearchAnnotation: "test-annotation=test"}
-	deployment, err := clients.KubernetesClient.AppsV1().Deployments(namespace).Create(deploymentObj)
+	deployment, err := testutil.CreateDeploymentWithEnvVarSourceAndAnnotations(
+		clients.KubernetesClient,
+		annotatedConfigmapName,
+		namespace,
+		map[string]string{options.ConfigmapUpdateAutoSearchAnnotation: "test-annotation=test"},
+	)
 	if err != nil {
 		t.Errorf("Failed to create deployment with search annotation.")
 	}
@@ -680,16 +688,16 @@ func TestRollingUpgradeForDeploymentWithConfigmapViaSearchAnnotation(t *testing.
 
 func TestRollingUpgradeForDeploymentWithConfigmapViaSearchAnnotationNoValue(t *testing.T) {
 	annotatedConfigmapName := "testconfigmapAnnotated-handler-" + testutil.RandSeq(5)
-	configmapObj := testutil.GetConfigmap(namespace, annotatedConfigmapName, "www.google.com")
-	configmapObj.Annotations = map[string]string{"test-annotation": "test"}
-	configmap, err := clients.KubernetesClient.CoreV1().ConfigMaps(namespace).Create(configmapObj)
+	configmap, err := createConfigMap(&clients, namespace, annotatedConfigmapName, map[string]string{"test-annotation": "test"})
 	if err != nil {
 		t.Errorf("Failed to create config map with annotation.")
 	}
-	defer clients.KubernetesClient.CoreV1().ConfigMaps(namespace).Delete(configmap.Name, &v1.DeleteOptions{})
-	deploymentObj := testutil.GetDeploymentWithEnvVars(namespace, annotatedConfigmapName)
-	deploymentObj.Annotations = map[string]string{options.ConfigmapUpdateAutoSearchAnnotation: "test-annotation"}
-	deployment, err := clients.KubernetesClient.AppsV1().Deployments(namespace).Create(deploymentObj)
+	deployment, err := testutil.CreateDeploymentWithEnvVarSourceAndAnnotations(
+		clients.KubernetesClient,
+		annotatedConfigmapName,
+		namespace,
+		map[string]string{options.ConfigmapUpdateAutoSearchAnnotation: "test-annotation"},
+	)
 	if err != nil {
 		t.Errorf("Failed to create deployment with search annotation.")
 	}
@@ -720,21 +728,21 @@ func TestRollingUpgradeForDeploymentWithConfigmapViaSearchAnnotationNoValue(t *t
 
 func TestRollingUpgradeForDeploymentWithConfigmapViaSearchAnnotationNotFound(t *testing.T) {
 	annotatedConfigmapName := "testconfigmapAnnotated-handler-" + testutil.RandSeq(5)
-	configmapObj := testutil.GetConfigmap(namespace, annotatedConfigmapName, "www.google.com")
-	configmapObj.Annotations = map[string]string{"test-annotation": "test"}
-	configmap, err := clients.KubernetesClient.CoreV1().ConfigMaps(namespace).Create(configmapObj)
+	configmap, err := createConfigMap(&clients, namespace, annotatedConfigmapName, map[string]string{"test-annotation": "not-found"})
 	if err != nil {
 		t.Errorf("Failed to create config map with annotation.")
 	}
 	defer clients.KubernetesClient.CoreV1().ConfigMaps(namespace).Delete(configmap.Name, &v1.DeleteOptions{})
-	deploymentObj := testutil.GetDeploymentWithEnvVars(namespace, annotatedConfigmapName)
-	deploymentObj.Annotations = map[string]string{options.ConfigmapUpdateAutoSearchAnnotation: "test-annotation=not-found"}
-	deployment, err := clients.KubernetesClient.AppsV1().Deployments(namespace).Create(deploymentObj)
+	deployment, err := testutil.CreateDeploymentWithEnvVarSourceAndAnnotations(
+		clients.KubernetesClient,
+		annotatedConfigmapName,
+		namespace,
+		map[string]string{options.ConfigmapUpdateAutoSearchAnnotation: "test-annotation=test"},
+	)
 	if err != nil {
 		t.Errorf("Failed to create deployment with search annotation.")
 	}
 	defer clients.KubernetesClient.AppsV1().Deployments(namespace).Delete(deployment.Name, &v1.DeleteOptions{})
-
 	shaData := testutil.ConvertResourceToSHA(testutil.ConfigmapResourceType, namespace, annotatedConfigmapName, "www.stakater.com")
 	config := getConfigWithAnnotations(constants.ConfigmapEnvVarPostfix, annotatedConfigmapName, shaData, "")
 	config.SearchAnnotation = options.ConfigmapUpdateAutoSearchAnnotation
@@ -760,16 +768,17 @@ func TestRollingUpgradeForDeploymentWithConfigmapViaSearchAnnotationNotFound(t *
 
 func TestRollingUpgradeForDeploymentWithConfigmapViaSearchAnnotationNotMapped(t *testing.T) {
 	annotatedConfigmapName := "testconfigmapAnnotated-handler-" + testutil.RandSeq(5)
-	configmapObj := testutil.GetConfigmap(namespace, annotatedConfigmapName, "www.google.com")
-	configmapObj.Annotations = map[string]string{"test-annotation": "test"}
-	configmap, err := clients.KubernetesClient.CoreV1().ConfigMaps(namespace).Create(configmapObj)
+	configmap, err := createConfigMap(&clients, namespace, annotatedConfigmapName, map[string]string{"test-annotation": "test"})
 	if err != nil {
 		t.Errorf("Failed to create config map with annotation.")
 	}
 	defer clients.KubernetesClient.CoreV1().ConfigMaps(namespace).Delete(configmap.Name, &v1.DeleteOptions{})
-	deploymentObj := testutil.GetDeploymentWithEnvVars(namespace, annotatedConfigmapName+"-different")
-	deploymentObj.Annotations = map[string]string{options.ConfigmapUpdateAutoSearchAnnotation: "test-annotation=test"}
-	deployment, err := clients.KubernetesClient.AppsV1().Deployments(namespace).Create(deploymentObj)
+	deployment, err := testutil.CreateDeploymentWithEnvVarSourceAndAnnotations(
+		clients.KubernetesClient,
+		annotatedConfigmapName+"-different",
+		namespace,
+		map[string]string{options.ConfigmapUpdateAutoSearchAnnotation: "test-annotation=test"},
+	)
 	if err != nil {
 		t.Errorf("Failed to create deployment with search annotation.")
 	}

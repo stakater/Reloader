@@ -650,16 +650,23 @@ func CreateDeploymentWithInitContainer(client kubernetes.Interface, deploymentNa
 	return deployment, err
 }
 
-// CreateDeploymentWithEnvVarSource creates a deployment in given namespace and returns the Deployment
-func CreateDeploymentWithEnvVarSource(client kubernetes.Interface, deploymentName string, namespace string) (*appsv1.Deployment, error) {
+// CreateDeploymentWithEnvVarSourceAndAnnotations returns a deployment in given
+// namespace with given annotations.
+func CreateDeploymentWithEnvVarSourceAndAnnotations(client kubernetes.Interface, deploymentName string, namespace string, annotations map[string]string) (*appsv1.Deployment, error) {
 	logrus.Infof("Creating Deployment")
 	deploymentClient := client.AppsV1().Deployments(namespace)
 	deploymentObj := GetDeploymentWithEnvVarSources(namespace, deploymentName)
+	deploymentObj.Annotations = annotations
 	deployment, err := deploymentClient.Create(deploymentObj)
 	return deployment, err
 }
 
-// CreateDeployment creates a deployment in given namespace and returns the Deployment
+// CreateDeploymentWithEnvVarSource creates a deployment in given namespace and returns the Deployment
+func CreateDeploymentWithEnvVarSource(client kubernetes.Interface, deploymentName string, namespace string) (*appsv1.Deployment, error) {
+	return CreateDeploymentWithEnvVarSourceAndAnnotations(client, deploymentName, namespace, map[string]string{})
+}
+
+// CreateDeploymentWithPodAnnotations creates a deployment in given namespace and returns the Deployment
 func CreateDeploymentWithPodAnnotations(client kubernetes.Interface, deploymentName string, namespace string, both bool) (*appsv1.Deployment, error) {
 	logrus.Infof("Creating Deployment")
 	deploymentClient := client.AppsV1().Deployments(namespace)
