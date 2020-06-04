@@ -646,8 +646,8 @@ func createConfigMap(clients *kube.Clients, namespace, name string, annotations 
 }
 
 func TestRollingUpgradeForDeploymentWithConfigmapViaSearchAnnotation(t *testing.T) {
-	annotatedConfigmapName := "testconfigmapAnnotated-handler-" + testutil.RandSeq(5)
-	configmap, err := createConfigMap(&clients, namespace, annotatedConfigmapName, map[string]string{"test-annotation": "test"})
+	annotatedConfigmapName := "testconfigmapAnnotated-handler"
+	configmap, err := createConfigMap(&clients, namespace, annotatedConfigmapName, map[string]string{"reloader.stakater.com/match": "true"})
 	if err != nil {
 		t.Errorf("Failed to create config map with annotation.")
 	}
@@ -656,7 +656,7 @@ func TestRollingUpgradeForDeploymentWithConfigmapViaSearchAnnotation(t *testing.
 		clients.KubernetesClient,
 		annotatedConfigmapName,
 		namespace,
-		map[string]string{options.ConfigmapUpdateAutoSearchAnnotation: "test-annotation=test"},
+		map[string]string{"reloader.stakater.com/annotated": "true"},
 	)
 	if err != nil {
 		t.Errorf("Failed to create deployment with search annotation.")
@@ -665,7 +665,6 @@ func TestRollingUpgradeForDeploymentWithConfigmapViaSearchAnnotation(t *testing.
 
 	shaData := testutil.ConvertResourceToSHA(testutil.ConfigmapResourceType, namespace, annotatedConfigmapName, "www.stakater.com")
 	config := getConfigWithAnnotations(constants.ConfigmapEnvVarPostfix, annotatedConfigmapName, shaData, "")
-	config.SearchAnnotation = options.ConfigmapUpdateAutoSearchAnnotation
 	config.ResourceAnnotations = configmap.Annotations
 	deploymentFuncs := GetDeploymentRollingUpgradeFuncs()
 	collectors := getCollectors()
@@ -686,9 +685,9 @@ func TestRollingUpgradeForDeploymentWithConfigmapViaSearchAnnotation(t *testing.
 	}
 }
 
-func TestRollingUpgradeForDeploymentWithConfigmapViaSearchAnnotationNoValue(t *testing.T) {
+func TestRollingUpgradeForDeploymentWithConfigmapViaSearchAnnotationNoTriggers(t *testing.T) {
 	annotatedConfigmapName := "testconfigmapAnnotated-handler-" + testutil.RandSeq(5)
-	configmap, err := createConfigMap(&clients, namespace, annotatedConfigmapName, map[string]string{"test-annotation": "test"})
+	configmap, err := createConfigMap(&clients, namespace, annotatedConfigmapName, map[string]string{"reloader.stakater.com/match": "false"})
 	if err != nil {
 		t.Errorf("Failed to create config map with annotation.")
 	}
@@ -696,7 +695,7 @@ func TestRollingUpgradeForDeploymentWithConfigmapViaSearchAnnotationNoValue(t *t
 		clients.KubernetesClient,
 		annotatedConfigmapName,
 		namespace,
-		map[string]string{options.ConfigmapUpdateAutoSearchAnnotation: "test-annotation"},
+		map[string]string{"reloader.stakater.com/annotated": "true"},
 	)
 	if err != nil {
 		t.Errorf("Failed to create deployment with search annotation.")
@@ -705,47 +704,6 @@ func TestRollingUpgradeForDeploymentWithConfigmapViaSearchAnnotationNoValue(t *t
 
 	shaData := testutil.ConvertResourceToSHA(testutil.ConfigmapResourceType, namespace, annotatedConfigmapName, "www.stakater.com")
 	config := getConfigWithAnnotations(constants.ConfigmapEnvVarPostfix, annotatedConfigmapName, shaData, "")
-	config.SearchAnnotation = options.ConfigmapUpdateAutoSearchAnnotation
-	config.ResourceAnnotations = configmap.Annotations
-	deploymentFuncs := GetDeploymentRollingUpgradeFuncs()
-	collectors := getCollectors()
-
-	err = PerformRollingUpgrade(clients, config, deploymentFuncs, collectors)
-	if err != nil {
-		t.Errorf("Rolling upgrade failed for Deployment with Configmap")
-	}
-
-	logrus.Infof("Verifying deployment update")
-	updated := testutil.VerifyResourceUpdate(clients, config, constants.ConfigmapEnvVarPostfix, deploymentFuncs)
-	if !updated {
-		t.Errorf("Deployment was not updated")
-	}
-
-	if promtestutil.ToFloat64(collectors.Reloaded.With(labelSucceeded)) != 1 {
-		t.Errorf("Counter was not increased")
-	}
-}
-
-func TestRollingUpgradeForDeploymentWithConfigmapViaSearchAnnotationNotFound(t *testing.T) {
-	annotatedConfigmapName := "testconfigmapAnnotated-handler-" + testutil.RandSeq(5)
-	configmap, err := createConfigMap(&clients, namespace, annotatedConfigmapName, map[string]string{"test-annotation": "not-found"})
-	if err != nil {
-		t.Errorf("Failed to create config map with annotation.")
-	}
-	defer clients.KubernetesClient.CoreV1().ConfigMaps(namespace).Delete(configmap.Name, &v1.DeleteOptions{})
-	deployment, err := testutil.CreateDeploymentWithEnvVarSourceAndAnnotations(
-		clients.KubernetesClient,
-		annotatedConfigmapName,
-		namespace,
-		map[string]string{options.ConfigmapUpdateAutoSearchAnnotation: "test-annotation=test"},
-	)
-	if err != nil {
-		t.Errorf("Failed to create deployment with search annotation.")
-	}
-	defer clients.KubernetesClient.AppsV1().Deployments(namespace).Delete(deployment.Name, &v1.DeleteOptions{})
-	shaData := testutil.ConvertResourceToSHA(testutil.ConfigmapResourceType, namespace, annotatedConfigmapName, "www.stakater.com")
-	config := getConfigWithAnnotations(constants.ConfigmapEnvVarPostfix, annotatedConfigmapName, shaData, "")
-	config.SearchAnnotation = options.ConfigmapUpdateAutoSearchAnnotation
 	config.ResourceAnnotations = configmap.Annotations
 	deploymentFuncs := GetDeploymentRollingUpgradeFuncs()
 	collectors := getCollectors()
@@ -768,7 +726,7 @@ func TestRollingUpgradeForDeploymentWithConfigmapViaSearchAnnotationNotFound(t *
 
 func TestRollingUpgradeForDeploymentWithConfigmapViaSearchAnnotationNotMapped(t *testing.T) {
 	annotatedConfigmapName := "testconfigmapAnnotated-handler-" + testutil.RandSeq(5)
-	configmap, err := createConfigMap(&clients, namespace, annotatedConfigmapName, map[string]string{"test-annotation": "test"})
+	configmap, err := createConfigMap(&clients, namespace, annotatedConfigmapName, map[string]string{"reloader.stakater.com/match": "true"})
 	if err != nil {
 		t.Errorf("Failed to create config map with annotation.")
 	}
@@ -777,7 +735,7 @@ func TestRollingUpgradeForDeploymentWithConfigmapViaSearchAnnotationNotMapped(t 
 		clients.KubernetesClient,
 		annotatedConfigmapName+"-different",
 		namespace,
-		map[string]string{options.ConfigmapUpdateAutoSearchAnnotation: "test-annotation=test"},
+		map[string]string{"reloader.stakater.com/annotated": "true"},
 	)
 	if err != nil {
 		t.Errorf("Failed to create deployment with search annotation.")
@@ -786,7 +744,6 @@ func TestRollingUpgradeForDeploymentWithConfigmapViaSearchAnnotationNotMapped(t 
 
 	shaData := testutil.ConvertResourceToSHA(testutil.ConfigmapResourceType, namespace, annotatedConfigmapName, "www.stakater.com")
 	config := getConfigWithAnnotations(constants.ConfigmapEnvVarPostfix, annotatedConfigmapName, shaData, "")
-	config.SearchAnnotation = options.ConfigmapUpdateAutoSearchAnnotation
 	config.ResourceAnnotations = configmap.Annotations
 	deploymentFuncs := GetDeploymentRollingUpgradeFuncs()
 	collectors := getCollectors()

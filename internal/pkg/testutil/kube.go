@@ -788,7 +788,7 @@ func VerifyResourceUpdate(clients kube.Clients, config util.Config, envVarPostfi
 		containers := upgradeFuncs.ContainersFunc(i)
 		// match statefulsets with the correct annotation
 		annotationValue := util.ToObjectMeta(i).Annotations[config.Annotation]
-		searchAnnotationValue := util.ToObjectMeta(i).Annotations[config.SearchAnnotation]
+		searchAnnotationValue := util.ToObjectMeta(i).Annotations[options.AutoSearchAnnotation]
 		reloaderEnabledValue := util.ToObjectMeta(i).Annotations[options.ReloaderAutoAnnotation]
 		reloaderEnabled, err := strconv.ParseBool(reloaderEnabledValue)
 		matches := false
@@ -802,15 +802,8 @@ func VerifyResourceUpdate(clients kube.Clients, config util.Config, envVarPostfi
 					break
 				}
 			}
-		} else if searchAnnotationValue != "" {
-			keyValue := strings.Split(searchAnnotationValue, "=")
-			key := keyValue[0]
-			valueToSearch := ""
-			if len(keyValue) > 1 {
-				valueToSearch = keyValue[1]
-			}
-			value, found := config.ResourceAnnotations[key]
-			if found && (valueToSearch == "" || value == valueToSearch) {
+		} else if searchAnnotationValue == "true" {
+			if config.ResourceAnnotations[options.SearchMatchAnnotation] == "true" {
 				matches = true
 			}
 		}

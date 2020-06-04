@@ -9,12 +9,12 @@ var (
 	SecretUpdateOnChangeAnnotation = "secret.reloader.stakater.com/reload"
 	// ReloaderAutoAnnotation is an annotation to detect changes in secrets
 	ReloaderAutoAnnotation = "reloader.stakater.com/auto"
-	// ConfigmapUpdateAutoSearchAnnotation is an annotation to detect changes in
-	// configmaps searched by annotation
-	ConfigmapUpdateAutoSearchAnnotation = "configmap.reloader.stakater.com/auto-by-annotation"
-	// SecretUpdateAutoSearchAnnotation is an annotation to detect changes in
-	// secrets searched by annotation
-	SecretUpdateAutoSearchAnnotation = "secret.reloader.stakater.com/auto-by-annotation"
+	// AutoSearchAnnotation is an annotation to detect changes in
+	// configmaps or triggers with the SearchMatchAnnotation
+	AutoSearchAnnotation = "reloader.stakater.com/annotated"
+	// SearchMatchAnnotation is an annotation to tag secrets to be found with
+	// AutoSearchAnnotation
+	SearchMatchAnnotation = "reloader.stakater.com/match"
 	// LogFormat is the log format to use (json, or empty string for default)
 	LogFormat = ""
 )

@@ -12,7 +12,6 @@ type Config struct {
 	ResourceName        string
 	ResourceAnnotations map[string]string
 	Annotation          string
-	SearchAnnotation    string
 	SHAValue            string
 	Type                string
 }
@@ -24,7 +23,6 @@ func GetConfigmapConfig(configmap *v1.ConfigMap) Config {
 		ResourceName:        configmap.Name,
 		ResourceAnnotations: configmap.Annotations,
 		Annotation:          options.ConfigmapUpdateOnChangeAnnotation,
-		SearchAnnotation:    options.ConfigmapUpdateAutoSearchAnnotation,
 		SHAValue:            GetSHAfromConfigmap(configmap.Data),
 		Type:                constants.ConfigmapEnvVarPostfix,
 	}
@@ -37,7 +35,6 @@ func GetSecretConfig(secret *v1.Secret) Config {
 		ResourceName:        secret.Name,
 		ResourceAnnotations: secret.Annotations,
 		Annotation:          options.SecretUpdateOnChangeAnnotation,
-		SearchAnnotation:    options.SecretUpdateAutoSearchAnnotation,
 		SHAValue:            GetSHAfromSecret(secret.Data),
 		Type:                constants.SecretEnvVarPostfix,
 	}
