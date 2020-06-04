@@ -11,7 +11,7 @@ var (
 	ReloaderAutoAnnotation = "reloader.stakater.com/auto"
 	// AutoSearchAnnotation is an annotation to detect changes in
 	// configmaps or triggers with the SearchMatchAnnotation
-	AutoSearchAnnotation = "reloader.stakater.com/annotated"
+	AutoSearchAnnotation = "reloader.stakater.com/search"
 	// SearchMatchAnnotation is an annotation to tag secrets to be found with
 	// AutoSearchAnnotation
 	SearchMatchAnnotation = "reloader.stakater.com/match"

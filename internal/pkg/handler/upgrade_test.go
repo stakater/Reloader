@@ -656,7 +656,7 @@ func TestRollingUpgradeForDeploymentWithConfigmapViaSearchAnnotation(t *testing.
 		clients.KubernetesClient,
 		annotatedConfigmapName,
 		namespace,
-		map[string]string{"reloader.stakater.com/annotated": "true"},
+		map[string]string{"reloader.stakater.com/search": "true"},
 	)
 	if err != nil {
 		t.Errorf("Failed to create deployment with search annotation.")
@@ -695,7 +695,7 @@ func TestRollingUpgradeForDeploymentWithConfigmapViaSearchAnnotationNoTriggers(t
 		clients.KubernetesClient,
 		annotatedConfigmapName,
 		namespace,
-		map[string]string{"reloader.stakater.com/annotated": "true"},
+		map[string]string{"reloader.stakater.com/search": "true"},
 	)
 	if err != nil {
 		t.Errorf("Failed to create deployment with search annotation.")
@@ -735,7 +735,7 @@ func TestRollingUpgradeForDeploymentWithConfigmapViaSearchAnnotationNotMapped(t 
 		clients.KubernetesClient,
 		annotatedConfigmapName+"-different",
 		namespace,
-		map[string]string{"reloader.stakater.com/annotated": "true"},
+		map[string]string{"reloader.stakater.com/search": "true"},
 	)
 	if err != nil {
 		t.Errorf("Failed to create deployment with search annotation.")
