@@ -39,6 +39,7 @@ var (
 	secretWithEnvFromName               = "testsecretWithEnvFrom-handler-" + testutil.RandSeq(5)
 	configmapWithPodAnnotations         = "testconfigmapPodAnnotations-handler-" + testutil.RandSeq(5)
 	configmapWithBothAnnotations        = "testconfigmapBothAnnotations-handler-" + testutil.RandSeq(5)
+	configmapAnnotated                  = "testconfigmapAnnotated-handler-" + testutil.RandSeq(5)
 )
 
 func TestMain(m *testing.M) {
@@ -229,6 +230,17 @@ func setup() {
 		logrus.Errorf("Error in Deployment with secret configmap as envFrom source creation: %v", err)
 	}
 
+	// Creating Deployment with envFrom source as secret
+	_, err = testutil.CreateDeploymentWithEnvVarSourceAndAnnotations(
+		clients.KubernetesClient,
+		configmapAnnotated,
+		namespace,
+		map[string]string{"reloader.stakater.com/search": "true"},
+	)
+	if err != nil {
+		logrus.Errorf("Error in Deployment with secret configmap as envFrom source creation: %v", err)
+	}
+
 	// Creating DaemonSet with configmap
 	_, err = testutil.CreateDaemonSet(clients.KubernetesClient, configmapName, namespace, true)
 	if err != nil {
@@ -409,6 +421,12 @@ func teardown() {
 	deploymentError = testutil.DeleteDeployment(clients.KubernetesClient, namespace, configmapWithBothAnnotations)
 	if deploymentError != nil {
 		logrus.Errorf("Error while deleting deployment with both annotations %v", deploymentError)
+	}
+
+	// Deleting Deployment with search annotation
+	deploymentError = testutil.DeleteDeployment(clients.KubernetesClient, namespace, configmapAnnotated)
+	if deploymentError != nil {
+		logrus.Errorf("Error while deleting deployment with search annotation %v", deploymentError)
 	}
 
 	// Deleting DaemonSet with configmap
@@ -646,30 +664,13 @@ func createConfigMap(clients *kube.Clients, namespace, name string, annotations 
 }
 
 func TestRollingUpgradeForDeploymentWithConfigmapViaSearchAnnotation(t *testing.T) {
-	annotatedConfigmapName := "testconfigmapAnnotated-handler"
-	configmap, err := createConfigMap(&clients, namespace, annotatedConfigmapName, map[string]string{"reloader.stakater.com/match": "true"})
-	if err != nil {
-		t.Errorf("Failed to create config map with annotation.")
-	}
-	defer clients.KubernetesClient.CoreV1().ConfigMaps(namespace).Delete(configmap.Name, &v1.DeleteOptions{})
-	deployment, err := testutil.CreateDeploymentWithEnvVarSourceAndAnnotations(
-		clients.KubernetesClient,
-		annotatedConfigmapName,
-		namespace,
-		map[string]string{"reloader.stakater.com/search": "true"},
-	)
-	if err != nil {
-		t.Errorf("Failed to create deployment with search annotation.")
-	}
-	defer clients.KubernetesClient.AppsV1().Deployments(namespace).Delete(deployment.Name, &v1.DeleteOptions{})
-
-	shaData := testutil.ConvertResourceToSHA(testutil.ConfigmapResourceType, namespace, annotatedConfigmapName, "www.stakater.com")
-	config := getConfigWithAnnotations(constants.ConfigmapEnvVarPostfix, annotatedConfigmapName, shaData, "")
-	config.ResourceAnnotations = configmap.Annotations
+	shaData := testutil.ConvertResourceToSHA(testutil.ConfigmapResourceType, namespace, configmapAnnotated, "www.stakater.com")
+	config := getConfigWithAnnotations(constants.ConfigmapEnvVarPostfix, configmapAnnotated, shaData, "")
+	config.ResourceAnnotations = map[string]string{"reloader.stakater.com/match": "true"}
 	deploymentFuncs := GetDeploymentRollingUpgradeFuncs()
 	collectors := getCollectors()
 
-	err = PerformRollingUpgrade(clients, config, deploymentFuncs, collectors)
+	err := PerformRollingUpgrade(clients, config, deploymentFuncs, collectors)
 	if err != nil {
 		t.Errorf("Rolling upgrade failed for Deployment with Configmap")
 	}
@@ -686,29 +687,13 @@ func TestRollingUpgradeForDeploymentWithConfigmapViaSearchAnnotation(t *testing.
 }
 
 func TestRollingUpgradeForDeploymentWithConfigmapViaSearchAnnotationNoTriggers(t *testing.T) {
-	annotatedConfigmapName := "testconfigmapAnnotated-handler-" + testutil.RandSeq(5)
-	configmap, err := createConfigMap(&clients, namespace, annotatedConfigmapName, map[string]string{"reloader.stakater.com/match": "false"})
-	if err != nil {
-		t.Errorf("Failed to create config map with annotation.")
-	}
-	deployment, err := testutil.CreateDeploymentWithEnvVarSourceAndAnnotations(
-		clients.KubernetesClient,
-		annotatedConfigmapName,
-		namespace,
-		map[string]string{"reloader.stakater.com/search": "true"},
-	)
-	if err != nil {
-		t.Errorf("Failed to create deployment with search annotation.")
-	}
-	defer clients.KubernetesClient.AppsV1().Deployments(namespace).Delete(deployment.Name, &v1.DeleteOptions{})
-
-	shaData := testutil.ConvertResourceToSHA(testutil.ConfigmapResourceType, namespace, annotatedConfigmapName, "www.stakater.com")
-	config := getConfigWithAnnotations(constants.ConfigmapEnvVarPostfix, annotatedConfigmapName, shaData, "")
-	config.ResourceAnnotations = configmap.Annotations
+	shaData := testutil.ConvertResourceToSHA(testutil.ConfigmapResourceType, namespace, configmapAnnotated, "www.stakater.com")
+	config := getConfigWithAnnotations(constants.ConfigmapEnvVarPostfix, configmapAnnotated, shaData, "")
+	config.ResourceAnnotations = map[string]string{"reloader.stakater.com/match": "false"}
 	deploymentFuncs := GetDeploymentRollingUpgradeFuncs()
 	collectors := getCollectors()
 
-	err = PerformRollingUpgrade(clients, config, deploymentFuncs, collectors)
+	err := PerformRollingUpgrade(clients, config, deploymentFuncs, collectors)
 	if err != nil {
 		t.Errorf("Rolling upgrade failed for Deployment with Configmap")
 	}
@@ -726,15 +711,9 @@ func TestRollingUpgradeForDeploymentWithConfigmapViaSearchAnnotationNoTriggers(t
 }
 
 func TestRollingUpgradeForDeploymentWithConfigmapViaSearchAnnotationNotMapped(t *testing.T) {
-	annotatedConfigmapName := "testconfigmapAnnotated-handler-" + testutil.RandSeq(5)
-	configmap, err := createConfigMap(&clients, namespace, annotatedConfigmapName, map[string]string{"reloader.stakater.com/match": "true"})
-	if err != nil {
-		t.Errorf("Failed to create config map with annotation.")
-	}
-	defer clients.KubernetesClient.CoreV1().ConfigMaps(namespace).Delete(configmap.Name, &v1.DeleteOptions{})
 	deployment, err := testutil.CreateDeploymentWithEnvVarSourceAndAnnotations(
 		clients.KubernetesClient,
-		annotatedConfigmapName+"-different",
+		configmapAnnotated+"-different",
 		namespace,
 		map[string]string{"reloader.stakater.com/search": "true"},
 	)
@@ -743,9 +722,9 @@ func TestRollingUpgradeForDeploymentWithConfigmapViaSearchAnnotationNotMapped(t 
 	}
 	defer clients.KubernetesClient.AppsV1().Deployments(namespace).Delete(deployment.Name, &v1.DeleteOptions{})
 
-	shaData := testutil.ConvertResourceToSHA(testutil.ConfigmapResourceType, namespace, annotatedConfigmapName, "www.stakater.com")
-	config := getConfigWithAnnotations(constants.ConfigmapEnvVarPostfix, annotatedConfigmapName, shaData, "")
-	config.ResourceAnnotations = configmap.Annotations
+	shaData := testutil.ConvertResourceToSHA(testutil.ConfigmapResourceType, namespace, configmapAnnotated, "www.stakater.com")
+	config := getConfigWithAnnotations(constants.ConfigmapEnvVarPostfix, configmapAnnotated, shaData, "")
+	config.ResourceAnnotations = map[string]string{"reloader.stakater.com/match": "false"}
 	deploymentFuncs := GetDeploymentRollingUpgradeFuncs()
 	collectors := getCollectors()
 
