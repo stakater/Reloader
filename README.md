@@ -51,8 +51,8 @@ spec:
   template:
 ```
 
-and Reloader will trigger the rolling upgrade when any `ConfigMap` or `Secret` annotated like this:
-and then annotate your `ConfigMap` or `Secret` so:
+and Reloader will trigger the rolling upgrade upon modification of any
+`ConfigMap` or `Secret` annotated like this:
 
 ```yaml
 kind: ConfigMap
@@ -63,7 +63,15 @@ data:
   key: value
 ```
 
-is modified, provided it is being used in an environment variable or a volume mount.
+provided the secret/configmap is being used in an environment variable or a
+volume mount.
+
+Please note that `reloader.stakater.com/search` and
+`reloader.stakater.com/auto` do not work together. If you have the
+`reloader.stakater.com/auto: "true"` annotation on your deployment, then it
+will always restart upon a change in configmaps or secrets it uses, regardless
+of whether they have the `reloader.stakater.com/match: "true"` annotation or
+not.
 
 We can also specify a specific configmap or secret which would trigger rolling upgrade only upon change in our specified configmap or secret, this way, it will not trigger rolling upgrade upon changes in all configmaps or secrets used in a deployment, daemonset or statefulset.
 To do this either set the auto annotation to `"false"` (`reloader.stakater.com/auto: "false"`) or remove it altogether, and use annotations mentioned [here](#Configmap) or [here](#Secret)
