@@ -99,10 +99,12 @@ func PerformRollingUpgrade(clients kube.Clients, config util.Config, upgradeFunc
 		// find correct annotation and update the resource
 		annotations := upgradeFuncs.AnnotationsFunc(i)
 		annotationValue, found := annotations[config.Annotation]
+		searchAnnotationValue, foundSearchAnn := annotations[options.AutoSearchAnnotation]
 		reloaderEnabledValue, foundAuto := annotations[options.ReloaderAutoAnnotation]
-		if !found && !foundAuto {
+		if !found && !foundAuto && !foundSearchAnn {
 			annotations = upgradeFuncs.PodAnnotationsFunc(i)
 			annotationValue = annotations[config.Annotation]
+			searchAnnotationValue = annotations[options.AutoSearchAnnotation]
 			reloaderEnabledValue = annotations[options.ReloaderAutoAnnotation]
 		}
 		result := constants.NotUpdated
@@ -120,6 +122,13 @@ func PerformRollingUpgrade(clients kube.Clients, config util.Config, upgradeFunc
 						break
 					}
 				}
+			}
+		}
+
+		if result != constants.Updated && searchAnnotationValue == "true" {
+			matchAnnotationValue := config.ResourceAnnotations[options.SearchMatchAnnotation]
+			if matchAnnotationValue == "true" {
+				result = updateContainers(upgradeFuncs, i, config, true)
 			}
 		}
 

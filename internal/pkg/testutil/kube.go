@@ -663,13 +663,26 @@ func CreateDeploymentWithEnvVarSource(client kubernetes.Interface, deploymentNam
 	deployment, err := deploymentClient.Create(deploymentObj)
 	time.Sleep(3 * time.Second)
 	return deployment, err
+
 }
 
-// CreateDeployment creates a deployment in given namespace and returns the Deployment
+// CreateDeploymentWithPodAnnotations creates a deployment in given namespace and returns the Deployment
 func CreateDeploymentWithPodAnnotations(client kubernetes.Interface, deploymentName string, namespace string, both bool) (*appsv1.Deployment, error) {
 	logrus.Infof("Creating Deployment")
 	deploymentClient := client.AppsV1().Deployments(namespace)
 	deploymentObj := GetDeploymentWithPodAnnotations(namespace, deploymentName, both)
+	deployment, err := deploymentClient.Create(deploymentObj)
+	time.Sleep(3 * time.Second)
+	return deployment, err
+}
+
+// CreateDeploymentWithEnvVarSourceAndAnnotations returns a deployment in given
+// namespace with given annotations.
+func CreateDeploymentWithEnvVarSourceAndAnnotations(client kubernetes.Interface, deploymentName string, namespace string, annotations map[string]string) (*appsv1.Deployment, error) {
+	logrus.Infof("Creating Deployment")
+	deploymentClient := client.AppsV1().Deployments(namespace)
+	deploymentObj := GetDeploymentWithEnvVarSources(namespace, deploymentName)
+	deploymentObj.Annotations = annotations
 	deployment, err := deploymentClient.Create(deploymentObj)
 	time.Sleep(3 * time.Second)
 	return deployment, err
@@ -798,6 +811,7 @@ func VerifyResourceUpdate(clients kube.Clients, config util.Config, envVarPostfi
 		containers := upgradeFuncs.ContainersFunc(i)
 		// match statefulsets with the correct annotation
 		annotationValue := util.ToObjectMeta(i).Annotations[config.Annotation]
+		searchAnnotationValue := util.ToObjectMeta(i).Annotations[options.AutoSearchAnnotation]
 		reloaderEnabledValue := util.ToObjectMeta(i).Annotations[options.ReloaderAutoAnnotation]
 		reloaderEnabled, err := strconv.ParseBool(reloaderEnabledValue)
 		matches := false
@@ -810,6 +824,10 @@ func VerifyResourceUpdate(clients kube.Clients, config util.Config, envVarPostfi
 					matches = true
 					break
 				}
+			}
+		} else if searchAnnotationValue == "true" {
+			if config.ResourceAnnotations[options.SearchMatchAnnotation] == "true" {
+				matches = true
 			}
 		}
 

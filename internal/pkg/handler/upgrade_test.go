@@ -15,6 +15,8 @@ import (
 	"github.com/stakater/Reloader/internal/pkg/testutil"
 	"github.com/stakater/Reloader/internal/pkg/util"
 	"github.com/stakater/Reloader/pkg/kube"
+	core_v1 "k8s.io/api/core/v1"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	testclient "k8s.io/client-go/kubernetes/fake"
 )
 
@@ -37,6 +39,7 @@ var (
 	secretWithEnvFromName               = "testsecretWithEnvFrom-handler-" + testutil.RandSeq(5)
 	configmapWithPodAnnotations         = "testconfigmapPodAnnotations-handler-" + testutil.RandSeq(5)
 	configmapWithBothAnnotations        = "testconfigmapBothAnnotations-handler-" + testutil.RandSeq(5)
+	configmapAnnotated                  = "testconfigmapAnnotated-handler-" + testutil.RandSeq(5)
 )
 
 func TestMain(m *testing.M) {
@@ -227,6 +230,17 @@ func setup() {
 		logrus.Errorf("Error in Deployment with secret configmap as envFrom source creation: %v", err)
 	}
 
+	// Creating Deployment with envFrom source as secret
+	_, err = testutil.CreateDeploymentWithEnvVarSourceAndAnnotations(
+		clients.KubernetesClient,
+		configmapAnnotated,
+		namespace,
+		map[string]string{"reloader.stakater.com/search": "true"},
+	)
+	if err != nil {
+		logrus.Errorf("Error in Deployment with secret configmap as envFrom source creation: %v", err)
+	}
+
 	// Creating DaemonSet with configmap
 	_, err = testutil.CreateDaemonSet(clients.KubernetesClient, configmapName, namespace, true)
 	if err != nil {
@@ -407,6 +421,12 @@ func teardown() {
 	deploymentError = testutil.DeleteDeployment(clients.KubernetesClient, namespace, configmapWithBothAnnotations)
 	if deploymentError != nil {
 		logrus.Errorf("Error while deleting deployment with both annotations %v", deploymentError)
+	}
+
+	// Deleting Deployment with search annotation
+	deploymentError = testutil.DeleteDeployment(clients.KubernetesClient, namespace, configmapAnnotated)
+	if deploymentError != nil {
+		logrus.Errorf("Error while deleting deployment with search annotation %v", deploymentError)
 	}
 
 	// Deleting DaemonSet with configmap
@@ -622,7 +642,6 @@ func TestRollingUpgradeForDeploymentWithConfigmapInProjectedVolume(t *testing.T)
 	collectors := getCollectors()
 
 	err := PerformRollingUpgrade(clients, config, deploymentFuncs, collectors)
-	time.Sleep(5 * time.Second)
 	if err != nil {
 		t.Errorf("Rolling upgrade failed for Deployment with Configmap in projected volume")
 	}
@@ -635,6 +654,93 @@ func TestRollingUpgradeForDeploymentWithConfigmapInProjectedVolume(t *testing.T)
 
 	if promtestutil.ToFloat64(collectors.Reloaded.With(labelSucceeded)) != 1 {
 		t.Errorf("Counter was not increased")
+	}
+}
+
+func createConfigMap(clients *kube.Clients, namespace, name string, annotations map[string]string) (*core_v1.ConfigMap, error) {
+	configmapObj := testutil.GetConfigmap(namespace, name, "www.google.com")
+	configmapObj.Annotations = annotations
+	return clients.KubernetesClient.CoreV1().ConfigMaps(namespace).Create(configmapObj)
+}
+
+func TestRollingUpgradeForDeploymentWithConfigmapViaSearchAnnotation(t *testing.T) {
+	shaData := testutil.ConvertResourceToSHA(testutil.ConfigmapResourceType, namespace, configmapAnnotated, "www.stakater.com")
+	config := getConfigWithAnnotations(constants.ConfigmapEnvVarPostfix, configmapAnnotated, shaData, "")
+	config.ResourceAnnotations = map[string]string{"reloader.stakater.com/match": "true"}
+	deploymentFuncs := GetDeploymentRollingUpgradeFuncs()
+	collectors := getCollectors()
+
+	err := PerformRollingUpgrade(clients, config, deploymentFuncs, collectors)
+	if err != nil {
+		t.Errorf("Rolling upgrade failed for Deployment with Configmap")
+	}
+
+	logrus.Infof("Verifying deployment update")
+	updated := testutil.VerifyResourceUpdate(clients, config, constants.ConfigmapEnvVarPostfix, deploymentFuncs)
+	if !updated {
+		t.Errorf("Deployment was not updated")
+	}
+
+	if promtestutil.ToFloat64(collectors.Reloaded.With(labelSucceeded)) != 1 {
+		t.Errorf("Counter was not increased")
+	}
+}
+
+func TestRollingUpgradeForDeploymentWithConfigmapViaSearchAnnotationNoTriggers(t *testing.T) {
+	shaData := testutil.ConvertResourceToSHA(testutil.ConfigmapResourceType, namespace, configmapAnnotated, "www.stakater.com")
+	config := getConfigWithAnnotations(constants.ConfigmapEnvVarPostfix, configmapAnnotated, shaData, "")
+	config.ResourceAnnotations = map[string]string{"reloader.stakater.com/match": "false"}
+	deploymentFuncs := GetDeploymentRollingUpgradeFuncs()
+	collectors := getCollectors()
+
+	err := PerformRollingUpgrade(clients, config, deploymentFuncs, collectors)
+	if err != nil {
+		t.Errorf("Rolling upgrade failed for Deployment with Configmap")
+	}
+
+	logrus.Infof("Verifying deployment update")
+	updated := testutil.VerifyResourceUpdate(clients, config, constants.ConfigmapEnvVarPostfix, deploymentFuncs)
+	time.Sleep(5 * time.Second)
+	if updated {
+		t.Errorf("Deployment was updated unexpectedly")
+	}
+
+	if promtestutil.ToFloat64(collectors.Reloaded.With(labelSucceeded)) > 0 {
+		t.Errorf("Counter was increased unexpectedly")
+	}
+}
+
+func TestRollingUpgradeForDeploymentWithConfigmapViaSearchAnnotationNotMapped(t *testing.T) {
+	deployment, err := testutil.CreateDeploymentWithEnvVarSourceAndAnnotations(
+		clients.KubernetesClient,
+		configmapAnnotated+"-different",
+		namespace,
+		map[string]string{"reloader.stakater.com/search": "true"},
+	)
+	if err != nil {
+		t.Errorf("Failed to create deployment with search annotation.")
+	}
+	defer clients.KubernetesClient.AppsV1().Deployments(namespace).Delete(deployment.Name, &v1.DeleteOptions{})
+
+	shaData := testutil.ConvertResourceToSHA(testutil.ConfigmapResourceType, namespace, configmapAnnotated, "www.stakater.com")
+	config := getConfigWithAnnotations(constants.ConfigmapEnvVarPostfix, configmapAnnotated, shaData, "")
+	config.ResourceAnnotations = map[string]string{"reloader.stakater.com/match": "false"}
+	deploymentFuncs := GetDeploymentRollingUpgradeFuncs()
+	collectors := getCollectors()
+
+	err = PerformRollingUpgrade(clients, config, deploymentFuncs, collectors)
+	if err != nil {
+		t.Errorf("Rolling upgrade failed for Deployment with Configmap")
+	}
+
+	logrus.Infof("Verifying deployment update")
+	updated := testutil.VerifyResourceUpdate(clients, config, constants.ConfigmapEnvVarPostfix, deploymentFuncs)
+	if updated {
+		t.Errorf("Deployment was updated unexpectedly")
+	}
+
+	if promtestutil.ToFloat64(collectors.Reloaded.With(labelSucceeded)) > 0 {
+		t.Errorf("Counter was increased unexpectedly")
 	}
 }
 
