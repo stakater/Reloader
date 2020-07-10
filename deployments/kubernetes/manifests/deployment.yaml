@@ -39,4 +39,7 @@ spec:
         name: reloader-reloader
         args:
       serviceAccountName: reloader-reloader
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65534
 
