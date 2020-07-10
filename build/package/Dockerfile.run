@@ -5,4 +5,7 @@ RUN apk add --update --no-cache ca-certificates
 
 COPY Reloader /bin/Reloader
 
+# On alpine 'nobody' has uid 65534
+USER 65534
+
 ENTRYPOINT ["/bin/Reloader"]
