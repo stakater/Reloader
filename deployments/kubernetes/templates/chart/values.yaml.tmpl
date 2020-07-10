@@ -32,6 +32,10 @@ reloader:
     #             operator: "Exists"
     affinity: {}
 
+    securityContext:
+      runAsNonRoot: true
+      runAsUser: 65534
+
     # A list of tolerations to be applied to the Deployment.
     # Example:
     #   tolerations:

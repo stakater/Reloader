@@ -32,6 +32,10 @@ reloader:
     #             operator: "Exists"
     affinity: {}
 
+    securityContext:
+      runAsNonRoot: true
+      runAsUser: 65534
+
     # A list of tolerations to be applied to the Deployment.
     # Example:
     #   tolerations:
@@ -44,10 +48,10 @@ reloader:
     labels:
       provider: stakater
       group: com.stakater.platform
-      version: v0.0.60
+      version: v0.0.61
     image:
       name: stakater/reloader
-      tag: "v0.0.60"
+      tag: "v0.0.61"
       pullPolicy: IfNotPresent
     # Support for extra environment variables.
     env:
