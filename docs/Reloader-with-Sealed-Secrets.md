@@ -8,4 +8,4 @@ Below are the steps to use reloader with Sealed Secrets.
 8. Install Reloader.
 9. Once everything is setup, update the original secret at client and encrypt it with kubeseal to see reloader working.
 10. Apply the updated sealed secret.
-11. Reloader will resatart the pod to use that updated secret.
+11. Reloader will restart the pod to use that updated secret.
