@@ -33,11 +33,9 @@ spec:
         
     spec:
       containers:
-      - env:
-        image: "stakater/reloader:v0.0.61"
+      - image: "stakater/reloader:v0.0.61"
         imagePullPolicy: IfNotPresent
         name: reloader-reloader
-        args:
       securityContext: 
         runAsNonRoot: true
         runAsUser: 65534
