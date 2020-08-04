@@ -78,7 +78,6 @@ func GetKubernetesClient() (*kubernetes.Clientset, error) {
 
 func getConfig() (*rest.Config, error) {
 	var config *rest.Config
-	var err error
 	kubeconfigPath := os.Getenv("KUBECONFIG")
 	if kubeconfigPath == "" {
 		kubeconfigPath = os.Getenv("HOME") + "/.kube/config"
@@ -94,9 +93,6 @@ func getConfig() (*rest.Config, error) {
 		if err != nil {
 			return nil, err
 		}
-	}
-	if err != nil {
-		return nil, err
 	}
 
 	return config, nil
