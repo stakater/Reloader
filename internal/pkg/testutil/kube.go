@@ -97,7 +97,7 @@ func getVolumes(name string) []v1.Volume {
 			VolumeSource: v1.VolumeSource{
 				Projected: &v1.ProjectedVolumeSource{
 					Sources: []v1.VolumeProjection{
-						v1.VolumeProjection{
+						{
 							ConfigMap: &v1.ConfigMapProjection{
 								LocalObjectReference: v1.LocalObjectReference{
 									Name: name,
@@ -113,7 +113,7 @@ func getVolumes(name string) []v1.Volume {
 			VolumeSource: v1.VolumeSource{
 				Projected: &v1.ProjectedVolumeSource{
 					Sources: []v1.VolumeProjection{
-						v1.VolumeProjection{
+						{
 							Secret: &v1.SecretProjection{
 								LocalObjectReference: v1.LocalObjectReference{
 									Name: name,
@@ -610,6 +610,7 @@ func CreateSecret(client kubernetes.Interface, namespace string, secretName stri
 	time.Sleep(3 * time.Second)
 	return secretClient, err
 }
+
 // CreateDeployment creates a deployment in given namespace and returns the Deployment
 func CreateDeployment(client kubernetes.Interface, deploymentName string, namespace string, volumeMount bool) (*appsv1.Deployment, error) {
 	logrus.Infof("Creating Deployment")
