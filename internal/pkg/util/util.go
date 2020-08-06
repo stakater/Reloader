@@ -2,10 +2,12 @@ package util
 
 import (
 	"bytes"
+	"encoding/base64"
 	"sort"
 	"strings"
 
 	"github.com/stakater/Reloader/internal/pkg/crypto"
+	v1 "k8s.io/api/core/v1"
 )
 
 // ConvertToEnvVarName converts the given text into a usable env var
@@ -29,10 +31,13 @@ func ConvertToEnvVarName(text string) string {
 	return buffer.String()
 }
 
-func GetSHAfromConfigmap(data map[string]string) string {
+func GetSHAfromConfigmap(configmap *v1.ConfigMap) string {
 	values := []string{}
-	for k, v := range data {
+	for k, v := range configmap.Data {
 		values = append(values, k+"="+v)
+	}
+	for k, v := range configmap.BinaryData {
+		values = append(values, k+"="+base64.StdEncoding.EncodeToString(v))
 	}
 	sort.Strings(values)
 	return crypto.GenerateSHA(strings.Join(values, ";"))
