@@ -33,7 +33,7 @@ func (r ResourceUpdatedHandler) GetConfig() (util.Config, string) {
 	var oldSHAData string
 	var config util.Config
 	if _, ok := r.Resource.(*v1.ConfigMap); ok {
-		oldSHAData = util.GetSHAfromConfigmap(r.OldResource.(*v1.ConfigMap).Data)
+		oldSHAData = util.GetSHAfromConfigmap(r.OldResource.(*v1.ConfigMap))
 		config = util.GetConfigmapConfig(r.Resource.(*v1.ConfigMap))
 	} else if _, ok := r.Resource.(*v1.Secret); ok {
 		oldSHAData = util.GetSHAfromSecret(r.OldResource.(*v1.Secret).Data)

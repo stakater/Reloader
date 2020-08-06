@@ -23,7 +23,7 @@ func GetConfigmapConfig(configmap *v1.ConfigMap) Config {
 		ResourceName:        configmap.Name,
 		ResourceAnnotations: configmap.Annotations,
 		Annotation:          options.ConfigmapUpdateOnChangeAnnotation,
-		SHAValue:            GetSHAfromConfigmap(configmap.Data),
+		SHAValue:            GetSHAfromConfigmap(configmap),
 		Type:                constants.ConfigmapEnvVarPostfix,
 	}
 }
