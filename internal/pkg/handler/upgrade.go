@@ -260,7 +260,7 @@ func getContainerToUpdate(upgradeFuncs callbacks.RollingUpgradeFuncs, item inter
 
 func updateContainers(upgradeFuncs callbacks.RollingUpgradeFuncs, item interface{}, config util.Config, autoReload bool) constants.Result {
 	var result constants.Result
-	envar := constants.EnvVarPrefix + util.ConvertToEnvVarName(config.ResourceName) + "_" + config.Type
+	envVar := constants.EnvVarPrefix + util.ConvertToEnvVarName(config.ResourceName) + "_" + config.Type
 	container := getContainerToUpdate(upgradeFuncs, item, config, autoReload)
 
 	if container == nil {
@@ -268,12 +268,12 @@ func updateContainers(upgradeFuncs callbacks.RollingUpgradeFuncs, item interface
 	}
 
 	//update if env var exists
-	result = updateEnvVar(upgradeFuncs.ContainersFunc(item), envar, config.SHAValue)
+	result = updateEnvVar(upgradeFuncs.ContainersFunc(item), envVar, config.SHAValue)
 
 	// if no existing env var exists lets create one
 	if result == constants.NoEnvVarFound {
 		e := v1.EnvVar{
-			Name:  envar,
+			Name:  envVar,
 			Value: config.SHAValue,
 		}
 		container.Env = append(container.Env, e)
@@ -282,11 +282,11 @@ func updateContainers(upgradeFuncs callbacks.RollingUpgradeFuncs, item interface
 	return result
 }
 
-func updateEnvVar(containers []v1.Container, envar string, shaData string) constants.Result {
+func updateEnvVar(containers []v1.Container, envVar string, shaData string) constants.Result {
 	for i := range containers {
 		envs := containers[i].Env
 		for j := range envs {
-			if envs[j].Name == envar {
+			if envs[j].Name == envVar {
 				if envs[j].Value != shaData {
 					envs[j].Value = shaData
 					return constants.Updated

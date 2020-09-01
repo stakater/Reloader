@@ -336,7 +336,7 @@ func TestControllerForUpdatingConfigmapShouldUpdateDeployment(t *testing.T) {
 }
 
 // Do not Perform rolling upgrade on deployment and create env var upon updating the labels configmap
-func TestControllerUpdatingConfigmapLabelsShouldNotCreateorUpdateEnvInDeployment(t *testing.T) {
+func TestControllerUpdatingConfigmapLabelsShouldNotCreateOrUpdateEnvInDeployment(t *testing.T) {
 	// Creating configmap
 	configmapName := configmapNamePrefix + "-update-" + testutil.RandSeq(5)
 	configmapClient, err := testutil.CreateConfigMap(clients.KubernetesClient, namespace, configmapName, "www.google.com")
@@ -552,7 +552,7 @@ func TestControllerUpdatingSecretShouldUpdateEnvInDeployment(t *testing.T) {
 }
 
 // Do not Perform rolling upgrade on pod and create or update a env var upon updating the label in secret
-func TestControllerUpdatingSecretLabelsShouldNotCreateorUpdateEnvInDeployment(t *testing.T) {
+func TestControllerUpdatingSecretLabelsShouldNotCreateOrUpdateEnvInDeployment(t *testing.T) {
 	// Creating secret
 	secretName := secretNamePrefix + "-update-" + testutil.RandSeq(5)
 	secretClient, err := testutil.CreateSecret(clients.KubernetesClient, namespace, secretName, data)
@@ -820,7 +820,7 @@ func TestControllerUpdatingSecretShouldUpdateEnvInDaemonSet(t *testing.T) {
 }
 
 // Do not Perform rolling upgrade on pod and create or update a env var upon updating the label in secret
-func TestControllerUpdatingSecretLabelsShouldNotCreateorUpdateEnvInDaemonSet(t *testing.T) {
+func TestControllerUpdatingSecretLabelsShouldNotCreateOrUpdateEnvInDaemonSet(t *testing.T) {
 	// Creating secret
 	secretName := secretNamePrefix + "-update-" + testutil.RandSeq(5)
 	secretClient, err := testutil.CreateSecret(clients.KubernetesClient, namespace, secretName, data)

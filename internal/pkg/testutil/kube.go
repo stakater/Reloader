@@ -563,11 +563,11 @@ func GetSecretWithUpdatedLabel(namespace string, secretName string, label string
 }
 
 // GetResourceSHA returns the SHA value of given environment variable
-func GetResourceSHA(containers []v1.Container, envar string) string {
+func GetResourceSHA(containers []v1.Container, envVar string) string {
 	for i := range containers {
 		envs := containers[i].Env
 		for j := range envs {
-			if envs[j].Name == envar {
+			if envs[j].Name == envVar {
 				return envs[j].Value
 			}
 		}
