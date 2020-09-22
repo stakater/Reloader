@@ -821,6 +821,7 @@ func VerifyResourceUpdate(clients kube.Clients, config util.Config, envVarPostfi
 		} else if annotationValue != "" {
 			values := strings.Split(annotationValue, ",")
 			for _, value := range values {
+				value = strings.Trim(value, " ")
 				if value == config.ResourceName {
 					matches = true
 					break

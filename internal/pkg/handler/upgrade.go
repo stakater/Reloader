@@ -116,7 +116,7 @@ func PerformRollingUpgrade(clients kube.Clients, config util.Config, upgradeFunc
 		if result != constants.Updated && annotationValue != "" {
 			values := strings.Split(annotationValue, ",")
 			for _, value := range values {
-				value = strings.Trim(value, " \n")
+				value = strings.Trim(value, " ")
 				if value == config.ResourceName {
 					result = updateContainers(upgradeFuncs, i, config, false)
 					if result == constants.Updated {
