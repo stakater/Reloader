@@ -6,7 +6,7 @@ kind: ClusterRole
 metadata:
   labels:
     app: reloader-reloader
-    chart: "reloader-v0.0.69"
+    chart: "reloader-v0.0.70"
     release: "reloader"
     heritage: "Tiller"
   name: reloader-reloader-role
