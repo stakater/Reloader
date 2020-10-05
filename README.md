@@ -243,6 +243,11 @@ Please use the [issue tracker](https://github.com/stakater/Reloader/issues) to r
 
 ### Developing
 
+1. Deploy Reloader.
+2. Run `okteto up` to activate your development container.
+3. `make build`.
+4. `./Reloader`
+
 PRs are welcome. In general, we follow the "fork-and-pull" Git workflow.
 
 1.  **Fork** the repo on GitHub
