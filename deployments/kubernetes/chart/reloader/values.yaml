@@ -49,10 +49,10 @@ reloader:
     labels:
       provider: stakater
       group: com.stakater.platform
-      version: v0.0.70
+      version: v0.0.71
     image:
       name: stakater/reloader
-      tag: "v0.0.70"
+      tag: "v0.0.71"
       pullPolicy: IfNotPresent
     # Support for extra environment variables.
     env:
