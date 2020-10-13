@@ -93,7 +93,7 @@ spec:
           - mountPath: /tmp/
             name: tmp-volume
       {{- end }}
-      {{- if or (.Values.reloader.logFormat) (.Values.reloader.ignoreSecrets) (eq .Values.reloader.ignoreConfigMaps true) (.Values.reloader.custom_annotations) }}
+      {{- if or (.Values.reloader.logFormat) (.Values.reloader.ignoreSecrets) (.Values.reloader.ignoreNamespaces) (.Values.reloader.ignoreConfigMaps) (.Values.reloader.custom_annotations) }}
         args:
           {{- if .Values.reloader.logFormat }}
           - "--log-format={{ .Values.reloader.logFormat }}"
@@ -101,8 +101,11 @@ spec:
           {{- if .Values.reloader.ignoreSecrets }}
           - "--resources-to-ignore=secrets"
           {{- end }}
-          {{- if eq .Values.reloader.ignoreConfigMaps true }}
+          {{- if .Values.reloader.ignoreConfigMaps }}
           - "--resources-to-ignore=configMaps"
+          {{- end }}
+          {{- if .Values.reloader.ignoreNamespaces }}
+          - "--namespaces-to-ignore={{ .Values.reloader.ignoreNamespaces }}"
           {{- end }}
 
           {{- if .Values.reloader.custom_annotations }}
