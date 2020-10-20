@@ -1,5 +1,9 @@
 {{- if and (not (.Values.reloader.watchGlobally)) (.Values.reloader.rbac.enabled) }}
+{{- if and .Values.reloader.legacy.rbac }}
 apiVersion: rbac.authorization.k8s.io/v1beta1
+{{ else }}
+apiVersion: rbac.authorization.k8s.io/v1
+{{- end }}
 kind: Role
 metadata:
   labels:

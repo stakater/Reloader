@@ -22,6 +22,7 @@ Reloader can watch changes in `ConfigMap` and `Secret` and do rolling upgrades o
 ## Compatibility
 
 Reloader is compatible with kubernetes >= 1.9
+The `apiVersion: rbac.authorization.k8s.io/v1beta1` is depreciated since kubernetes = 1.17. To run it with older versions, please use the chart parameter `reloader.legacy.rbac=true`
 
 ## How to use Reloader
 
@@ -199,6 +200,12 @@ helm repo add stakater https://stakater.github.io/stakater-charts
 helm repo update
 
 helm install stakater/reloader
+```
+
+**Note:** The latest verion of reloader is using `apiVersion: rbac.authorization.k8s.io/v1` for rbac. The `apiVersion: rbac.authorization.k8s.io/v1beta1` is depreciated since kubernetes = 1.17. To run it with older versions, please use below command.
+
+```bash
+helm install stakater/reloader --set reloader.legacy.rbac=true
 ```
 
 **Note:** By default reloader watches in all namespaces. To watch in single namespace, please run following command. It will install reloader in `test` namespace which will only watch `Deployments`, `Daemonsets` and `Statefulsets` in `test` namespace.
