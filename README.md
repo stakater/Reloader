@@ -192,26 +192,26 @@ namespace: reloader
 
 ### Helm Charts
 
-Alternatively if you have configured helm on your cluster, you can add reloader to helm from our public chart repository and deploy it via helm using below mentioned commands
+Alternatively if you have configured helm on your cluster, you can add reloader to helm from our public chart repository and deploy it via helm using below mentioned commands. Follow [this](docs/Helm2-to-Helm3.md) guide, in case you have trouble migrating reloader from Helm2 to Helm3
 
 ```bash
 helm repo add stakater https://stakater.github.io/stakater-charts
 
 helm repo update
 
-helm install stakater/reloader
+helm install stakater/reloader # For helm3 add --generate-name flag or set the release name
 ```
 
 **Note:** The latest verion of reloader is using `apiVersion: rbac.authorization.k8s.io/v1` for rbac. The `apiVersion: rbac.authorization.k8s.io/v1beta1` is depreciated since kubernetes = 1.17. To run it with older versions, please use below command.
 
 ```bash
-helm install stakater/reloader --set reloader.legacy.rbac=true
+helm install stakater/reloader --set reloader.legacy.rbac=true # For helm3 add --generate-name flag or set the release name
 ```
 
 **Note:** By default reloader watches in all namespaces. To watch in single namespace, please run following command. It will install reloader in `test` namespace which will only watch `Deployments`, `Daemonsets` and `Statefulsets` in `test` namespace.
 
 ```bash
-helm install stakater/reloader --set reloader.watchGlobally=false --namespace test
+helm install stakater/reloader --set reloader.watchGlobally=false --namespace test # For helm3 add --generate-name flag or set the release name
 ```
 
 Reloader can be configured to ignore the resources `secrets` and `configmaps` by using the following parameters of `values.yaml` file:
