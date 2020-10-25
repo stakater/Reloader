@@ -20,14 +20,15 @@ helm3 2to3 cleanup --release-cleanup --skip-confirmation
 ### Step 2:
 Add the following Helm3 labels and annotations on reloader resources.
 Label:
-´´ýaml
+
+```yaml
 app.kubernetes.io/managed-by=Helm
-´´´
+```
 Annotations:
-´´ýaml
+```yaml
 meta.helm.sh/release-name=<release-name>
 meta.helm.sh/release-namespace=<namespace>
-´´´
+```
 
 For example, to label and annotate the ClusterRoleBinding and ClusterRole:
 
