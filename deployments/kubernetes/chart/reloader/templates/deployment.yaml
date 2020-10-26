@@ -1,8 +1,9 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-{{- if .Values.reloader.deployment.annotations }}
   annotations:
+{{ include "reloader-helm3.annotations" . | indent 4 }}
+{{- if .Values.reloader.deployment.annotations }}
 {{ toYaml .Values.reloader.deployment.annotations | indent 4 }}
 {{- end }}
   labels:

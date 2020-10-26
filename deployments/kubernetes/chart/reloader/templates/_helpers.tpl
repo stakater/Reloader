@@ -25,6 +25,7 @@ app: {{ template "reloader-fullname" . }}
 chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
 release: {{ .Release.Name | quote }}
 heritage: {{ .Release.Service | quote }}
+app.kubernetes.io/managed-by: {{ .Release.Service | quote }}
 {{- end -}}
 
 {{/*
@@ -36,4 +37,12 @@ Create the name of the service account to use
 {{- else -}}
     {{ default "default" .Values.reloader.serviceAccount.name }}
 {{- end -}}
+{{- end -}}
+
+{{/*
+Create the annotations to support helm3
+*/}}
+{{- define "reloader-helm3.annotations" -}}
+meta.helm.sh/release-namespace: {{ .Release.Namespace | quote }}
+meta.helm.sh/release-name: {{ .Release.Name | quote }}
 {{- end -}}
