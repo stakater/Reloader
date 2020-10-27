@@ -22,5 +22,8 @@ spec:
 {{ toYaml .Values.reloader.matchLabels | indent 4 }}
 {{- end }}
   ports:
-{{ toYaml .Values.reloader.service.ports | indent 4 }}
+  - port: {{ .Values.reloader.service.port }}
+    name: http
+    protocol: TCP
+    targetPort: http
 {{- end }}
