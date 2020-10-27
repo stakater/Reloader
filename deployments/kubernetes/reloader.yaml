@@ -4,11 +4,15 @@
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
+  annotations:
+    meta.helm.sh/release-namespace: "default"
+    meta.helm.sh/release-name: "reloader"
   labels:
     app: reloader-reloader
-    chart: "reloader-v0.0.72"
+    chart: "reloader-v0.0.73"
     release: "reloader"
     heritage: "Tiller"
+    app.kubernetes.io/managed-by: "Tiller"
   name: reloader-reloader-role
   namespace: default
 rules:
@@ -49,11 +53,15 @@ rules:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
+  annotations:
+    meta.helm.sh/release-namespace: "default"
+    meta.helm.sh/release-name: "reloader"
   labels:
     app: reloader-reloader
-    chart: "reloader-v0.0.72"
+    chart: "reloader-v0.0.73"
     release: "reloader"
     heritage: "Tiller"
+    app.kubernetes.io/managed-by: "Tiller"
   name: reloader-reloader-role-binding
   namespace: default
 roleRef:
@@ -70,14 +78,18 @@ subjects:
 apiVersion: apps/v1
 kind: Deployment
 metadata:
+  annotations:
+    meta.helm.sh/release-namespace: "default"
+    meta.helm.sh/release-name: "reloader"
   labels:
     app: reloader-reloader
-    chart: "reloader-v0.0.72"
+    chart: "reloader-v0.0.73"
     release: "reloader"
     heritage: "Tiller"
+    app.kubernetes.io/managed-by: "Tiller"
     group: com.stakater.platform
     provider: stakater
-    version: v0.0.72
+    version: v0.0.73
     
   name: reloader-reloader
 spec:
@@ -91,16 +103,17 @@ spec:
     metadata:
       labels:
         app: reloader-reloader
-        chart: "reloader-v0.0.72"
+        chart: "reloader-v0.0.73"
         release: "reloader"
         heritage: "Tiller"
+        app.kubernetes.io/managed-by: "Tiller"
         group: com.stakater.platform
         provider: stakater
-        version: v0.0.72
+        version: v0.0.73
         
     spec:
       containers:
-      - image: "stakater/reloader:v0.0.72"
+      - image: "stakater/reloader:v0.0.73"
         imagePullPolicy: IfNotPresent
         name: reloader-reloader
       securityContext: 
@@ -126,10 +139,14 @@ spec:
 apiVersion: v1
 kind: ServiceAccount
 metadata:
+  annotations:
+    meta.helm.sh/release-namespace: "default"
+    meta.helm.sh/release-name: "reloader"
   labels:
     app: reloader-reloader
-    chart: "reloader-v0.0.72"
+    chart: "reloader-v0.0.73"
     release: "reloader"
     heritage: "Tiller"
+    app.kubernetes.io/managed-by: "Tiller"
   name: reloader-reloader
 
