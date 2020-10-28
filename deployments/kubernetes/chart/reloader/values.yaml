@@ -51,10 +51,10 @@ reloader:
     labels:
       provider: stakater
       group: com.stakater.platform
-      version: v0.0.73
+      version: v0.0.74
     image:
       name: stakater/reloader
-      tag: "v0.0.73"
+      tag: "v0.0.74"
       pullPolicy: IfNotPresent
     # Support for extra environment variables.
     env:
@@ -81,7 +81,11 @@ reloader:
   service: {}
     # labels: {}
     # annotations: {}
-    # port: 9090
+    # ports:
+    # - port: 9090
+    #   name: http
+    #   protocol: TCP
+    #   targetPort: 9090
 
   rbac:
     enabled: true
