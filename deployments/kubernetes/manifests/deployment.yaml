@@ -41,6 +41,17 @@ spec:
       - image: "stakater/reloader:v0.0.73"
         imagePullPolicy: IfNotPresent
         name: reloader-reloader
+        ports:
+        - name: http
+          containerPort: 9090
+        livenessProbe:
+          httpGet:
+            path: /metrics
+            port: http
+        readinessProbe:
+          httpGet:
+            path: /metrics
+            port: http
       securityContext: 
         runAsNonRoot: true
         runAsUser: 65534

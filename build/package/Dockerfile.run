@@ -8,4 +8,7 @@ COPY Reloader /bin/Reloader
 # On alpine 'nobody' has uid 65534
 USER 65534
 
+# Port for metrics and probes
+EXPOSE 9090
+
 ENTRYPOINT ["/bin/Reloader"]
