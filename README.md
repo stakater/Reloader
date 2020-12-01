@@ -225,6 +225,8 @@ Reloader can be configured to ignore the resources `secrets` and `configmaps` by
 
 You can also set the log format of Reloader to json by setting `logFormat` to `json` in values.yaml and apply the chart
 
+You can enable to scrape Reloader's Prometheus metrics by setting `serviceMonitor.enabled`  to `true` in values.yaml file.
+
 ## Help
 
 ### Documentation

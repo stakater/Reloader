@@ -1,0 +1,31 @@
+{{- if and ( .Capabilities.APIVersions.Has "monitoring.coreos.com/v1" ) ( .Values.reloader.serviceMonitor.enabled ) }}
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  labels:
+{{ include "reloader-labels.chart" . | indent 4 }}
+{{- if .Values.reloader.serviceMonitor.labels }}
+{{ toYaml .Values.reloader.serviceMonitor.labels | indent 4}}
+{{- end }}
+  name: {{ template "reloader-fullname" . }}
+{{- if .Values.reloader.serviceMonitor.namespace }}
+  namespace: {{ .Values.reloader.serviceMonitor.namespace }}
+{{- end }}
+spec:
+  endpoints:
+  - targetPort: http
+    path: "/metrics"
+{{- if .Values.reloader.serviceMonitor.interval }}
+    interval: {{ .Values.reloader.serviceMonitor.interval }}
+{{- end }}
+{{- if .Values.reloader.serviceMonitor.timeout }}
+    scrapeTimeout: {{ .Values.reloader.serviceMonitor.timeout }}
+{{- end }}
+  jobLabel: {{ template "reloader-fullname" . }}
+  namespaceSelector:
+    matchNames:
+    - {{ .Release.Namespace }}
+  selector:
+    matchLabels:
+      {{ include "reloader-labels.chart" . | nindent 6 }}
+{{- end }}
