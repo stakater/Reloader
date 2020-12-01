@@ -78,14 +78,11 @@ reloader:
     pod:
       annotations: {}
 
-  service: {}
+  service:
+    {}
     # labels: {}
     # annotations: {}
-    # ports:
-    # - port: 9090
-    #   name: http
-    #   protocol: TCP
-    #   targetPort: 9090
+    # port: 9090
 
   rbac:
     enabled: true
@@ -97,7 +94,7 @@ reloader:
     labels: {}
     # The name of the ServiceAccount to use.
     # If not set and create is true, a name is generated using the fullname template
-    name: 
+    name:
   # Optional flags to pass to the Reloader entrypoint
   # Example:
   #   custom_annotations:
