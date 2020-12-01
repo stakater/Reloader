@@ -51,10 +51,10 @@ reloader:
     labels:
       provider: stakater
       group: com.stakater.platform
-      version: v0.0.74
+      version: v0.0.75
     image:
       name: stakater/reloader
-      tag: "v0.0.74"
+      tag: "v0.0.75"
       pullPolicy: IfNotPresent
     # Support for extra environment variables.
     env:
@@ -78,8 +78,7 @@ reloader:
     pod:
       annotations: {}
 
-  service:
-    {}
+  service: {}
     # labels: {}
     # annotations: {}
     # port: 9090
@@ -94,7 +93,7 @@ reloader:
     labels: {}
     # The name of the ServiceAccount to use.
     # If not set and create is true, a name is generated using the fullname template
-    name:
+    name: 
   # Optional flags to pass to the Reloader entrypoint
   # Example:
   #   custom_annotations:
@@ -112,3 +111,4 @@ reloader:
     # labels:
     # Set timeout for scrape
     # timeout: 10s
+  
