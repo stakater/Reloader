@@ -1,6 +1,8 @@
 FROM golang:1.13.9-alpine
 LABEL maintainer "Stakater Team"
 
+ARG GOARCH=amd64
+
 RUN apk -v --update \
     --no-cache \
     add git build-base
@@ -13,7 +15,7 @@ RUN go mod download
 
 COPY . .
 
-ENV CGO_ENABLED=0 GOOS=linux GOARCH=amd64
+ENV CGO_ENABLED=0 GOOS=linux GOARCH=$GOARCH
 
 RUN go build -a --installsuffix cgo --ldflags="-s" -o /Reloader
 
