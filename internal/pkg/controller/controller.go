@@ -57,12 +57,8 @@ func NewController(
 
 // Add function to add a new object to the queue in case of creating a resource
 func (c *Controller) Add(obj interface{}) {
-	if !c.resourceInIgnoredNamespace(obj) {
-		c.queue.Add(handler.ResourceCreatedHandler{
-			Resource:   obj,
-			Collectors: c.collectors,
-		})
-	}
+	// Not required as reloader should update the resource in the event of any change and not in the event of any resource creation.
+	// This causes the issue where reloader reloads the pods when reloader itself gets restarted as it's queue is filled with all the k8s objects as new resources.
 }
 
 func (c *Controller) resourceInIgnoredNamespace(raw interface{}) bool {
