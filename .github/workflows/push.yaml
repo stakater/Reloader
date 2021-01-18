@@ -148,10 +148,10 @@ jobs:
         with:
           kustomize-version: ${{ env.KUSTOMIZE_VERSION }}
 
-      - name: Generate Bundle
-        env:
-          VERSION: ${{ steps.generate_operator_tag.outputs.new_tag }}
-        run: make bundle
+      # - name: Generate Bundle
+      #   env:
+      #     VERSION: ${{ steps.generate_operator_tag.outputs.new_tag }}
+      #   run: make bundle
 
       # Update chart tag to the latest semver tag
       - name: Update Chart Version
@@ -159,8 +159,8 @@ jobs:
           VERSION: ${{ steps.generate_operator_tag.outputs.new_tag }}
         run: make bump-chart
       
-      - name: Update Chart CRDs
-        run: make generate-crds
+      # - name: Update Chart CRDs
+      #   run: make generate-crds
         
       # Setting up helm binary
       - uses: azure/setup-helm@v1
