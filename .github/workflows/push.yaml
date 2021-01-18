@@ -1,0 +1,206 @@
+name: Push
+
+on:
+  push:
+    branches:
+      - master
+
+env:
+  DOCKER_FILE_PATH: build/Dockerfile
+  GOLANG_VERSION: 1.15.2
+  OPERATOR_SDK_VERSION: "0.15.2"
+  KUBERNETES_VERSION: "1.18.0"
+  KIND_VERSION: "0.7.0"
+  HELM_REGISTRY_URL: "https://stakater.github.io/stakater-charts"
+
+jobs:
+  build:
+    name: Build
+    if: "! contains(toJSON(github.event.commits.*.message), '[skip-ci]')"
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v2
+        with:
+          persist-credentials: false # otherwise, the token used is the GITHUB_TOKEN, instead of your personal token
+          fetch-depth: 0 # otherwise, you will fail to push refs to dest repo
+
+      # Setting up helm binary
+      - name: Set up Helm
+        uses: azure/setup-helm@v1
+
+      - name: Set up Go
+        id: go
+        uses: actions/setup-go@v2
+        with:
+          go-version: ${{ env.GOLANG_VERSION }}
+
+      - name: Lint
+        run: |
+          curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin v1.26.0
+          golangci-lint run --timeout=10m ./...
+
+      - name: Install kubectl
+        run: |
+          curl -LO "https://storage.googleapis.com/kubernetes-release/release/v${KUBERNETES_VERSION}/bin/linux/amd64/kubectl"
+          sudo install ./kubectl /usr/local/bin/ && rm kubectl
+          kubectl version --short --client
+          kubectl version --short --client | grep -q ${KUBERNETES_VERSION}
+
+      - name: Install Kind
+        run: |
+          curl -L -o kind https://github.com/kubernetes-sigs/kind/releases/download/v${KIND_VERSION}/kind-linux-amd64
+          sudo install ./kind /usr/local/bin && rm kind
+          kind version
+          kind version | grep -q ${KIND_VERSION}
+
+      - name: Create Kind Cluster
+        run: |
+          kind create cluster
+
+      - name: Set up Cluster
+        run: |
+          kubectl cluster-info
+          kubectl apply -f deploy/crds
+          mkdir -p .local
+          echo "${{ secrets.SECRET_KUBERNETES_RESOURCES }}" | base64 --decode > .local/test-config.yaml
+
+      - name: Helm Lint
+        run: |
+          helm init
+          cd deployments/kubernetes/chart/reloader
+          helm lint
+
+      - name: Make Install & Verify
+        run: |
+          make install
+          make verify
+
+      - name: Test
+        run: make test
+
+      - name: Generate Tag
+        id: generate_tag
+        uses: anothrNick/github-tag-action@1.26.0
+        env:
+          GITHUB_TOKEN: ${{ secrets.STAKATER_GITHUB_TOKEN }}
+          WITH_V: true
+          DEFAULT_BUMP: patch
+          DRY_RUN: true
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v1
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v1
+
+      - name: Login to Registry
+        uses: docker/login-action@v1
+        with:
+          username: ${{ secrets.STAKATER_DOCKERHUB_USERNAME }}
+          password: ${{ secrets.STAKATER_DOCKERHUB_PASSWORD }}
+
+      - name: Generate image repository path
+        run: |
+          echo IMAGE_REPOSITORY=$(echo ${{ github.repository }} | tr '[:upper:]' '[:lower:]') >> $GITHUB_ENV
+      - name: Build and push
+        uses: docker/build-push-action@v2
+        with:
+          context: .
+          file: ${{ env.DOCKER_FILE_PATH  }}
+          pull: true
+          push: true
+          build-args: BUILD_PARAMETERS=${{ env.BUILD_PARAMETERS }}
+          cache-to: type=inline
+          tags: |
+            ${{ env.IMAGE_REPOSITORY }}:${{ steps.generate_tag.outputs.new_tag }}
+          labels: |
+            org.opencontainers.image.source=${{ github.event.repository.clone_url }}
+            org.opencontainers.image.created=${{ steps.prep.outputs.created }}
+            org.opencontainers.image.revision=${{ github.sha }}
+      ##############################
+      ## Add steps to generate required artifacts for a release here(helm chart, operator manifest etc.)
+      ##############################
+
+      # Generate tag for operator without "v"
+      - name: Generate Operator Tag
+        id: generate_operator_tag
+        uses: anothrNick/github-tag-action@1.26.0
+        env:
+          GITHUB_TOKEN: ${{ secrets.STAKATER_GITHUB_TOKEN }}
+          WITH_V: false
+          DEFAULT_BUMP: patch
+          DRY_RUN: true
+
+      # Install operator-sdk
+      - name: Install operator-sdk
+        env:
+          OPERATOR_SDK_VERSION: ${{ env.OPERATOR_SDK_VERSION }}
+        run: |
+          curl -fL -o /tmp/operator-sdk "https://github.com/operator-framework/operator-sdk/releases/download/v${OPERATOR_SDK_VERSION}/operator-sdk-v${OPERATOR_SDK_VERSION}-x86_64-linux-gnu"
+          sudo install /tmp/operator-sdk /usr/local/bin && rm -f /tmp/operator-sdk
+          operator-sdk version
+          operator-sdk version | grep -q "${OPERATOR_SDK_VERSION}"
+
+      # Install Kustomize
+      - uses: imranismail/setup-kustomize@v1
+        with:
+          kustomize-version: ${{ env.KUSTOMIZE_VERSION }}
+
+      - name: Generate Bundle
+        env:
+          VERSION: ${{ steps.generate_operator_tag.outputs.new_tag }}
+        run: make bundle
+
+      # Update chart tag to the latest semver tag
+      - name: Update Chart Version
+        env:
+          VERSION: ${{ steps.generate_operator_tag.outputs.new_tag }}
+        run: make bump-chart
+      
+      - name: Update Chart CRDs
+        run: make generate-crds
+        
+      # Setting up helm binary
+      - uses: azure/setup-helm@v1
+
+      # Publish helm chart to
+      - name: Publish Helm chart
+        run: |
+          helm plugin install https://github.com/chartmuseum/helm-push.git
+          helm package deployments/kubernetes/chart/reloader/* --destination ./packaged-chart
+          helm push ./packaged-chart/*.tgz ${{ env.HELM_REGISTRY_URL }}
+          # curl ${{ env.HELM_REGISTRY_URL }} --upload-file ./packaged-chart/*.tgz
+          
+      # Commit back changes
+      - name: Commit files
+        run: |
+          git config --local user.email "stakater@gmail.com"
+          git config --local user.name "stakater-user"
+          git status 
+          git add .
+          git commit -m "[skip-ci] Update artifacts" -a
+          
+      - name: Push changes
+        uses: ad-m/github-push-action@master
+        with:
+          github_token: ${{ secrets.STAKATER_GITHUB_TOKEN }}
+          branch: ${{ github.ref }}
+
+      - name: Push Latest Tag
+        uses: anothrNick/github-tag-action@1.26.0
+        env:
+          GITHUB_TOKEN: ${{ secrets.STAKATER_GITHUB_TOKEN }}
+          WITH_V: true
+          DEFAULT_BUMP: patch
+
+      - name: Notify Slack
+        uses: 8398a7/action-slack@v3
+        if: always() # Pick up events even if the job fails or is canceled.
+        with:
+          status: ${{ job.status }}
+          fields: repo,author,action,eventName,ref,workflow
+        env:
+          GITHUB_TOKEN: ${{ secrets.STAKATER_GITHUB_TOKEN }}
+          SLACK_WEBHOOK_URL: ${{ secrets.STAKATER_DELIVERY_SLACK_WEBHOOK }}
