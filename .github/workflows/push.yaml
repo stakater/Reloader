@@ -8,7 +8,6 @@ on:
 env:
   DOCKER_FILE_PATH: build/Dockerfile
   GOLANG_VERSION: 1.15.2
-  OPERATOR_SDK_VERSION: "0.15.2"
   KUBERNETES_VERSION: "1.18.0"
   KIND_VERSION: "0.7.0"
   HELM_REGISTRY_URL: "https://stakater.github.io/stakater-charts"
@@ -62,7 +61,6 @@ jobs:
       - name: Set up Cluster
         run: |
           kubectl cluster-info
-          kubectl apply -f deploy/crds
           mkdir -p .local
           echo "${{ secrets.SECRET_KUBERNETES_RESOURCES }}" | base64 --decode > .local/test-config.yaml
 
@@ -75,7 +73,6 @@ jobs:
       - name: Make Install & Verify
         run: |
           make install
-          make verify
 
       - name: Test
         run: make test
@@ -133,45 +130,26 @@ jobs:
           DEFAULT_BUMP: patch
           DRY_RUN: true
 
-      # Install operator-sdk
-      - name: Install operator-sdk
-        env:
-          OPERATOR_SDK_VERSION: ${{ env.OPERATOR_SDK_VERSION }}
-        run: |
-          curl -fL -o /tmp/operator-sdk "https://github.com/operator-framework/operator-sdk/releases/download/v${OPERATOR_SDK_VERSION}/operator-sdk-v${OPERATOR_SDK_VERSION}-x86_64-linux-gnu"
-          sudo install /tmp/operator-sdk /usr/local/bin && rm -f /tmp/operator-sdk
-          operator-sdk version
-          operator-sdk version | grep -q "${OPERATOR_SDK_VERSION}"
-
-      # Install Kustomize
-      - uses: imranismail/setup-kustomize@v1
-        with:
-          kustomize-version: ${{ env.KUSTOMIZE_VERSION }}
-
-      # - name: Generate Bundle
-      #   env:
-      #     VERSION: ${{ steps.generate_operator_tag.outputs.new_tag }}
-      #   run: make bundle
-
       # Update chart tag to the latest semver tag
       - name: Update Chart Version
         env:
           VERSION: ${{ steps.generate_operator_tag.outputs.new_tag }}
         run: make bump-chart
-      
-      # - name: Update Chart CRDs
-      #   run: make generate-crds
-        
-      # Setting up helm binary
-      - uses: azure/setup-helm@v1
 
-      # Publish helm chart to
+      # Publish helm chart
       - name: Publish Helm chart
-        run: |
-          helm plugin install https://github.com/chartmuseum/helm-push.git
-          helm package deployments/kubernetes/chart/reloader/* --destination ./packaged-chart
-          helm push ./packaged-chart/*.tgz ${{ env.HELM_REGISTRY_URL }}
-          # curl ${{ env.HELM_REGISTRY_URL }} --upload-file ./packaged-chart/*.tgz
+        uses: stefanprodan/helm-gh-pages@master
+        with:
+          branch: master
+          repository: stakater-charts
+          target_dir: docs
+          token: ${{ secrets.STAKATER_GITHUB_TOKEN }}
+          charts_dir: charts
+          charts_url: ${{ env.HELM_REGISTRY_URL }}
+          owner: stakater
+          linting: off
+          commit_username: stakater-user
+          commit_email: stakater@gmail.com
           
       # Commit back changes
       - name: Commit files
