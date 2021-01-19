@@ -15,7 +15,6 @@ import (
 	"github.com/stakater/Reloader/internal/pkg/testutil"
 	"github.com/stakater/Reloader/internal/pkg/util"
 	"github.com/stakater/Reloader/pkg/kube"
-	core_v1 "k8s.io/api/core/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	testclient "k8s.io/client-go/kubernetes/fake"
 )
@@ -657,11 +656,12 @@ func TestRollingUpgradeForDeploymentWithConfigmapInProjectedVolume(t *testing.T)
 	}
 }
 
-func createConfigMap(clients *kube.Clients, namespace, name string, annotations map[string]string) (*core_v1.ConfigMap, error) {
-	configmapObj := testutil.GetConfigmap(namespace, name, "www.google.com")
-	configmapObj.Annotations = annotations
-	return clients.KubernetesClient.CoreV1().ConfigMaps(namespace).Create(configmapObj)
-}
+// Un-used function
+// func createConfigMap(clients *kube.Clients, namespace, name string, annotations map[string]string) (*core_v1.ConfigMap, error) {
+// 	configmapObj := testutil.GetConfigmap(namespace, name, "www.google.com")
+// 	configmapObj.Annotations = annotations
+// 	return clients.KubernetesClient.CoreV1().ConfigMaps(namespace).Create(configmapObj)
+// }
 
 func TestRollingUpgradeForDeploymentWithConfigmapViaSearchAnnotation(t *testing.T) {
 	shaData := testutil.ConvertResourceToSHA(testutil.ConfigmapResourceType, namespace, configmapAnnotated, "www.stakater.com")
@@ -720,7 +720,10 @@ func TestRollingUpgradeForDeploymentWithConfigmapViaSearchAnnotationNotMapped(t 
 	if err != nil {
 		t.Errorf("Failed to create deployment with search annotation.")
 	}
-	defer clients.KubernetesClient.AppsV1().Deployments(namespace).Delete(deployment.Name, &v1.DeleteOptions{})
+	defer func() {
+		_ = clients.KubernetesClient.AppsV1().Deployments(namespace).Delete(deployment.Name, &v1.DeleteOptions{})
+	}()
+	// defer clients.KubernetesClient.AppsV1().Deployments(namespace).Delete(deployment.Name, &v1.DeleteOptions{})
 
 	shaData := testutil.ConvertResourceToSHA(testutil.ConfigmapResourceType, namespace, configmapAnnotated, "www.stakater.com")
 	config := getConfigWithAnnotations(constants.ConfigmapEnvVarPostfix, configmapAnnotated, shaData, "")
