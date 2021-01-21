@@ -17,6 +17,8 @@ reloader:
   watchGlobally: true
   # Set to true if you have a pod security policy that enforces readOnlyRootFilesystem
   readOnlyRootFileSystem: false
+  legacy:
+    rbac: false
   matchLabels: {}
   deployment:
     nodeSelector:
@@ -49,10 +51,10 @@ reloader:
     labels:
       provider: stakater
       group: com.stakater.platform
-      version: v0.0.76
+      version: v0.0.77
     image:
       name: stakater/reloader
-      tag: "v0.0.76"
+      tag: "v0.0.77"
       pullPolicy: IfNotPresent
     # Support for extra environment variables.
     env:
@@ -91,7 +93,7 @@ reloader:
     labels: {}
     # The name of the ServiceAccount to use.
     # If not set and create is true, a name is generated using the fullname template
-    name:
+    name: 
   # Optional flags to pass to the Reloader entrypoint
   # Example:
   #   custom_annotations:
@@ -109,4 +111,4 @@ reloader:
     # labels:
     # Set timeout for scrape
     # timeout: 10s
-
+  
