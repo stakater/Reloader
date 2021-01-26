@@ -134,7 +134,7 @@ jobs:
           repository: stakater-charts
           target_dir: docs
           token: ${{ secrets.STAKATER_GITHUB_TOKEN }}
-          charts_dir: deployment/chart
+          charts_dir: deployment/kubernetes/chart
           charts_url: ${{ env.HELM_REGISTRY_URL }}
           owner: stakater
           linting: on
