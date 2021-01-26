@@ -10,20 +10,20 @@ keywords:
   - kubernetes
 home: https://github.com/stakater/Reloader
 sources:
-- https://github.com/stakater/IngressMonitorController
+  - https://github.com/stakater/IngressMonitorController
 icon: https://raw.githubusercontent.com/stakater/Reloader/master/assets/web/reloader-round-100px.png
 maintainers:
-- name: Stakater
-  email: hello@stakater.com
-- name: rasheedamir
-  email: rasheed@aurorasolutions.io
-- name: waseem-h
-  email: waseemhassan@stakater.com
-- name: faizanahmad055
-  email: faizan.ahmad55@outlook.com
-- name: kahootali
-  email: ali.kahoot@aurorasolutions.io
-- name: ahmadiq
-  email: ahmad@aurorasolutions.io
-- name: ahsan-storm
-  email: ahsanmuhammad1@outlook.com
+  - name: Stakater
+    email: hello@stakater.com
+  - name: rasheedamir
+    email: rasheed@aurorasolutions.io
+  - name: waseem-h
+    email: waseemhassan@stakater.com
+  - name: faizanahmad055
+    email: faizan.ahmad55@outlook.com
+  - name: kahootali
+    email: ali.kahoot@aurorasolutions.io
+  - name: ahmadiq
+    email: ahmad@aurorasolutions.io
+  - name: ahsan-storm
+    email: ahsanmuhammad1@outlook.com

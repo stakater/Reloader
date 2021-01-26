@@ -87,3 +87,9 @@ apply:
 	kubectl apply -f deployments/manifests/ -n temp-reloader
 
 deploy: binary-image push apply
+
+# Bump Chart
+bump-chart: 
+	sed -i "s/^version:.*/version:  $(VERSION)/" deployments/kubernetes/chart/reloader/Chart.yaml
+	sed -i "s/^appVersion:.*/appVersion:  $(VERSION)/" deployments/kubernetes/chart/reloader/Chart.yaml
+	sed -i "s/tag:.*/tag:  v$(VERSION)/" deployments/kubernetes/chart/reloader/values.yaml

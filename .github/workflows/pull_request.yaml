@@ -1,0 +1,133 @@
+name: Pull Request
+
+on:
+  pull_request:
+    branches:
+      - master
+
+env:
+  DOCKER_FILE_PATH: Dockerfile
+  GOLANG_VERSION: 1.15.2
+  KUBERNETES_VERSION: "1.18.0"
+  KIND_VERSION: "0.7.0"
+
+jobs:
+  build:
+    runs-on: ubuntu-latest 
+    name: Build
+    if: "! contains(toJSON(github.event.commits.*.message), '[skip-ci]')"    
+    steps:
+    - name: Check out code
+      uses: actions/checkout@v2
+
+    # Setting up helm binary
+    - name: Set up Helm
+      uses: azure/setup-helm@v1
+
+    - name: Set up Go
+      id: go
+      uses: actions/setup-go@v2
+      with:
+        go-version: ${{ env.GOLANG_VERSION }}
+
+    - name: Install Dependencies
+      run: |
+        make install
+
+    - name: Lint
+      run: |
+        curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin v1.26.0
+        golangci-lint run --timeout=10m ./...
+
+    - name: Helm Lint
+      run: |
+        cd deployments/kubernetes/chart/reloader
+        helm lint
+
+    - name: Install kubectl
+      run: |
+        curl -LO "https://storage.googleapis.com/kubernetes-release/release/v${KUBERNETES_VERSION}/bin/linux/amd64/kubectl"
+        sudo install ./kubectl /usr/local/bin/ && rm kubectl
+        kubectl version --short --client
+        kubectl version --short --client | grep -q ${KUBERNETES_VERSION}
+
+    - name: Install Kind
+      run: |
+        curl -L -o kind https://github.com/kubernetes-sigs/kind/releases/download/v${KIND_VERSION}/kind-linux-amd64
+        sudo install ./kind /usr/local/bin && rm kind
+        kind version
+        kind version | grep -q ${KIND_VERSION}
+
+    - name: Create Kind Cluster
+      run: |
+        kind create cluster
+        kubectl cluster-info
+        
+    - name: Test
+      run: make test
+
+    - name: Generate Tag
+      id: generate_tag
+      run: |
+        sha=${{ github.event.pull_request.head.sha }}
+        tag="SNAPSHOT-PR-${{ github.event.pull_request.number }}-${sha:0:8}"
+        echo "##[set-output name=GIT_TAG;]$(echo ${tag})"
+    
+    - name: Set up QEMU
+      uses: docker/setup-qemu-action@v1
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v1
+
+    - name: Login to Registry
+      uses: docker/login-action@v1
+      with:
+        username: ${{ secrets.STAKATER_DOCKERHUB_USERNAME }}
+        password: ${{ secrets.STAKATER_DOCKERHUB_PASSWORD }}
+
+    - name: Generate image repository path
+      run: |
+        echo IMAGE_REPOSITORY=$(echo ${{ github.repository }} | tr '[:upper:]' '[:lower:]') >> $GITHUB_ENV
+
+    - name: Build and Push Docker Image
+      uses: docker/build-push-action@v2
+      with:
+        context: .
+        file: ${{ env.DOCKER_FILE_PATH  }}
+        pull: true
+        push: true
+        build-args: BUILD_PARAMETERS=${{ env.BUILD_PARAMETERS }}
+        cache-to: type=inline
+        tags: |
+          ${{ env.IMAGE_REPOSITORY }}:${{ steps.generate_tag.outputs.GIT_TAG }}
+        labels: |
+          org.opencontainers.image.source=${{ github.event.repository.clone_url }}
+          org.opencontainers.image.created=${{ steps.prep.outputs.created }}
+          org.opencontainers.image.revision=${{ github.sha }}
+
+    - name: Comment on PR
+      uses: mshick/add-pr-comment@v1
+      env:
+       GITHUB_TOKEN: ${{ secrets.STAKATER_GITHUB_TOKEN }}
+      with:
+        message: '@${{ github.actor }} Image is available for testing. `docker pull ${{ github.repository }}:${{ steps.generate_tag.outputs.GIT_TAG }}`'
+        allow-repeats: false
+
+    - name: Notify Failure
+      if: failure()
+      uses: mshick/add-pr-comment@v1
+      env:
+       GITHUB_TOKEN: ${{ secrets.STAKATER_GITHUB_TOKEN }}
+      with:
+        message: '@${{ github.actor }} Yikes! You better fix it before anyone else finds out! [Build](https://github.com/${{ github.repository }}/commit/${{ github.event.pull_request.head.sha }}/checks) has Failed!'
+        allow-repeats: false
+
+    - name: Notify Slack
+      uses: 8398a7/action-slack@v3
+      if: always() # Pick up events even if the job fails or is canceled.
+      with:
+        status: ${{ job.status }}
+        fields: repo,author,action,eventName,ref,workflow
+      env:
+        GITHUB_TOKEN: ${{ secrets.STAKATER_GITHUB_TOKEN }}
+        SLACK_WEBHOOK_URL: ${{ secrets.STAKATER_DELIVERY_SLACK_WEBHOOK }}

@@ -1,4 +1,4 @@
-FROM golang:1.13.9-alpine
+FROM golang:1.15.2-alpine
 LABEL maintainer "Stakater Team"
 
 ARG GOARCH=amd64
