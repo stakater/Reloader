@@ -54,7 +54,7 @@ reloader:
       version: v0.0.77
     image:
       name: stakater/reloader
-      tag:  v
+      tag:  v0.0.78
       pullPolicy: IfNotPresent
     # Support for extra environment variables.
     env:
