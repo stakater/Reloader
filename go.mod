@@ -1,6 +1,6 @@
 module github.com/stakater/Reloader
 
-go 1.13
+go 1.15
 
 require (
 	github.com/golang/groupcache v0.0.0-20191002201903-404acd9df4cc // indirect
