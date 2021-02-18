@@ -135,13 +135,13 @@ spec:
           - "--auto-annotation"
           - "{{ .Values.reloader.custom_annotations.auto }}"
             {{- end }}
-            {{- if .Values.reloader.custom_annotations.auto_search }}
+            {{- if .Values.reloader.custom_annotations.search }}
           - "--auto-search-annotation"
-          - "{{ .Values.reloader.custom_annotations.auto_search }}"
+          - "{{ .Values.reloader.custom_annotations.search }}"
             {{- end }}
-            {{- if .Values.reloader.custom_annotations.search_match }}
+            {{- if .Values.reloader.custom_annotations.match }}
           - "--search-match-annotation"
-          - "{{ .Values.reloader.custom_annotations.search_match }}"
+          - "{{ .Values.reloader.custom_annotations.match }}"
             {{- end }}
           {{- end }}
       {{- end }}
