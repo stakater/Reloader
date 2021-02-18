@@ -124,16 +124,24 @@ spec:
 
           {{- if .Values.reloader.custom_annotations }}
             {{- if .Values.reloader.custom_annotations.configmap }}
-            - "--configmap-annotation"
-            - "{{ .Values.reloader.custom_annotations.configmap }}"
+          - "--configmap-annotation"
+          - "{{ .Values.reloader.custom_annotations.configmap }}"
             {{- end }}
             {{- if .Values.reloader.custom_annotations.secret }}
-            - "--secret-annotation"
-            - "{{ .Values.reloader.custom_annotations.secret }}"
+          - "--secret-annotation"
+          - "{{ .Values.reloader.custom_annotations.secret }}"
             {{- end }}
             {{- if .Values.reloader.custom_annotations.auto }}
-            - "--auto-annotation"
-            - "{{ .Values.reloader.custom_annotations.auto }}"
+          - "--auto-annotation"
+          - "{{ .Values.reloader.custom_annotations.auto }}"
+            {{- end }}
+            {{- if .Values.reloader.custom_annotations.search }}
+          - "--auto-search-annotation"
+          - "{{ .Values.reloader.custom_annotations.search }}"
+            {{- end }}
+            {{- if .Values.reloader.custom_annotations.match }}
+          - "--search-match-annotation"
+          - "{{ .Values.reloader.custom_annotations.match }}"
             {{- end }}
           {{- end }}
       {{- end }}
