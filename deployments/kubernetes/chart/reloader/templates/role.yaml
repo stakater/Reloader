@@ -44,6 +44,18 @@ rules:
       - update
       - patch
 {{- end }}
+{{- if or (.Capabilities.APIVersions.Has "argoproj.io/v1alpha1") (.Values.isArgoRollouts) }}
+  - apiGroups:
+      - "argoproj.io"
+      - ""
+    resources:
+      - rollouts
+    verbs:
+      - list
+      - get
+      - update
+      - patch
+{{- end }}
   - apiGroups:
       - "apps"
     resources:

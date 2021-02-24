@@ -9,6 +9,7 @@ kubernetes:
   host: https://kubernetes.default
 
 reloader:
+  isArgoRollouts: false
   isOpenshift: false
   ignoreSecrets: false
   ignoreConfigMaps: false
