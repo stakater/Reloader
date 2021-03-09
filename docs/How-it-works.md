@@ -37,7 +37,7 @@ metadata:
 ```
 <small>*the default annotation can be changed with the `--secret-annotation` flag</small>
 
-Above mentioned annotation are also work for `Daemonsets` and `Statefulsets`
+Above mentioned annotation are also work for `Daemonsets` `Statefulsets` and `Rollouts`
 
 ## How Rolling upgrade works?
 

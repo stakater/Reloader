@@ -13,11 +13,11 @@
 
 ## Problem
 
-We would like to watch if some change happens in `ConfigMap` and/or `Secret`; then perform a rolling upgrade on relevant `DeploymentConfig`, `Deployment`, `Daemonset` and `Statefulset`
+We would like to watch if some change happens in `ConfigMap` and/or `Secret`; then perform a rolling upgrade on relevant `DeploymentConfig`, `Deployment`, `Daemonset`, `Statefulset` and `Rollout`
 
 ## Solution
 
-Reloader can watch changes in `ConfigMap` and `Secret` and do rolling upgrades on Pods with their associated `DeploymentConfigs`, `Deployments`, `Daemonsets` and `Statefulsets`.
+Reloader can watch changes in `ConfigMap` and `Secret` and do rolling upgrades on Pods with their associated `DeploymentConfigs`, `Deployments`, `Daemonsets` `Statefulsets` and `Rollouts`.
 
 ## Compatibility
 
@@ -36,11 +36,11 @@ spec:
   template: metadata:
 ```
 
-This will discover deployments/daemonsets/statefulset automatically where `foo-configmap` or `foo-secret` is being used either via environment variable or from volume mount. And it will perform rolling upgrade on related pods when `foo-configmap` or `foo-secret`are updated.
+This will discover deploymentconfigs/deployments/daemonsets/statefulset/rollouts automatically where `foo-configmap` or `foo-secret` is being used either via environment variable or from volume mount. And it will perform rolling upgrade on related pods when `foo-configmap` or `foo-secret`are updated.
 
 You can restrict this discovery to only `ConfigMap` or `Secret` objects that
 are tagged with a special annotation. To take advantage of that, annotate
-your deployment/daemonset/statefulset like this:
+your deploymentconfigs/deployments/daemonsets/statefulset/rollouts like this:
 
 ```yaml
 kind: Deployment
@@ -63,7 +63,7 @@ data:
   key: value
 ```
 
-provided the secret/configmap is being used in an environment variable or a
+provided the secret/configmap is being used in an environment variable, or a
 volume mount.
 
 Please note that `reloader.stakater.com/search` and
@@ -73,7 +73,7 @@ will always restart upon a change in configmaps or secrets it uses, regardless
 of whether they have the `reloader.stakater.com/match: "true"` annotation or
 not.
 
-We can also specify a specific configmap or secret which would trigger rolling upgrade only upon change in our specified configmap or secret, this way, it will not trigger rolling upgrade upon changes in all configmaps or secrets used in a deployment, daemonset or statefulset.
+We can also specify a specific configmap or secret which would trigger rolling upgrade only upon change in our specified configmap or secret, this way, it will not trigger rolling upgrade upon changes in all configmaps or secrets used in a deploymentconfig, deployment, daemonset, statefulset or rollout.
 To do this either set the auto annotation to `"false"` (`reloader.stakater.com/auto: "false"`) or remove it altogether, and use annotations mentioned [here](#Configmap) or [here](#Secret)
 
 ### Configmap
@@ -131,6 +131,7 @@ spec:
 ### NOTES
 
 - Reloader also supports [sealed-secrets](https://github.com/bitnami-labs/sealed-secrets). [Here](docs/Reloader-with-Sealed-Secrets.md) are the steps to use sealed-secrets with reloader.
+- For [rollouts](https://github.com/argoproj/argo-rollouts/) reloader simply triggers a change is up to you how you configure the rollout strategy.
 - `reloader.stakater.com/auto: "true"` will only reload the pod, if the configmap or secret is used (as a volume mount or as an env) in `DeploymentConfigs/Deployment/Daemonsets/Statefulsets`
 - `secret.reloader.stakater.com/reload` or `configmap.reloader.stakater.com/reload` annotation will reload the pod upon changes in specified configmap or secret, irrespective of the usage of configmap or secret.
 - you may override the auto annotation with the `--auto-annotation` flag
@@ -154,7 +155,7 @@ You can apply vanilla manifests by changing `RELEASE-NAME` placeholder provided 
 kubectl apply -f https://raw.githubusercontent.com/stakater/Reloader/master/deployments/kubernetes/reloader.yaml
 ```
 
-By default Reloader gets deployed in `default` namespace and watches changes `secrets` and `configmaps` in all namespaces.
+By default, Reloader gets deployed in `default` namespace and watches changes `secrets` and `configmaps` in all namespaces.
 
 Reloader can be configured to ignore the resources `secrets` and `configmaps` by passing the following args (`spec.template.spec.containers.args`) to its container :
 
@@ -201,7 +202,7 @@ helm repo update
 helm install stakater/reloader # For helm3 add --generate-name flag or set the release name
 ```
 
-**Note:** By default reloader watches in all namespaces. To watch in single namespace, please run following command. It will install reloader in `test` namespace which will only watch `Deployments`, `Daemonsets` and `Statefulsets` in `test` namespace.
+**Note:** By default reloader watches in all namespaces. To watch in single namespace, please run following command. It will install reloader in `test` namespace which will only watch `Deployments`, `Daemonsets` `Statefulsets` and `Rollouts` in `test` namespace.
 
 ```bash
 helm install stakater/reloader --set reloader.watchGlobally=false --namespace test # For helm3 add --generate-name flag or set the release name
@@ -224,7 +225,7 @@ You can enable to scrape Reloader's Prometheus metrics by setting `serviceMonito
 
 ### Documentation
 
-You can find more documentation [here](docs/)
+You can find more documentation [here](docs)
 
 ### Have a question?
 

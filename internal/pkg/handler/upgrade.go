@@ -71,6 +71,20 @@ func GetDeploymentConfigRollingUpgradeFuncs() callbacks.RollingUpgradeFuncs {
 	}
 }
 
+// GetArgoRolloutRollingUpgradeFuncs returns all callback funcs for a rollout
+func GetArgoRolloutRollingUpgradeFuncs() callbacks.RollingUpgradeFuncs {
+	return callbacks.RollingUpgradeFuncs{
+		ItemsFunc:          callbacks.GetRolloutItems,
+		AnnotationsFunc:    callbacks.GetRolloutAnnotations,
+		PodAnnotationsFunc: callbacks.GetRolloutPodAnnotations,
+		ContainersFunc:     callbacks.GetRolloutContainers,
+		InitContainersFunc: callbacks.GetRolloutInitContainers,
+		UpdateFunc:         callbacks.UpdateRollout,
+		VolumesFunc:        callbacks.GetRolloutVolumes,
+		ResourceType:       "Rollout",
+	}
+}
+
 func doRollingUpgrade(config util.Config, collectors metrics.Collectors) {
 	clients := kube.GetClients()
 
@@ -81,6 +95,8 @@ func doRollingUpgrade(config util.Config, collectors metrics.Collectors) {
 	if kube.IsOpenshift {
 		rollingUpgrade(clients, config, GetDeploymentConfigRollingUpgradeFuncs(), collectors)
 	}
+
+	rollingUpgrade(clients, config, GetArgoRolloutRollingUpgradeFuncs(), collectors)
 }
 
 func rollingUpgrade(clients kube.Clients, config util.Config, upgradeFuncs callbacks.RollingUpgradeFuncs, collectors metrics.Collectors) {

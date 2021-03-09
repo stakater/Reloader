@@ -8,6 +8,7 @@ import (
 	v1 "k8s.io/api/core/v1"
 	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
+	argorolloutv1alpha1 "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	openshiftv1 "github.com/openshift/api/apps/v1"
 )
 
@@ -80,6 +81,15 @@ func GetDeploymentConfigItems(clients kube.Clients, namespace string) []interfac
 	return util.InterfaceSlice(deploymentConfigs.Items)
 }
 
+// GetRolloutItems returns the rollouts in given namespace
+func GetRolloutItems(clients kube.Clients, namespace string) []interface{} {
+	rollouts, err := clients.ArgoRolloutClient.ArgoprojV1alpha1().Rollouts(namespace).List(meta_v1.ListOptions{})
+	if err != nil {
+		logrus.Errorf("Failed to list Rollouts %v", err)
+	}
+	return util.InterfaceSlice(rollouts.Items)
+}
+
 // GetDeploymentAnnotations returns the annotations of given deployment
 func GetDeploymentAnnotations(item interface{}) map[string]string {
 	return item.(appsv1.Deployment).ObjectMeta.Annotations
@@ -98,6 +108,11 @@ func GetStatefulSetAnnotations(item interface{}) map[string]string {
 // GetDeploymentConfigAnnotations returns the annotations of given deploymentConfig
 func GetDeploymentConfigAnnotations(item interface{}) map[string]string {
 	return item.(openshiftv1.DeploymentConfig).ObjectMeta.Annotations
+}
+
+// GetRolloutAnnotations returns the annotations of given rollout
+func GetRolloutAnnotations(item interface{}) map[string]string {
+	return item.(argorolloutv1alpha1.Rollout).ObjectMeta.Annotations
 }
 
 // GetDeploymentPodAnnotations returns the pod's annotations of given deployment
@@ -120,6 +135,11 @@ func GetDeploymentConfigPodAnnotations(item interface{}) map[string]string {
 	return item.(openshiftv1.DeploymentConfig).Spec.Template.ObjectMeta.Annotations
 }
 
+// GetRolloutPodAnnotations returns the pod's annotations of given rollout
+func GetRolloutPodAnnotations(item interface{}) map[string]string {
+	return item.(argorolloutv1alpha1.Rollout).Spec.Template.ObjectMeta.Annotations
+}
+
 // GetDeploymentContainers returns the containers of given deployment
 func GetDeploymentContainers(item interface{}) []v1.Container {
 	return item.(appsv1.Deployment).Spec.Template.Spec.Containers
@@ -140,6 +160,11 @@ func GetDeploymentConfigContainers(item interface{}) []v1.Container {
 	return item.(openshiftv1.DeploymentConfig).Spec.Template.Spec.Containers
 }
 
+// GetRolloutContainers returns the containers of given rollout
+func GetRolloutContainers(item interface{}) []v1.Container {
+	return item.(argorolloutv1alpha1.Rollout).Spec.Template.Spec.Containers
+}
+
 // GetDeploymentInitContainers returns the containers of given deployment
 func GetDeploymentInitContainers(item interface{}) []v1.Container {
 	return item.(appsv1.Deployment).Spec.Template.Spec.InitContainers
@@ -158,6 +183,11 @@ func GetStatefulSetInitContainers(item interface{}) []v1.Container {
 // GetDeploymentConfigInitContainers returns the containers of given deploymentConfig
 func GetDeploymentConfigInitContainers(item interface{}) []v1.Container {
 	return item.(openshiftv1.DeploymentConfig).Spec.Template.Spec.InitContainers
+}
+
+// GetRolloutInitContainers returns the containers of given rollout
+func GetRolloutInitContainers(item interface{}) []v1.Container {
+	return item.(argorolloutv1alpha1.Rollout).Spec.Template.Spec.InitContainers
 }
 
 // UpdateDeployment performs rolling upgrade on deployment
@@ -188,6 +218,16 @@ func UpdateDeploymentConfig(clients kube.Clients, namespace string, resource int
 	return err
 }
 
+// UpdateRollout performs rolling upgrade on rollout
+func UpdateRollout(clients kube.Clients, namespace string, resource interface{}) error {
+	rollout := resource.(argorolloutv1alpha1.Rollout)
+	rolloutBefore, _ := clients.ArgoRolloutClient.ArgoprojV1alpha1().Rollouts(namespace).Get(rollout.Name, meta_v1.GetOptions{})
+	logrus.Warnf("Before: %+v", rolloutBefore.Spec.Template.Spec.Containers[0].Env)
+	logrus.Warnf("After: %+v", rollout.Spec.Template.Spec.Containers[0].Env)
+	_, err := clients.ArgoRolloutClient.ArgoprojV1alpha1().Rollouts(namespace).Update(&rollout)
+	return err
+}
+
 // GetDeploymentVolumes returns the Volumes of given deployment
 func GetDeploymentVolumes(item interface{}) []v1.Volume {
 	return item.(appsv1.Deployment).Spec.Template.Spec.Volumes
@@ -206,4 +246,9 @@ func GetStatefulSetVolumes(item interface{}) []v1.Volume {
 // GetDeploymentConfigVolumes returns the Volumes of given deploymentConfig
 func GetDeploymentConfigVolumes(item interface{}) []v1.Volume {
 	return item.(openshiftv1.DeploymentConfig).Spec.Template.Spec.Volumes
+}
+
+// GetRolloutVolumes returns the Volumes of given rollout
+func GetRolloutVolumes(item interface{}) []v1.Volume {
+	return item.(argorolloutv1alpha1.Rollout).Spec.Template.Spec.Volumes
 }
