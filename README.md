@@ -261,7 +261,7 @@ PRs are welcome. In general, we follow the "fork-and-pull" Git workflow.
 
 NOTE: Be sure to merge the latest from "upstream" before making a pull request!
 
-## Changelog
+## Changelogasdqwehyqwoeuqwejoqpwejkqwpoeqweqweqweqweqwe
 
 View our closed [Pull Requests](https://github.com/stakater/Reloader/pulls?q=is%3Apr+is%3Aclosed).
 
