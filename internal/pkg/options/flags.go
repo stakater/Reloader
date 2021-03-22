@@ -17,4 +17,6 @@ var (
 	SearchMatchAnnotation = "reloader.stakater.com/match"
 	// LogFormat is the log format to use (json, or empty string for default)
 	LogFormat = ""
+	// Adds support for argo rollouts
+	IsArgoRollouts = "false"
 )
