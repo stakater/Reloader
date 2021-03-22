@@ -40,6 +40,10 @@ spec:
 {{ toYaml .Values.reloader.matchLabels | indent 8 }}
 {{- end }}
     spec:
+      {{- if .Values.global.imagePullSecrets }}
+      imagePullSecrets:
+{{toYaml .Values.global.imagePullSecrets | indent 6 }}
+      {{- end }}
       {{- if .Values.reloader.deployment.nodeSelector }}
       nodeSelector:
 {{ toYaml .Values.reloader.deployment.nodeSelector | indent 8 }}
