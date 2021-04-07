@@ -44,7 +44,7 @@ rules:
       - update
       - patch
 {{- end }}
-{{- if or (.Capabilities.APIVersions.Has "argoproj.io/v1alpha1") (.Values.isArgoRollouts) }}
+{{- if or (.Capabilities.APIVersions.Has "argoproj.io/v1alpha1") (.Values.reloader.isArgoRollouts) }}
   - apiGroups:
       - "argoproj.io"
       - ""
