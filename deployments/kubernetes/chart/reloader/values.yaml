@@ -99,7 +99,7 @@ reloader:
   custom_annotations: {}
   podMonitor:
     enabled: false
-    # Set the namespace the ServiceMonitor should be deployed
+    # Set the namespace the PodMonitor should be deployed
     # namespace: monitoring
     # Set how frequently Prometheus should scrape
     # interval: 30s
