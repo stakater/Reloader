@@ -32,7 +32,7 @@ rules:
       - list
       - get
       - watch
-{{- if or (.Capabilities.APIVersions.Has "apps.openshift.io/v1") (.Values.isOpenshift) }}
+{{- if or (.Capabilities.APIVersions.Has "apps.openshift.io/v1") (.Values.reloader.isOpenshift) }}
   - apiGroups:
       - "apps.openshift.io"
       - ""
@@ -44,7 +44,7 @@ rules:
       - update
       - patch
 {{- end }}
-{{- if or (.Capabilities.APIVersions.Has "argoproj.io/v1alpha1") (.Values.isArgoRollouts) }}
+{{- if or (.Capabilities.APIVersions.Has "argoproj.io/v1alpha1") (.Values.reloader.isArgoRollouts) }}
   - apiGroups:
       - "argoproj.io"
       - ""
