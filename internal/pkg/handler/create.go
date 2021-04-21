@@ -20,7 +20,7 @@ func (r ResourceCreatedHandler) Handle() error {
 	} else {
 		config, _ := r.GetConfig()
 		// process resource based on its type
-		doRollingUpgrade(config, r.Collectors)
+		return doRollingUpgrade(config, r.Collectors)
 	}
 	return nil
 }
