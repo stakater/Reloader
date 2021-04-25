@@ -85,34 +85,52 @@ func GetArgoRolloutRollingUpgradeFuncs() callbacks.RollingUpgradeFuncs {
 	}
 }
 
-func doRollingUpgrade(config util.Config, collectors metrics.Collectors) {
+func doRollingUpgrade(config util.Config, collectors metrics.Collectors) error {
 	clients := kube.GetClients()
 
-	rollingUpgrade(clients, config, GetDeploymentRollingUpgradeFuncs(), collectors)
-	rollingUpgrade(clients, config, GetDaemonSetRollingUpgradeFuncs(), collectors)
-	rollingUpgrade(clients, config, GetStatefulSetRollingUpgradeFuncs(), collectors)
+	err := rollingUpgrade(clients, config, GetDeploymentRollingUpgradeFuncs(), collectors)
+	if err != nil {
+		return err
+	}
+	err = rollingUpgrade(clients, config, GetDaemonSetRollingUpgradeFuncs(), collectors)
+	if err != nil {
+		return err
+	}
+	err = rollingUpgrade(clients, config, GetStatefulSetRollingUpgradeFuncs(), collectors)
+	if err != nil {
+		return err
+	}
 
 	if kube.IsOpenshift {
-		rollingUpgrade(clients, config, GetDeploymentConfigRollingUpgradeFuncs(), collectors)
+		err = rollingUpgrade(clients, config, GetDeploymentConfigRollingUpgradeFuncs(), collectors)
+		if err != nil {
+			return err
+		}
 	}
 
 	if options.IsArgoRollouts == "true" {
-		rollingUpgrade(clients, config, GetArgoRolloutRollingUpgradeFuncs(), collectors)
+		err = rollingUpgrade(clients, config, GetArgoRolloutRollingUpgradeFuncs(), collectors)
+		if err != nil {
+			return err
+		}
 	}
+
+	return nil
 }
 
-func rollingUpgrade(clients kube.Clients, config util.Config, upgradeFuncs callbacks.RollingUpgradeFuncs, collectors metrics.Collectors) {
+func rollingUpgrade(clients kube.Clients, config util.Config, upgradeFuncs callbacks.RollingUpgradeFuncs, collectors metrics.Collectors) error {
 
 	err := PerformRollingUpgrade(clients, config, upgradeFuncs, collectors)
 	if err != nil {
 		logrus.Errorf("Rolling upgrade for '%s' failed with error = %v", config.ResourceName, err)
 	}
+	return err
 }
 
 // PerformRollingUpgrade upgrades the deployment if there is any change in configmap or secret data
 func PerformRollingUpgrade(clients kube.Clients, config util.Config, upgradeFuncs callbacks.RollingUpgradeFuncs, collectors metrics.Collectors) error {
 	items := upgradeFuncs.ItemsFunc(clients, config.Namespace)
-	var err error
+
 	for _, i := range items {
 		// find correct annotation and update the resource
 		annotations := upgradeFuncs.AnnotationsFunc(i)
@@ -157,6 +175,7 @@ func PerformRollingUpgrade(clients kube.Clients, config util.Config, upgradeFunc
 			if err != nil {
 				logrus.Errorf("Update for '%s' of type '%s' in namespace '%s' failed with error %v", resourceName, upgradeFuncs.ResourceType, config.Namespace, err)
 				collectors.Reloaded.With(prometheus.Labels{"success": "false"}).Inc()
+				return err
 			} else {
 				logrus.Infof("Changes detected in '%s' of type '%s' in namespace '%s'", config.ResourceName, config.Type, config.Namespace)
 				logrus.Infof("Updated '%s' of type '%s' in namespace '%s'", resourceName, upgradeFuncs.ResourceType, config.Namespace)
@@ -164,7 +183,7 @@ func PerformRollingUpgrade(clients kube.Clients, config util.Config, upgradeFunc
 			}
 		}
 	}
-	return err
+	return nil
 }
 
 func getVolumeMountName(volumes []v1.Volume, mountType string, volumeName string) string {
