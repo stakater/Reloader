@@ -3,7 +3,7 @@ module github.com/stakater/Reloader
 go 1.15
 
 require (
-	github.com/argoproj/argo-rollouts v0.7.2
+	github.com/argoproj/argo-rollouts v0.10.2
 	github.com/golang/groupcache v0.0.0-20191002201903-404acd9df4cc // indirect
 	github.com/onsi/ginkgo v1.15.1 // indirect
 	github.com/onsi/gomega v1.11.0 // indirect
