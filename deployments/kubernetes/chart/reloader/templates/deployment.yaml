@@ -53,8 +53,7 @@ spec:
 {{ toYaml .Values.reloader.deployment.tolerations | indent 8 }}
       {{- end }}
       {{- if .Values.reloader.deployment.priorityClassName }}
-      priorityClassName:
-{{ toYaml .Values.reloader.deployment.priorityClassName | indent 8 }}
+      priorityClassName: {{ .Values.reloader.deployment.priorityClassName }}
       {{- end }}
       containers:
       - image: "{{ .Values.reloader.deployment.image.name }}:{{ .Values.reloader.deployment.image.tag }}"
