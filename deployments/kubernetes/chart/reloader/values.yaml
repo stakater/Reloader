@@ -78,7 +78,7 @@ reloader:
     resources: {}
     pod:
       annotations: {}
-    priorityClassName: "foo"
+    priorityClassName: ""
 
   service: {}
     # labels: {}
