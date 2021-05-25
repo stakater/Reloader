@@ -78,6 +78,7 @@ reloader:
     resources: {}
     pod:
       annotations: {}
+    priorityClassName: ""
 
   service: {}
     # labels: {}
@@ -95,7 +96,7 @@ reloader:
     annotations: {}
     # The name of the ServiceAccount to use.
     # If not set and create is true, a name is generated using the fullname template
-    name: 
+    name:
   # Optional flags to pass to the Reloader entrypoint
   # Example:
   #   custom_annotations:
