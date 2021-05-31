@@ -1,6 +1,7 @@
 package callbacks
 
 import (
+	"context"
 	"github.com/sirupsen/logrus"
 	"github.com/stakater/Reloader/internal/pkg/util"
 	"github.com/stakater/Reloader/pkg/kube"
@@ -47,7 +48,7 @@ type RollingUpgradeFuncs struct {
 
 // GetDeploymentItems returns the deployments in given namespace
 func GetDeploymentItems(clients kube.Clients, namespace string) []interface{} {
-	deployments, err := clients.KubernetesClient.AppsV1().Deployments(namespace).List(meta_v1.ListOptions{})
+	deployments, err := clients.KubernetesClient.AppsV1().Deployments(namespace).List(context.TODO(), meta_v1.ListOptions{})
 	if err != nil {
 		logrus.Errorf("Failed to list deployments %v", err)
 	}
@@ -56,7 +57,7 @@ func GetDeploymentItems(clients kube.Clients, namespace string) []interface{} {
 
 // GetDaemonSetItems returns the daemonSets in given namespace
 func GetDaemonSetItems(clients kube.Clients, namespace string) []interface{} {
-	daemonSets, err := clients.KubernetesClient.AppsV1().DaemonSets(namespace).List(meta_v1.ListOptions{})
+	daemonSets, err := clients.KubernetesClient.AppsV1().DaemonSets(namespace).List(context.TODO(), meta_v1.ListOptions{})
 	if err != nil {
 		logrus.Errorf("Failed to list daemonSets %v", err)
 	}
@@ -65,7 +66,7 @@ func GetDaemonSetItems(clients kube.Clients, namespace string) []interface{} {
 
 // GetStatefulSetItems returns the statefulSets in given namespace
 func GetStatefulSetItems(clients kube.Clients, namespace string) []interface{} {
-	statefulSets, err := clients.KubernetesClient.AppsV1().StatefulSets(namespace).List(meta_v1.ListOptions{})
+	statefulSets, err := clients.KubernetesClient.AppsV1().StatefulSets(namespace).List(context.TODO(), meta_v1.ListOptions{})
 	if err != nil {
 		logrus.Errorf("Failed to list statefulSets %v", err)
 	}
@@ -74,7 +75,7 @@ func GetStatefulSetItems(clients kube.Clients, namespace string) []interface{} {
 
 // GetDeploymentConfigItems returns the deploymentConfigs in given namespace
 func GetDeploymentConfigItems(clients kube.Clients, namespace string) []interface{} {
-	deploymentConfigs, err := clients.OpenshiftAppsClient.AppsV1().DeploymentConfigs(namespace).List(meta_v1.ListOptions{})
+	deploymentConfigs, err := clients.OpenshiftAppsClient.AppsV1().DeploymentConfigs(namespace).List(context.TODO(), meta_v1.ListOptions{})
 	if err != nil {
 		logrus.Errorf("Failed to list deploymentConfigs %v", err)
 	}
@@ -83,7 +84,7 @@ func GetDeploymentConfigItems(clients kube.Clients, namespace string) []interfac
 
 // GetRolloutItems returns the rollouts in given namespace
 func GetRolloutItems(clients kube.Clients, namespace string) []interface{} {
-	rollouts, err := clients.ArgoRolloutClient.ArgoprojV1alpha1().Rollouts(namespace).List(meta_v1.ListOptions{})
+	rollouts, err := clients.ArgoRolloutClient.ArgoprojV1alpha1().Rollouts(namespace).List(context.TODO(), meta_v1.ListOptions{})
 	if err != nil {
 		logrus.Errorf("Failed to list Rollouts %v", err)
 	}
@@ -193,38 +194,38 @@ func GetRolloutInitContainers(item interface{}) []v1.Container {
 // UpdateDeployment performs rolling upgrade on deployment
 func UpdateDeployment(clients kube.Clients, namespace string, resource interface{}) error {
 	deployment := resource.(appsv1.Deployment)
-	_, err := clients.KubernetesClient.AppsV1().Deployments(namespace).Update(&deployment)
+	_, err := clients.KubernetesClient.AppsV1().Deployments(namespace).Update(context.TODO(), &deployment, meta_v1.UpdateOptions{FieldManager: "Reloader"})
 	return err
 }
 
 // UpdateDaemonSet performs rolling upgrade on daemonSet
 func UpdateDaemonSet(clients kube.Clients, namespace string, resource interface{}) error {
 	daemonSet := resource.(appsv1.DaemonSet)
-	_, err := clients.KubernetesClient.AppsV1().DaemonSets(namespace).Update(&daemonSet)
+	_, err := clients.KubernetesClient.AppsV1().DaemonSets(namespace).Update(context.TODO(), &daemonSet, meta_v1.UpdateOptions{FieldManager: "Reloader"})
 	return err
 }
 
 // UpdateStatefulSet performs rolling upgrade on statefulSet
 func UpdateStatefulSet(clients kube.Clients, namespace string, resource interface{}) error {
 	statefulSet := resource.(appsv1.StatefulSet)
-	_, err := clients.KubernetesClient.AppsV1().StatefulSets(namespace).Update(&statefulSet)
+	_, err := clients.KubernetesClient.AppsV1().StatefulSets(namespace).Update(context.TODO(), &statefulSet, meta_v1.UpdateOptions{FieldManager: "Reloader"})
 	return err
 }
 
 // UpdateDeploymentConfig performs rolling upgrade on deploymentConfig
 func UpdateDeploymentConfig(clients kube.Clients, namespace string, resource interface{}) error {
 	deploymentConfig := resource.(openshiftv1.DeploymentConfig)
-	_, err := clients.OpenshiftAppsClient.AppsV1().DeploymentConfigs(namespace).Update(&deploymentConfig)
+	_, err := clients.OpenshiftAppsClient.AppsV1().DeploymentConfigs(namespace).Update(context.TODO(), &deploymentConfig, meta_v1.UpdateOptions{FieldManager: "Reloader"})
 	return err
 }
 
 // UpdateRollout performs rolling upgrade on rollout
 func UpdateRollout(clients kube.Clients, namespace string, resource interface{}) error {
 	rollout := resource.(argorolloutv1alpha1.Rollout)
-	rolloutBefore, _ := clients.ArgoRolloutClient.ArgoprojV1alpha1().Rollouts(namespace).Get(rollout.Name, meta_v1.GetOptions{})
+	rolloutBefore, _ := clients.ArgoRolloutClient.ArgoprojV1alpha1().Rollouts(namespace).Get(context.TODO(), rollout.Name, meta_v1.GetOptions{})
 	logrus.Warnf("Before: %+v", rolloutBefore.Spec.Template.Spec.Containers[0].Env)
 	logrus.Warnf("After: %+v", rollout.Spec.Template.Spec.Containers[0].Env)
-	_, err := clients.ArgoRolloutClient.ArgoprojV1alpha1().Rollouts(namespace).Update(&rollout)
+	_, err := clients.ArgoRolloutClient.ArgoprojV1alpha1().Rollouts(namespace).Update(context.TODO(), &rollout, meta_v1.UpdateOptions{FieldManager: "Reloader"})
 	return err
 }
 
