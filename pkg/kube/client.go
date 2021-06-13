@@ -1,6 +1,7 @@
 package kube
 
 import (
+	"context"
 	"os"
 
 	"k8s.io/client-go/tools/clientcmd"
@@ -67,7 +68,7 @@ func isOpenshift() bool {
 	if err != nil {
 		logrus.Fatalf("Unable to create Kubernetes client error = %v", err)
 	}
-	_, err = client.RESTClient().Get().AbsPath("/apis/project.openshift.io").Do().Raw()
+	_, err = client.RESTClient().Get().AbsPath("/apis/project.openshift.io").Do(context.TODO()).Raw()
 	if err == nil {
 		logrus.Info("Environment: Openshift")
 		return true

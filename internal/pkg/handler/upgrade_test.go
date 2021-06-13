@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"testing"
@@ -721,7 +722,7 @@ func TestRollingUpgradeForDeploymentWithConfigmapViaSearchAnnotationNotMapped(t 
 		t.Errorf("Failed to create deployment with search annotation.")
 	}
 	defer func() {
-		_ = clients.KubernetesClient.AppsV1().Deployments(namespace).Delete(deployment.Name, &v1.DeleteOptions{})
+		_ = clients.KubernetesClient.AppsV1().Deployments(namespace).Delete(context.TODO(), deployment.Name, v1.DeleteOptions{})
 	}()
 	// defer clients.KubernetesClient.AppsV1().Deployments(namespace).Delete(deployment.Name, &v1.DeleteOptions{})
 
