@@ -127,10 +127,10 @@ jobs:
           VERSION: ${{ steps.generate_operator_tag.outputs.new_tag }}
         run: make bump-chart
 
-    - name: Helm Template
-      run: |
-        cd deployments/kubernetes
-        helm template stakater chart/reloader/ > reloader.yaml
+      - name: Helm Template
+        run: |
+          cd deployments/kubernetes
+          helm template stakater chart/reloader/ > reloader.yaml
 
       # Publish helm chart
       - name: Publish Helm chart
