@@ -129,8 +129,7 @@ jobs:
 
       - name: Helm Template
         run: |
-          cd deployments/kubernetes
-          helm template stakater chart/reloader/ > reloader.yaml
+          helm template stakater deployments/kubernetes/chart/reloader/ > deployments/kubernetes/reloader.yaml
 
       # Publish helm chart
       - name: Publish Helm chart
