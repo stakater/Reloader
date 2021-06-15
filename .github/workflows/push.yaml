@@ -127,6 +127,10 @@ jobs:
           VERSION: ${{ steps.generate_operator_tag.outputs.new_tag }}
         run: make bump-chart
 
+      - name: Helm Template
+        run: |
+          helm template stakater deployments/kubernetes/chart/reloader/ > deployments/kubernetes/reloader.yaml
+
       # Publish helm chart
       - name: Publish Helm chart
         uses: stefanprodan/helm-gh-pages@master
