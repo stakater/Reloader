@@ -221,6 +221,13 @@ You can also set the log format of Reloader to json by setting `logFormat` to `j
 
 You can enable to scrape Reloader's Prometheus metrics by setting `serviceMonitor.enabled` or `podMonitor.enabled`  to `true` in values.yaml file. Service monitor will be removed in future releases of reloader in favour of Pod monitor.
 
+**Note:** Reloading of OpenShift (DeploymentConfig) and/or Argo Rollouts has to be enabled explicitly because it might not be always possible to use it on a cluster with restricted permissions. This can be done by changing the following parameters:
+
+| Parameter        | Description                                                                  | Type    |
+| ---------------- | ---------------------------------------------------------------------------- | ------- |
+| isOpenshift      | Enable OpenShift DeploymentConfigs. Valid value are either `true` or `false` | boolean |
+| isArgoRollouts   | Enable Argo Rollouts. Valid value are either `true` or `false`               | boolean |
+
 ## Help
 
 ### Documentation
