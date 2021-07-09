@@ -8,7 +8,7 @@ metadata:
     meta.helm.sh/release-name: "stakater"
   labels:
     app: stakater-reloader
-    chart: "reloader-v0.0.95"
+    chart: "reloader-v0.0.96"
     release: "stakater"
     heritage: "Helm"
     app.kubernetes.io/managed-by: "Helm"
@@ -24,7 +24,7 @@ metadata:
     meta.helm.sh/release-name: "stakater"
   labels:
     app: stakater-reloader
-    chart: "reloader-v0.0.95"
+    chart: "reloader-v0.0.96"
     release: "stakater"
     heritage: "Helm"
     app.kubernetes.io/managed-by: "Helm"
@@ -72,7 +72,7 @@ metadata:
     meta.helm.sh/release-name: "stakater"
   labels:
     app: stakater-reloader
-    chart: "reloader-v0.0.95"
+    chart: "reloader-v0.0.96"
     release: "stakater"
     heritage: "Helm"
     app.kubernetes.io/managed-by: "Helm"
@@ -96,13 +96,13 @@ metadata:
     meta.helm.sh/release-name: "stakater"
   labels:
     app: stakater-reloader
-    chart: "reloader-v0.0.95"
+    chart: "reloader-v0.0.96"
     release: "stakater"
     heritage: "Helm"
     app.kubernetes.io/managed-by: "Helm"
     group: com.stakater.platform
     provider: stakater
-    version: v0.0.95
+    version: v0.0.96
   name: stakater-reloader
 spec:
   replicas: 1
@@ -115,16 +115,16 @@ spec:
     metadata:
       labels:
         app: stakater-reloader
-        chart: "reloader-v0.0.95"
+        chart: "reloader-v0.0.96"
         release: "stakater"
         heritage: "Helm"
         app.kubernetes.io/managed-by: "Helm"
         group: com.stakater.platform
         provider: stakater
-        version: v0.0.95
+        version: v0.0.96
     spec:
       containers:
-      - image: "stakater/reloader:v0.0.95"
+      - image: "stakater/reloader:v0.0.96"
         imagePullPolicy: IfNotPresent
         name: stakater-reloader
 
@@ -135,10 +135,18 @@ spec:
           httpGet:
             path: /metrics
             port: http
+          timeoutSeconds: 5
+          failureThreshold: 5
+          periodSeconds: 10
+          successThreshold: 1
         readinessProbe:
           httpGet:
             path: /metrics
             port: http
+          timeoutSeconds: 5
+          failureThreshold: 5
+          periodSeconds: 10
+          successThreshold: 1
       securityContext: 
         runAsNonRoot: true
         runAsUser: 65534
