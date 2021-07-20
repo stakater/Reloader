@@ -115,8 +115,10 @@ reloader:
   #     configmap: "my.company.com/configmap"
   #     secret: "my.company.com/secret"
   custom_annotations: {}
+
   serviceMonitor:
-    # enabling this requires service to be enabled as well, or no endpoints will be found
+    # Deprecated: Service monitor will be removed in future releases of reloader in favour of Pod monitor
+    # Enabling this requires service to be enabled as well, or no endpoints will be found
     enabled: false
     # Set the namespace the ServiceMonitor should be deployed
     # namespace: monitoring
@@ -128,7 +130,6 @@ reloader:
     # timeout: 10s
 
   podMonitor:
-    # enabling this requires service to be enabled as well, or no endpoints will be found
     enabled: false
     # Set the namespace the podMonitor should be deployed
     # namespace: monitoring
