@@ -1,9 +1,9 @@
 module github.com/stakater/Reloader
 
-go 1.15
+go 1.16
 
 require (
-	github.com/argoproj/argo-rollouts v1.0.1
+	github.com/argoproj/argo-rollouts v1.0.2
 	github.com/onsi/ginkgo v1.15.1 // indirect
 	github.com/onsi/gomega v1.11.0 // indirect
 	github.com/openshift/api v0.0.0-20210527122704-efd9d5958e01
@@ -11,12 +11,15 @@ require (
 	github.com/prometheus/client_golang v1.10.0
 	github.com/sirupsen/logrus v1.7.0
 	github.com/spf13/cobra v1.1.3
-	k8s.io/api v0.21.1
-	k8s.io/apimachinery v0.21.1
-	k8s.io/client-go v0.21.1
+	k8s.io/api v0.21.2
+	k8s.io/apimachinery v0.21.2
+	k8s.io/client-go v0.21.2
 )
 
+// Replacements for argo-rollouts
 replace (
+	github.com/go-check/check => github.com/go-check/check v0.0.0-20180628173108-788fd7840127
+	github.com/grpc-ecosystem/grpc-gateway => github.com/grpc-ecosystem/grpc-gateway v1.16.0
 	k8s.io/api => k8s.io/api v0.20.4
 	k8s.io/apiextensions-apiserver => k8s.io/apiextensions-apiserver v0.20.4
 	k8s.io/apimachinery => k8s.io/apimachinery v0.21.0-alpha.0
@@ -41,4 +44,6 @@ replace (
 	k8s.io/metrics => k8s.io/metrics v0.20.4
 	k8s.io/mount-utils => k8s.io/mount-utils v0.20.5-rc.0
 	k8s.io/sample-apiserver => k8s.io/sample-apiserver v0.20.4
+	k8s.io/sample-cli-plugin => k8s.io/sample-cli-plugin v0.20.4
+	k8s.io/sample-controller => k8s.io/sample-controller v0.20.4
 )
