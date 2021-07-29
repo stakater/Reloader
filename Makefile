@@ -26,6 +26,9 @@ default: build test
 install:
 	"$(GOCMD)" mod download
 
+run:
+	go run ./main.go
+
 build:
 	"$(GOCMD)" build ${GOFLAGS} ${LDFLAGS} -o "${BINARY}"
 
