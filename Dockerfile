@@ -1,5 +1,5 @@
 # Build the manager binary
-FROM --platform=${BUILDPLATFORM} golang:1.15.2 as builder
+FROM --platform=${BUILDPLATFORM} golang:1.16 as builder
 
 ARG TARGETOS
 ARG TARGETARCH
@@ -26,7 +26,7 @@ RUN CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} GO111MODULE=on go build 
 FROM gcr.io/distroless/static:nonroot
 WORKDIR /
 COPY --from=builder /workspace/manager .
-USER nonroot:nonroot
+USER 65532:65532
 
 # Port for metrics and probes
 EXPOSE 9090
