@@ -39,11 +39,13 @@ jobs:
         run: |
           make install
 
-      - name: Lint
-        run: |
-          curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin v1.26.0
-          golangci-lint run --timeout=10m ./...
-
+      - name: Run golangci-lint
+        uses: golangci/golangci-lint-action@v2.3.0
+        with:
+          version: v1.33
+          only-new-issues: false
+          args: --timeout 10m
+          
       - name: Install kubectl
         run: |
           curl -LO "https://storage.googleapis.com/kubernetes-release/release/v${KUBERNETES_VERSION}/bin/linux/amd64/kubectl"
