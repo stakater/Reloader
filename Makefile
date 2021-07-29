@@ -9,12 +9,12 @@ ALL_ARCH ?= arm64 arm amd64
 BUILDER ?= reloader-builder-${ARCH}
 BINARY ?= Reloader
 DOCKER_IMAGE ?= stakater/reloader
-# Default value "dev"
-TAG ?= v0.0.75.0
-REPOSITORY_GENERIC = ${DOCKER_IMAGE}:${TAG}
-REPOSITORY_ARCH = ${DOCKER_IMAGE}:${TAG}-${ARCH}
 
+# Default value "dev"
 VERSION ?= 0.0.1
+
+REPOSITORY_GENERIC = ${DOCKER_IMAGE}:${VERSION}
+REPOSITORY_ARCH = ${DOCKER_IMAGE}:v${VERSION}-${ARCH}
 BUILD=
 
 GOCMD = go
