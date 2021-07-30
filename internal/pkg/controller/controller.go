@@ -30,6 +30,9 @@ type Controller struct {
 	collectors        metrics.Collectors
 }
 
+// controllerInitialized flag determines whether controlled is being initialized
+var controllerInitialized bool = false
+
 // NewController for initializing a Controller
 func NewController(
 	client kubernetes.Interface, resource string, namespace string, ignoredNamespaces []string, collectors metrics.Collectors) (*Controller, error) {
@@ -57,8 +60,12 @@ func NewController(
 
 // Add function to add a new object to the queue in case of creating a resource
 func (c *Controller) Add(obj interface{}) {
-	// Not required as reloader should update the resource in the event of any change and not in the event of any resource creation.
-	// This causes the issue where reloader reloads the pods when reloader itself gets restarted as it's queue is filled with all the k8s objects as new resources.
+	if !c.resourceInIgnoredNamespace(obj) && controllerInitialized {
+		c.queue.Add(handler.ResourceCreatedHandler{
+			Resource:   obj,
+			Collectors: c.collectors,
+		})
+	}
 }
 
 func (c *Controller) resourceInIgnoredNamespace(raw interface{}) bool {
@@ -111,6 +118,9 @@ func (c *Controller) Run(threadiness int, stopCh chan struct{}) {
 }
 
 func (c *Controller) runWorker() {
+	// At this point the controller is fully initialized and we can start processing the resources
+	controllerInitialized = true
+
 	for c.processNextItem() {
 	}
 }
