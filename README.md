@@ -99,7 +99,8 @@ metadata:
   annotations:
     configmap.reloader.stakater.com/reload: "foo-configmap,bar-configmap,baz-configmap"
 spec:
-  template: metadata:
+  template: 
+    metadata:
 ```
 
 ### Secret
@@ -114,7 +115,8 @@ metadata:
   annotations:
     secret.reloader.stakater.com/reload: "foo-secret"
 spec:
-  template: metadata:
+  template: 
+    metadata:
 ```
 
 Use comma separated list to define multiple secrets.
@@ -125,7 +127,8 @@ metadata:
   annotations:
     secret.reloader.stakater.com/reload: "foo-secret,bar-secret,baz-secret"
 spec:
-  template: metadata:
+  template: 
+    metadata:
 ```
 
 ### NOTES
