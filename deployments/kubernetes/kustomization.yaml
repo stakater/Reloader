@@ -8,3 +8,11 @@ resources:
   - manifests/rolebinding.yaml
   - manifests/serviceaccount.yaml
   - manifests/deployment.yaml
+
+patches:
+  - target:
+      group: rbac.authorization.k8s.io
+    patch: |-
+      - op: replace
+        path: /apiVersion
+        value: rbac.authorization.k8s.io/v1
