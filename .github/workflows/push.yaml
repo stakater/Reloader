@@ -131,7 +131,7 @@ jobs:
 
       - name: Helm Template
         run: |
-          helm template reloader deployments/kubernetes/chart/reloader/ > deployments/kubernetes/reloader.yam
+          helm template reloader deployments/kubernetes/chart/reloader/ > deployments/kubernetes/reloader.yaml
           helm template reloader deployments/kubernetes/chart/reloader/  --output-dir deployments/kubernetes/manifests/ && mv deployments/kubernetes/manifests/reloader/templates/* deployments/kubernetes/manifests/ && rm -r deployments/kubernetes/manifests/reloader
 
       # Publish helm chart
