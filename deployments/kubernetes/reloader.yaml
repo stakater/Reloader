@@ -5,14 +5,14 @@ kind: ServiceAccount
 metadata:
   annotations:
     meta.helm.sh/release-namespace: "default"
-    meta.helm.sh/release-name: "stakater"
+    meta.helm.sh/release-name: "reloader"
   labels:
-    app: stakater-reloader
-    chart: "reloader-v0.0.100"
-    release: "stakater"
+    app: reloader-reloader
+    chart: "reloader-v0.0.102"
+    release: "reloader"
     heritage: "Helm"
     app.kubernetes.io/managed-by: "Helm"
-  name: stakater-reloader
+  name: reloader-reloader
 ---
 # Source: reloader/templates/clusterrole.yaml
 apiVersion: rbac.authorization.k8s.io/v1
@@ -21,14 +21,14 @@ kind: ClusterRole
 metadata:
   annotations:
     meta.helm.sh/release-namespace: "default"
-    meta.helm.sh/release-name: "stakater"
+    meta.helm.sh/release-name: "reloader"
   labels:
-    app: stakater-reloader
-    chart: "reloader-v0.0.100"
-    release: "stakater"
+    app: reloader-reloader
+    chart: "reloader-v0.0.102"
+    release: "reloader"
     heritage: "Helm"
     app.kubernetes.io/managed-by: "Helm"
-  name: stakater-reloader-role
+  name: reloader-reloader-role
   namespace: default
 rules:
   - apiGroups:
@@ -69,22 +69,22 @@ kind: ClusterRoleBinding
 metadata:
   annotations:
     meta.helm.sh/release-namespace: "default"
-    meta.helm.sh/release-name: "stakater"
+    meta.helm.sh/release-name: "reloader"
   labels:
-    app: stakater-reloader
-    chart: "reloader-v0.0.100"
-    release: "stakater"
+    app: reloader-reloader
+    chart: "reloader-v0.0.102"
+    release: "reloader"
     heritage: "Helm"
     app.kubernetes.io/managed-by: "Helm"
-  name: stakater-reloader-role-binding
+  name: reloader-reloader-role-binding
   namespace: default
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
-  name: stakater-reloader-role
+  name: reloader-reloader-role
 subjects:
   - kind: ServiceAccount
-    name: stakater-reloader
+    name: reloader-reloader
     namespace: default
 ---
 # Source: reloader/templates/deployment.yaml
@@ -93,40 +93,40 @@ kind: Deployment
 metadata:
   annotations:
     meta.helm.sh/release-namespace: "default"
-    meta.helm.sh/release-name: "stakater"
+    meta.helm.sh/release-name: "reloader"
   labels:
-    app: stakater-reloader
-    chart: "reloader-v0.0.100"
-    release: "stakater"
+    app: reloader-reloader
+    chart: "reloader-v0.0.102"
+    release: "reloader"
     heritage: "Helm"
     app.kubernetes.io/managed-by: "Helm"
     group: com.stakater.platform
     provider: stakater
-    version: v0.0.100
-  name: stakater-reloader
+    version: v0.0.102
+  name: reloader-reloader
 spec:
   replicas: 1
   revisionHistoryLimit: 2
   selector:
     matchLabels:
-      app: stakater-reloader
-      release: "stakater"
+      app: reloader-reloader
+      release: "reloader"
   template:
     metadata:
       labels:
-        app: stakater-reloader
-        chart: "reloader-v0.0.100"
-        release: "stakater"
+        app: reloader-reloader
+        chart: "reloader-v0.0.102"
+        release: "reloader"
         heritage: "Helm"
         app.kubernetes.io/managed-by: "Helm"
         group: com.stakater.platform
         provider: stakater
-        version: v0.0.100
+        version: v0.0.102
     spec:
       containers:
-      - image: "stakater/reloader:v0.0.100"
+      - image: "stakater/reloader:v0.0.102"
         imagePullPolicy: IfNotPresent
-        name: stakater-reloader
+        name: reloader-reloader
 
         ports:
         - name: http
@@ -150,4 +150,4 @@ spec:
       securityContext: 
         runAsNonRoot: true
         runAsUser: 65534
-      serviceAccountName: stakater-reloader
+      serviceAccountName: reloader-reloader
