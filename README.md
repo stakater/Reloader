@@ -145,6 +145,19 @@ spec:
 - you may want to prevent watching certain namespaces with the `--namespaces-to-ignore` flag
 - you may want to prevent watching certain resources with the `--resources-to-ignore` flag
 - you can configure logging in JSON format with the `--log-format=json` option
+- you can configure the "reload strategy" with the `--reload-strategy=<strategy-name>` option (details below)
+
+## Reload Strategies
+Reloader supports multiple "reload" strategies for performing rolling upgrades to resources. The following list describes them:
+- **env-vars**: When a tracked `configMap`/`secret` is updated, this strategy attaches a Reloader specific environment variable to any containers 
+  referencing the changed `configMap` or `secret` on the owning resource (e.g., `Deployment`, `StatefulSet`, etc.).
+  This strategy can be specified with the `--reload-strategy=env-vars` argument. Note: This is the default reload strategy.
+- **annotations**: When a tracked `configMap`/`secret` is updated, this strategy attaches a `reloader.stakater.com/last-reloaded-from` pod template annotation
+  on the owning resource (e.g., `Deployment`, `StatefulSet`, etc.). This strategy is useful when using resource syncing tools like ArgoCD, since it will not cause these tools
+  to detect configuration drift after a resource is reloaded. Note: Since the attached pod template annotation only tracks the last reload source, this strategy will reload any tracked resource should its 
+  `configMap` or `secret` be deleted and recreated.
+  This strategy can be specified with the `--reload-strategy=annotations` argument.
+  
 
 ## Deploying to Kubernetes
 

@@ -3,7 +3,9 @@ package cmd
 import (
 	"errors"
 	"fmt"
+	"github.com/stakater/Reloader/internal/pkg/constants"
 	"os"
+	"strings"
 
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -18,9 +20,10 @@ import (
 // NewReloaderCommand starts the reloader controller
 func NewReloaderCommand() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "reloader",
-		Short: "A watcher for your Kubernetes cluster",
-		Run:   startReloader,
+		Use:     "reloader",
+		Short:   "A watcher for your Kubernetes cluster",
+		PreRunE: validateFlags,
+		Run:     startReloader,
 	}
 
 	// options
@@ -33,7 +36,22 @@ func NewReloaderCommand() *cobra.Command {
 	cmd.PersistentFlags().StringSlice("resources-to-ignore", []string{}, "list of resources to ignore (valid options 'configMaps' or 'secrets')")
 	cmd.PersistentFlags().StringSlice("namespaces-to-ignore", []string{}, "list of namespaces to ignore")
 	cmd.PersistentFlags().StringVar(&options.IsArgoRollouts, "is-Argo-Rollouts", "false", "Add support for argo rollouts")
+	cmd.PersistentFlags().StringVar(&options.ReloadStrategy, constants.ReloadStrategyFlag, constants.EnvVarsReloadStrategy, "Specifies the desired reload strategy")
+
 	return cmd
+}
+
+func validateFlags(*cobra.Command, []string) error {
+	// Ensure the reload strategy is one of the following...
+	valid := []string{constants.EnvVarsReloadStrategy, constants.AnnotationsReloadStrategy}
+	for _, s := range valid {
+		if s == options.ReloadStrategy {
+			return nil
+		}
+	}
+
+	err := fmt.Sprintf("%s must be one of: %s", constants.ReloadStrategyFlag, strings.Join(valid, ", "))
+	return errors.New(err)
 }
 
 func configureLogging(logFormat string) error {

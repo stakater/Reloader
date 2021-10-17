@@ -1,5 +1,7 @@
 package options
 
+import "github.com/stakater/Reloader/internal/pkg/constants"
+
 var (
 	// ConfigmapUpdateOnChangeAnnotation is an annotation to detect changes in
 	// configmaps specified by name
@@ -17,6 +19,8 @@ var (
 	SearchMatchAnnotation = "reloader.stakater.com/match"
 	// LogFormat is the log format to use (json, or empty string for default)
 	LogFormat = ""
-	// Adds support for argo rollouts
+	// IsArgoRollouts Adds support for argo rollouts
 	IsArgoRollouts = "false"
+	// ReloadStrategy Specify the update strategy
+	ReloadStrategy = constants.EnvVarsReloadStrategy
 )

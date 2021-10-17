@@ -2,6 +2,8 @@ package testutil
 
 import (
 	"context"
+	"encoding/json"
+	"fmt"
 	"math/rand"
 	"sort"
 	"strconv"
@@ -563,8 +565,8 @@ func GetSecretWithUpdatedLabel(namespace string, secretName string, label string
 	}
 }
 
-// GetResourceSHA returns the SHA value of given environment variable
-func GetResourceSHA(containers []v1.Container, envVar string) string {
+// GetResourceSHAFromEnvVar returns the SHA value of given environment variable
+func GetResourceSHAFromEnvVar(containers []v1.Container, envVar string) string {
 	for i := range containers {
 		envs := containers[i].Env
 		for j := range envs {
@@ -574,6 +576,28 @@ func GetResourceSHA(containers []v1.Container, envVar string) string {
 		}
 	}
 	return ""
+}
+
+// GetResourceSHAFromAnnotation returns the SHA value of given environment variable
+func GetResourceSHAFromAnnotation(podAnnotations map[string]string) string {
+	lastReloadedResourceName := fmt.Sprintf("%s/%s",
+		constants.ReloaderAnnotationPrefix,
+		constants.LastReloadedFromAnnotation,
+	)
+
+	annotationJson, ok := podAnnotations[lastReloadedResourceName]
+	if !ok {
+		return ""
+	}
+
+	var last util.ReloadSource
+	bytes := []byte(annotationJson)
+	err := json.Unmarshal(bytes, &last)
+	if err != nil {
+		return ""
+	}
+
+	return last.Hash
 }
 
 //ConvertResourceToSHA generates SHA from secret or configmap data
@@ -806,8 +830,8 @@ func RandSeq(n int) string {
 	return string(b)
 }
 
-// VerifyResourceUpdate verifies whether the rolling upgrade happened or not
-func VerifyResourceUpdate(clients kube.Clients, config util.Config, envVarPostfix string, upgradeFuncs callbacks.RollingUpgradeFuncs) bool {
+// VerifyResourceEnvVarUpdate verifies whether the rolling upgrade happened or not
+func VerifyResourceEnvVarUpdate(clients kube.Clients, config util.Config, envVarPostfix string, upgradeFuncs callbacks.RollingUpgradeFuncs) bool {
 	items := upgradeFuncs.ItemsFunc(clients, config.Namespace)
 	for _, i := range items {
 		containers := upgradeFuncs.ContainersFunc(i)
@@ -836,7 +860,45 @@ func VerifyResourceUpdate(clients kube.Clients, config util.Config, envVarPostfi
 
 		if matches {
 			envName := constants.EnvVarPrefix + util.ConvertToEnvVarName(config.ResourceName) + "_" + envVarPostfix
-			updated := GetResourceSHA(containers, envName)
+			updated := GetResourceSHAFromEnvVar(containers, envName)
+			if updated == config.SHAValue {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// VerifyResourceAnnotationUpdate verifies whether the rolling upgrade happened or not
+func VerifyResourceAnnotationUpdate(clients kube.Clients, config util.Config, upgradeFuncs callbacks.RollingUpgradeFuncs) bool {
+	items := upgradeFuncs.ItemsFunc(clients, config.Namespace)
+	for _, i := range items {
+		podAnnotations := upgradeFuncs.PodAnnotationsFunc(i)
+		// match statefulsets with the correct annotation
+		annotationValue := util.ToObjectMeta(i).Annotations[config.Annotation]
+		searchAnnotationValue := util.ToObjectMeta(i).Annotations[options.AutoSearchAnnotation]
+		reloaderEnabledValue := util.ToObjectMeta(i).Annotations[options.ReloaderAutoAnnotation]
+		reloaderEnabled, err := strconv.ParseBool(reloaderEnabledValue)
+		matches := false
+		if err == nil && reloaderEnabled {
+			matches = true
+		} else if annotationValue != "" {
+			values := strings.Split(annotationValue, ",")
+			for _, value := range values {
+				value = strings.Trim(value, " ")
+				if value == config.ResourceName {
+					matches = true
+					break
+				}
+			}
+		} else if searchAnnotationValue == "true" {
+			if config.ResourceAnnotations[options.SearchMatchAnnotation] == "true" {
+				matches = true
+			}
+		}
+
+		if matches {
+			updated := GetResourceSHAFromAnnotation(podAnnotations)
 			if updated == config.SHAValue {
 				return true
 			}

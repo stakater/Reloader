@@ -9,3 +9,4 @@ _gopath/
 .vscode
 vendor
 dist
+Reloader
