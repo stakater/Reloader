@@ -118,7 +118,14 @@ spec:
           - mountPath: /tmp/
             name: tmp-volume
       {{- end }}
-      {{- if or (.Values.reloader.logFormat) (.Values.reloader.ignoreSecrets) (.Values.reloader.ignoreNamespaces) (.Values.reloader.ignoreConfigMaps) (.Values.reloader.custom_annotations) (eq .Values.reloader.isArgoRollouts true) }}
+      {{- if or (.Values.reloader.logFormat)
+                (.Values.reloader.ignoreSecrets)
+                (.Values.reloader.ignoreNamespaces)
+                (.Values.reloader.ignoreConfigMaps)
+                (.Values.reloader.custom_annotations)
+                (eq .Values.reloader.isArgoRollouts true)
+                (ne .Values.reloader.reloadStrategy "default")
+      }}
         args:
           {{- if .Values.reloader.logFormat }}
           - "--log-format={{ .Values.reloader.logFormat }}"
@@ -157,6 +164,9 @@ spec:
           {{- end }}
           {{- if eq .Values.reloader.isArgoRollouts true }}
           - "--is-Argo-Rollouts={{ .Values.reloader.isArgoRollouts }}"
+          {{- end }}
+          {{- if ne .Values.reloader.reloadStrategy "default" }}
+          - "--reload-strategy={{ .Values.reloader.reloadStrategy }}"
           {{- end }}
       {{- end }}
       {{- if .Values.reloader.deployment.resources }}
