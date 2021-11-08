@@ -52,6 +52,15 @@ func GetDeploymentItems(clients kube.Clients, namespace string) []interface{} {
 	if err != nil {
 		logrus.Errorf("Failed to list deployments %v", err)
 	}
+
+	// Ensure we always have pod annotations to add to
+	for i, v := range deployments.Items {
+		if v.Spec.Template.ObjectMeta.Annotations == nil {
+			annotations := make(map[string]string)
+			deployments.Items[i].Spec.Template.ObjectMeta.Annotations = annotations
+		}
+	}
+
 	return util.InterfaceSlice(deployments.Items)
 }
 
@@ -61,6 +70,14 @@ func GetDaemonSetItems(clients kube.Clients, namespace string) []interface{} {
 	if err != nil {
 		logrus.Errorf("Failed to list daemonSets %v", err)
 	}
+
+	// Ensure we always have pod annotations to add to
+	for i, v := range daemonSets.Items {
+		if v.Spec.Template.ObjectMeta.Annotations == nil {
+			daemonSets.Items[i].Spec.Template.ObjectMeta.Annotations = make(map[string]string)
+		}
+	}
+
 	return util.InterfaceSlice(daemonSets.Items)
 }
 
@@ -70,6 +87,14 @@ func GetStatefulSetItems(clients kube.Clients, namespace string) []interface{} {
 	if err != nil {
 		logrus.Errorf("Failed to list statefulSets %v", err)
 	}
+
+	// Ensure we always have pod annotations to add to
+	for i, v := range statefulSets.Items {
+		if v.Spec.Template.ObjectMeta.Annotations == nil {
+			statefulSets.Items[i].Spec.Template.ObjectMeta.Annotations = make(map[string]string)
+		}
+	}
+
 	return util.InterfaceSlice(statefulSets.Items)
 }
 
@@ -79,6 +104,14 @@ func GetDeploymentConfigItems(clients kube.Clients, namespace string) []interfac
 	if err != nil {
 		logrus.Errorf("Failed to list deploymentConfigs %v", err)
 	}
+
+	// Ensure we always have pod annotations to add to
+	for i, v := range deploymentConfigs.Items {
+		if v.Spec.Template.ObjectMeta.Annotations == nil {
+			deploymentConfigs.Items[i].Spec.Template.ObjectMeta.Annotations = make(map[string]string)
+		}
+	}
+
 	return util.InterfaceSlice(deploymentConfigs.Items)
 }
 
@@ -88,6 +121,14 @@ func GetRolloutItems(clients kube.Clients, namespace string) []interface{} {
 	if err != nil {
 		logrus.Errorf("Failed to list Rollouts %v", err)
 	}
+
+	// Ensure we always have pod annotations to add to
+	for i, v := range rollouts.Items {
+		if v.Spec.Template.ObjectMeta.Annotations == nil {
+			rollouts.Items[i].Spec.Template.ObjectMeta.Annotations = make(map[string]string)
+		}
+	}
+
 	return util.InterfaceSlice(rollouts.Items)
 }
 

@@ -1,9 +1,9 @@
 package handler
 
 import (
-	"strconv"
-	"strings"
-
+	"encoding/json"
+	"errors"
+	"fmt"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/sirupsen/logrus"
 	"github.com/stakater/Reloader/internal/pkg/callbacks"
@@ -13,6 +13,8 @@ import (
 	"github.com/stakater/Reloader/internal/pkg/util"
 	"github.com/stakater/Reloader/pkg/kube"
 	v1 "k8s.io/api/core/v1"
+	"strconv"
+	"strings"
 )
 
 // GetDeploymentRollingUpgradeFuncs returns all callback funcs for a deployment
@@ -146,7 +148,7 @@ func PerformRollingUpgrade(clients kube.Clients, config util.Config, upgradeFunc
 		result := constants.NotUpdated
 		reloaderEnabled, err := strconv.ParseBool(reloaderEnabledValue)
 		if err == nil && reloaderEnabled {
-			result = updateContainers(upgradeFuncs, i, config, true)
+			result = invokeReloadStrategy(upgradeFuncs, i, config, true)
 		}
 
 		if result != constants.Updated && annotationValue != "" {
@@ -154,7 +156,7 @@ func PerformRollingUpgrade(clients kube.Clients, config util.Config, upgradeFunc
 			for _, value := range values {
 				value = strings.Trim(value, " ")
 				if value == config.ResourceName {
-					result = updateContainers(upgradeFuncs, i, config, false)
+					result = invokeReloadStrategy(upgradeFuncs, i, config, false)
 					if result == constants.Updated {
 						break
 					}
@@ -165,7 +167,7 @@ func PerformRollingUpgrade(clients kube.Clients, config util.Config, upgradeFunc
 		if result != constants.Updated && searchAnnotationValue == "true" {
 			matchAnnotationValue := config.ResourceAnnotations[options.SearchMatchAnnotation]
 			if matchAnnotationValue == "true" {
-				result = updateContainers(upgradeFuncs, i, config, true)
+				result = invokeReloadStrategy(upgradeFuncs, i, config, true)
 			}
 		}
 
@@ -257,7 +259,7 @@ func getContainerWithEnvReference(containers []v1.Container, resourceName string
 	return nil
 }
 
-func getContainerToUpdate(upgradeFuncs callbacks.RollingUpgradeFuncs, item interface{}, config util.Config, autoReload bool) *v1.Container {
+func getContainerUsingResource(upgradeFuncs callbacks.RollingUpgradeFuncs, item interface{}, config util.Config, autoReload bool) *v1.Container {
 	volumes := upgradeFuncs.VolumesFunc(item)
 	containers := upgradeFuncs.ContainersFunc(item)
 	initContainers := upgradeFuncs.InitContainersFunc(item)
@@ -296,10 +298,70 @@ func getContainerToUpdate(upgradeFuncs callbacks.RollingUpgradeFuncs, item inter
 	return container
 }
 
-func updateContainers(upgradeFuncs callbacks.RollingUpgradeFuncs, item interface{}, config util.Config, autoReload bool) constants.Result {
+func invokeReloadStrategy(upgradeFuncs callbacks.RollingUpgradeFuncs, item interface{}, config util.Config, autoReload bool) constants.Result {
+	if options.ReloadStrategy == constants.AnnotationsReloadStrategy {
+		return updatePodAnnotations(upgradeFuncs, item, config, autoReload)
+	}
+
+	return updateContainerEnvVars(upgradeFuncs, item, config, autoReload)
+}
+
+func updatePodAnnotations(upgradeFuncs callbacks.RollingUpgradeFuncs, item interface{}, config util.Config, autoReload bool) constants.Result {
+	container := getContainerUsingResource(upgradeFuncs, item, config, autoReload)
+	if container == nil {
+		return constants.NoContainerFound
+	}
+
+	// Generate reloaded annotations. Attaching this to the item's annotation will trigger a rollout
+	// Note: the data on this struct is purely informational and is not used for future updates
+	reloadSource := util.NewReloadSourceFromConfig(config, []string{container.Name})
+	annotations, err := createReloadedAnnotations(&reloadSource)
+	if err != nil {
+		logrus.Errorf("Failed to create reloaded annotations for %s! error = %v", config.ResourceName, err)
+		return constants.NotUpdated
+	}
+
+	// Copy the all annotations to the item's annotations
+	pa := upgradeFuncs.PodAnnotationsFunc(item)
+	if pa == nil {
+		return constants.NotUpdated
+	}
+
+	for k, v := range annotations {
+		pa[k] = v
+	}
+
+	return constants.Updated
+}
+
+func createReloadedAnnotations(target *util.ReloadSource) (map[string]string, error) {
+	if target == nil {
+		return nil, errors.New("target is required")
+	}
+
+	// Create a single "last-invokeReloadStrategy-from" annotation that stores metadata about the
+	// resource that caused the last invokeReloadStrategy.
+	// Intentionally only storing the last item in order to keep
+	// the generated annotations as small as possible.
+	annotations := make(map[string]string)
+	lastReloadedResourceName := fmt.Sprintf("%s/%s",
+		constants.ReloaderAnnotationPrefix,
+		constants.LastReloadedFromAnnotation,
+	)
+
+	lastReloadedResource, err := json.Marshal(target)
+	if err != nil {
+		return nil, err
+	}
+
+	annotations[lastReloadedResourceName] = string(lastReloadedResource)
+	return annotations, nil
+}
+
+func updateContainerEnvVars(upgradeFuncs callbacks.RollingUpgradeFuncs, item interface{}, config util.Config, autoReload bool) constants.Result {
 	var result constants.Result
 	envVar := constants.EnvVarPrefix + util.ConvertToEnvVarName(config.ResourceName) + "_" + config.Type
-	container := getContainerToUpdate(upgradeFuncs, item, config, autoReload)
+	container := getContainerUsingResource(upgradeFuncs, item, config, autoReload)
 
 	if container == nil {
 		return constants.NoContainerFound
