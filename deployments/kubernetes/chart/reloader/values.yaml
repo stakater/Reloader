@@ -41,6 +41,14 @@ reloader:
       runAsNonRoot: true
       runAsUser: 65534
 
+    containerSecurityContext: {}
+      # capabilities:
+      #   drop:
+      #     - ALL
+      # allowPrivilegeEscalation: false
+      # readOnlyRootFilesystem: true
+
+
     # A list of tolerations to be applied to the Deployment.
     # Example:
     #   tolerations:

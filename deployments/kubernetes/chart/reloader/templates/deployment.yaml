@@ -114,6 +114,10 @@ spec:
           periodSeconds: {{ .Values.reloader.deployment.readinessProbe.periodSeconds | default "10" }}
           successThreshold: {{ .Values.reloader.deployment.readinessProbe.successThreshold | default "1" }}
 
+      {{- with .Values.reloader.deployment.containerSecurityContext }}
+        securityContext: {{ toYaml . | nindent 10 }}
+      {{- end }}
+
       {{- if eq .Values.reloader.readOnlyRootFileSystem true }}
         volumeMounts:
           - mountPath: /tmp/
