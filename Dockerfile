@@ -1,5 +1,8 @@
+ARG BUILDER_IMAGE
+ARG BASE_IMAGE
+
 # Build the manager binary
-FROM --platform=${BUILDPLATFORM} golang:1.17.2 as builder
+FROM --platform=${BUILDPLATFORM} ${BUILDER_IMAGE:-golang:1.17.2} as builder
 
 ARG TARGETOS
 ARG TARGETARCH
@@ -23,7 +26,7 @@ RUN CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} GO111MODULE=on go build 
 
 # Use distroless as minimal base image to package the manager binary
 # Refer to https://github.com/GoogleContainerTools/distroless for more details
-FROM gcr.io/distroless/static:nonroot
+FROM ${BASE_IMAGE:-gcr.io/distroless/static:nonroot}
 WORKDIR /
 COPY --from=builder /workspace/manager .
 USER 65532:65532

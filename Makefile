@@ -6,7 +6,8 @@ OS ?= linux
 ARCH ?= ???
 ALL_ARCH ?= arm64 arm amd64
 
-BUILDER ?= reloader-builder-${ARCH}
+BUILDER_IMAGE ?=
+BASE_IMAGE    ?=
 BINARY ?= Reloader
 DOCKER_IMAGE ?= stakater/reloader
 
@@ -33,7 +34,15 @@ build:
 	"$(GOCMD)" build ${GOFLAGS} ${LDFLAGS} -o "${BINARY}"
 
 build-image:
-	docker buildx build --platform ${OS}/${ARCH} --build-arg GOARCH=$(ARCH) -t "${REPOSITORY_ARCH}" --load -f Dockerfile .
+	docker buildx build \
+		--platform ${OS}/${ARCH} \
+		--build-arg GOARCH=$(ARCH) \
+		--build-arg BUILDER_IMAGE=$(BUILDER_IMAGE) \
+		--build-arg BASE_IMAGE=${BASE_IMAGE} \
+		-t "${REPOSITORY_ARCH}" \
+		--load \
+		-f Dockerfile \
+		.
 
 push:
 	docker push ${REPOSITORY_ARCH}
