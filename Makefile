@@ -21,6 +21,8 @@ BUILD=
 GOCMD = go
 GOFLAGS ?= $(GOFLAGS:)
 LDFLAGS =
+GOPROXY   ?=
+GOPRIVATE ?=
 
 default: build test
 
@@ -39,6 +41,8 @@ build-image:
 		--build-arg GOARCH=$(ARCH) \
 		--build-arg BUILDER_IMAGE=$(BUILDER_IMAGE) \
 		--build-arg BASE_IMAGE=${BASE_IMAGE} \
+		--build-arg GOPROXY=${GOPROXY} \
+		--build-arg GOPRIVATE=${GOPRIVATE} \
 		-t "${REPOSITORY_ARCH}" \
 		--load \
 		-f Dockerfile \

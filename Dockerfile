@@ -6,6 +6,8 @@ FROM --platform=${BUILDPLATFORM} ${BUILDER_IMAGE:-golang:1.17.2} as builder
 
 ARG TARGETOS
 ARG TARGETARCH
+ARG GOPROXY
+ARG GOPRIVATE
 
 WORKDIR /workspace
 
@@ -25,6 +27,8 @@ COPY pkg/ pkg/
 RUN CGO_ENABLED=0 \
     GOOS=${TARGETOS} \
     GOARCH=${TARGETARCH} \
+    GOPROXY=${GOPROXY} \
+    GOPRIVATE=${GOPRIVATE} \
     GO111MODULE=on \
     go build -mod=mod -a -o manager main.go
 
