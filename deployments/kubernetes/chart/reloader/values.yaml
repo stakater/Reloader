@@ -9,8 +9,6 @@ kubernetes:
   host: https://kubernetes.default
 
 reloader:
-  replicas: 1
-
   isArgoRollouts: false
   isOpenshift: false
   ignoreSecrets: false
@@ -25,6 +23,7 @@ reloader:
     rbac: false
   matchLabels: {}
   deployment:
+    replicas: 1
     nodeSelector:
     # cloud.google.com/gke-nodepool: default-pool
 

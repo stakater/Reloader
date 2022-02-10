@@ -17,7 +17,7 @@ metadata:
   name: {{ template "reloader-fullname" . }}
   namespace: {{ .Release.Namespace }}
 spec:
-  replicas: {{ .Values.reloader.replicas }}
+  replicas: {{ .Values.reloader.deployment.replicas }}
   revisionHistoryLimit: 2
   selector:
     matchLabels:
