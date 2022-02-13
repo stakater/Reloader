@@ -19,4 +19,6 @@ const (
 	EnvVarsReloadStrategy = "env-vars"
 	// AnnotationsReloadStrategy instructs Reloader to add pod template annotations to facilitate a restart
 	AnnotationsReloadStrategy = "annotations"
+	// 	ReloadOnCreateFlag The ReloadOnCreate flag name
+	ReloadOnCreateFlag = "reload-on-create"
 )
