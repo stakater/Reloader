@@ -37,7 +37,7 @@ func NewReloaderCommand() *cobra.Command {
 	cmd.PersistentFlags().StringSlice("namespaces-to-ignore", []string{}, "list of namespaces to ignore")
 	cmd.PersistentFlags().StringVar(&options.IsArgoRollouts, "is-Argo-Rollouts", "false", "Add support for argo rollouts")
 	cmd.PersistentFlags().StringVar(&options.ReloadStrategy, constants.ReloadStrategyFlag, constants.EnvVarsReloadStrategy, "Specifies the desired reload strategy")
-	cmd.PersistentFlags().StringVar(&options.ReloadOnCreate, constants.ReloadOnCreateFlag, "false", "Adds support to watch create events")
+	cmd.PersistentFlags().StringVar(&options.ReloadOnCreate, "reload-on-create", "false", "Add support to watch create events")
 
 	return cmd
 }
