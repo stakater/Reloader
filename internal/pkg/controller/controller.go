@@ -2,6 +2,7 @@ package controller
 
 import (
 	"fmt"
+	"github.com/stakater/Reloader/internal/pkg/options"
 	"time"
 
 	"github.com/sirupsen/logrus"
@@ -60,11 +61,13 @@ func NewController(
 
 // Add function to add a new object to the queue in case of creating a resource
 func (c *Controller) Add(obj interface{}) {
-	if !c.resourceInIgnoredNamespace(obj) && controllerInitialized {
-		c.queue.Add(handler.ResourceCreatedHandler{
-			Resource:   obj,
-			Collectors: c.collectors,
-		})
+	if options.ReloadOnCreate == "true" {
+		if !c.resourceInIgnoredNamespace(obj) && controllerInitialized {
+			c.queue.Add(handler.ResourceCreatedHandler{
+				Resource:   obj,
+				Collectors: c.collectors,
+			})
+		}
 	}
 }
 
