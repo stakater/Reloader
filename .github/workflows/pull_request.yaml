@@ -20,8 +20,6 @@ jobs:
     steps:
     - name: Check out code
       uses: actions/checkout@v2
-      with:
-        ref: ${{github.event.pull_request.head.sha}}
         
     # Setting up helm binary
     - name: Set up Helm
