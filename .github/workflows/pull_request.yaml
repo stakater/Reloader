@@ -48,6 +48,23 @@ jobs:
         cd deployments/kubernetes/chart/reloader
         helm lint
 
+    - name: Dockerfile Lint
+      uses: hadolint/hadolint-action@v1.6.0
+      with:
+        dockerfile: Dockerfile
+        failure-threshold: warning
+
+    - name: Link check
+      uses: gaurav-nelson/github-action-markdown-link-check@v1
+
+    - name: Spell check
+      uses: errata-ai/vale-action@v1.5.0
+      with:
+        styles: https://github.com/errata-ai/write-good/releases/latest/download/write-good.zip
+        files: docs
+      env:
+        GITHUB_TOKEN: ${{secrets.GITHUB_TOKEN}}
+
     - name: Install kubectl
       run: |
         curl -LO "https://storage.googleapis.com/kubernetes-release/release/v${KUBERNETES_VERSION}/bin/linux/amd64/kubectl"
