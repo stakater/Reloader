@@ -10,6 +10,7 @@ env:
   GOLANG_VERSION: 1.17.7
   KUBERNETES_VERSION: "1.18.0"
   KIND_VERSION: "0.7.0"
+  REGISTRY: ghcr.io
 
 jobs:
   build:
