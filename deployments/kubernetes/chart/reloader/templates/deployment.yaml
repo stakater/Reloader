@@ -178,6 +178,9 @@ spec:
       securityContext: {{ toYaml .Values.reloader.deployment.securityContext | nindent 8 }}
 {{- end }}
       serviceAccountName: {{ template "reloader-serviceAccountName" . }}
+{{- if hasKey .Values.reloader.deployment "automountServiceAccountToken" }}
+      automountServiceAccountToken: {{ .Values.reloader.deployment.automountServiceAccountToken }}
+{{- end }}
     {{- if eq .Values.reloader.readOnlyRootFileSystem true }}
       volumes:
         - emptyDir: {}
