@@ -51,7 +51,7 @@ jobs:
     - name: Dockerfile Lint
       uses: hadolint/hadolint-action@v1.6.0
       with:
-        dockerfile: Dockerfile
+        dockerfile: ${{env.DOCKER_FILE_PATH}}
         failure-threshold: warning
 
     - name: Link check
