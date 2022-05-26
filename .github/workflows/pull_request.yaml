@@ -7,9 +7,9 @@ on:
 
 env:
   DOCKER_FILE_PATH: Dockerfile
-  GOLANG_VERSION: 1.17.7
+  GOLANG_VERSION: 1.18.2
   KUBERNETES_VERSION: "1.18.0"
-  KIND_VERSION: "0.7.0"
+  KIND_VERSION: "0.10.0"
 
 jobs:
   build:
@@ -39,7 +39,7 @@ jobs:
     - name: Run golangci-lint
       uses: golangci/golangci-lint-action@v2.3.0
       with:
-        version: v1.33
+        version: v1.45.2
         only-new-issues: false
         args: --timeout 10m
 
