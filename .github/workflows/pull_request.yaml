@@ -48,12 +48,6 @@ jobs:
         cd deployments/kubernetes/chart/reloader
         helm lint
 
-    - name: Dockerfile Lint
-      uses: hadolint/hadolint-action@v1.6.0
-      with:
-        dockerfile: ${{env.DOCKER_FILE_PATH}}
-        failure-threshold: warning
-
     - name: Link check
       uses: gaurav-nelson/github-action-markdown-link-check@v1
 
