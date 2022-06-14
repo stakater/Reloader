@@ -62,10 +62,10 @@ reloader:
     labels:
       provider: stakater
       group: com.stakater.platform
-      version: v0.0.109
+      version: v0.0.114
     image:
       name: stakater/reloader
-      tag: v0.0.109
+      tag: v0.0.114
       pullPolicy: IfNotPresent
     # Support for extra environment variables.
     env:
@@ -118,7 +118,7 @@ reloader:
     annotations: {}
     # The name of the ServiceAccount to use.
     # If not set and create is true, a name is generated using the fullname template
-    name:
+    name: 
   # Optional flags to pass to the Reloader entrypoint
   # Example:
   #   custom_annotations:

@@ -9,7 +9,7 @@ env:
   DOCKER_FILE_PATH: Dockerfile
   GOLANG_VERSION: 1.17.7
   KUBERNETES_VERSION: "1.18.0"
-  KIND_VERSION: "0.7.0"
+  KIND_VERSION: "0.10.0"
   REGISTRY: ghcr.io
 
 jobs:
@@ -40,7 +40,7 @@ jobs:
     - name: Run golangci-lint
       uses: golangci/golangci-lint-action@v2.3.0
       with:
-        version: v1.33
+        version: v1.45.2
         only-new-issues: false
         args: --timeout 10m
 
@@ -48,6 +48,9 @@ jobs:
       run: |
         cd deployments/kubernetes/chart/reloader
         helm lint
+
+    - name: Link check
+      uses: gaurav-nelson/github-action-markdown-link-check@v1
 
     - name: Install kubectl
       run: |

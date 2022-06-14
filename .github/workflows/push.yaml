@@ -9,7 +9,7 @@ env:
   DOCKER_FILE_PATH: Dockerfile
   GOLANG_VERSION: 1.17.7
   KUBERNETES_VERSION: "1.18.0"
-  KIND_VERSION: "0.7.0"
+  KIND_VERSION: "0.10.0"
   HELM_REGISTRY_URL: "https://stakater.github.io/stakater-charts"
   REGISTRY: ghcr.io
 
@@ -43,7 +43,7 @@ jobs:
       - name: Run golangci-lint
         uses: golangci/golangci-lint-action@v2.3.0
         with:
-          version: v1.33
+          version: v1.45.2
           only-new-issues: false
           args: --timeout 10m
           
@@ -71,7 +71,7 @@ jobs:
 
       - name: Generate Tag
         id: generate_tag
-        uses: anothrNick/github-tag-action@1.26.0
+        uses: anothrNick/github-tag-action@1.36.0
         env:
           GITHUB_TOKEN: ${{ secrets.STAKATER_GITHUB_TOKEN }}
           WITH_V: true
@@ -118,7 +118,7 @@ jobs:
       # Generate tag for operator without "v"
       - name: Generate Operator Tag
         id: generate_operator_tag
-        uses: anothrNick/github-tag-action@1.26.0
+        uses: anothrNick/github-tag-action@1.36.0
         env:
           GITHUB_TOKEN: ${{ secrets.STAKATER_GITHUB_TOKEN }}
           WITH_V: false
@@ -167,7 +167,7 @@ jobs:
           branch: ${{ github.ref }}
 
       - name: Push Latest Tag
-        uses: anothrNick/github-tag-action@1.26.0
+        uses: anothrNick/github-tag-action@1.36.0
         env:
           GITHUB_TOKEN: ${{ secrets.STAKATER_GITHUB_TOKEN }}
           WITH_V: true
