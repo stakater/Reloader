@@ -31,7 +31,8 @@ metadata:
   annotations:
     reloader.stakater.com/auto: "true"
 spec:
-  template: metadata:
+  template:
+    metadata:
 ```
 
 This will discover deploymentconfigs/deployments/daemonsets/statefulset/rollouts automatically where `foo-configmap` or `foo-secret` is being used either via environment variable or from volume mount. And it will perform rolling upgrade on related pods when `foo-configmap` or `foo-secret`are updated.
@@ -86,7 +87,8 @@ metadata:
   annotations:
     configmap.reloader.stakater.com/reload: "foo-configmap"
 spec:
-  template: metadata:
+  template:
+    metadata:
 ```
 
 Use comma separated list to define multiple configmaps.
