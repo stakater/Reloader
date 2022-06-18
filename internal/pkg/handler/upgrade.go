@@ -13,6 +13,7 @@ import (
 	"github.com/stakater/Reloader/internal/pkg/util"
 	"github.com/stakater/Reloader/pkg/kube"
 	v1 "k8s.io/api/core/v1"
+	"regexp"
 	"strconv"
 	"strings"
 )
@@ -154,8 +155,9 @@ func PerformRollingUpgrade(clients kube.Clients, config util.Config, upgradeFunc
 		if result != constants.Updated && annotationValue != "" {
 			values := strings.Split(annotationValue, ",")
 			for _, value := range values {
-				value = strings.Trim(value, " ")
-				if value == config.ResourceName {
+				value = strings.TrimSpace(value)
+				re := regexp.MustCompile("^" + value + "$")
+				if re.Match([]byte(config.ResourceName)) {
 					result = invokeReloadStrategy(upgradeFuncs, i, config, false)
 					if result == constants.Updated {
 						break
