@@ -4,8 +4,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"os"
+
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/sirupsen/logrus"
+	alert "github.com/stakater/Reloader/internal/pkg/alerts"
 	"github.com/stakater/Reloader/internal/pkg/callbacks"
 	"github.com/stakater/Reloader/internal/pkg/constants"
 	"github.com/stakater/Reloader/internal/pkg/metrics"
@@ -184,6 +187,13 @@ func PerformRollingUpgrade(clients kube.Clients, config util.Config, upgradeFunc
 				logrus.Infof("Changes detected in '%s' of type '%s' in namespace '%s'", config.ResourceName, config.Type, config.Namespace)
 				logrus.Infof("Updated '%s' of type '%s' in namespace '%s'", resourceName, upgradeFuncs.ResourceType, config.Namespace)
 				collectors.Reloaded.With(prometheus.Labels{"success": "true"}).Inc()
+				alert_on_reload, ok := os.LookupEnv("ALERT_ON_RELOAD")
+				if ok && alert_on_reload == "true" {
+					msg := fmt.Sprintf(
+						"Reloader detected changes in *%s* of type *%s* in namespace *%s*. Hence reloaded *%s* of type *%s* in namespace *%s*",
+						config.ResourceName, config.Type, config.Namespace, resourceName, upgradeFuncs.ResourceType, config.Namespace)
+					alert.SendWebhookAlert(msg)
+				}
 			}
 		}
 	}
