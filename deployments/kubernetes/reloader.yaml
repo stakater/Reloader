@@ -153,4 +153,3 @@ spec:
         runAsNonRoot: true
         runAsUser: 65534
       serviceAccountName: reloader-reloader
-      automountServiceAccountToken: true
