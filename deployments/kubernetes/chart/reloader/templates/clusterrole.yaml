@@ -78,3 +78,12 @@ rules:
       - update
       - patch
 {{- end }}
+{{- if .Values.reloader.enableHA }}
+  - apiGroups:
+      - "coordination.k8s.io"
+    resources:
+      - leases
+    verbs:
+      - get
+      - update
+{{- end}}
