@@ -1,6 +1,8 @@
 package handler
 
 import (
+	"fmt"
+
 	"github.com/sirupsen/logrus"
 	"github.com/stakater/Reloader/internal/pkg/metrics"
 	"github.com/stakater/Reloader/internal/pkg/util"
@@ -15,14 +17,17 @@ type ResourceUpdatedHandler struct {
 }
 
 // Handle processes the updated resource
-func (r ResourceUpdatedHandler) Handle() error {
+func (r ResourceUpdatedHandler) Handle(isLeader bool) error {
 	if r.Resource == nil || r.OldResource == nil {
 		logrus.Errorf("Resource update handler received nil resource")
 	} else {
 		config, oldSHAData := r.GetConfig()
 		if config.SHAValue != oldSHAData {
 			// process resource based on its type
-			return doRollingUpgrade(config, r.Collectors)
+			if isLeader {
+				return doRollingUpgrade(config, r.Collectors)
+			}
+			return fmt.Errorf("instance is not leader, will not perform rolling upgrade on %s %s/%s", config.Type, config.ResourceName, config.Namespace)
 		}
 	}
 	return nil

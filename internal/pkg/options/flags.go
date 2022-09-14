@@ -25,4 +25,6 @@ var (
 	ReloadStrategy = constants.EnvVarsReloadStrategy
 	// ReloadOnCreate Adds support to watch create events
 	ReloadOnCreate = "false"
+	// EnableHA adds support for running multiple replicas via leadership election
+	EnableHA = false
 )

@@ -2,8 +2,9 @@ package controller
 
 import (
 	"fmt"
-	"github.com/stakater/Reloader/internal/pkg/options"
 	"time"
+
+	"github.com/stakater/Reloader/internal/pkg/options"
 
 	"github.com/sirupsen/logrus"
 	"github.com/stakater/Reloader/internal/pkg/handler"
@@ -29,6 +30,7 @@ type Controller struct {
 	namespace         string
 	ignoredNamespaces util.List
 	collectors        metrics.Collectors
+	isLeader          bool
 }
 
 // controllerInitialized flag determines whether controlled is being initialized
@@ -56,6 +58,7 @@ func NewController(
 	c.informer = informer
 	c.queue = queue
 	c.collectors = collectors
+	c.isLeader = true
 	return &c, nil
 }
 
@@ -140,7 +143,7 @@ func (c *Controller) processNextItem() bool {
 	defer c.queue.Done(resourceHandler)
 
 	// Invoke the method containing the business logic
-	err := resourceHandler.(handler.ResourceHandler).Handle()
+	err := resourceHandler.(handler.ResourceHandler).Handle(c.isLeader)
 	// Handle the error if something went wrong during the execution of the business logic
 	c.handleErr(err, resourceHandler)
 	return true
@@ -170,4 +173,8 @@ func (c *Controller) handleErr(err error, key interface{}) {
 	// Report to an external entity that, even after several retries, we could not successfully process this key
 	runtime.HandleError(err)
 	logrus.Infof("Dropping the key %q out of the queue: %v", key, err)
+}
+
+func (c *Controller) SetLeader(isLeader bool) {
+	c.isLeader = isLeader
 }
