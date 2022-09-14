@@ -23,12 +23,6 @@ import (
 	"k8s.io/client-go/tools/leaderelection/resourcelock"
 )
 
-const (
-	lockName        string = "stakaer-reloader-lock"
-	podNameEnv      string = "POD_NAME"
-	podNamespaceEnv string = "POD_NAMESPACE"
-)
-
 // NewReloaderCommand starts the reloader controller
 func NewReloaderCommand() *cobra.Command {
 	cmd := &cobra.Command{
@@ -72,7 +66,7 @@ func validateFlags(*cobra.Command, []string) error {
 
 	// Validate that HA options are correct
 	if options.EnableHA {
-		if _, _, err := validateHAEnvs(); err != nil {
+		if err := validateHAEnvs(); err != nil {
 			return err
 		}
 	}
@@ -93,21 +87,21 @@ func configureLogging(logFormat string) error {
 	return nil
 }
 
-func validateHAEnvs() (string, string, error) {
+func validateHAEnvs() error {
 	podName, podNamespace := getHAEnvs()
 
 	if podName == "" {
-		return podName, podNamespace, fmt.Errorf("%s not set, cannot run in HA mode without %s set", podNameEnv, podNameEnv)
+		return fmt.Errorf("%s not set, cannot run in HA mode without %s set", constants.PodNameEnv, constants.PodNameEnv)
 	}
 	if podNamespace == "" {
-		return podName, podNamespace, fmt.Errorf("%s not set, cannot run in HA mode without %s set", podNamespaceEnv, podNamespaceEnv)
+		return fmt.Errorf("%s not set, cannot run in HA mode without %s set", constants.PodNamespaceEnv, constants.PodNamespaceEnv)
 	}
-	return podName, podNamespace, nil
+	return nil
 }
 
 func getHAEnvs() (string, string) {
-	podName := os.Getenv(podNameEnv)
-	podNamespace := os.Getenv(podNamespaceEnv)
+	podName := os.Getenv(constants.PodNameEnv)
+	podNamespace := os.Getenv(constants.PodNamespaceEnv)
 
 	return podName, podNamespace
 }
@@ -171,7 +165,7 @@ func startReloader(cmd *cobra.Command, args []string) {
 	// Run the leadership election
 	if options.EnableHA {
 		podName, podNamespace := getHAEnvs()
-		lock := getNewLock(clientset, lockName, podName, podNamespace)
+		lock := getNewLock(clientset, constants.LockName, podName, podNamespace)
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
 		runLeaderElection(lock, ctx, podName, controllers)
@@ -204,16 +198,18 @@ func runLeaderElection(lock *resourcelock.LeaseLock, ctx context.Context, id str
 		Callbacks: leaderelection.LeaderCallbacks{
 			OnStartedLeading: func(c context.Context) {
 				setLeader(controllers, true)
+				logrus.Info("became leader")
 			},
 			OnStoppedLeading: func() {
 				setLeader(controllers, false)
+				logrus.Info("no longer leader")
 			},
 			OnNewLeader: func(current_id string) {
 				if current_id == id {
-					//klog.Info("still the leader!")
+					logrus.Info("still the leader!")
 					return
 				}
-				//klog.Info("new leader is %s", current_id)
+				logrus.Infof("new leader is %s", current_id)
 			},
 		},
 	})

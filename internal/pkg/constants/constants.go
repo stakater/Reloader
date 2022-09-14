@@ -20,3 +20,10 @@ const (
 	// AnnotationsReloadStrategy instructs Reloader to add pod template annotations to facilitate a restart
 	AnnotationsReloadStrategy = "annotations"
 )
+
+// Leadership election related consts
+const (
+	LockName        string = "stakaer-reloader-lock"
+	PodNameEnv      string = "POD_NAME"
+	PodNamespaceEnv string = "POD_NAMESPACE"
+)

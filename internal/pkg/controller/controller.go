@@ -177,4 +177,5 @@ func (c *Controller) handleErr(err error, key interface{}) {
 
 func (c *Controller) SetLeader(isLeader bool) {
 	c.isLeader = isLeader
+	logrus.Info("controller active")
 }
