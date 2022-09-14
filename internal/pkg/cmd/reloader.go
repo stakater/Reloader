@@ -141,7 +141,7 @@ func start(cmd *cobra.Command) {
 	}
 
 	// create the clientset
-	clientset, err := kube.GetKubernetesClient()
+	client, err := kube.GetKubernetesClient()
 	if err != nil {
 		logrus.Fatal(err)
 	}
@@ -163,7 +163,7 @@ func start(cmd *cobra.Command) {
 			continue
 		}
 
-		c, err := controller.NewController(clientset, k, currentNamespace, ignoredNamespacesList, collectors)
+		c, err := controller.NewController(client, k, currentNamespace, ignoredNamespacesList, collectors)
 		if err != nil {
 			logrus.Fatalf("%s", err)
 		}
