@@ -132,17 +132,9 @@ spec:
         version: v0.0.118
     spec:
       containers:
-      - image: "ryanw17/reloader:latest"
-        imagePullPolicy: Always
+      - image: "stakater/reloader:v0.0.118"
+        imagePullPolicy: IfNotPresent
         name: reloader-reloader
-        args:
-          - "--ha"
-        env:
-          - name: POD_NAME
-            valueFrom:
-              fieldRef:
-                apiVersion: v1
-                fieldPath: metadata.name
         ports:
         - name: http
           containerPort: 9090
@@ -162,5 +154,8 @@ spec:
           failureThreshold: 5
           periodSeconds: 10
           successThreshold: 1
+        securityContext:
+          runAsNonRoot: true
+          runAsUser: 65534
       serviceAccountName: reloader-reloader
       automountServiceAccountToken: true
