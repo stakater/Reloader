@@ -129,6 +129,7 @@ spec:
       - image: "stakater/reloader:v0.0.118"
         imagePullPolicy: IfNotPresent
         name: reloader-reloader
+
         ports:
         - name: http
           containerPort: 9090
