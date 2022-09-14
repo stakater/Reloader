@@ -62,12 +62,6 @@ rules:
       - get
       - update
       - patch
-  - apiGroups:
-      - "coordination.k8s.io"
-    resources:
-      - "leases"
-    verbs:
-      - "*"
 ---
 # Source: reloader/templates/clusterrolebinding.yaml
 apiVersion: rbac.authorization.k8s.io/v1
@@ -113,7 +107,7 @@ metadata:
   name: reloader-reloader
   namespace: default
 spec:
-  replicas: 3
+  replicas: 1
   revisionHistoryLimit: 2
   selector:
     matchLabels:
@@ -154,8 +148,8 @@ spec:
           failureThreshold: 5
           periodSeconds: 10
           successThreshold: 1
-        securityContext:
-          runAsNonRoot: true
-          runAsUser: 65534
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65534
       serviceAccountName: reloader-reloader
       automountServiceAccountToken: true
