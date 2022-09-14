@@ -1,20 +1,30 @@
 package cmd
 
 import (
+	"context"
 	"errors"
 	"fmt"
-	"github.com/stakater/Reloader/internal/pkg/constants"
-	"os"
-	"strings"
-
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
+	"github.com/stakater/Reloader/internal/pkg/constants"
 	"github.com/stakater/Reloader/internal/pkg/controller"
 	"github.com/stakater/Reloader/internal/pkg/metrics"
 	"github.com/stakater/Reloader/internal/pkg/options"
 	"github.com/stakater/Reloader/internal/pkg/util"
 	"github.com/stakater/Reloader/pkg/kube"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	clientset "k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/rest"
+	"k8s.io/client-go/tools/leaderelection"
+	"k8s.io/client-go/tools/leaderelection/resourcelock"
+	"os"
+	"strings"
+	"time"
+)
+
+var (
+	electionClient *clientset.Clientset
 )
 
 // NewReloaderCommand starts the reloader controller
@@ -38,7 +48,9 @@ func NewReloaderCommand() *cobra.Command {
 	cmd.PersistentFlags().StringVar(&options.IsArgoRollouts, "is-Argo-Rollouts", "false", "Add support for argo rollouts")
 	cmd.PersistentFlags().StringVar(&options.ReloadStrategy, constants.ReloadStrategyFlag, constants.EnvVarsReloadStrategy, "Specifies the desired reload strategy")
 	cmd.PersistentFlags().StringVar(&options.ReloadOnCreate, "reload-on-create", "false", "Add support to watch create events")
-
+	cmd.PersistentFlags().BoolVar(&options.HAEnabled, "ha", false, "Whether to run in HA")
+	cmd.PersistentFlags().StringVar(&options.LeaseLockName, "lease-name", "stakater-reloader-lease", "Name of the lease object to use for leader election")
+	cmd.PersistentFlags().StringVar(&options.LeaseLockNameSpace, "lease-namespace", "default", "Namespace of the Lease resource")
 	return cmd
 }
 
@@ -68,12 +80,59 @@ func configureLogging(logFormat string) error {
 	return nil
 }
 
-func startReloader(cmd *cobra.Command, args []string) {
-	err := configureLogging(options.LogFormat)
+func getNewLock(lockname, podname, namespace string) *resourcelock.LeaseLock {
+	return &resourcelock.LeaseLock{
+		LeaseMeta: metav1.ObjectMeta{
+			Name:      lockname,
+			Namespace: namespace,
+		},
+		Client: electionClient.CoordinationV1(),
+		LockConfig: resourcelock.ResourceLockConfig{
+			Identity: podname,
+		},
+	}
+}
+
+func startLeaderElection(cmd *cobra.Command) {
+	config, err := rest.InClusterConfig()
+	electionClient = clientset.NewForConfigOrDie(config)
+	var podName string = os.Getenv("POD_NAME")
 	if err != nil {
-		logrus.Warn(err)
+		logrus.Fatal("failed to get kubeconfig")
 	}
 
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	lock := getNewLock(options.LeaseLockName, podName, options.LeaseLockNameSpace)
+	leaderelection.RunOrDie(ctx, leaderelection.LeaderElectionConfig{
+		Lock:            lock,
+		ReleaseOnCancel: true,
+		LeaseDuration:   15 * time.Second,
+		RenewDeadline:   10 * time.Second,
+		RetryPeriod:     2 * time.Second,
+		Callbacks: leaderelection.LeaderCallbacks{
+			OnStartedLeading: func(c context.Context) {
+				start(cmd)
+			},
+			OnStoppedLeading: func() {
+				for {
+					logrus.Info("no longer the leader, staying inactive.")
+				}
+			},
+			OnNewLeader: func(current_id string) {
+				if current_id == podName {
+					logrus.Info("still the leader!")
+					return
+				}
+				logrus.Info("new leader is %s", current_id)
+				metrics.SetupPrometheusEndpoint()
+			},
+		},
+	})
+}
+
+func start(cmd *cobra.Command) {
 	logrus.Info("Starting Reloader")
 	currentNamespace := os.Getenv("KUBERNETES_NAMESPACE")
 	if len(currentNamespace) == 0 {
@@ -118,6 +177,20 @@ func startReloader(cmd *cobra.Command, args []string) {
 
 	// Wait forever
 	select {}
+}
+
+func startReloader(cmd *cobra.Command, args []string) {
+	err := configureLogging(options.LogFormat)
+	if err != nil {
+		logrus.Warn(err)
+	}
+
+	if options.HAEnabled {
+		startLeaderElection(cmd)
+	} else {
+		start(cmd)
+	}
+
 }
 
 func getIgnoredNamespacesList(cmd *cobra.Command) (util.List, error) {
