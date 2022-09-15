@@ -26,7 +26,7 @@ func GetNewLock(clientset *kubernetes.Clientset, lockName, podname, namespace st
 }
 
 // runLeaderElection runs leadership election. If an instance of the controller is the leader and stops leading it will shutdown.
-func RunLeaderElection(lock *resourcelock.LeaseLock, ctx context.Context, cancel context.CancelFunc, id string, controllers []*controller.Controller) {
+func RunLeaderElection(lock *resourcelock.LeaseLock, ctx context.Context, cancel context.CancelFunc, id string, controllers []*controller.Controller, health bool) {
 	// Construct channels for the controllers to use
 	var stopChannels []chan struct{}
 	for i := 0; i < len(controllers); i++ {
@@ -49,6 +49,7 @@ func RunLeaderElection(lock *resourcelock.LeaseLock, ctx context.Context, cancel
 				logrus.Info("no longer leader, shutting down")
 				stopControllers(stopChannels)
 				cancel()
+				health = false
 			},
 			OnNewLeader: func(current_id string) {
 				if current_id == id {
