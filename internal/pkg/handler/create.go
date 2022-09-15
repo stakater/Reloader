@@ -1,8 +1,6 @@
 package handler
 
 import (
-	"fmt"
-
 	"github.com/sirupsen/logrus"
 	"github.com/stakater/Reloader/internal/pkg/metrics"
 	"github.com/stakater/Reloader/internal/pkg/util"
@@ -16,16 +14,12 @@ type ResourceCreatedHandler struct {
 }
 
 // Handle processes the newly created resource
-func (r ResourceCreatedHandler) Handle(isLeader bool) error {
+func (r ResourceCreatedHandler) Handle() error {
 	if r.Resource == nil {
 		logrus.Errorf("Resource creation handler received nil resource")
 	} else {
 		config, _ := r.GetConfig()
-		// process resource based on its type
-		if isLeader {
-			return doRollingUpgrade(config, r.Collectors)
-		}
-		return fmt.Errorf("instance is not leader, will not perform rolling upgrade on %s %s/%s", config.Type, config.ResourceName, config.Namespace)
+		return doRollingUpgrade(config, r.Collectors)
 	}
 	return nil
 }

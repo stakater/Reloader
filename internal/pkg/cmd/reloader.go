@@ -148,13 +148,12 @@ func startReloader(cmd *cobra.Command, args []string) {
 			logrus.Fatalf("%s", err)
 		}
 
-		// If HA is enabled then we need to run leadership election
-		if options.EnableHA {
-			c.SetLeader(false)
-		}
-
 		controllers = append(controllers, c)
 
+		// If HA is enabled we only run the controller when
+		if options.EnableHA {
+			continue
+		}
 		// Now let's start the controller
 		stop := make(chan struct{})
 		defer close(stop)
@@ -164,11 +163,17 @@ func startReloader(cmd *cobra.Command, args []string) {
 
 	// Run the leadership election
 	if options.EnableHA {
+		var stopChannels []chan struct{}
+		for i := 0; i < len(controllers); i++ {
+			stop := make(chan struct{})
+			stopChannels = append(stopChannels, stop)
+		}
 		podName, podNamespace := getHAEnvs()
 		lock := getNewLock(clientset, constants.LockName, podName, podNamespace)
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
-		runLeaderElection(lock, ctx, podName, controllers)
+		runLeaderElection(lock, ctx, cancel, podName, controllers, stopChannels)
+		return
 	}
 
 	select {}
@@ -187,22 +192,23 @@ func getNewLock(clientset *kubernetes.Clientset, lockName, podname, namespace st
 	}
 }
 
-func runLeaderElection(lock *resourcelock.LeaseLock, ctx context.Context, id string, controllers []*controller.Controller) {
+// runLeaderElection runs leadership election. If an instance of the controller is the leader and stops leading it will shutdown.
+func runLeaderElection(lock *resourcelock.LeaseLock, ctx context.Context, cancel context.CancelFunc, id string, controllers []*controller.Controller, stopChannels []chan struct{}) {
 	leaderelection.RunOrDie(ctx, leaderelection.LeaderElectionConfig{
 		Lock:            lock,
 		ReleaseOnCancel: true,
-		// TODO Validate that keys persist in the cache for at least one leadership election cycle
-		LeaseDuration: 15 * time.Second,
-		RenewDeadline: 10 * time.Second,
-		RetryPeriod:   2 * time.Second,
+		LeaseDuration:   15 * time.Second,
+		RenewDeadline:   10 * time.Second,
+		RetryPeriod:     2 * time.Second,
 		Callbacks: leaderelection.LeaderCallbacks{
 			OnStartedLeading: func(c context.Context) {
-				setLeader(controllers, true)
-				logrus.Info("became leader")
+				logrus.Info("became leader, starting controllers")
+				runControllers(controllers, stopChannels)
 			},
 			OnStoppedLeading: func() {
-				setLeader(controllers, false)
-				logrus.Info("no longer leader")
+				logrus.Info("no longer leader, shutting down")
+				stopControllers(stopChannels)
+				cancel()
 			},
 			OnNewLeader: func(current_id string) {
 				if current_id == id {
@@ -215,10 +221,16 @@ func runLeaderElection(lock *resourcelock.LeaseLock, ctx context.Context, id str
 	})
 }
 
-func setLeader(controllers []*controller.Controller, isLeader bool) {
-	for _, c := range controllers {
+func runControllers(controllers []*controller.Controller, stopChannels []chan struct{}) {
+	for i, c := range controllers {
 		c := c
-		c.SetLeader(isLeader)
+		go c.Run(1, stopChannels[i])
+	}
+}
+
+func stopControllers(stopChannels []chan struct{}) {
+	for _, c := range stopChannels {
+		close(c)
 	}
 }
 
