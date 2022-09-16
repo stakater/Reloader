@@ -19,6 +19,7 @@ func (r ResourceCreatedHandler) Handle() error {
 		logrus.Errorf("Resource creation handler received nil resource")
 	} else {
 		config, _ := r.GetConfig()
+		// process resource based on its type
 		return doRollingUpgrade(config, r.Collectors)
 	}
 	return nil

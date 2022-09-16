@@ -16,6 +16,7 @@ import (
 	"github.com/stakater/Reloader/internal/pkg/callbacks"
 	"github.com/stakater/Reloader/internal/pkg/constants"
 	"github.com/stakater/Reloader/internal/pkg/crypto"
+	"github.com/stakater/Reloader/internal/pkg/metrics"
 	"github.com/stakater/Reloader/internal/pkg/options"
 	"github.com/stakater/Reloader/internal/pkg/util"
 	"github.com/stakater/Reloader/pkg/kube"
@@ -32,6 +33,19 @@ var (
 	ConfigmapResourceType = "configMaps"
 	// SecretResourceType is a resource type which controller watches for changes
 	SecretResourceType = "secrets"
+)
+
+var (
+	Clients             = kube.GetClients()
+	Pod                 = "test-reloader-" + RandSeq(5)
+	Namespace           = "test-reloader-" + RandSeq(5)
+	ConfigmapNamePrefix = "testconfigmap-reloader"
+	SecretNamePrefix    = "testsecret-reloader"
+	Data                = "dGVzdFNlY3JldEVuY29kaW5nRm9yUmVsb2FkZXI="
+	NewData             = "dGVzdE5ld1NlY3JldEVuY29kaW5nRm9yUmVsb2FkZXI="
+	UpdatedData         = "dGVzdFVwZGF0ZWRTZWNyZXRFbmNvZGluZ0ZvclJlbG9hZGVy"
+	Collectors          = metrics.NewCollectors()
+	SleepDuration       = 3 * time.Second
 )
 
 // CreateNamespace creates namespace for testing

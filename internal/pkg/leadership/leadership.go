@@ -2,23 +2,32 @@ package leadership
 
 import (
 	"context"
+	"net/http"
 	"time"
 
 	"github.com/sirupsen/logrus"
 	"github.com/stakater/Reloader/internal/pkg/controller"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/leaderelection"
 	"k8s.io/client-go/tools/leaderelection/resourcelock"
+
+	coordinationv1 "k8s.io/client-go/kubernetes/typed/coordination/v1"
 )
 
-func GetNewLock(clientset *kubernetes.Clientset, lockName, podname, namespace string) *resourcelock.LeaseLock {
+const healthPort string = ":9091"
+
+var (
+	// Used for liveness probe
+	healthy bool = true
+)
+
+func GetNewLock(client coordinationv1.CoordinationV1Interface, lockName, podname, namespace string) *resourcelock.LeaseLock {
 	return &resourcelock.LeaseLock{
 		LeaseMeta: v1.ObjectMeta{
 			Name:      lockName,
 			Namespace: namespace,
 		},
-		Client: clientset.CoordinationV1(),
+		Client: client,
 		LockConfig: resourcelock.ResourceLockConfig{
 			Identity: podname,
 		},
@@ -26,7 +35,7 @@ func GetNewLock(clientset *kubernetes.Clientset, lockName, podname, namespace st
 }
 
 // runLeaderElection runs leadership election. If an instance of the controller is the leader and stops leading it will shutdown.
-func RunLeaderElection(lock *resourcelock.LeaseLock, ctx context.Context, cancel context.CancelFunc, id string, controllers []*controller.Controller, health bool) {
+func RunLeaderElection(lock *resourcelock.LeaseLock, ctx context.Context, cancel context.CancelFunc, id string, controllers []*controller.Controller) {
 	// Construct channels for the controllers to use
 	var stopChannels []chan struct{}
 	for i := 0; i < len(controllers); i++ {
@@ -49,7 +58,7 @@ func RunLeaderElection(lock *resourcelock.LeaseLock, ctx context.Context, cancel
 				logrus.Info("no longer leader, shutting down")
 				stopControllers(stopChannels)
 				cancel()
-				health = false
+				healthy = false
 			},
 			OnNewLeader: func(current_id string) {
 				if current_id == id {
@@ -73,4 +82,21 @@ func stopControllers(stopChannels []chan struct{}) {
 	for _, c := range stopChannels {
 		close(c)
 	}
+}
+
+// Healthz serves the liveness probe endpoint. If leadership election is
+// enabled and a replica stops leading the liveness probe will fail and the
+// kubelet will restart the container.
+func Healthz() error {
+	http.HandleFunc("/live", healthz)
+	return http.ListenAndServe(healthPort, nil)
+}
+
+func healthz(w http.ResponseWriter, req *http.Request) {
+	if healthy {
+		w.Write([]byte("alive"))
+		return
+	}
+
+	w.WriteHeader(http.StatusInternalServerError)
 }

@@ -21,6 +21,7 @@ func (r ResourceUpdatedHandler) Handle() error {
 	} else {
 		config, oldSHAData := r.GetConfig()
 		if config.SHAValue != oldSHAData {
+			// process resource based on its type
 			return doRollingUpgrade(config, r.Collectors)
 		}
 	}

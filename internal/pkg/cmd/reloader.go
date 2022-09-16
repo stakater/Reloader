@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"net/http"
 	"os"
 	"strings"
 
@@ -19,11 +18,6 @@ import (
 	"github.com/stakater/Reloader/internal/pkg/util"
 	"github.com/stakater/Reloader/pkg/kube"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-)
-
-var (
-	// Used for liveness probe
-	healthy bool = true
 )
 
 // NewReloaderCommand starts the reloader controller
@@ -167,14 +161,13 @@ func startReloader(cmd *cobra.Command, args []string) {
 	// Run leadership election
 	if options.EnableHA {
 		podName, podNamespace := getHAEnvs()
-		lock := leadership.GetNewLock(clientset, constants.LockName, podName, podNamespace)
+		lock := leadership.GetNewLock(clientset.CoordinationV1(), constants.LockName, podName, podNamespace)
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
-		leadership.RunLeaderElection(lock, ctx, cancel, podName, controllers, healthy)
+		leadership.RunLeaderElection(lock, ctx, cancel, podName, controllers)
 	}
 
-	http.HandleFunc("/live", healthz)
-	logrus.Fatal(http.ListenAndServe(":8080", nil))
+	logrus.Fatal(leadership.Healthz())
 }
 
 func getIgnoredNamespacesList(cmd *cobra.Command) (util.List, error) {
@@ -208,13 +201,4 @@ func getIgnoredResourcesList(cmd *cobra.Command) (util.List, error) {
 	}
 
 	return ignoredResourcesList, nil
-}
-
-func healthz(w http.ResponseWriter, req *http.Request) {
-	if healthy {
-		w.WriteHeader(http.StatusOK)
-		return
-	}
-
-	w.WriteHeader(http.StatusInternalServerError)
 }
