@@ -106,10 +106,12 @@ spec:
 
         ports:
         - name: http
+          containerPort: 9091
+        - name: metrics 
           containerPort: 9090
         livenessProbe:
           httpGet:
-            path: /metrics
+            path: /live
             port: http
           timeoutSeconds: {{ .Values.reloader.deployment.livenessProbe.timeoutSeconds | default "5" }}
           failureThreshold: {{ .Values.reloader.deployment.livenessProbe.failureThreshold | default "5" }}
@@ -118,7 +120,7 @@ spec:
         readinessProbe:
           httpGet:
             path: /metrics
-            port: http
+            port: metrics
           timeoutSeconds: {{ .Values.reloader.deployment.readinessProbe.timeoutSeconds | default "5" }}
           failureThreshold: {{ .Values.reloader.deployment.readinessProbe.failureThreshold | default "5" }}
           periodSeconds: {{ .Values.reloader.deployment.readinessProbe.periodSeconds | default "10" }}
