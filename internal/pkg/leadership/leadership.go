@@ -94,7 +94,9 @@ func Healthz() error {
 
 func healthz(w http.ResponseWriter, req *http.Request) {
 	if healthy {
-		w.Write([]byte("alive"))
+		if i, err := w.Write([]byte("alive")); err != nil {
+			logrus.Infof("failed to write liveness response, wrote: %d bytes, got err: %s", i, err)
+		}
 		return
 	}
 
