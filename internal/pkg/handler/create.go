@@ -5,12 +5,14 @@ import (
 	"github.com/stakater/Reloader/internal/pkg/metrics"
 	"github.com/stakater/Reloader/internal/pkg/util"
 	v1 "k8s.io/api/core/v1"
+	"k8s.io/client-go/tools/record"
 )
 
 // ResourceCreatedHandler contains new objects
 type ResourceCreatedHandler struct {
 	Resource   interface{}
 	Collectors metrics.Collectors
+	Recorder   record.EventRecorder
 }
 
 // Handle processes the newly created resource
@@ -20,7 +22,7 @@ func (r ResourceCreatedHandler) Handle() error {
 	} else {
 		config, _ := r.GetConfig()
 		// process resource based on its type
-		return doRollingUpgrade(config, r.Collectors)
+		return doRollingUpgrade(config, r.Collectors, r.Recorder)
 	}
 	return nil
 }
