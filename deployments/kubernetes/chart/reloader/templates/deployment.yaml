@@ -45,9 +45,12 @@ spec:
       nodeSelector:
 {{ toYaml .Values.reloader.deployment.nodeSelector | indent 8 }}
       {{- end }}
-      {{- if .Values.reloader.deployment.affinity }}
+      {{- if or (.Values.reloader.deployment.affinity) (.Values.reloader.enableHA) }}
       affinity:
+      {{- if .Values.reloader.deployment.affinity }}
 {{ toYaml .Values.reloader.deployment.affinity | indent 8 }}
+      {{- end}}
+{{ include "reloader-podAntiAffinity" . | indent 8 }}
       {{- end }}
       {{- if .Values.reloader.deployment.tolerations }}
       tolerations:
