@@ -245,6 +245,14 @@ You can enable to scrape Reloader's Prometheus metrics by setting `serviceMonito
 | isArgoRollouts   | Enable Argo Rollouts. Valid value are either `true` or `false`               | boolean |
 | reloadOnCreate   | Enable reload on create events. Valid value are either `true` or `false`     | boolean |
 
+**ReloadOnCreate** reloadOnCreate controls how Reloader handles secrets being added to the cache for the first time. If reloadOnCreate is set to true:
+* Configmaps/secrets being added to the cache will cause Reloader to perform a rolling update of the associated workload. 
+* When applications are deployed for the first time, Reloader will perform a rolling update of the associated workload. 
+* If you are running Reloader in HA mode all workloads will have a rolling update performed when a new leader is elected. 
+
+If ReloadOnCreate is set to false: 
+* Updates to configMaps/Secrets that occur while there is no leader will not be picked up by the new leader until a subsequent update of the configmap/secret occurs. In the worst case the window in which there can be no leader is 15s as this is the LeaseDuration.
+
 ## Help
 
 ### Documentation
