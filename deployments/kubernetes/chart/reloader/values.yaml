@@ -73,6 +73,10 @@ reloader:
       open:
       # secret supports Key value pair as environment variables. It gets the values based on keys from default reloader secret if any.
       secret:
+      #  ALERT_ON_RELOAD: <"true"|"false">
+      #  ALERT_SINK: <"slack"> # By default it will be a raw text based webhook
+      #  ALERT_WEBHOOK_URL: <"webhook_url">
+      #  ALERT_ADDITIONAL_INFO: <"Additional Info like Cluster Name if needed">
       # field supports Key value pair as environment variables. It gets the values from other fields of pod.
       field:
 
