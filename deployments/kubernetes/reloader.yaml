@@ -8,7 +8,7 @@ metadata:
     meta.helm.sh/release-name: "reloader"
   labels:
     app: reloader-reloader
-    chart: "reloader-v0.0.120"
+    chart: "reloader-v0.0.121"
     release: "reloader"
     heritage: "Helm"
     app.kubernetes.io/managed-by: "Helm"
@@ -25,7 +25,7 @@ metadata:
     meta.helm.sh/release-name: "reloader"
   labels:
     app: reloader-reloader
-    chart: "reloader-v0.0.120"
+    chart: "reloader-v0.0.121"
     release: "reloader"
     heritage: "Helm"
     app.kubernetes.io/managed-by: "Helm"
@@ -73,7 +73,7 @@ metadata:
     meta.helm.sh/release-name: "reloader"
   labels:
     app: reloader-reloader
-    chart: "reloader-v0.0.120"
+    chart: "reloader-v0.0.121"
     release: "reloader"
     heritage: "Helm"
     app.kubernetes.io/managed-by: "Helm"
@@ -97,13 +97,13 @@ metadata:
     meta.helm.sh/release-name: "reloader"
   labels:
     app: reloader-reloader
-    chart: "reloader-v0.0.120"
+    chart: "reloader-v0.0.121"
     release: "reloader"
     heritage: "Helm"
     app.kubernetes.io/managed-by: "Helm"
     group: com.stakater.platform
     provider: stakater
-    version: v0.0.120
+    version: v0.0.121
   name: reloader-reloader
   namespace: default
 spec:
@@ -117,16 +117,16 @@ spec:
     metadata:
       labels:
         app: reloader-reloader
-        chart: "reloader-v0.0.120"
+        chart: "reloader-v0.0.121"
         release: "reloader"
         heritage: "Helm"
         app.kubernetes.io/managed-by: "Helm"
         group: com.stakater.platform
         provider: stakater
-        version: v0.0.120
+        version: v0.0.121
     spec:
       containers:
-      - image: "stakater/reloader:v0.0.120"
+      - image: "stakater/reloader:v0.0.121"
         imagePullPolicy: IfNotPresent
         name: reloader-reloader
 
