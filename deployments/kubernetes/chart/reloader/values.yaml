@@ -13,13 +13,13 @@ reloader:
   isOpenshift: false
   ignoreSecrets: false
   ignoreConfigMaps: false
-  reloadOnCreate: true
+  reloadOnCreate: false
   reloadStrategy: default # Set to default, env-vars or annotations
   ignoreNamespaces: "" # Comma separated list of namespaces to ignore
   logFormat: "" #json
   watchGlobally: true
   # Set to true to enable leadership election allowing you to run multiple replicas
-  enableHA: true
+  enableHA: false
   # Set to true if you have a pod security policy that enforces readOnlyRootFilesystem
   readOnlyRootFileSystem: false
   legacy:
@@ -27,7 +27,7 @@ reloader:
   matchLabels: {}
   deployment:
     # If you wish to run multiple replicas set reloader.enableHA = true
-    replicas: 2
+    replicas: 1
     nodeSelector:
     # cloud.google.com/gke-nodepool: default-pool
 
