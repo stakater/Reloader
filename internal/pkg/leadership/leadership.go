@@ -3,6 +3,7 @@ package leadership
 import (
 	"context"
 	"net/http"
+	"sync"
 	"time"
 
 	"github.com/sirupsen/logrus"
@@ -18,6 +19,7 @@ const healthPort string = ":9091"
 
 var (
 	// Used for liveness probe
+	m       sync.Mutex
 	healthy bool = true
 )
 
@@ -58,6 +60,8 @@ func RunLeaderElection(lock *resourcelock.LeaseLock, ctx context.Context, cancel
 				logrus.Info("no longer leader, shutting down")
 				stopControllers(stopChannels)
 				cancel()
+				m.Lock()
+				defer m.Unlock()
 				healthy = false
 			},
 			OnNewLeader: func(current_id string) {
@@ -93,6 +97,8 @@ func Healthz() error {
 }
 
 func healthz(w http.ResponseWriter, req *http.Request) {
+	m.Lock()
+	defer m.Unlock()
 	if healthy {
 		if i, err := w.Write([]byte("alive")); err != nil {
 			logrus.Infof("failed to write liveness response, wrote: %d bytes, got err: %s", i, err)

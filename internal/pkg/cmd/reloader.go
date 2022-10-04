@@ -164,7 +164,7 @@ func startReloader(cmd *cobra.Command, args []string) {
 		lock := leadership.GetNewLock(clientset.CoordinationV1(), constants.LockName, podName, podNamespace)
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
-		leadership.RunLeaderElection(lock, ctx, cancel, podName, controllers)
+		go leadership.RunLeaderElection(lock, ctx, cancel, podName, controllers)
 	}
 
 	logrus.Fatal(leadership.Healthz())
