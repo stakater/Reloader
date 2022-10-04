@@ -16,7 +16,9 @@ import (
 	"github.com/stakater/Reloader/internal/pkg/testutil"
 	"github.com/stakater/Reloader/internal/pkg/util"
 	"github.com/stakater/Reloader/pkg/kube"
+	"k8s.io/apimachinery/pkg/api/meta"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	testclient "k8s.io/client-go/kubernetes/fake"
 )
 
@@ -1186,7 +1188,7 @@ func TestRollingUpgradeForDeploymentWithConfigmapUsingArs(t *testing.T) {
 	deploymentFuncs := GetDeploymentRollingUpgradeFuncs()
 	collectors := getCollectors()
 
-	err := PerformRollingUpgrade(clients, config, deploymentFuncs, collectors)
+	err := PerformRollingUpgrade(clients, config, deploymentFuncs, collectors, nil)
 	time.Sleep(5 * time.Second)
 	if err != nil {
 		t.Errorf("Rolling upgrade failed for Deployment with Configmap")
@@ -1211,7 +1213,7 @@ func TestRollingUpgradeForDeploymentWithConfigmapInProjectedVolumeUsingArs(t *te
 	deploymentFuncs := GetDeploymentRollingUpgradeFuncs()
 	collectors := getCollectors()
 
-	err := PerformRollingUpgrade(clients, config, deploymentFuncs, collectors)
+	err := PerformRollingUpgrade(clients, config, deploymentFuncs, collectors, nil)
 	if err != nil {
 		t.Errorf("Rolling upgrade failed for Deployment with Configmap in projected volume")
 	}
@@ -1236,7 +1238,7 @@ func TestRollingUpgradeForDeploymentWithConfigmapViaSearchAnnotationUsingArs(t *
 	deploymentFuncs := GetDeploymentRollingUpgradeFuncs()
 	collectors := getCollectors()
 
-	err := PerformRollingUpgrade(clients, config, deploymentFuncs, collectors)
+	err := PerformRollingUpgrade(clients, config, deploymentFuncs, collectors, nil)
 	if err != nil {
 		t.Errorf("Rolling upgrade failed for Deployment with Configmap")
 	}
@@ -1261,7 +1263,7 @@ func TestRollingUpgradeForDeploymentWithConfigmapViaSearchAnnotationNoTriggersUs
 	deploymentFuncs := GetDeploymentRollingUpgradeFuncs()
 	collectors := getCollectors()
 
-	err := PerformRollingUpgrade(clients, config, deploymentFuncs, collectors)
+	err := PerformRollingUpgrade(clients, config, deploymentFuncs, collectors, nil)
 	if err != nil {
 		t.Errorf("Rolling upgrade failed for Deployment with Configmap")
 	}
@@ -1301,7 +1303,7 @@ func TestRollingUpgradeForDeploymentWithConfigmapViaSearchAnnotationNotMappedUsi
 	deploymentFuncs := GetDeploymentRollingUpgradeFuncs()
 	collectors := getCollectors()
 
-	err = PerformRollingUpgrade(clients, config, deploymentFuncs, collectors)
+	err = PerformRollingUpgrade(clients, config, deploymentFuncs, collectors, nil)
 	if err != nil {
 		t.Errorf("Rolling upgrade failed for Deployment with Configmap")
 	}
@@ -1325,7 +1327,7 @@ func TestRollingUpgradeForDeploymentWithConfigmapInInitContainerUsingArs(t *test
 	deploymentFuncs := GetDeploymentRollingUpgradeFuncs()
 	collectors := getCollectors()
 
-	err := PerformRollingUpgrade(clients, config, deploymentFuncs, collectors)
+	err := PerformRollingUpgrade(clients, config, deploymentFuncs, collectors, nil)
 	time.Sleep(5 * time.Second)
 	if err != nil {
 		t.Errorf("Rolling upgrade failed for Deployment with Configmap")
@@ -1350,7 +1352,7 @@ func TestRollingUpgradeForDeploymentWithConfigmapInProjectVolumeInInitContainerU
 	deploymentFuncs := GetDeploymentRollingUpgradeFuncs()
 	collectors := getCollectors()
 
-	err := PerformRollingUpgrade(clients, config, deploymentFuncs, collectors)
+	err := PerformRollingUpgrade(clients, config, deploymentFuncs, collectors, nil)
 	time.Sleep(5 * time.Second)
 	if err != nil {
 		t.Errorf("Rolling upgrade failed for Deployment with Configmap in projected volume")
@@ -1375,7 +1377,7 @@ func TestRollingUpgradeForDeploymentWithConfigmapAsEnvVarUsingArs(t *testing.T) 
 	deploymentFuncs := GetDeploymentRollingUpgradeFuncs()
 	collectors := getCollectors()
 
-	err := PerformRollingUpgrade(clients, config, deploymentFuncs, collectors)
+	err := PerformRollingUpgrade(clients, config, deploymentFuncs, collectors, nil)
 	time.Sleep(5 * time.Second)
 	if err != nil {
 		t.Errorf("Rolling upgrade failed for Deployment with Configmap used as env var")
@@ -1400,7 +1402,7 @@ func TestRollingUpgradeForDeploymentWithConfigmapAsEnvVarInInitContainerUsingArs
 	deploymentFuncs := GetDeploymentRollingUpgradeFuncs()
 	collectors := getCollectors()
 
-	err := PerformRollingUpgrade(clients, config, deploymentFuncs, collectors)
+	err := PerformRollingUpgrade(clients, config, deploymentFuncs, collectors, nil)
 	time.Sleep(5 * time.Second)
 	if err != nil {
 		t.Errorf("Rolling upgrade failed for Deployment with Configmap used as env var")
@@ -1425,7 +1427,7 @@ func TestRollingUpgradeForDeploymentWithConfigmapAsEnvVarFromUsingArs(t *testing
 	deploymentFuncs := GetDeploymentRollingUpgradeFuncs()
 	collectors := getCollectors()
 
-	err := PerformRollingUpgrade(clients, config, deploymentFuncs, collectors)
+	err := PerformRollingUpgrade(clients, config, deploymentFuncs, collectors, nil)
 	time.Sleep(5 * time.Second)
 	if err != nil {
 		t.Errorf("Rolling upgrade failed for Deployment with Configmap used as env var")
@@ -1450,7 +1452,7 @@ func TestRollingUpgradeForDeploymentWithSecretUsingArs(t *testing.T) {
 	deploymentFuncs := GetDeploymentRollingUpgradeFuncs()
 	collectors := getCollectors()
 
-	err := PerformRollingUpgrade(clients, config, deploymentFuncs, collectors)
+	err := PerformRollingUpgrade(clients, config, deploymentFuncs, collectors, nil)
 	time.Sleep(5 * time.Second)
 	if err != nil {
 		t.Errorf("Rolling upgrade failed for Deployment with Secret")
@@ -1475,7 +1477,7 @@ func TestRollingUpgradeForDeploymentWithSecretInProjectedVolumeUsingArs(t *testi
 	deploymentFuncs := GetDeploymentRollingUpgradeFuncs()
 	collectors := getCollectors()
 
-	err := PerformRollingUpgrade(clients, config, deploymentFuncs, collectors)
+	err := PerformRollingUpgrade(clients, config, deploymentFuncs, collectors, nil)
 	time.Sleep(5 * time.Second)
 	if err != nil {
 		t.Errorf("Rolling upgrade failed for Deployment with Secret in projected volume")
@@ -1500,7 +1502,7 @@ func TestRollingUpgradeForDeploymentWithSecretinInitContainerUsingArs(t *testing
 	deploymentFuncs := GetDeploymentRollingUpgradeFuncs()
 	collectors := getCollectors()
 
-	err := PerformRollingUpgrade(clients, config, deploymentFuncs, collectors)
+	err := PerformRollingUpgrade(clients, config, deploymentFuncs, collectors, nil)
 	time.Sleep(5 * time.Second)
 	if err != nil {
 		t.Errorf("Rolling upgrade failed for Deployment with Secret")
@@ -1525,7 +1527,7 @@ func TestRollingUpgradeForDeploymentWithSecretInProjectedVolumeinInitContainerUs
 	deploymentFuncs := GetDeploymentRollingUpgradeFuncs()
 	collectors := getCollectors()
 
-	err := PerformRollingUpgrade(clients, config, deploymentFuncs, collectors)
+	err := PerformRollingUpgrade(clients, config, deploymentFuncs, collectors, nil)
 	time.Sleep(5 * time.Second)
 	if err != nil {
 		t.Errorf("Rolling upgrade failed for Deployment with Secret in projected volume")
@@ -1550,7 +1552,7 @@ func TestRollingUpgradeForDeploymentWithSecretAsEnvVarUsingArs(t *testing.T) {
 	deploymentFuncs := GetDeploymentRollingUpgradeFuncs()
 	collectors := getCollectors()
 
-	err := PerformRollingUpgrade(clients, config, deploymentFuncs, collectors)
+	err := PerformRollingUpgrade(clients, config, deploymentFuncs, collectors, nil)
 	time.Sleep(5 * time.Second)
 	if err != nil {
 		t.Errorf("Rolling upgrade failed for Deployment with Secret")
@@ -1575,7 +1577,7 @@ func TestRollingUpgradeForDeploymentWithSecretAsEnvVarFromUsingArs(t *testing.T)
 	deploymentFuncs := GetDeploymentRollingUpgradeFuncs()
 	collectors := getCollectors()
 
-	err := PerformRollingUpgrade(clients, config, deploymentFuncs, collectors)
+	err := PerformRollingUpgrade(clients, config, deploymentFuncs, collectors, nil)
 	time.Sleep(5 * time.Second)
 	if err != nil {
 		t.Errorf("Rolling upgrade failed for Deployment with Secret")
@@ -1600,7 +1602,7 @@ func TestRollingUpgradeForDeploymentWithSecretAsEnvVarInInitContainerUsingArs(t 
 	deploymentFuncs := GetDeploymentRollingUpgradeFuncs()
 	collectors := getCollectors()
 
-	err := PerformRollingUpgrade(clients, config, deploymentFuncs, collectors)
+	err := PerformRollingUpgrade(clients, config, deploymentFuncs, collectors, nil)
 	time.Sleep(5 * time.Second)
 	if err != nil {
 		t.Errorf("Rolling upgrade failed for Deployment with Secret")
@@ -1625,7 +1627,7 @@ func TestRollingUpgradeForDaemonSetWithConfigmapUsingArs(t *testing.T) {
 	daemonSetFuncs := GetDaemonSetRollingUpgradeFuncs()
 	collectors := getCollectors()
 
-	err := PerformRollingUpgrade(clients, config, daemonSetFuncs, collectors)
+	err := PerformRollingUpgrade(clients, config, daemonSetFuncs, collectors, nil)
 	time.Sleep(5 * time.Second)
 	if err != nil {
 		t.Errorf("Rolling upgrade failed for DaemonSet with configmap")
@@ -1650,7 +1652,7 @@ func TestRollingUpgradeForDaemonSetWithConfigmapInProjectedVolumeUsingArs(t *tes
 	daemonSetFuncs := GetDaemonSetRollingUpgradeFuncs()
 	collectors := getCollectors()
 
-	err := PerformRollingUpgrade(clients, config, daemonSetFuncs, collectors)
+	err := PerformRollingUpgrade(clients, config, daemonSetFuncs, collectors, nil)
 	time.Sleep(5 * time.Second)
 	if err != nil {
 		t.Errorf("Rolling upgrade failed for DaemonSet with configmap in projected volume")
@@ -1675,7 +1677,7 @@ func TestRollingUpgradeForDaemonSetWithConfigmapAsEnvVarUsingArs(t *testing.T) {
 	daemonSetFuncs := GetDaemonSetRollingUpgradeFuncs()
 	collectors := getCollectors()
 
-	err := PerformRollingUpgrade(clients, config, daemonSetFuncs, collectors)
+	err := PerformRollingUpgrade(clients, config, daemonSetFuncs, collectors, nil)
 	time.Sleep(5 * time.Second)
 	if err != nil {
 		t.Errorf("Rolling upgrade failed for DaemonSet with configmap used as env var")
@@ -1700,7 +1702,7 @@ func TestRollingUpgradeForDaemonSetWithSecretUsingArs(t *testing.T) {
 	daemonSetFuncs := GetDaemonSetRollingUpgradeFuncs()
 	collectors := getCollectors()
 
-	err := PerformRollingUpgrade(clients, config, daemonSetFuncs, collectors)
+	err := PerformRollingUpgrade(clients, config, daemonSetFuncs, collectors, nil)
 	time.Sleep(5 * time.Second)
 	if err != nil {
 		t.Errorf("Rolling upgrade failed for DaemonSet with secret")
@@ -1725,7 +1727,7 @@ func TestRollingUpgradeForDaemonSetWithSecretInProjectedVolumeUsingArs(t *testin
 	daemonSetFuncs := GetDaemonSetRollingUpgradeFuncs()
 	collectors := getCollectors()
 
-	err := PerformRollingUpgrade(clients, config, daemonSetFuncs, collectors)
+	err := PerformRollingUpgrade(clients, config, daemonSetFuncs, collectors, nil)
 	time.Sleep(5 * time.Second)
 	if err != nil {
 		t.Errorf("Rolling upgrade failed for DaemonSet with secret in projected volume")
@@ -1750,7 +1752,7 @@ func TestRollingUpgradeForStatefulSetWithConfigmapUsingArs(t *testing.T) {
 	statefulSetFuncs := GetStatefulSetRollingUpgradeFuncs()
 	collectors := getCollectors()
 
-	err := PerformRollingUpgrade(clients, config, statefulSetFuncs, collectors)
+	err := PerformRollingUpgrade(clients, config, statefulSetFuncs, collectors, nil)
 	time.Sleep(5 * time.Second)
 	if err != nil {
 		t.Errorf("Rolling upgrade failed for StatefulSet with configmap")
@@ -1775,7 +1777,7 @@ func TestRollingUpgradeForStatefulSetWithConfigmapInProjectedVolumeUsingArs(t *t
 	statefulSetFuncs := GetStatefulSetRollingUpgradeFuncs()
 	collectors := getCollectors()
 
-	err := PerformRollingUpgrade(clients, config, statefulSetFuncs, collectors)
+	err := PerformRollingUpgrade(clients, config, statefulSetFuncs, collectors, nil)
 	time.Sleep(5 * time.Second)
 	if err != nil {
 		t.Errorf("Rolling upgrade failed for StatefulSet with configmap in projected volume")
@@ -1800,7 +1802,7 @@ func TestRollingUpgradeForStatefulSetWithSecretUsingArs(t *testing.T) {
 	statefulSetFuncs := GetStatefulSetRollingUpgradeFuncs()
 	collectors := getCollectors()
 
-	err := PerformRollingUpgrade(clients, config, statefulSetFuncs, collectors)
+	err := PerformRollingUpgrade(clients, config, statefulSetFuncs, collectors, nil)
 	time.Sleep(5 * time.Second)
 	if err != nil {
 		t.Errorf("Rolling upgrade failed for StatefulSet with secret")
@@ -1825,7 +1827,7 @@ func TestRollingUpgradeForStatefulSetWithSecretInProjectedVolumeUsingArs(t *test
 	statefulSetFuncs := GetStatefulSetRollingUpgradeFuncs()
 	collectors := getCollectors()
 
-	err := PerformRollingUpgrade(clients, config, statefulSetFuncs, collectors)
+	err := PerformRollingUpgrade(clients, config, statefulSetFuncs, collectors, nil)
 	time.Sleep(5 * time.Second)
 	if err != nil {
 		t.Errorf("Rolling upgrade failed for StatefulSet with secret in projected volume")
@@ -1850,7 +1852,7 @@ func TestRollingUpgradeForDeploymentWithPodAnnotationsUsingArs(t *testing.T) {
 	deploymentFuncs := GetDeploymentRollingUpgradeFuncs()
 	collectors := getCollectors()
 
-	err := PerformRollingUpgrade(clients, config, deploymentFuncs, collectors)
+	err := PerformRollingUpgrade(clients, config, deploymentFuncs, collectors, nil)
 	time.Sleep(5 * time.Second)
 	if err != nil {
 		t.Errorf("Rolling upgrade failed for Deployment with pod annotations")
@@ -1860,7 +1862,11 @@ func TestRollingUpgradeForDeploymentWithPodAnnotationsUsingArs(t *testing.T) {
 	items := deploymentFuncs.ItemsFunc(clients, config.Namespace)
 	var foundPod, foundBoth bool
 	for _, i := range items {
-		name := util.ToObjectMeta(i).Name
+		accessor, err := meta.Accessor(i)
+		if err != nil {
+			t.Errorf("Error getting accessor for item: %v", err)
+		}
+		name := accessor.GetName()
 		if name == arsConfigmapWithPodAnnotations {
 			annotations := deploymentFuncs.PodAnnotationsFunc(i)
 			updated := testutil.GetResourceSHAFromAnnotation(annotations)
@@ -1896,12 +1902,12 @@ func TestFailedRollingUpgradeUsingArs(t *testing.T) {
 	shaData := testutil.ConvertResourceToSHA(testutil.ConfigmapResourceType, arsNamespace, arsConfigmapName, "fail.stakater.com")
 	config := getConfigWithAnnotations(constants.ConfigmapEnvVarPostfix, arsConfigmapName, shaData, options.ConfigmapUpdateOnChangeAnnotation)
 	deploymentFuncs := GetDeploymentRollingUpgradeFuncs()
-	deploymentFuncs.UpdateFunc = func(_ kube.Clients, _ string, _ interface{}) error {
+	deploymentFuncs.UpdateFunc = func(_ kube.Clients, _ string, _ runtime.Object) error {
 		return fmt.Errorf("error")
 	}
 	collectors := getCollectors()
 
-	_ = PerformRollingUpgrade(clients, config, deploymentFuncs, collectors)
+	_ = PerformRollingUpgrade(clients, config, deploymentFuncs, collectors, nil)
 
 	if promtestutil.ToFloat64(collectors.Reloaded.With(labelFailed)) != 1 {
 		t.Errorf("Counter was not increased")
@@ -1916,7 +1922,7 @@ func TestRollingUpgradeForDeploymentWithConfigmapUsingErs(t *testing.T) {
 	deploymentFuncs := GetDeploymentRollingUpgradeFuncs()
 	collectors := getCollectors()
 
-	err := PerformRollingUpgrade(clients, config, deploymentFuncs, collectors)
+	err := PerformRollingUpgrade(clients, config, deploymentFuncs, collectors, nil)
 	time.Sleep(5 * time.Second)
 	if err != nil {
 		t.Errorf("Rolling upgrade failed for Deployment with Configmap")
@@ -1941,7 +1947,7 @@ func TestRollingUpgradeForDeploymentWithConfigmapInProjectedVolumeUsingErs(t *te
 	deploymentFuncs := GetDeploymentRollingUpgradeFuncs()
 	collectors := getCollectors()
 
-	err := PerformRollingUpgrade(clients, config, deploymentFuncs, collectors)
+	err := PerformRollingUpgrade(clients, config, deploymentFuncs, collectors, nil)
 	if err != nil {
 		t.Errorf("Rolling upgrade failed for Deployment with Configmap in projected volume")
 	}
@@ -1966,7 +1972,7 @@ func TestRollingUpgradeForDeploymentWithConfigmapViaSearchAnnotationUsingErs(t *
 	deploymentFuncs := GetDeploymentRollingUpgradeFuncs()
 	collectors := getCollectors()
 
-	err := PerformRollingUpgrade(clients, config, deploymentFuncs, collectors)
+	err := PerformRollingUpgrade(clients, config, deploymentFuncs, collectors, nil)
 	if err != nil {
 		t.Errorf("Rolling upgrade failed for Deployment with Configmap")
 	}
@@ -1991,7 +1997,7 @@ func TestRollingUpgradeForDeploymentWithConfigmapViaSearchAnnotationNoTriggersUs
 	deploymentFuncs := GetDeploymentRollingUpgradeFuncs()
 	collectors := getCollectors()
 
-	err := PerformRollingUpgrade(clients, config, deploymentFuncs, collectors)
+	err := PerformRollingUpgrade(clients, config, deploymentFuncs, collectors, nil)
 	if err != nil {
 		t.Errorf("Rolling upgrade failed for Deployment with Configmap")
 	}
@@ -2031,7 +2037,7 @@ func TestRollingUpgradeForDeploymentWithConfigmapViaSearchAnnotationNotMappedUsi
 	deploymentFuncs := GetDeploymentRollingUpgradeFuncs()
 	collectors := getCollectors()
 
-	err = PerformRollingUpgrade(clients, config, deploymentFuncs, collectors)
+	err = PerformRollingUpgrade(clients, config, deploymentFuncs, collectors, nil)
 	if err != nil {
 		t.Errorf("Rolling upgrade failed for Deployment with Configmap")
 	}
@@ -2055,7 +2061,7 @@ func TestRollingUpgradeForDeploymentWithConfigmapInInitContainerUsingErs(t *test
 	deploymentFuncs := GetDeploymentRollingUpgradeFuncs()
 	collectors := getCollectors()
 
-	err := PerformRollingUpgrade(clients, config, deploymentFuncs, collectors)
+	err := PerformRollingUpgrade(clients, config, deploymentFuncs, collectors, nil)
 	time.Sleep(5 * time.Second)
 	if err != nil {
 		t.Errorf("Rolling upgrade failed for Deployment with Configmap")
@@ -2080,7 +2086,7 @@ func TestRollingUpgradeForDeploymentWithConfigmapInProjectVolumeInInitContainerU
 	deploymentFuncs := GetDeploymentRollingUpgradeFuncs()
 	collectors := getCollectors()
 
-	err := PerformRollingUpgrade(clients, config, deploymentFuncs, collectors)
+	err := PerformRollingUpgrade(clients, config, deploymentFuncs, collectors, nil)
 	time.Sleep(5 * time.Second)
 	if err != nil {
 		t.Errorf("Rolling upgrade failed for Deployment with Configmap in projected volume")
@@ -2105,7 +2111,7 @@ func TestRollingUpgradeForDeploymentWithConfigmapAsEnvVarUsingErs(t *testing.T) 
 	deploymentFuncs := GetDeploymentRollingUpgradeFuncs()
 	collectors := getCollectors()
 
-	err := PerformRollingUpgrade(clients, config, deploymentFuncs, collectors)
+	err := PerformRollingUpgrade(clients, config, deploymentFuncs, collectors, nil)
 	time.Sleep(5 * time.Second)
 	if err != nil {
 		t.Errorf("Rolling upgrade failed for Deployment with Configmap used as env var")
@@ -2130,7 +2136,7 @@ func TestRollingUpgradeForDeploymentWithConfigmapAsEnvVarInInitContainerUsingErs
 	deploymentFuncs := GetDeploymentRollingUpgradeFuncs()
 	collectors := getCollectors()
 
-	err := PerformRollingUpgrade(clients, config, deploymentFuncs, collectors)
+	err := PerformRollingUpgrade(clients, config, deploymentFuncs, collectors, nil)
 	time.Sleep(5 * time.Second)
 	if err != nil {
 		t.Errorf("Rolling upgrade failed for Deployment with Configmap used as env var")
@@ -2155,7 +2161,7 @@ func TestRollingUpgradeForDeploymentWithConfigmapAsEnvVarFromUsingErs(t *testing
 	deploymentFuncs := GetDeploymentRollingUpgradeFuncs()
 	collectors := getCollectors()
 
-	err := PerformRollingUpgrade(clients, config, deploymentFuncs, collectors)
+	err := PerformRollingUpgrade(clients, config, deploymentFuncs, collectors, nil)
 	time.Sleep(5 * time.Second)
 	if err != nil {
 		t.Errorf("Rolling upgrade failed for Deployment with Configmap used as env var")
@@ -2180,7 +2186,7 @@ func TestRollingUpgradeForDeploymentWithSecretUsingErs(t *testing.T) {
 	deploymentFuncs := GetDeploymentRollingUpgradeFuncs()
 	collectors := getCollectors()
 
-	err := PerformRollingUpgrade(clients, config, deploymentFuncs, collectors)
+	err := PerformRollingUpgrade(clients, config, deploymentFuncs, collectors, nil)
 	time.Sleep(5 * time.Second)
 	if err != nil {
 		t.Errorf("Rolling upgrade failed for Deployment with Secret")
@@ -2205,7 +2211,7 @@ func TestRollingUpgradeForDeploymentWithSecretInProjectedVolumeUsingErs(t *testi
 	deploymentFuncs := GetDeploymentRollingUpgradeFuncs()
 	collectors := getCollectors()
 
-	err := PerformRollingUpgrade(clients, config, deploymentFuncs, collectors)
+	err := PerformRollingUpgrade(clients, config, deploymentFuncs, collectors, nil)
 	time.Sleep(5 * time.Second)
 	if err != nil {
 		t.Errorf("Rolling upgrade failed for Deployment with Secret in projected volume")
@@ -2230,7 +2236,7 @@ func TestRollingUpgradeForDeploymentWithSecretinInitContainerUsingErs(t *testing
 	deploymentFuncs := GetDeploymentRollingUpgradeFuncs()
 	collectors := getCollectors()
 
-	err := PerformRollingUpgrade(clients, config, deploymentFuncs, collectors)
+	err := PerformRollingUpgrade(clients, config, deploymentFuncs, collectors, nil)
 	time.Sleep(5 * time.Second)
 	if err != nil {
 		t.Errorf("Rolling upgrade failed for Deployment with Secret")
@@ -2255,7 +2261,7 @@ func TestRollingUpgradeForDeploymentWithSecretInProjectedVolumeinInitContainerUs
 	deploymentFuncs := GetDeploymentRollingUpgradeFuncs()
 	collectors := getCollectors()
 
-	err := PerformRollingUpgrade(clients, config, deploymentFuncs, collectors)
+	err := PerformRollingUpgrade(clients, config, deploymentFuncs, collectors, nil)
 	time.Sleep(5 * time.Second)
 	if err != nil {
 		t.Errorf("Rolling upgrade failed for Deployment with Secret in projected volume")
@@ -2280,7 +2286,7 @@ func TestRollingUpgradeForDeploymentWithSecretAsEnvVarUsingErs(t *testing.T) {
 	deploymentFuncs := GetDeploymentRollingUpgradeFuncs()
 	collectors := getCollectors()
 
-	err := PerformRollingUpgrade(clients, config, deploymentFuncs, collectors)
+	err := PerformRollingUpgrade(clients, config, deploymentFuncs, collectors, nil)
 	time.Sleep(5 * time.Second)
 	if err != nil {
 		t.Errorf("Rolling upgrade failed for Deployment with Secret")
@@ -2305,7 +2311,7 @@ func TestRollingUpgradeForDeploymentWithSecretAsEnvVarFromUsingErs(t *testing.T)
 	deploymentFuncs := GetDeploymentRollingUpgradeFuncs()
 	collectors := getCollectors()
 
-	err := PerformRollingUpgrade(clients, config, deploymentFuncs, collectors)
+	err := PerformRollingUpgrade(clients, config, deploymentFuncs, collectors, nil)
 	time.Sleep(5 * time.Second)
 	if err != nil {
 		t.Errorf("Rolling upgrade failed for Deployment with Secret")
@@ -2330,7 +2336,7 @@ func TestRollingUpgradeForDeploymentWithSecretAsEnvVarInInitContainerUsingErs(t 
 	deploymentFuncs := GetDeploymentRollingUpgradeFuncs()
 	collectors := getCollectors()
 
-	err := PerformRollingUpgrade(clients, config, deploymentFuncs, collectors)
+	err := PerformRollingUpgrade(clients, config, deploymentFuncs, collectors, nil)
 	time.Sleep(5 * time.Second)
 	if err != nil {
 		t.Errorf("Rolling upgrade failed for Deployment with Secret")
@@ -2355,7 +2361,7 @@ func TestRollingUpgradeForDaemonSetWithConfigmapUsingErs(t *testing.T) {
 	daemonSetFuncs := GetDaemonSetRollingUpgradeFuncs()
 	collectors := getCollectors()
 
-	err := PerformRollingUpgrade(clients, config, daemonSetFuncs, collectors)
+	err := PerformRollingUpgrade(clients, config, daemonSetFuncs, collectors, nil)
 	time.Sleep(5 * time.Second)
 	if err != nil {
 		t.Errorf("Rolling upgrade failed for DaemonSet with configmap")
@@ -2380,7 +2386,7 @@ func TestRollingUpgradeForDaemonSetWithConfigmapInProjectedVolumeUsingErs(t *tes
 	daemonSetFuncs := GetDaemonSetRollingUpgradeFuncs()
 	collectors := getCollectors()
 
-	err := PerformRollingUpgrade(clients, config, daemonSetFuncs, collectors)
+	err := PerformRollingUpgrade(clients, config, daemonSetFuncs, collectors, nil)
 	time.Sleep(5 * time.Second)
 	if err != nil {
 		t.Errorf("Rolling upgrade failed for DaemonSet with configmap in projected volume")
@@ -2405,7 +2411,7 @@ func TestRollingUpgradeForDaemonSetWithConfigmapAsEnvVarUsingErs(t *testing.T) {
 	daemonSetFuncs := GetDaemonSetRollingUpgradeFuncs()
 	collectors := getCollectors()
 
-	err := PerformRollingUpgrade(clients, config, daemonSetFuncs, collectors)
+	err := PerformRollingUpgrade(clients, config, daemonSetFuncs, collectors, nil)
 	time.Sleep(5 * time.Second)
 	if err != nil {
 		t.Errorf("Rolling upgrade failed for DaemonSet with configmap used as env var")
@@ -2430,7 +2436,7 @@ func TestRollingUpgradeForDaemonSetWithSecretUsingErs(t *testing.T) {
 	daemonSetFuncs := GetDaemonSetRollingUpgradeFuncs()
 	collectors := getCollectors()
 
-	err := PerformRollingUpgrade(clients, config, daemonSetFuncs, collectors)
+	err := PerformRollingUpgrade(clients, config, daemonSetFuncs, collectors, nil)
 	time.Sleep(5 * time.Second)
 	if err != nil {
 		t.Errorf("Rolling upgrade failed for DaemonSet with secret")
@@ -2455,7 +2461,7 @@ func TestRollingUpgradeForDaemonSetWithSecretInProjectedVolumeUsingErs(t *testin
 	daemonSetFuncs := GetDaemonSetRollingUpgradeFuncs()
 	collectors := getCollectors()
 
-	err := PerformRollingUpgrade(clients, config, daemonSetFuncs, collectors)
+	err := PerformRollingUpgrade(clients, config, daemonSetFuncs, collectors, nil)
 	time.Sleep(5 * time.Second)
 	if err != nil {
 		t.Errorf("Rolling upgrade failed for DaemonSet with secret in projected volume")
@@ -2480,7 +2486,7 @@ func TestRollingUpgradeForStatefulSetWithConfigmapUsingErs(t *testing.T) {
 	statefulSetFuncs := GetStatefulSetRollingUpgradeFuncs()
 	collectors := getCollectors()
 
-	err := PerformRollingUpgrade(clients, config, statefulSetFuncs, collectors)
+	err := PerformRollingUpgrade(clients, config, statefulSetFuncs, collectors, nil)
 	time.Sleep(5 * time.Second)
 	if err != nil {
 		t.Errorf("Rolling upgrade failed for StatefulSet with configmap")
@@ -2505,7 +2511,7 @@ func TestRollingUpgradeForStatefulSetWithConfigmapInProjectedVolumeUsingErs(t *t
 	statefulSetFuncs := GetStatefulSetRollingUpgradeFuncs()
 	collectors := getCollectors()
 
-	err := PerformRollingUpgrade(clients, config, statefulSetFuncs, collectors)
+	err := PerformRollingUpgrade(clients, config, statefulSetFuncs, collectors, nil)
 	time.Sleep(5 * time.Second)
 	if err != nil {
 		t.Errorf("Rolling upgrade failed for StatefulSet with configmap in projected volume")
@@ -2530,7 +2536,7 @@ func TestRollingUpgradeForStatefulSetWithSecretUsingErs(t *testing.T) {
 	statefulSetFuncs := GetStatefulSetRollingUpgradeFuncs()
 	collectors := getCollectors()
 
-	err := PerformRollingUpgrade(clients, config, statefulSetFuncs, collectors)
+	err := PerformRollingUpgrade(clients, config, statefulSetFuncs, collectors, nil)
 	time.Sleep(5 * time.Second)
 	if err != nil {
 		t.Errorf("Rolling upgrade failed for StatefulSet with secret")
@@ -2555,7 +2561,7 @@ func TestRollingUpgradeForStatefulSetWithSecretInProjectedVolumeUsingErs(t *test
 	statefulSetFuncs := GetStatefulSetRollingUpgradeFuncs()
 	collectors := getCollectors()
 
-	err := PerformRollingUpgrade(clients, config, statefulSetFuncs, collectors)
+	err := PerformRollingUpgrade(clients, config, statefulSetFuncs, collectors, nil)
 	time.Sleep(5 * time.Second)
 	if err != nil {
 		t.Errorf("Rolling upgrade failed for StatefulSet with secret in projected volume")
@@ -2580,7 +2586,7 @@ func TestRollingUpgradeForDeploymentWithPodAnnotationsUsingErs(t *testing.T) {
 	deploymentFuncs := GetDeploymentRollingUpgradeFuncs()
 	collectors := getCollectors()
 
-	err := PerformRollingUpgrade(clients, config, deploymentFuncs, collectors)
+	err := PerformRollingUpgrade(clients, config, deploymentFuncs, collectors, nil)
 	time.Sleep(5 * time.Second)
 	if err != nil {
 		t.Errorf("Rolling upgrade failed for Deployment with pod annotations")
@@ -2591,7 +2597,11 @@ func TestRollingUpgradeForDeploymentWithPodAnnotationsUsingErs(t *testing.T) {
 	items := deploymentFuncs.ItemsFunc(clients, config.Namespace)
 	var foundPod, foundBoth bool
 	for _, i := range items {
-		name := util.ToObjectMeta(i).Name
+		accessor, err := meta.Accessor(i)
+		if err != nil {
+			t.Errorf("Error getting accessor for item: %v", err)
+		}
+		name := accessor.GetName()
 		if name == ersConfigmapWithPodAnnotations {
 			containers := deploymentFuncs.ContainersFunc(i)
 			updated := testutil.GetResourceSHAFromEnvVar(containers, envName)
@@ -2627,12 +2637,12 @@ func TestFailedRollingUpgradeUsingErs(t *testing.T) {
 	shaData := testutil.ConvertResourceToSHA(testutil.ConfigmapResourceType, ersNamespace, ersConfigmapName, "fail.stakater.com")
 	config := getConfigWithAnnotations(constants.ConfigmapEnvVarPostfix, ersConfigmapName, shaData, options.ConfigmapUpdateOnChangeAnnotation)
 	deploymentFuncs := GetDeploymentRollingUpgradeFuncs()
-	deploymentFuncs.UpdateFunc = func(_ kube.Clients, _ string, _ interface{}) error {
+	deploymentFuncs.UpdateFunc = func(_ kube.Clients, _ string, _ runtime.Object) error {
 		return fmt.Errorf("error")
 	}
 	collectors := getCollectors()
 
-	_ = PerformRollingUpgrade(clients, config, deploymentFuncs, collectors)
+	_ = PerformRollingUpgrade(clients, config, deploymentFuncs, collectors, nil)
 
 	if promtestutil.ToFloat64(collectors.Reloaded.With(labelFailed)) != 1 {
 		t.Errorf("Counter was not increased")
