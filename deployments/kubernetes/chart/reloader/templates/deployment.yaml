@@ -17,7 +17,11 @@ metadata:
   name: {{ template "reloader-fullname" . }}
   namespace: {{ .Release.Namespace }}
 spec:
+{{- if not (.Values.reloader.enableHA) }}
+  replicas: 1
+{{- else }}
   replicas: {{ .Values.reloader.deployment.replicas }}
+{{- end}}
   revisionHistoryLimit: 2
   selector:
     matchLabels:
