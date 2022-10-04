@@ -34,13 +34,15 @@ Create pod anti affinity labels
 {{- define "reloader-podAntiAffinity" -}}
 podAntiAffinity:
   preferredDuringSchedulingIgnoredDuringExecution:
-  - labelSelector:
-      matchExpressions:
-      - key: app
-        operator: In
-        values:
-        - {{ template "reloader-fullname" . }}
-    topologyKey: "kubernetes.io/hostname"
+  - weight: 100
+    podAffinityTerm:
+      labelSelector:
+        matchExpressions:
+        - key: app
+          operator: In
+          values:
+          - {{ template "reloader-fullname" . }}
+      topologyKey: "kubernetes.io/hostname"
 {{- end -}}
 
 {{/*
