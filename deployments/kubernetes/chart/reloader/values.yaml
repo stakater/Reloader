@@ -153,3 +153,8 @@ reloader:
     # labels:
     # Set timeout for scrape
     # timeout: 10s
+
+  podDisruptionBudget:
+    enabled: false
+    # Set the minimum available replicas
+    # minAvailable: 1
