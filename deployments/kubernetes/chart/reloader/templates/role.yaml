@@ -87,4 +87,11 @@ rules:
       - get
       - update
 {{- end}}
+  - apiGroups:
+      - ""
+    resources:
+      - events
+    verbs:
+      - create
+      - patch
 {{- end }}

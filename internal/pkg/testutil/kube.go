@@ -22,6 +22,7 @@ import (
 	"github.com/stakater/Reloader/pkg/kube"
 	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	core_v1 "k8s.io/client-go/kubernetes/typed/core/v1"
@@ -614,7 +615,7 @@ func GetResourceSHAFromAnnotation(podAnnotations map[string]string) string {
 	return last.Hash
 }
 
-//ConvertResourceToSHA generates SHA from secret or configmap data
+// ConvertResourceToSHA generates SHA from secret or configmap data
 func ConvertResourceToSHA(resourceType string, namespace string, resourceName string, data string) string {
 	values := []string{}
 	if resourceType == SecretResourceType {
@@ -849,10 +850,15 @@ func VerifyResourceEnvVarUpdate(clients kube.Clients, config util.Config, envVar
 	items := upgradeFuncs.ItemsFunc(clients, config.Namespace)
 	for _, i := range items {
 		containers := upgradeFuncs.ContainersFunc(i)
+		accessor, err := meta.Accessor(i)
+		if err != nil {
+			return false
+		}
+		annotations := accessor.GetAnnotations()
 		// match statefulsets with the correct annotation
-		annotationValue := util.ToObjectMeta(i).Annotations[config.Annotation]
-		searchAnnotationValue := util.ToObjectMeta(i).Annotations[options.AutoSearchAnnotation]
-		reloaderEnabledValue := util.ToObjectMeta(i).Annotations[options.ReloaderAutoAnnotation]
+		annotationValue := annotations[config.Annotation]
+		searchAnnotationValue := annotations[options.AutoSearchAnnotation]
+		reloaderEnabledValue := annotations[options.ReloaderAutoAnnotation]
 		reloaderEnabled, err := strconv.ParseBool(reloaderEnabledValue)
 		matches := false
 		if err == nil && reloaderEnabled {
@@ -888,10 +894,15 @@ func VerifyResourceAnnotationUpdate(clients kube.Clients, config util.Config, up
 	items := upgradeFuncs.ItemsFunc(clients, config.Namespace)
 	for _, i := range items {
 		podAnnotations := upgradeFuncs.PodAnnotationsFunc(i)
+		accessor, err := meta.Accessor(i)
+		if err != nil {
+			return false
+		}
+		annotations := accessor.GetAnnotations()
 		// match statefulsets with the correct annotation
-		annotationValue := util.ToObjectMeta(i).Annotations[config.Annotation]
-		searchAnnotationValue := util.ToObjectMeta(i).Annotations[options.AutoSearchAnnotation]
-		reloaderEnabledValue := util.ToObjectMeta(i).Annotations[options.ReloaderAutoAnnotation]
+		annotationValue := annotations[config.Annotation]
+		searchAnnotationValue := annotations[options.AutoSearchAnnotation]
+		reloaderEnabledValue := annotations[options.ReloaderAutoAnnotation]
 		reloaderEnabled, err := strconv.ParseBool(reloaderEnabledValue)
 		matches := false
 		if err == nil && reloaderEnabled {
