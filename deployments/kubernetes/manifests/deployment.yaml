@@ -8,13 +8,13 @@ metadata:
     meta.helm.sh/release-name: "reloader"
   labels:
     app: reloader-reloader
-    chart: "reloader-v0.0.122"
+    chart: "reloader-v0.0.123"
     release: "reloader"
     heritage: "Helm"
     app.kubernetes.io/managed-by: "Helm"
     group: com.stakater.platform
     provider: stakater
-    version: v0.0.122
+    version: v0.0.123
   name: reloader-reloader
   namespace: default
 spec:
@@ -28,25 +28,27 @@ spec:
     metadata:
       labels:
         app: reloader-reloader
-        chart: "reloader-v0.0.122"
+        chart: "reloader-v0.0.123"
         release: "reloader"
         heritage: "Helm"
         app.kubernetes.io/managed-by: "Helm"
         group: com.stakater.platform
         provider: stakater
-        version: v0.0.122
+        version: v0.0.123
     spec:
       containers:
-      - image: "stakater/reloader:v0.0.122"
+      - image: "stakater/reloader:v0.0.123"
         imagePullPolicy: IfNotPresent
         name: reloader-reloader
 
         ports:
         - name: http
+          containerPort: 9091
+        - name: metrics 
           containerPort: 9090
         livenessProbe:
           httpGet:
-            path: /metrics
+            path: /live
             port: http
           timeoutSeconds: 5
           failureThreshold: 5
@@ -55,7 +57,7 @@ spec:
         readinessProbe:
           httpGet:
             path: /metrics
-            port: http
+            port: metrics
           timeoutSeconds: 5
           failureThreshold: 5
           periodSeconds: 10
