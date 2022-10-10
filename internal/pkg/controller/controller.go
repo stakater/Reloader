@@ -65,6 +65,8 @@ func NewController(
 	c.queue = queue
 	c.collectors = collectors
 	c.recorder = recorder
+
+	logrus.Infof("created controller for: %s", resource)
 	return &c, nil
 }
 

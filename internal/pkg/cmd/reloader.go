@@ -1,11 +1,14 @@
 package cmd
 
 import (
+	"context"
 	"errors"
 	"fmt"
-	"github.com/stakater/Reloader/internal/pkg/constants"
 	"os"
 	"strings"
+
+	"github.com/stakater/Reloader/internal/pkg/constants"
+	"github.com/stakater/Reloader/internal/pkg/leadership"
 
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -38,21 +41,34 @@ func NewReloaderCommand() *cobra.Command {
 	cmd.PersistentFlags().StringVar(&options.IsArgoRollouts, "is-Argo-Rollouts", "false", "Add support for argo rollouts")
 	cmd.PersistentFlags().StringVar(&options.ReloadStrategy, constants.ReloadStrategyFlag, constants.EnvVarsReloadStrategy, "Specifies the desired reload strategy")
 	cmd.PersistentFlags().StringVar(&options.ReloadOnCreate, "reload-on-create", "false", "Add support to watch create events")
+	cmd.PersistentFlags().BoolVar(&options.EnableHA, "enable-ha", false, "Adds support for running multiple replicas via leadership election")
 
 	return cmd
 }
 
 func validateFlags(*cobra.Command, []string) error {
 	// Ensure the reload strategy is one of the following...
+	var validReloadStrategy bool
 	valid := []string{constants.EnvVarsReloadStrategy, constants.AnnotationsReloadStrategy}
 	for _, s := range valid {
 		if s == options.ReloadStrategy {
-			return nil
+			validReloadStrategy = true
 		}
 	}
 
-	err := fmt.Sprintf("%s must be one of: %s", constants.ReloadStrategyFlag, strings.Join(valid, ", "))
-	return errors.New(err)
+	if !validReloadStrategy {
+		err := fmt.Sprintf("%s must be one of: %s", constants.ReloadStrategyFlag, strings.Join(valid, ", "))
+		return errors.New(err)
+	}
+
+	// Validate that HA options are correct
+	if options.EnableHA {
+		if err := validateHAEnvs(); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 func configureLogging(logFormat string) error {
@@ -66,6 +82,25 @@ func configureLogging(logFormat string) error {
 		}
 	}
 	return nil
+}
+
+func validateHAEnvs() error {
+	podName, podNamespace := getHAEnvs()
+
+	if podName == "" {
+		return fmt.Errorf("%s not set, cannot run in HA mode without %s set", constants.PodNameEnv, constants.PodNameEnv)
+	}
+	if podNamespace == "" {
+		return fmt.Errorf("%s not set, cannot run in HA mode without %s set", constants.PodNamespaceEnv, constants.PodNamespaceEnv)
+	}
+	return nil
+}
+
+func getHAEnvs() (string, string) {
+	podName := os.Getenv(constants.PodNameEnv)
+	podNamespace := os.Getenv(constants.PodNamespaceEnv)
+
+	return podName, podNamespace
 }
 
 func startReloader(cmd *cobra.Command, args []string) {
@@ -99,6 +134,7 @@ func startReloader(cmd *cobra.Command, args []string) {
 
 	collectors := metrics.SetupPrometheusEndpoint()
 
+	var controllers []*controller.Controller
 	for k := range kube.ResourceMap {
 		if ignoredResourcesList.Contains(k) {
 			continue
@@ -109,6 +145,12 @@ func startReloader(cmd *cobra.Command, args []string) {
 			logrus.Fatalf("%s", err)
 		}
 
+		controllers = append(controllers, c)
+
+		// If HA is enabled we only run the controller when
+		if options.EnableHA {
+			continue
+		}
 		// Now let's start the controller
 		stop := make(chan struct{})
 		defer close(stop)
@@ -116,8 +158,16 @@ func startReloader(cmd *cobra.Command, args []string) {
 		go c.Run(1, stop)
 	}
 
-	// Wait forever
-	select {}
+	// Run leadership election
+	if options.EnableHA {
+		podName, podNamespace := getHAEnvs()
+		lock := leadership.GetNewLock(clientset.CoordinationV1(), constants.LockName, podName, podNamespace)
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+		go leadership.RunLeaderElection(lock, ctx, cancel, podName, controllers)
+	}
+
+	logrus.Fatal(leadership.Healthz())
 }
 
 func getIgnoredNamespacesList(cmd *cobra.Command) (util.List, error) {
