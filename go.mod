@@ -1,6 +1,6 @@
 module github.com/stakater/Reloader
 
-go 1.18
+go 1.19
 
 require (
 	github.com/argoproj/argo-rollouts v1.2.1
