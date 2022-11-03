@@ -108,6 +108,8 @@ reloader:
     pod:
       annotations: {}
     priorityClassName: ""
+    # imagePullSecrets:
+    #   - name: myregistrykey
 
   service: {}
     # labels: {}
