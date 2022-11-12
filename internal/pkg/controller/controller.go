@@ -1,6 +1,7 @@
 package controller
 
 import (
+	"context"
 	"fmt"
 	"time"
 
@@ -11,6 +12,7 @@ import (
 	"github.com/stakater/Reloader/internal/pkg/util"
 	"github.com/stakater/Reloader/pkg/kube"
 	v1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/apimachinery/pkg/util/wait"
@@ -32,6 +34,7 @@ type Controller struct {
 	ignoredNamespaces util.List
 	collectors        metrics.Collectors
 	recorder          record.EventRecorder
+	namespaceSelector map[string]string
 }
 
 // controllerInitialized flag determines whether controlled is being initialized
@@ -39,12 +42,13 @@ var controllerInitialized bool = false
 
 // NewController for initializing a Controller
 func NewController(
-	client kubernetes.Interface, resource string, namespace string, ignoredNamespaces []string, collectors metrics.Collectors) (*Controller, error) {
+	client kubernetes.Interface, resource string, namespace string, ignoredNamespaces []string, namespaceLabelSelector map[string]string, collectors metrics.Collectors) (*Controller, error) {
 
 	c := Controller{
 		client:            client,
 		namespace:         namespace,
 		ignoredNamespaces: ignoredNamespaces,
+		namespaceSelector: namespaceLabelSelector,
 	}
 	eventBroadcaster := record.NewBroadcaster()
 	eventBroadcaster.StartRecordingToSink(&typedcorev1.EventSinkImpl{
@@ -73,7 +77,7 @@ func NewController(
 // Add function to add a new object to the queue in case of creating a resource
 func (c *Controller) Add(obj interface{}) {
 	if options.ReloadOnCreate == "true" {
-		if !c.resourceInIgnoredNamespace(obj) && controllerInitialized {
+		if !c.resourceInIgnoredNamespace(obj) && c.resourceInNamespaceSelector(obj) && controllerInitialized {
 			c.queue.Add(handler.ResourceCreatedHandler{
 				Resource:   obj,
 				Collectors: c.collectors,
@@ -93,9 +97,31 @@ func (c *Controller) resourceInIgnoredNamespace(raw interface{}) bool {
 	return false
 }
 
+func (c *Controller) resourceInNamespaceSelector(raw interface{}) bool {
+	switch object := raw.(type) {
+	case *v1.ConfigMap:
+		namespace, _ := c.client.CoreV1().Namespaces().Get(context.Background(), object.ObjectMeta.Namespace, metav1.GetOptions{})
+		for k, v := range c.namespaceSelector {
+			if namespace.ObjectMeta.Labels[k] != v {
+				return false
+			}
+		}
+		return true
+	case *v1.Secret:
+		namespace, _ := c.client.CoreV1().Namespaces().Get(context.Background(), object.ObjectMeta.Namespace, metav1.GetOptions{})
+		for k, v := range c.namespaceSelector {
+			if namespace.ObjectMeta.Labels[k] != v {
+				return false
+			}
+		}
+		return true
+	}
+	return false
+}
+
 // Update function to add an old object and a new object to the queue in case of updating a resource
 func (c *Controller) Update(old interface{}, new interface{}) {
-	if !c.resourceInIgnoredNamespace(new) {
+	if !c.resourceInIgnoredNamespace(new) && c.resourceInNamespaceSelector(new) {
 		c.queue.Add(handler.ResourceUpdatedHandler{
 			Resource:    new,
 			OldResource: old,

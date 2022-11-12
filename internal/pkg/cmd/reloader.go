@@ -38,6 +38,7 @@ func NewReloaderCommand() *cobra.Command {
 	cmd.PersistentFlags().StringVar(&options.LogFormat, "log-format", "", "Log format to use (empty string for text, or JSON")
 	cmd.PersistentFlags().StringSlice("resources-to-ignore", []string{}, "list of resources to ignore (valid options 'configMaps' or 'secrets')")
 	cmd.PersistentFlags().StringSlice("namespaces-to-ignore", []string{}, "list of namespaces to ignore")
+	cmd.PersistentFlags().StringSlice("namespace-selector", []string{}, "list of key:vaule namespace labels to include")
 	cmd.PersistentFlags().StringVar(&options.IsArgoRollouts, "is-Argo-Rollouts", "false", "Add support for argo rollouts")
 	cmd.PersistentFlags().StringVar(&options.ReloadStrategy, constants.ReloadStrategyFlag, constants.EnvVarsReloadStrategy, "Specifies the desired reload strategy")
 	cmd.PersistentFlags().StringVar(&options.ReloadOnCreate, "reload-on-create", "false", "Add support to watch create events")
@@ -132,6 +133,11 @@ func startReloader(cmd *cobra.Command, args []string) {
 		logrus.Fatal(err)
 	}
 
+	namespaceLabelSelector, err := getNamespaceLabelSelector(cmd)
+	if err != nil {
+		logrus.Fatal(err)
+	}
+
 	collectors := metrics.SetupPrometheusEndpoint()
 
 	var controllers []*controller.Controller
@@ -140,7 +146,7 @@ func startReloader(cmd *cobra.Command, args []string) {
 			continue
 		}
 
-		c, err := controller.NewController(clientset, k, currentNamespace, ignoredNamespacesList, collectors)
+		c, err := controller.NewController(clientset, k, currentNamespace, ignoredNamespacesList, namespaceLabelSelector, collectors)
 		if err != nil {
 			logrus.Fatalf("%s", err)
 		}
@@ -172,6 +178,21 @@ func startReloader(cmd *cobra.Command, args []string) {
 
 func getIgnoredNamespacesList(cmd *cobra.Command) (util.List, error) {
 	return getStringSliceFromFlags(cmd, "namespaces-to-ignore")
+}
+
+func getNamespaceLabelSelector(cmd *cobra.Command) (util.Map, error) {
+	slice, err := getStringSliceFromFlags(cmd, "namespace-selector")
+	if err != nil {
+		logrus.Fatal(err)
+	}
+
+	var namespaceSelectorMap util.Map = make(util.Map)
+	for _, kv := range slice {
+		split := strings.Split(kv, ":")
+		namespaceSelectorMap[split[0]] = split[1]
+	}
+
+	return namespaceSelectorMap, nil
 }
 
 func getStringSliceFromFlags(cmd *cobra.Command, flag string) ([]string, error) {
