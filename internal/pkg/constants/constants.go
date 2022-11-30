@@ -23,7 +23,7 @@ const (
 
 // Leadership election related consts
 const (
-	LockName        string = "stakaer-reloader-lock"
+	LockName        string = "stakater-reloader-lock"
 	PodNameEnv      string = "POD_NAME"
 	PodNamespaceEnv string = "POD_NAMESPACE"
 )
