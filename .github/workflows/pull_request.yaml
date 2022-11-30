@@ -24,7 +24,7 @@ jobs:
         
     # Setting up helm binary
     - name: Set up Helm
-      uses: azure/setup-helm@v1
+      uses: azure/setup-helm@v3.4
 
     - name: Set up Go
       id: go
