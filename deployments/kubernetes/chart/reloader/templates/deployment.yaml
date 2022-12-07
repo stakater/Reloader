@@ -15,7 +15,7 @@ metadata:
 {{ toYaml .Values.reloader.matchLabels | indent 4 }}
 {{- end }}
   name: {{ template "reloader-fullname" . }}
-  namespace: {{ .Release.Namespace }}
+ namespace: {{ .Values.namespace | default .Release.Namespace }}
 spec:
 {{- if not (.Values.reloader.enableHA) }}
   replicas: 1
@@ -114,7 +114,7 @@ spec:
         ports:
         - name: http
           containerPort: 9091
-        - name: metrics 
+        - name: metrics
           containerPort: 9090
         livenessProbe:
           httpGet:

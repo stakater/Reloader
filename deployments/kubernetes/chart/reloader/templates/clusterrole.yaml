@@ -17,7 +17,7 @@ metadata:
 {{ toYaml .Values.reloader.matchLabels | indent 4 }}
 {{- end }}
   name: {{ template "reloader-fullname" . }}-role
-  namespace: {{ .Release.Namespace }}
+ namespace: {{ .Values.namespace | default .Release.Namespace }}
 rules:
   - apiGroups:
       - ""
