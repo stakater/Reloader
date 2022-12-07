@@ -13,7 +13,7 @@ metadata:
 {{ toYaml .Values.reloader.service.labels | indent 4 }}
 {{- end }}
   name: {{ template "reloader-fullname" . }}
- namespace: {{ .Values.namespace | default .Release.Namespace }}
+  namespace: {{ .Values.namespace | default .Release.Namespace }}
 spec:
   selector:
 {{- if .Values.reloader.deployment.labels }}
