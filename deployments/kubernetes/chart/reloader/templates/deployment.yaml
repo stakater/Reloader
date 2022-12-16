@@ -67,7 +67,7 @@ spec:
       - image: "{{ .Values.reloader.deployment.image.name }}:{{ .Values.reloader.deployment.image.tag }}"
         imagePullPolicy: {{ .Values.reloader.deployment.image.pullPolicy }}
         name: {{ template "reloader-fullname" . }}
-      {{- if or (.Values.reloader.deployment.env.open) (.Values.reloader.deployment.env.secret) (.Values.reloader.deployment.env.field) (eq .Values.reloader.watchGlobally false) (.Values.reloader.enableHA)}}
+      {{- if or (.Values.reloader.deployment.env.open) (.Values.reloader.deployment.env.secret) (.Values.reloader.deployment.env.field) (.Values.reloader.deployment.env.existing) (eq .Values.reloader.watchGlobally false) (.Values.reloader.enableHA)}}
         env:
       {{- range $name, $value := .Values.reloader.deployment.env.open }}
       {{- if not (empty $value) }}
@@ -83,6 +83,17 @@ spec:
             secretKeyRef:
               name: {{ $secret_name }}
               key: {{ $name | quote }}
+      {{- end }}
+      {{- end }}
+      {{- range $secret, $values := .Values.reloader.deployment.env.existing }}
+      {{- range $name, $key := $values }}
+      {{- if not ( empty $name) }}
+        - name: {{ $name | quote }}
+          valueFrom:
+            secretKeyRef:
+              name: {{ $secret | quote }}
+              key: {{ $key | quote }}
+      {{- end }}
       {{- end }}
       {{- end }}
       {{- range $name, $value := .Values.reloader.deployment.env.field }}
