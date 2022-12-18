@@ -7,7 +7,7 @@ on:
 
 env:
   DOCKER_FILE_PATH: Dockerfile
-  GOLANG_VERSION: 1.18.2
+  GOLANG_VERSION: 1.19.3
   KUBERNETES_VERSION: "1.18.0"
   KIND_VERSION: "0.10.0"
 
@@ -24,7 +24,7 @@ jobs:
         
     # Setting up helm binary
     - name: Set up Helm
-      uses: azure/setup-helm@v1
+      uses: azure/setup-helm@v3.4
 
     - name: Set up Go
       id: go
