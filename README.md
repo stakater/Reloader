@@ -143,6 +143,7 @@ spec:
 - you may override the configmap annotation with the `--configmap-annotation` flag
 - you may override the secret annotation with the `--secret-annotation` flag
 - you may want to prevent watching certain namespaces with the `--namespaces-to-ignore` flag
+- you may want to watch only a set of namespaces with certain labels by using the `--namespace-selector` flag
 - you may want to prevent watching certain resources with the `--resources-to-ignore` flag
 - you can configure logging in JSON format with the `--log-format=json` option
 - you can configure the "reload strategy" with the `--reload-strategy=<strategy-name>` option (details below)
