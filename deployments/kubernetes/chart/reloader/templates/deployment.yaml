@@ -159,7 +159,6 @@ spec:
           {{- if .Values.reloader.namespaceSelector }}
           - "--namespace-selector={{ .Values.reloader.namespaceSelector }}"
           {{- end }}          
-
           {{- if .Values.reloader.custom_annotations }}
             {{- if .Values.reloader.custom_annotations.configmap }}
           - "--configmap-annotation"
