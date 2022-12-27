@@ -98,19 +98,25 @@ func (c *Controller) resourceInIgnoredNamespace(raw interface{}) bool {
 }
 
 func (c *Controller) resourceInNamespaceSelector(raw interface{}) bool {
+	if len(c.namespaceSelector) == 0 {
+		return true
+	}
+
 	switch object := raw.(type) {
 	case *v1.ConfigMap:
 		namespace, _ := c.client.CoreV1().Namespaces().Get(context.Background(), object.ObjectMeta.Namespace, metav1.GetOptions{})
-		for k, v := range c.namespaceSelector {
-			if namespace.ObjectMeta.Labels[k] != v {
+		for selectorKey, selectorVal := range c.namespaceSelector {
+			namespaceLabelVal, namespaceLabelKeyExists := namespace.ObjectMeta.Labels[selectorKey]
+			if !namespaceLabelKeyExists || selectorVal != namespaceLabelVal {
 				return false
 			}
 		}
 		return true
 	case *v1.Secret:
 		namespace, _ := c.client.CoreV1().Namespaces().Get(context.Background(), object.ObjectMeta.Namespace, metav1.GetOptions{})
-		for k, v := range c.namespaceSelector {
-			if namespace.ObjectMeta.Labels[k] != v {
+		for selectorKey, selectorVal := range c.namespaceSelector {
+			namespaceLabelVal, namespaceLabelKeyExists := namespace.ObjectMeta.Labels[selectorKey]
+			if !namespaceLabelKeyExists || selectorVal != namespaceLabelVal {
 				return false
 			}
 		}
