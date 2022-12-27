@@ -111,7 +111,6 @@ func (c *Controller) resourceInNamespaceSelector(raw interface{}) bool {
 				return false
 			}
 		}
-		return true
 	case *v1.Secret:
 		namespace, _ := c.client.CoreV1().Namespaces().Get(context.Background(), object.ObjectMeta.Namespace, metav1.GetOptions{})
 		for selectorKey, selectorVal := range c.namespaceSelector {
@@ -120,9 +119,8 @@ func (c *Controller) resourceInNamespaceSelector(raw interface{}) bool {
 				return false
 			}
 		}
-		return true
 	}
-	return false
+	return true
 }
 
 // Update function to add an old object and a new object to the queue in case of updating a resource
