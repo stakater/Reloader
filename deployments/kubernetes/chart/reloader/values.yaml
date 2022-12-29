@@ -82,6 +82,15 @@ reloader:
       #  ALERT_ADDITIONAL_INFO: <"Additional Info like Cluster Name if needed">
       # field supports Key value pair as environment variables. It gets the values from other fields of pod.
       field:
+      # existing secret, you can specify multiple existing secrets, for each
+      # specify the env var name followed by the key in existing secret that
+      # will be used to populate the env var
+      existing:
+      #  existing_secret_name:
+      #    ALERT_ON_RELOAD: alert_on_reload_key
+      #    ALERT_SINK: alert_sink_key
+      #    ALERT_WEBHOOK_URL: alert_webhook_key
+      #    ALERT_ADDITIONAL_INFO: alert_additional_info_key
 
     # Liveness and readiness probe timeout values.
     livenessProbe: {}
