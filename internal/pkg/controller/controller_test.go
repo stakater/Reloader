@@ -1,10 +1,12 @@
 package controller
 
 import (
-	"github.com/stakater/Reloader/internal/pkg/constants"
+	"context"
 	"os"
 	"testing"
 	"time"
+
+	"github.com/stakater/Reloader/internal/pkg/constants"
 
 	"github.com/stakater/Reloader/internal/pkg/metrics"
 
@@ -14,7 +16,10 @@ import (
 	"github.com/stakater/Reloader/internal/pkg/testutil"
 	"github.com/stakater/Reloader/internal/pkg/util"
 	"github.com/stakater/Reloader/pkg/kube"
+	v1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/kubernetes/fake"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/workqueue"
 )
@@ -40,7 +45,7 @@ func TestMain(m *testing.M) {
 
 	logrus.Infof("Creating controller")
 	for k := range kube.ResourceMap {
-		c, err := NewController(clients.KubernetesClient, k, namespace, []string{}, collectors)
+		c, err := NewController(clients.KubernetesClient, k, namespace, []string{}, map[string]string{}, collectors)
 		if err != nil {
 			logrus.Fatalf("%s", err)
 		}
@@ -2275,6 +2280,146 @@ func TestController_resourceInIgnoredNamespace(t *testing.T) {
 			}
 			if got := c.resourceInIgnoredNamespace(tt.args.raw); got != tt.want {
 				t.Errorf("Controller.resourceInIgnoredNamespace() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestController_resourceInNamespaceSelector(t *testing.T) {
+	type fields struct {
+		indexer           cache.Indexer
+		queue             workqueue.RateLimitingInterface
+		informer          cache.Controller
+		namespace         v1.Namespace
+		namespaceSelector util.Map
+	}
+	type args struct {
+		raw interface{}
+	}
+	tests := []struct {
+		name   string
+		fields fields
+		args   args
+		want   bool
+	}{
+		{
+			name: "TestConfigMapResourceInNamespaceSelector",
+			fields: fields{
+				namespaceSelector: util.Map{
+					"select":  "this",
+					"select2": "this2",
+				},
+				namespace: v1.Namespace{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "selected-namespace",
+						Labels: map[string]string{
+							"select":  "this",
+							"select2": "this2",
+						},
+					},
+				},
+			},
+			args: args{
+				raw: testutil.GetConfigmap("selected-namespace", "testcm", "test"),
+			},
+			want: true,
+		}, {
+			name: "TestConfigMapResourceNotInNamespaceSelector",
+			fields: fields{
+				namespaceSelector: util.Map{
+					"select":  "this",
+					"select2": "this2",
+				},
+				namespace: v1.Namespace{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:   "not-selected-namespace",
+						Labels: map[string]string{},
+					},
+				},
+			},
+			args: args{
+				raw: testutil.GetConfigmap("not-selected-namespace", "testcm", "test"),
+			},
+			want: false,
+		},
+		{
+			name: "TestSecretResourceInNamespaceSelector",
+			fields: fields{
+				namespaceSelector: util.Map{
+					"select":  "this",
+					"select2": "this2",
+				},
+				namespace: v1.Namespace{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "selected-namespace",
+						Labels: map[string]string{
+							"select":  "this",
+							"select2": "this2",
+						},
+					},
+				},
+			},
+			args: args{
+				raw: testutil.GetSecret("selected-namespace", "testsecret", "test"),
+			},
+			want: true,
+		}, {
+			name: "TestSecretResourceNotInNamespaceSelector",
+			fields: fields{
+				namespaceSelector: util.Map{
+					"select":  "this",
+					"select2": "this2",
+				},
+				namespace: v1.Namespace{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:   "not-selected-namespace",
+						Labels: map[string]string{},
+					},
+				},
+			},
+			args: args{
+				raw: testutil.GetSecret("not-selected-namespace", "secret", "test"),
+			},
+			want: false,
+		}, {
+			name: "TestSecretResourceInNamespaceSelectorWiledcardValue",
+			fields: fields{
+				namespaceSelector: util.Map{
+					"select": "*",
+				},
+				namespace: v1.Namespace{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "selected-namespace",
+						Labels: map[string]string{
+							"select": "this",
+						},
+					},
+				},
+			},
+			args: args{
+				raw: testutil.GetSecret("selected-namespace", "secret", "test"),
+			},
+			want: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			fakeClient := fake.NewSimpleClientset()
+			namespace, _ := fakeClient.CoreV1().Namespaces().Create(context.Background(), &tt.fields.namespace, metav1.CreateOptions{})
+			logrus.Infof("created fakeClient namesapce for testing = %s", namespace.Name)
+
+			c := &Controller{
+				client:            fakeClient,
+				indexer:           tt.fields.indexer,
+				queue:             tt.fields.queue,
+				informer:          tt.fields.informer,
+				namespace:         tt.fields.namespace.ObjectMeta.Name,
+				namespaceSelector: tt.fields.namespaceSelector,
+			}
+
+			if got := c.resourceInNamespaceSelector(tt.args.raw); got != tt.want {
+				t.Errorf("Controller.resourceInNamespaceSelector() = %v, want %v", got, tt.want)
 			}
 		})
 	}

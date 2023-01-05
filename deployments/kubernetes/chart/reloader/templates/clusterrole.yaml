@@ -32,6 +32,14 @@ rules:
       - list
       - get
       - watch
+{{- if .Values.reloader.namespaceSelector }}
+  - apiGroups:
+      - ""
+    resources:
+      - namespaces
+    verbs:
+      - get         
+{{- end }}      
 {{- if and (.Capabilities.APIVersions.Has "apps.openshift.io/v1") (.Values.reloader.isOpenshift) }}
   - apiGroups:
       - "apps.openshift.io"
