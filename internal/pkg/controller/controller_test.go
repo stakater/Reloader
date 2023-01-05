@@ -2381,6 +2381,25 @@ func TestController_resourceInNamespaceSelector(t *testing.T) {
 				raw: testutil.GetSecret("not-selected-namespace", "secret", "test"),
 			},
 			want: false,
+		}, {
+			name: "TestSecretResourceInNamespaceSelectorWiledcardValue",
+			fields: fields{
+				namespaceSelector: util.Map{
+					"select": "*",
+				},
+				namespace: v1.Namespace{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "selected-namespace",
+						Labels: map[string]string{
+							"select": "this",
+						},
+					},
+				},
+			},
+			args: args{
+				raw: testutil.GetSecret("selected-namespace", "secret", "test"),
+			},
+			want: true,
 		},
 	}
 

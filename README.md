@@ -199,6 +199,8 @@ metadata:
     test: true
   ...
 ```
+If you want to select namespace only by the key of the label use ```*``` as the value.
+For example, for ```--namespace-selector=select-this:*``` all namespaces with label-key "select-this" will be selected regardless of the labels value
 
 ### Vanilla kustomize
 

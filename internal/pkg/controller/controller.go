@@ -104,30 +104,30 @@ func (c *Controller) resourceInNamespaceSelector(raw interface{}) bool {
 
 	switch object := raw.(type) {
 	case *v1.ConfigMap:
-		namespace, err := c.client.CoreV1().Namespaces().Get(context.Background(), object.ObjectMeta.Namespace, metav1.GetOptions{})
-		if err != nil {
-			logrus.Warn(err)
-			return false
-		}
-
-		for selectorKey, selectorVal := range c.namespaceSelector {
-			namespaceLabelVal, namespaceLabelKeyExists := namespace.ObjectMeta.Labels[selectorKey]
-			if !namespaceLabelKeyExists || selectorVal != namespaceLabelVal {
-				return false
-			}
-		}
+		return c.matchLabels(object.ObjectMeta.Namespace)
 	case *v1.Secret:
-		namespace, err := c.client.CoreV1().Namespaces().Get(context.Background(), object.ObjectMeta.Namespace, metav1.GetOptions{})
-		if err != nil {
-			logrus.Warn(err)
-			return false
+		return c.matchLabels(object.ObjectMeta.Namespace)
+	}
+	return true
+}
+
+func (c *Controller) matchLabels(resourceNamespace string) bool {
+	namespace, err := c.client.CoreV1().Namespaces().Get(context.Background(), resourceNamespace, metav1.GetOptions{})
+	if err != nil {
+		logrus.Warn(err)
+		return false
+	}
+
+	for selectorKey, selectorVal := range c.namespaceSelector {
+
+		namespaceLabelVal, namespaceLabelKeyExists := namespace.ObjectMeta.Labels[selectorKey]
+
+		if namespaceLabelKeyExists && selectorVal == "*" {
+			continue
 		}
 
-		for selectorKey, selectorVal := range c.namespaceSelector {
-			namespaceLabelVal, namespaceLabelKeyExists := namespace.ObjectMeta.Labels[selectorKey]
-			if !namespaceLabelKeyExists || selectorVal != namespaceLabelVal {
-				return false
-			}
+		if !namespaceLabelKeyExists || selectorVal != namespaceLabelVal {
+			return false
 		}
 	}
 	return true
