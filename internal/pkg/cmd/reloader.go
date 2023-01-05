@@ -138,6 +138,10 @@ func startReloader(cmd *cobra.Command, args []string) {
 		logrus.Fatal(err)
 	}
 
+	if len(namespaceLabelSelector) > 0 {
+		logrus.Warnf("namespace-selector is set, will detect changes in namespaces with these labels: %s.", namespaceLabelSelector)
+	}
+
 	collectors := metrics.SetupPrometheusEndpoint()
 
 	var controllers []*controller.Controller

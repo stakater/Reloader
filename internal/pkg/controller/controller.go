@@ -104,7 +104,12 @@ func (c *Controller) resourceInNamespaceSelector(raw interface{}) bool {
 
 	switch object := raw.(type) {
 	case *v1.ConfigMap:
-		namespace, _ := c.client.CoreV1().Namespaces().Get(context.Background(), object.ObjectMeta.Namespace, metav1.GetOptions{})
+		namespace, err := c.client.CoreV1().Namespaces().Get(context.Background(), object.ObjectMeta.Namespace, metav1.GetOptions{})
+		if err != nil {
+			logrus.Warn(err)
+			return false
+		}
+
 		for selectorKey, selectorVal := range c.namespaceSelector {
 			namespaceLabelVal, namespaceLabelKeyExists := namespace.ObjectMeta.Labels[selectorKey]
 			if !namespaceLabelKeyExists || selectorVal != namespaceLabelVal {
@@ -112,7 +117,12 @@ func (c *Controller) resourceInNamespaceSelector(raw interface{}) bool {
 			}
 		}
 	case *v1.Secret:
-		namespace, _ := c.client.CoreV1().Namespaces().Get(context.Background(), object.ObjectMeta.Namespace, metav1.GetOptions{})
+		namespace, err := c.client.CoreV1().Namespaces().Get(context.Background(), object.ObjectMeta.Namespace, metav1.GetOptions{})
+		if err != nil {
+			logrus.Warn(err)
+			return false
+		}
+
 		for selectorKey, selectorVal := range c.namespaceSelector {
 			namespaceLabelVal, namespaceLabelKeyExists := namespace.ObjectMeta.Labels[selectorKey]
 			if !namespaceLabelKeyExists || selectorVal != namespaceLabelVal {
