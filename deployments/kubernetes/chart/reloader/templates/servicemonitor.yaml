@@ -5,11 +5,11 @@ metadata:
   labels:
 {{ include "reloader-labels.chart" . | indent 4 }}
 {{- if .Values.reloader.serviceMonitor.labels }}
-{{ toYaml .Values.reloader.serviceMonitor.labels | indent 4}}
+{{ tpl (toYaml .Values.reloader.serviceMonitor.labels) . | indent 4 }}
 {{- end }}
   name: {{ template "reloader-fullname" . }}
 {{- if .Values.reloader.serviceMonitor.namespace }}
-  namespace: {{ .Values.reloader.serviceMonitor.namespace }}
+  namespace: {{ tpl .Values.reloader.serviceMonitor.namespace . }}
 {{- end }}
 spec:
   endpoints:

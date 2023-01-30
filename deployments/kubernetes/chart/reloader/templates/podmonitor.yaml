@@ -5,11 +5,11 @@ metadata:
   labels:
 {{ include "reloader-labels.chart" . | indent 4 }}
 {{- if .Values.reloader.podMonitor.labels }}
-{{ toYaml .Values.reloader.podMonitor.labels | indent 4}}
+{{ tpl (toYaml .Values.reloader.podMonitor.labels) . | indent 4 }}
 {{- end }}
   name: {{ template "reloader-fullname" . }}
 {{- if .Values.reloader.podMonitor.namespace }}
-  namespace: {{ .Values.reloader.podMonitor.namespace }}
+  namespace: {{ tpl .Values.reloader.podMonitor.namespace . }}
 {{- end }}
 spec:
   podMetricsEndpoints:
