@@ -2,6 +2,10 @@
 apiVersion: monitoring.coreos.com/v1
 kind: PodMonitor
 metadata:
+{{- if .Values.reloader.podMonitor.annotations }}
+  annotations:
+{{ tpl (toYaml .Values.reloader.podMonitor.annotations) . | indent 4 }}
+{{- end }}
   labels:
 {{ include "reloader-labels.chart" . | indent 4 }}
 {{- if .Values.reloader.podMonitor.labels }}
@@ -15,12 +19,35 @@ spec:
   podMetricsEndpoints:
   - port: http
     path: "/metrics"
-{{- if .Values.reloader.podMonitor.interval }}
-    interval: {{ .Values.reloader.podMonitor.interval }}
-{{- end }}
-{{- if .Values.reloader.podMonitor.timeout }}
-    scrapeTimeout: {{ .Values.reloader.podMonitor.timeout }}
-{{- end }}
+    {{- with .Values.reloader.podMonitor.interval }}
+    interval: {{ . }}
+    {{- end }}
+    {{- with .Values.reloader.podMonitor.scheme }}
+    scheme: {{ . }}
+    {{- end }}
+    {{- with .Values.reloader.podMonitor.bearerTokenSecret }}
+    bearerTokenSecret: {{ . }}
+    {{- end }}
+    {{- with .Values.reloader.podMonitor.tlsConfig }}
+    tlsConfig:
+      {{- toYaml .| nindent 6 }}
+    {{- end }}
+    {{- with .Values.reloader.podMonitor.timeout }}
+    scrapeTimeout: {{ . }}
+    {{- end }}
+    honorLabels: {{ .Values.reloader.podMonitor.honorLabels }}
+    {{- with .Values.reloader.podMonitor.metricRelabelings }}
+    metricRelabelings:
+      {{- tpl (toYaml . | nindent 6) $ }}
+    {{- end }}
+    {{- with .Values.reloader.podMonitor.relabelings }}
+    relabelings:
+      {{- toYaml . | nindent 6 }}
+    {{- end }}
+  {{- with .Values.reloader.podMonitor.podTargetLabels }}
+  podTargetLabels:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
   jobLabel: {{ template "reloader-fullname" . }}
   namespaceSelector:
     matchNames:
