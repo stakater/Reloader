@@ -7,7 +7,7 @@ on:
 
 env:
   DOCKER_FILE_PATH: Dockerfile
-  GOLANG_VERSION: 1.19.5
+  GOLANG_VERSION: 1.20
   KUBERNETES_VERSION: "1.18.0"
   KIND_VERSION: "0.10.0"
   HELM_REGISTRY_URL: "https://stakater.github.io/stakater-charts"
