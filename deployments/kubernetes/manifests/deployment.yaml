@@ -43,8 +43,6 @@ spec:
 
         ports:
         - name: http
-          containerPort: 9091
-        - name: metrics
           containerPort: 9090
         livenessProbe:
           httpGet:
@@ -57,7 +55,7 @@ spec:
         readinessProbe:
           httpGet:
             path: /metrics
-            port: metrics
+            port: http
           timeoutSeconds: 5
           failureThreshold: 5
           periodSeconds: 10

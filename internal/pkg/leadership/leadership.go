@@ -15,8 +15,6 @@ import (
 	coordinationv1 "k8s.io/client-go/kubernetes/typed/coordination/v1"
 )
 
-const healthPort string = ":9091"
-
 var (
 	// Used for liveness probe
 	m       sync.Mutex
@@ -88,12 +86,11 @@ func stopControllers(stopChannels []chan struct{}) {
 	}
 }
 
-// Healthz serves the liveness probe endpoint. If leadership election is
+// Healthz sets up the liveness probe endpoint. If leadership election is
 // enabled and a replica stops leading the liveness probe will fail and the
 // kubelet will restart the container.
-func Healthz() error {
+func SetupLivenessEndpoint() {
 	http.HandleFunc("/live", healthz)
-	return http.ListenAndServe(healthPort, nil)
 }
 
 func healthz(w http.ResponseWriter, req *http.Request) {

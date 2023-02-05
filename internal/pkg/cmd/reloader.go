@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net/http"
 	"os"
 	"strings"
 
@@ -177,7 +178,8 @@ func startReloader(cmd *cobra.Command, args []string) {
 		go leadership.RunLeaderElection(lock, ctx, cancel, podName, controllers)
 	}
 
-	logrus.Fatal(leadership.Healthz())
+	leadership.SetupLivenessEndpoint()
+	logrus.Fatal(http.ListenAndServe(constants.DefaultHttpListenAddr, nil))
 }
 
 func getIgnoredNamespacesList(cmd *cobra.Command) (util.List, error) {
