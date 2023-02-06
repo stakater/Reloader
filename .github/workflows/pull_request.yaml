@@ -37,9 +37,9 @@ jobs:
         make install
 
     - name: Run golangci-lint
-      uses: golangci/golangci-lint-action@v2.3.0
+      uses: golangci/golangci-lint-action@v3
       with:
-        version: v1.45.2
+        version: v1.51.1
         only-new-issues: false
         args: --timeout 10m
 
