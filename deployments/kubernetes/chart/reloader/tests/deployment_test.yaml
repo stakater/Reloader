@@ -4,10 +4,10 @@ templates:
   - deployment.yaml
 
 tests:
-  - it: sets readOnlyRootFilesystem in container securityContext when reloader.readOnlyRootFilesystem is true
+  - it: sets readOnlyRootFilesystem in container securityContext when reloader.readOnlyRootFileSystem is true
     set:
       reloader:
-        readOnlyRootFilesystem: true
+        readOnlyRootFileSystem: true
         deployment:
           containerSecurityContext:
             readOnlyRootFilesystem: false
@@ -19,7 +19,7 @@ tests:
   - it: sets readOnlyRootFilesystem in container securityContext even if reloader.deployment.containerSecurityContext is null
     set:
       reloader:
-        readOnlyRootFilesystem: true
+        readOnlyRootFileSystem: true
         deployment:
           containerSecurityContext: null
     asserts:
@@ -27,10 +27,10 @@ tests:
           path: spec.template.spec.containers[0].securityContext.readOnlyRootFilesystem
           value: true
 
-  - it: does not override readOnlyRootFilesystem in container securityContext based on reloader.readOnlyRootFilesystem
+  - it: does not override readOnlyRootFilesystem in container securityContext based on reloader.readOnlyRootFileSystem
     set:
       reloader:
-        readOnlyRootFilesystem: false
+        readOnlyRootFileSystem: false
         deployment:
           containerSecurityContext:
             readOnlyRootFilesystem: true
@@ -42,7 +42,7 @@ tests:
   - it: template is still valid with no defined containerSecurityContext
     set:
       reloader:
-        readOnlyRootFilesystem: false
+        readOnlyRootFileSystem: false
         deployment:
           containerSecurityContext: null
     asserts:

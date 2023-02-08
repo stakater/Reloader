@@ -149,7 +149,7 @@ spec:
           successThreshold: {{ .Values.reloader.deployment.readinessProbe.successThreshold | default "1" }}
 
         {{- $containerSecurityContext := .Values.reloader.deployment.containerSecurityContext | default dict }}
-        {{- if .Values.reloader.readOnlyRootFilesystem }}
+        {{- if .Values.reloader.readOnlyRootFileSystem }}
           {{- $_ := set $containerSecurityContext "readOnlyRootFilesystem" true }}
         {{- end }}
 
