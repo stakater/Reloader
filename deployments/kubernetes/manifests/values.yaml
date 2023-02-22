@@ -1,0 +1,25 @@
+reloader:
+  # To create podDisruptionBudget
+  podDisruptionBudget:
+    enabled: true
+  # To create podMonitor
+  podMonitor:
+    enabled: true
+  # To create role and rolebinding
+  watchGlobally: false
+  rbac:
+    enabled: true
+  # To create secret
+  deployment:
+    env:
+      secret:
+        ALERT_ON_RELOAD: alert-on-reload-value
+        ALERT_SINK: alert-sink-value
+        ALERT_WEBHOOK_URL: alert-webhook-url-value
+        ALERT_ADDITIONAL_INFO: alert-additional-info-value
+  # To create service
+  service:
+    port: 8080
+  # To create servicemonitor
+  serviceMonitor:
+    enabled: true
