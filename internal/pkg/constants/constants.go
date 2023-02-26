@@ -1,6 +1,9 @@
 package constants
 
 const (
+	// DefaultHttpListenAddr is the default listening address for global http server
+	DefaultHttpListenAddr = ":9090"
+
 	// ConfigmapEnvVarPostfix is a postfix for configmap envVar
 	ConfigmapEnvVarPostfix = "CONFIGMAP"
 	// SecretEnvVarPostfix is a postfix for secret envVar
