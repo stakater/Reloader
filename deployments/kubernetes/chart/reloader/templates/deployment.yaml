@@ -146,9 +146,13 @@ spec:
           periodSeconds: {{ .Values.reloader.deployment.readinessProbe.periodSeconds | default "10" }}
           successThreshold: {{ .Values.reloader.deployment.readinessProbe.successThreshold | default "1" }}
 
-      {{- with .Values.reloader.deployment.containerSecurityContext }}
-        securityContext: {{ toYaml . | nindent 10 }}
-      {{- end }}
+        {{- $containerSecurityContext := .Values.reloader.deployment.containerSecurityContext | default dict }}
+        {{- if .Values.reloader.readOnlyRootFileSystem }}
+          {{- $_ := set $containerSecurityContext "readOnlyRootFilesystem" true }}
+        {{- end }}
+
+        securityContext:
+          {{- toYaml $containerSecurityContext | nindent 10 }}
 
       {{- if eq .Values.reloader.readOnlyRootFileSystem true }}
         volumeMounts:
