@@ -8,6 +8,9 @@ global:
 kubernetes:
   host: https://kubernetes.default
 
+nameOverride: ""
+fullnameOverride: ""
+
 reloader:
   isArgoRollouts: false
   isOpenshift: false
