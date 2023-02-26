@@ -4,7 +4,5 @@ kind: Kustomization
 resources:
   - manifests/clusterrole.yaml
   - manifests/clusterrolebinding.yaml
-  - manifests/role.yaml
-  - manifests/rolebinding.yaml
   - manifests/serviceaccount.yaml
   - manifests/deployment.yaml
