@@ -128,8 +128,6 @@ spec:
 
         ports:
         - name: http
-          containerPort: 9091
-        - name: metrics
           containerPort: 9090
         livenessProbe:
           httpGet:
@@ -142,15 +140,19 @@ spec:
         readinessProbe:
           httpGet:
             path: /metrics
-            port: metrics
+            port: http
           timeoutSeconds: {{ .Values.reloader.deployment.readinessProbe.timeoutSeconds | default "5" }}
           failureThreshold: {{ .Values.reloader.deployment.readinessProbe.failureThreshold | default "5" }}
           periodSeconds: {{ .Values.reloader.deployment.readinessProbe.periodSeconds | default "10" }}
           successThreshold: {{ .Values.reloader.deployment.readinessProbe.successThreshold | default "1" }}
 
-      {{- with .Values.reloader.deployment.containerSecurityContext }}
-        securityContext: {{ toYaml . | nindent 10 }}
-      {{- end }}
+        {{- $containerSecurityContext := .Values.reloader.deployment.containerSecurityContext | default dict }}
+        {{- if .Values.reloader.readOnlyRootFileSystem }}
+          {{- $_ := set $containerSecurityContext "readOnlyRootFilesystem" true }}
+        {{- end }}
+
+        securityContext:
+          {{- toYaml $containerSecurityContext | nindent 10 }}
 
       {{- if eq .Values.reloader.readOnlyRootFileSystem true }}
         volumeMounts:

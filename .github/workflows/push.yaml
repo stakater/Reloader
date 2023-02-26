@@ -45,7 +45,7 @@ jobs:
           version: v1.51.1
           only-new-issues: false
           args: --timeout 10m
-          
+
       - name: Install kubectl
         run: |
           curl -LO "https://storage.googleapis.com/kubernetes-release/release/v${KUBERNETES_VERSION}/bin/linux/amd64/kubectl"
@@ -108,7 +108,7 @@ jobs:
             org.opencontainers.image.source=${{ github.event.repository.clone_url }}
             org.opencontainers.image.created=${{ steps.prep.outputs.created }}
             org.opencontainers.image.revision=${{ github.sha }}
-            
+
       ##############################
       ## Add steps to generate required artifacts for a release here(helm chart, operator manifest etc.)
       ##############################
@@ -148,16 +148,16 @@ jobs:
           linting: on
           commit_username: stakater-user
           commit_email: stakater@gmail.com
-          
+
       # Commit back changes
       - name: Commit files
         run: |
           git config --local user.email "stakater@gmail.com"
           git config --local user.name "stakater-user"
-          git status 
+          git status
           git add .
           git commit -m "[skip-ci] Update artifacts" -a
-          
+
       - name: Push changes
         uses: ad-m/github-push-action@master
         with:
