@@ -5,7 +5,7 @@ go 1.20
 require (
 	github.com/argoproj/argo-rollouts v1.4.0
 	github.com/openshift/api v0.0.0-20210527122704-efd9d5958e01
-	github.com/openshift/client-go v0.0.0-20210521082421-73d9475a9142
+	github.com/openshift/client-go v3.9.0+incompatible
 	github.com/parnurzeal/gorequest v0.2.16
 	github.com/prometheus/client_golang v1.14.0
 	github.com/sirupsen/logrus v1.9.0
@@ -27,6 +27,7 @@ require (
 	github.com/go-openapi/jsonreference v0.20.2 // indirect
 	github.com/go-openapi/swag v0.22.3 // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
+	github.com/golang/glog v1.0.0 // indirect
 	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da // indirect
 	github.com/golang/protobuf v1.5.2 // indirect
 	github.com/google/gnostic v0.6.9 // indirect
