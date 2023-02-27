@@ -35,8 +35,8 @@ github.com/OneOfOne/xxhash v1.2.2/go.mod h1:HSdplMjZKSmBqAxg5vPj2TmRDmfkzw+cTzAE
 github.com/PuerkitoBio/purell v1.1.1/go.mod h1:c11w/QuzBsJSee3cPx9rAFu61PvFxuPbtSwDGJws/X0=
 github.com/PuerkitoBio/urlesc v0.0.0-20170810143723-de5bf2ad4578/go.mod h1:uGdkoq3SwY9Y+13GIhn11/XLaGBb4BfwItxLd5jeuXE=
 github.com/antihax/optional v1.0.0/go.mod h1:uupD/76wgC+ih3iEmQUL+0Ugr19nfwCT1kdvxnR2qWY=
-github.com/argoproj/argo-rollouts v1.4.0 h1:a9tS+QKs1lKQzWfZqROnJcNwA+URtJmc+uH4BBhFDVQ=
-github.com/argoproj/argo-rollouts v1.4.0/go.mod h1:KR9pcBicOYmPOu50bBLRQfp/UQVkRGoUkidHVsyjV1Q=
+github.com/argoproj/argo-rollouts v1.4.1 h1:P+aTqdjMmWJDJfAbyVkCbONIzoGXSRVRBvim6VWxMJo=
+github.com/argoproj/argo-rollouts v1.4.1/go.mod h1:KR9pcBicOYmPOu50bBLRQfp/UQVkRGoUkidHVsyjV1Q=
 github.com/asaskevich/govalidator v0.0.0-20190424111038-f61b66f89f4a/go.mod h1:lB+ZfQJz7igIIfQNfa7Ml4HSf2uFQQRzpGGRXenZAgY=
 github.com/beorn7/perks v1.0.1 h1:VlbKKnNfV8bJzeqoa4cOKqO6bYr3WgKZxO8Z16+hsOM=
 github.com/beorn7/perks v1.0.1/go.mod h1:G2ZrVWU2WbWT9wwq4/hrbKbnv/1ERSJQ0ibhJ6rlkpw=
