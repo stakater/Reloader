@@ -6,7 +6,7 @@ on:
       - "v*"
 
 env:
-  GOLANG_VERSION: 1.20.0
+  GOLANG_VERSION: 1.20.1
 
 jobs:
   build:
