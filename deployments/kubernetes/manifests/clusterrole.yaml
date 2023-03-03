@@ -14,7 +14,6 @@ metadata:
     heritage: "Helm"
     app.kubernetes.io/managed-by: "Helm"
   name: reloader-reloader-role
-  namespace: default
 rules:
   - apiGroups:
       - ""
