@@ -14,7 +14,6 @@ metadata:
     heritage: "Helm"
     app.kubernetes.io/managed-by: "Helm"
   name: reloader-reloader-role-binding
-  namespace: default
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
