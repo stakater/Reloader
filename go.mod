@@ -3,17 +3,17 @@ module github.com/stakater/Reloader
 go 1.20
 
 require (
-	github.com/argoproj/argo-rollouts v1.4.0
-	github.com/openshift/api v0.0.0-20210527122704-efd9d5958e01
+	github.com/argoproj/argo-rollouts v1.4.1
+	github.com/openshift/api v3.9.0+incompatible
 	github.com/openshift/client-go v0.0.0-20210521082421-73d9475a9142
 	github.com/parnurzeal/gorequest v0.2.16
 	github.com/prometheus/client_golang v1.14.0
 	github.com/sirupsen/logrus v1.9.0
 	github.com/spf13/cobra v1.6.1
-	k8s.io/api v0.26.1
-	k8s.io/apimachinery v0.26.1
-	k8s.io/client-go v0.26.1
-	k8s.io/kubectl v0.26.1
+	k8s.io/api v0.26.2
+	k8s.io/apimachinery v0.26.2
+	k8s.io/client-go v0.26.2
+	k8s.io/kubectl v0.26.2
 )
 
 require (
