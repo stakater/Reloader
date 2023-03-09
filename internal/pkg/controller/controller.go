@@ -31,6 +31,7 @@ type Controller struct {
 	queue             workqueue.RateLimitingInterface
 	informer          cache.Controller
 	namespace         string
+	resource          string
 	ignoredNamespaces util.List
 	collectors        metrics.Collectors
 	recorder          record.EventRecorder
@@ -38,17 +39,24 @@ type Controller struct {
 }
 
 // controllerInitialized flag determines whether controlled is being initialized
-var controllerInitialized bool = false
+var secretControllerInitialized bool = false
+var configmapControllerInitialized bool = false
 
 // NewController for initializing a Controller
 func NewController(
 	client kubernetes.Interface, resource string, namespace string, ignoredNamespaces []string, namespaceLabelSelector map[string]string, collectors metrics.Collectors) (*Controller, error) {
+
+	if options.SyncAfterRestart {
+		secretControllerInitialized = true
+		configmapControllerInitialized = true
+	}
 
 	c := Controller{
 		client:            client,
 		namespace:         namespace,
 		ignoredNamespaces: ignoredNamespaces,
 		namespaceSelector: namespaceLabelSelector,
+		resource:          resource,
 	}
 	eventBroadcaster := record.NewBroadcaster()
 	eventBroadcaster.StartRecordingToSink(&typedcorev1.EventSinkImpl{
@@ -77,7 +85,7 @@ func NewController(
 // Add function to add a new object to the queue in case of creating a resource
 func (c *Controller) Add(obj interface{}) {
 	if options.ReloadOnCreate == "true" {
-		if !c.resourceInIgnoredNamespace(obj) && c.resourceInNamespaceSelector(obj) && controllerInitialized {
+		if !c.resourceInIgnoredNamespace(obj) && c.resourceInNamespaceSelector(obj) && secretControllerInitialized && configmapControllerInitialized {
 			c.queue.Add(handler.ResourceCreatedHandler{
 				Resource:   obj,
 				Collectors: c.collectors,
@@ -175,7 +183,11 @@ func (c *Controller) Run(threadiness int, stopCh chan struct{}) {
 
 func (c *Controller) runWorker() {
 	// At this point the controller is fully initialized and we can start processing the resources
-	controllerInitialized = true
+	if c.resource == "secrets" {
+		secretControllerInitialized = true
+	} else if c.resource == "configMaps" {
+		configmapControllerInitialized = true
+	}
 
 	for c.processNextItem() {
 	}

@@ -204,6 +204,9 @@ spec:
           {{- if eq .Values.reloader.reloadOnCreate true }}
           - "--reload-on-create={{ .Values.reloader.reloadOnCreate }}"
           {{- end }}
+          {{- if eq .Values.reloader.syncAfterRestart true }}
+          - "--sync-after-restart={{ .Values.reloader.syncAfterRestart }}"
+          {{- end }}
           {{- if ne .Values.reloader.reloadStrategy "default" }}
           - "--reload-strategy={{ .Values.reloader.reloadStrategy }}"
           {{- end }}

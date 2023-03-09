@@ -265,11 +265,12 @@ You can enable to scrape Reloader's Prometheus metrics by setting `serviceMonito
 
 **Note:** Reloading of OpenShift (DeploymentConfig) and/or Argo Rollouts has to be enabled explicitly because it might not be always possible to use it on a cluster with restricted permissions. This can be done by changing the following parameters:
 
-| Parameter        | Description                                                                  | Type    |
-| ---------------- |------------------------------------------------------------------------------| ------- |
-| isOpenshift      | Enable OpenShift DeploymentConfigs. Valid value are either `true` or `false` | boolean |
-| isArgoRollouts   | Enable Argo Rollouts. Valid value are either `true` or `false`               | boolean |
-| reloadOnCreate   | Enable reload on create events. Valid value are either `true` or `false`     | boolean |
+| Parameter        | Description                                                                                      | Type    |
+|------------------|--------------------------------------------------------------------------------------------------| ------- |
+| isOpenshift      | Enable OpenShift DeploymentConfigs. Valid value are either `true` or `false`                     | boolean |
+| isArgoRollouts   | Enable Argo Rollouts. Valid value are either `true` or `false`                                   | boolean |
+| reloadOnCreate   | Enable reload on create events. Valid value are either `true` or `false`                         | boolean |
+| syncAfterRestart | Enable sync after reloader restarts for **Add** events. Valid value are either `true` or `false` | boolean |
 
 **ReloadOnCreate** reloadOnCreate controls how Reloader handles secrets being added to the cache for the first time. If reloadOnCreate is set to true:
 * Configmaps/secrets being added to the cache will cause Reloader to perform a rolling update of the associated workload. 
