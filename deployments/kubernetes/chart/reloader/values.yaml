@@ -17,6 +17,7 @@ reloader:
   ignoreSecrets: false
   ignoreConfigMaps: false
   reloadOnCreate: false
+  syncAfterRestart: false
   reloadStrategy: default # Set to default, env-vars or annotations
   ignoreNamespaces: "" # Comma separated list of namespaces to ignore
   namespaceSelector: "" # Comma separated list of 'key:value' labels for namespaces selection
