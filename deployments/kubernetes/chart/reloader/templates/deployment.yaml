@@ -210,7 +210,7 @@ spec:
           {{- if ne .Values.reloader.reloadStrategy "default" }}
           - "--reload-strategy={{ .Values.reloader.reloadStrategy }}"
           {{- end }}
-          {{- if or (gt .Values.reloader.deployment.replicas 1.0) (.Values.reloader.enableHA) }}
+          {{- if or (gt .Values.reloader.deployment.replicas 1) (.Values.reloader.enableHA) }}
           - "--enable-ha=true"
           {{- end}}
       {{- end }}
