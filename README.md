@@ -288,7 +288,7 @@ You can find more documentation [here](docs)
 
 ### Have a question?
 
-File a GitHub [issue](https://github.com/stakater/Reloader/issues), or send us an [email](mailto:stakater@gmail.com).
+File a GitHub [issue](https://github.com/stakater/Reloader/issues), or send us an [email](mailto:hello@stakater.com).
 
 ### Talk to us on Slack
 
