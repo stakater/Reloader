@@ -3,8 +3,8 @@
 apiVersion: v1
 name: reloader
 description: Reloader chart that runs on kubernetes
-version: v1.0.17
-appVersion: v1.0.17
+version: v1.0.18
+appVersion: v1.0.18
 keywords:
   - Reloader
   - kubernetes
