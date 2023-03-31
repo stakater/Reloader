@@ -148,7 +148,7 @@ func startReloader(cmd *cobra.Command, args []string) {
 
 	var controllers []*controller.Controller
 	for k := range kube.ResourceMap {
-		if ignoredResourcesList.Contains(k) {
+		if ignoredResourcesList.Contains(k) || (len(namespaceLabelSelector) == 0 && k == "namespaces") {
 			continue
 		}
 
