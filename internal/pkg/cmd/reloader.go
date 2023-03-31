@@ -39,7 +39,8 @@ func NewReloaderCommand() *cobra.Command {
 	cmd.PersistentFlags().StringVar(&options.LogFormat, "log-format", "", "Log format to use (empty string for text, or JSON")
 	cmd.PersistentFlags().StringSlice("resources-to-ignore", []string{}, "list of resources to ignore (valid options 'configMaps' or 'secrets')")
 	cmd.PersistentFlags().StringSlice("namespaces-to-ignore", []string{}, "list of namespaces to ignore")
-	cmd.PersistentFlags().StringSlice("namespace-selector", []string{}, "list of key:vaule namespace labels to include")
+	cmd.PersistentFlags().StringSlice("namespace-selector", []string{}, "list of key:value labels to filter on for namespaces")
+	cmd.PersistentFlags().StringSlice("resource-label-selector", []string{}, "list of key:value labels to filter on for configmaps and secrets")
 	cmd.PersistentFlags().StringVar(&options.IsArgoRollouts, "is-Argo-Rollouts", "false", "Add support for argo rollouts")
 	cmd.PersistentFlags().StringVar(&options.ReloadStrategy, constants.ReloadStrategyFlag, constants.EnvVarsReloadStrategy, "Specifies the desired reload strategy")
 	cmd.PersistentFlags().StringVar(&options.ReloadOnCreate, "reload-on-create", "false", "Add support to watch create events")
@@ -140,8 +141,17 @@ func startReloader(cmd *cobra.Command, args []string) {
 		logrus.Fatal(err)
 	}
 
+	resourceLabelSelector, err := getResourceLabelSelector(cmd)
+	if err != nil {
+		logrus.Fatal(err)
+	}
+
 	if len(namespaceLabelSelector) > 0 {
-		logrus.Warnf("namespace-selector is set, will detect changes in namespaces with these labels: %s.", namespaceLabelSelector)
+		logrus.Warnf("namespace-selector is set, will only detect changes in namespaces with these labels: %s.", namespaceLabelSelector)
+	}
+
+	if len(resourceLabelSelector) > 0 {
+		logrus.Warnf("resource-label-selector is set, will only detect changes on resources with these labels: %s.", resourceLabelSelector)
 	}
 
 	collectors := metrics.SetupPrometheusEndpoint()
@@ -152,7 +162,7 @@ func startReloader(cmd *cobra.Command, args []string) {
 			continue
 		}
 
-		c, err := controller.NewController(clientset, k, currentNamespace, ignoredNamespacesList, namespaceLabelSelector, collectors)
+		c, err := controller.NewController(clientset, k, currentNamespace, ignoredNamespacesList, namespaceLabelSelector, resourceLabelSelector, collectors)
 		if err != nil {
 			logrus.Fatalf("%s", err)
 		}
@@ -187,19 +197,72 @@ func getIgnoredNamespacesList(cmd *cobra.Command) (util.List, error) {
 	return getStringSliceFromFlags(cmd, "namespaces-to-ignore")
 }
 
-func getNamespaceLabelSelector(cmd *cobra.Command) (util.Map, error) {
+func getNamespaceLabelSelector(cmd *cobra.Command) (string, error) {
 	slice, err := getStringSliceFromFlags(cmd, "namespace-selector")
 	if err != nil {
 		logrus.Fatal(err)
 	}
 
-	var namespaceSelectorMap util.Map = make(util.Map)
-	for _, kv := range slice {
-		split := strings.Split(kv, ":")
-		namespaceSelectorMap[split[0]] = split[1]
+	for i, kv := range slice {
+		// Legacy support for ":" as a delimiter and "*" for wildcard.
+		if strings.Contains(kv, ":") {
+			split := strings.Split(kv, ":")
+			if split[1] == "*" {
+				slice[i] = split[0]
+			} else {
+				slice[i] = split[0] + "=" + split[1]
+			}
+		}
+		// Convert wildcard to valid apimachinery operator
+		if strings.Contains(kv, "=") {
+			split := strings.Split(kv, "=")
+			if split[1] == "*" {
+				slice[i] = split[0]
+			}
+		}
 	}
 
-	return namespaceSelectorMap, nil
+	namespaceLabelSelector := strings.Join(slice[:], ",")
+	_, err = v1.ParseToLabelSelector(namespaceLabelSelector)
+	if err != nil {
+		logrus.Fatal(err)
+	}
+
+	return namespaceLabelSelector, nil
+}
+
+func getResourceLabelSelector(cmd *cobra.Command) (string, error) {
+	slice, err := getStringSliceFromFlags(cmd, "resource-label-selector")
+	if err != nil {
+		logrus.Fatal(err)
+	}
+
+	for i, kv := range slice {
+		// Legacy support for ":" as a delimiter and "*" for wildcard.
+		if strings.Contains(kv, ":") {
+			split := strings.Split(kv, ":")
+			if split[1] == "*" {
+				slice[i] = split[0]
+			} else {
+				slice[i] = split[0] + "=" + split[1]
+			}
+		}
+		// Convert wildcard to valid apimachinery operator
+		if strings.Contains(kv, "=") {
+			split := strings.Split(kv, "=")
+			if split[1] == "*" {
+				slice[i] = split[0]
+			}
+		}
+	}
+
+	resourceLabelSelector := strings.Join(slice[:], ",")
+	_, err = v1.ParseToLabelSelector(resourceLabelSelector)
+	if err != nil {
+		logrus.Fatal(err)
+	}
+
+	return resourceLabelSelector, nil
 }
 
 func getStringSliceFromFlags(cmd *cobra.Command, flag string) ([]string, error) {

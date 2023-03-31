@@ -45,7 +45,7 @@ func TestMain(m *testing.M) {
 
 	logrus.Infof("Creating controller")
 	for k := range kube.ResourceMap {
-		c, err := NewController(clients.KubernetesClient, k, namespace, []string{}, map[string]string{}, collectors)
+		c, err := NewController(clients.KubernetesClient, k, namespace, []string{}, "", "", collectors)
 		if err != nil {
 			logrus.Fatalf("%s", err)
 		}
@@ -2291,7 +2291,7 @@ func TestController_resourceInNamespaceSelector(t *testing.T) {
 		queue             workqueue.RateLimitingInterface
 		informer          cache.Controller
 		namespace         v1.Namespace
-		namespaceSelector util.Map
+		namespaceSelector string
 	}
 	type args struct {
 		raw interface{}
@@ -2305,10 +2305,7 @@ func TestController_resourceInNamespaceSelector(t *testing.T) {
 		{
 			name: "TestConfigMapResourceInNamespaceSelector",
 			fields: fields{
-				namespaceSelector: util.Map{
-					"select":  "this",
-					"select2": "this2",
-				},
+				namespaceSelector: "select=this,select2=this2",
 				namespace: v1.Namespace{
 					ObjectMeta: metav1.ObjectMeta{
 						Name: "selected-namespace",
@@ -2326,10 +2323,7 @@ func TestController_resourceInNamespaceSelector(t *testing.T) {
 		}, {
 			name: "TestConfigMapResourceNotInNamespaceSelector",
 			fields: fields{
-				namespaceSelector: util.Map{
-					"select":  "this",
-					"select2": "this2",
-				},
+				namespaceSelector: "select=this,select2=this2",
 				namespace: v1.Namespace{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:   "not-selected-namespace",
@@ -2345,10 +2339,7 @@ func TestController_resourceInNamespaceSelector(t *testing.T) {
 		{
 			name: "TestSecretResourceInNamespaceSelector",
 			fields: fields{
-				namespaceSelector: util.Map{
-					"select":  "this",
-					"select2": "this2",
-				},
+				namespaceSelector: "select=this,select2=this2",
 				namespace: v1.Namespace{
 					ObjectMeta: metav1.ObjectMeta{
 						Name: "selected-namespace",
@@ -2366,10 +2357,7 @@ func TestController_resourceInNamespaceSelector(t *testing.T) {
 		}, {
 			name: "TestSecretResourceNotInNamespaceSelector",
 			fields: fields{
-				namespaceSelector: util.Map{
-					"select":  "this",
-					"select2": "this2",
-				},
+				namespaceSelector: "select=this,select2=this2",
 				namespace: v1.Namespace{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:   "not-selected-namespace",
@@ -2382,16 +2370,67 @@ func TestController_resourceInNamespaceSelector(t *testing.T) {
 			},
 			want: false,
 		}, {
-			name: "TestSecretResourceInNamespaceSelectorWiledcardValue",
+			name: "TestSecretResourceInNamespaceSelectorKeyExists",
 			fields: fields{
-				namespaceSelector: util.Map{
-					"select": "*",
-				},
+				namespaceSelector: "select",
 				namespace: v1.Namespace{
 					ObjectMeta: metav1.ObjectMeta{
 						Name: "selected-namespace",
 						Labels: map[string]string{
 							"select": "this",
+						},
+					},
+				},
+			},
+			args: args{
+				raw: testutil.GetSecret("selected-namespace", "secret", "test"),
+			},
+			want: true,
+		}, {
+			name: "TestSecretResourceInNamespaceSelectorValueIn",
+			fields: fields{
+				namespaceSelector: "select in (select1, select2, select3)",
+				namespace: v1.Namespace{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "selected-namespace",
+						Labels: map[string]string{
+							"select": "select2",
+						},
+					},
+				},
+			},
+			args: args{
+				raw: testutil.GetSecret("selected-namespace", "secret", "test"),
+			},
+			want: true,
+		}, {
+			name: "TestSecretResourceInNamespaceSelectorKeyDoesNotExist",
+			fields: fields{
+				namespaceSelector: "!select2",
+				namespace: v1.Namespace{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "selected-namespace",
+						Labels: map[string]string{
+							"select": "this",
+						},
+					},
+				},
+			},
+			args: args{
+				raw: testutil.GetSecret("selected-namespace", "secret", "test"),
+			},
+			want: true,
+		}, {
+			name: "TestSecretResourceInNamespaceSelectorMultipleConditions",
+			fields: fields{
+				namespaceSelector: "select,select2=this2,select3!=this4",
+				namespace: v1.Namespace{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "selected-namespace",
+						Labels: map[string]string{
+							"select":  "this",
+							"select2": "this2",
+							"select3": "this3",
 						},
 					},
 				},
@@ -2418,8 +2457,20 @@ func TestController_resourceInNamespaceSelector(t *testing.T) {
 				namespaceSelector: tt.fields.namespaceSelector,
 			}
 
-			if got := c.resourceInNamespaceSelector(tt.args.raw); got != tt.want {
+			listOptions := metav1.ListOptions{}
+			listOptions.LabelSelector = tt.fields.namespaceSelector
+			namespaces, _ := fakeClient.CoreV1().Namespaces().List(context.Background(), listOptions)
+
+			for _, ns := range namespaces.Items {
+				c.addSelectedNamespaceToCache(ns)
+			}
+
+			if got := c.resourceInSelectedNamespaces(tt.args.raw); got != tt.want {
 				t.Errorf("Controller.resourceInNamespaceSelector() = %v, want %v", got, tt.want)
+			}
+
+			for _, ns := range namespaces.Items {
+				c.removeSelectedNamespaceFromCache(ns)
 			}
 		})
 	}

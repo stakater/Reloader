@@ -13,7 +13,6 @@ import (
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
-	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/kubernetes"
@@ -36,7 +35,8 @@ type Controller struct {
 	ignoredNamespaces util.List
 	collectors        metrics.Collectors
 	recorder          record.EventRecorder
-	namespaceSelector map[string]string
+	namespaceSelector string
+	resourceSelector  string
 }
 
 // controllerInitialized flag determines whether controlled is being initialized
@@ -46,7 +46,7 @@ var selectedNamespacesCache []string
 
 // NewController for initializing a Controller
 func NewController(
-	client kubernetes.Interface, resource string, namespace string, ignoredNamespaces []string, namespaceLabelSelector map[string]string, collectors metrics.Collectors) (*Controller, error) {
+	client kubernetes.Interface, resource string, namespace string, ignoredNamespaces []string, namespaceLabelSelector string, resourceLabelSelector string, collectors metrics.Collectors) (*Controller, error) {
 
 	if options.SyncAfterRestart {
 		secretControllerInitialized = true
@@ -58,6 +58,7 @@ func NewController(
 		namespace:         namespace,
 		ignoredNamespaces: ignoredNamespaces,
 		namespaceSelector: namespaceLabelSelector,
+		resourceSelector:  resourceLabelSelector,
 		resource:          resource,
 	}
 	eventBroadcaster := record.NewBroadcaster()
@@ -70,8 +71,9 @@ func NewController(
 
 	optionsModifier := func(options *metav1.ListOptions) {
 		if resource == "namespaces" {
-			labelSelector := metav1.LabelSelector{MatchLabels: c.namespaceSelector}
-			options.LabelSelector = labels.Set(labelSelector.MatchLabels).String()
+			options.LabelSelector = c.namespaceSelector
+		} else if len(c.resourceSelector) > 0 {
+			options.LabelSelector = c.resourceSelector
 		} else {
 			options.FieldSelector = fields.Everything().String()
 		}
@@ -99,7 +101,7 @@ func (c *Controller) Add(obj interface{}) {
 
 	switch object := obj.(type) {
 	case *v1.Namespace:
-		c.addSelectedNamespaceToCache(object)
+		c.addSelectedNamespaceToCache(*object)
 		return
 	}
 
@@ -142,14 +144,16 @@ func (c *Controller) resourceInSelectedNamespaces(raw interface{}) bool {
 	return false
 }
 
-func (c *Controller) addSelectedNamespaceToCache(namespace *v1.Namespace) {
+func (c *Controller) addSelectedNamespaceToCache(namespace v1.Namespace) {
 	selectedNamespacesCache = append(selectedNamespacesCache, namespace.GetName())
+	logrus.Infof("added namespace to be watched: %s", namespace.GetName())
 }
 
-func (c *Controller) removeSelectedNamespaceFromCache(namespace *v1.Namespace) {
+func (c *Controller) removeSelectedNamespaceFromCache(namespace v1.Namespace) {
 	for i, v := range selectedNamespacesCache {
 		if v == namespace.GetName() {
 			selectedNamespacesCache = append(selectedNamespacesCache[:i], selectedNamespacesCache[i+1:]...)
+			logrus.Infof("removed namespace from watch: %s", namespace.GetName())
 			return
 		}
 	}
@@ -176,7 +180,7 @@ func (c *Controller) Update(old interface{}, new interface{}) {
 func (c *Controller) Delete(old interface{}) {
 	switch object := old.(type) {
 	case *v1.Namespace:
-		c.removeSelectedNamespaceFromCache(object)
+		c.removeSelectedNamespaceFromCache(*object)
 		return
 	}
 

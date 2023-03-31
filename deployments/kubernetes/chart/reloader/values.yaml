@@ -21,6 +21,7 @@ reloader:
   reloadStrategy: default # Set to default, env-vars or annotations
   ignoreNamespaces: "" # Comma separated list of namespaces to ignore
   namespaceSelector: "" # Comma separated list of 'key:value' labels for namespaces selection
+  resourceLabelSelector: "" # Comma separated list of 'key:value' labels for configmap/secret selection
   logFormat: "" #json
   watchGlobally: true
   # Set to true to enable leadership election allowing you to run multiple replicas
