@@ -182,14 +182,16 @@ Reloader can be configured to ignore the resources `secrets` and `configmaps` by
 | --resources-to-ignore=configMaps | To ignore configMaps |
 | --resources-to-ignore=secrets    | To ignore secrets    |
 
-`Note`: At one time only one of these resource can be ignored, trying to do it will cause error in Reloader. Workaround for ignoring both resources is by scaling down the reloader pods to `0`.
+**Note:** At one time only one of these resource can be ignored, trying to do it will cause error in Reloader. Workaround for ignoring both resources is by scaling down the reloader pods to `0`.
 
-Reloader can be configured to watch only secrets/configmaps labeled with (one or more) labels of your choosing by using the `--resource-label-selector` parameter.  Supported operators are `!, in, notin, ==, =, !=`, if no operator is found the 'exists' operator is inferred (ie. key only). The `:` delimited key value mappings are deprecated and if provided will be translated to key=value. Likewise, if a wildcard is provided (e.g. `key:*`) it will be translated to just the standalone `key` which checks for key existence.
+Reloader can be configured to only watch secrets/configmaps with one or more labels using the `--resource-label-selector` parameter. Supported operators are `!, in, notin, ==, =, !=`, if no operator is found the 'exists' operator is inferred (ie. key only). Additional examples of these selectors can be found in the [Kubernetes Docs](https://kubernetes.io/docs/concepts/overview/working-with-objects/labels/#label-selectors). 
 
-These can be combined together, for example:
+**Note:** The old `:` delimited key value mappings are deprecated and if provided will be translated to `key=value`. Likewise, if a wildcard value is provided (e.g. `key:*`) it will be translated to the standalone `key` which checks for key existence.
+
+These selectors can be combined together, for example with:
 
 ```
---resource-label-selector=reloader=enabled,key-exists,another-label in (value1, value2, value3)
+--resource-label-selector=reloader=enabled,key-exists,another-label in (value1,value2,value3)
 ```
 
 Only configmaps or secrets labeled like the following will be watched:
@@ -206,17 +208,16 @@ metadata:
   ...
 ```
 
-If you want to select namespace only by the key of the label use ```*``` as the value.
-For example, for ```--namespace-selector=select-this:*``` all namespaces with label-key "select-this" will be selected regardless of the labels value
+Reloader can be configured to only watch namespaces labeled with one or more labels using the `--namespace-selector` parameter. Supported operators are `!, in, notin, ==, =, !=`, if no operator is found the 'exists' operator is inferred (ie. key only). Additional examples of these selectors can be found in the (Kubernetes Docs)[https://kubernetes.io/docs/concepts/overview/working-with-objects/labels/#label-selectors]. 
 
-Reloader can be configured to watch only namespaces labeled with (one or more) labels of your choosing by using the `--namespace-selector` parameter. Reloader can be configured to watch only secrets/configmaps labeled with (one or more) labels of your choosing by using the `--resource-label-selector` parameter.  Supported operators are `!, in, notin, ==, =, !=`, if no operator is found the 'exists' operator is inferred (ie. key only). The `:` delimited key value mappings are deprecated and if provided will be translated to key=value. Likewise, if a wildcard is provided (e.g. `key:*`) it will be translated to just the standalone `key` which checks for key existence.
+**Note:** The old `:` delimited key value mappings are deprecated and if provided will be translated to `key=value`. Likewise, if a wildcard value is provided (e.g. `key:*`) it will be translated to the standalone `key` which checks for key existence.
 
-These can be combined together, for example:
+These selectors can be combined together, for example with:
 ```
---namespace-selector=reloader:enabled,test:true
+--namespace-selector=reloader=enabled,test=true
 ```
 
-Only namespaces labeled like the following namespace YAML will be watched:
+Only namespaces labeled as below would be watched and eligible for reloads:
 ```yaml
 kind: Namespace
 apiVersion: v1
@@ -227,8 +228,6 @@ metadata:
     test: true
   ...
 ```
-If you want to select namespace only by the key of the label use ```*``` as the value.
-For example, for ```--namespace-selector=select-this:*``` all namespaces with label-key "select-this" will be selected regardless of the labels value
 
 ### Vanilla kustomize
 
@@ -279,19 +278,21 @@ Reloader can be configured to ignore the resources `secrets` and `configmaps` by
 | ignoreSecrets    | To ignore secrets. Valid value are either `true` or `false`    | boolean |
 | ignoreConfigMaps | To ignore configMaps. Valid value are either `true` or `false` | boolean |
 
-`Note`: At one time only one of these resource can be ignored, trying to do it will cause error in helm template compilation.
+**Note:** At one time only one of these resource can be ignored, trying to do it will cause error in helm template compilation.
 
-Reloader can be configured to watch only namespaces labeled with (one or more) labels of your choosing by using the `namespaceSelector` parameter
+Reloader can be configured to only watch namespaces labeled with one or more labels using the `namespaceSelector` parameter
 
 | Parameter            | Description                                                                        | Type    |
 | ----------------     | ---------------------------------------------------------------------------------- | ------- |
 | namespaceSelector    | list of comma separated label selectors, if mulitple are provided they are ANDed   | string  |
 
-Reloader can be configured to watch only configmaps/secrets labeled with (one or more) labels of your choosing by using the `resourceLabelSelector` parameter
+Reloader can be configured to only watch configmaps/secrets labeled with one or more labels using the `resourceLabelSelector` parameter
 
 | Parameter              | Description                                                                        | Type    |
 | ---------------------- | ---------------------------------------------------------------------------------- | ------- |
 | resourceLabelSelector  | list of comma separated label selectors, if mulitple are provided they are ANDed   | string  |
+
+**Note:** Both `namespaceSelector` & `resourceLabelSelector` can be used together. If they are then both conditions must be met for the configmap or secret to be eligible to trigger reload events. (e.g. If a configMap matches `resourceLabelSelector` but `namespaceSelector` does not match the namespace the configmap is in, it will be ignored)
 
 You can also set the log format of Reloader to json by setting `logFormat` to `json` in values.yaml and apply the chart
 
@@ -352,7 +353,7 @@ PRs are welcome. In general, we follow the "fork-and-pull" Git workflow.
 4.  **Push** your work back up to your fork
 5.  Submit a **Pull request** so that we can review your changes
 
-NOTE: Be sure to merge the latest from "upstream" before making a pull request!
+**NOTE:** Be sure to merge the latest from "upstream" before making a pull request!
 
 ## Changelog
 
