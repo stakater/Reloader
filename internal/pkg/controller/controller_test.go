@@ -45,6 +45,9 @@ func TestMain(m *testing.M) {
 
 	logrus.Infof("Creating controller")
 	for k := range kube.ResourceMap {
+		if k == "namespaces" {
+			continue
+		}
 		c, err := NewController(clients.KubernetesClient, k, namespace, []string{}, "", "", collectors)
 		if err != nil {
 			logrus.Fatalf("%s", err)
