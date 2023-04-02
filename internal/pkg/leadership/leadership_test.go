@@ -119,7 +119,7 @@ func TestRunLeaderElectionWithControllers(t *testing.T) {
 	t.Logf("Creating controller")
 	var controllers []*controller.Controller
 	for k := range kube.ResourceMap {
-		c, err := controller.NewController(testutil.Clients.KubernetesClient, k, testutil.Namespace, []string{}, map[string]string{}, map[string]string{}, metrics.NewCollectors())
+		c, err := controller.NewController(testutil.Clients.KubernetesClient, k, testutil.Namespace, []string{}, "", "", metrics.NewCollectors())
 		if err != nil {
 			logrus.Fatalf("%s", err)
 		}
