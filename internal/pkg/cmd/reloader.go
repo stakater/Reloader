@@ -19,6 +19,7 @@ import (
 	"github.com/stakater/Reloader/internal/pkg/util"
 	"github.com/stakater/Reloader/pkg/kube"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
 )
 
 // NewReloaderCommand starts the reloader controller
@@ -223,7 +224,7 @@ func getNamespaceLabelSelector(cmd *cobra.Command) (string, error) {
 	}
 
 	namespaceLabelSelector := strings.Join(slice[:], ",")
-	_, err = v1.ParseToLabelSelector(namespaceLabelSelector)
+	_, err = labels.Parse(namespaceLabelSelector)
 	if err != nil {
 		logrus.Fatal(err)
 	}
@@ -257,7 +258,7 @@ func getResourceLabelSelector(cmd *cobra.Command) (string, error) {
 	}
 
 	resourceLabelSelector := strings.Join(slice[:], ",")
-	_, err = v1.ParseToLabelSelector(resourceLabelSelector)
+	_, err = labels.Parse(resourceLabelSelector)
 	if err != nil {
 		logrus.Fatal(err)
 	}
