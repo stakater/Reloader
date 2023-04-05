@@ -1,7 +1,6 @@
 package controller
 
 import (
-	"context"
 	"fmt"
 	"time"
 
@@ -22,6 +21,7 @@ import (
 	"k8s.io/client-go/tools/record"
 	"k8s.io/client-go/util/workqueue"
 	"k8s.io/kubectl/pkg/scheme"
+	"k8s.io/utils/strings/slices"
 )
 
 // Controller for checking events
@@ -35,16 +35,18 @@ type Controller struct {
 	ignoredNamespaces util.List
 	collectors        metrics.Collectors
 	recorder          record.EventRecorder
-	namespaceSelector map[string]string
+	namespaceSelector string
+	resourceSelector  string
 }
 
 // controllerInitialized flag determines whether controlled is being initialized
 var secretControllerInitialized bool = false
 var configmapControllerInitialized bool = false
+var selectedNamespacesCache []string
 
 // NewController for initializing a Controller
 func NewController(
-	client kubernetes.Interface, resource string, namespace string, ignoredNamespaces []string, namespaceLabelSelector map[string]string, collectors metrics.Collectors) (*Controller, error) {
+	client kubernetes.Interface, resource string, namespace string, ignoredNamespaces []string, namespaceLabelSelector string, resourceLabelSelector string, collectors metrics.Collectors) (*Controller, error) {
 
 	if options.SyncAfterRestart {
 		secretControllerInitialized = true
@@ -56,6 +58,7 @@ func NewController(
 		namespace:         namespace,
 		ignoredNamespaces: ignoredNamespaces,
 		namespaceSelector: namespaceLabelSelector,
+		resourceSelector:  resourceLabelSelector,
 		resource:          resource,
 	}
 	eventBroadcaster := record.NewBroadcaster()
@@ -65,7 +68,18 @@ func NewController(
 	recorder := eventBroadcaster.NewRecorder(scheme.Scheme, v1.EventSource{Component: fmt.Sprintf("reloader-%s", resource)})
 
 	queue := workqueue.NewRateLimitingQueue(workqueue.DefaultControllerRateLimiter())
-	listWatcher := cache.NewListWatchFromClient(client.CoreV1().RESTClient(), resource, namespace, fields.Everything())
+
+	optionsModifier := func(options *metav1.ListOptions) {
+		if resource == "namespaces" {
+			options.LabelSelector = c.namespaceSelector
+		} else if len(c.resourceSelector) > 0 {
+			options.LabelSelector = c.resourceSelector
+		} else {
+			options.FieldSelector = fields.Everything().String()
+		}
+	}
+
+	listWatcher := cache.NewFilteredListWatchFromClient(client.CoreV1().RESTClient(), resource, namespace, optionsModifier)
 
 	indexer, informer := cache.NewIndexerInformer(listWatcher, kube.ResourceMap[resource], 0, cache.ResourceEventHandlerFuncs{
 		AddFunc:    c.Add,
@@ -84,8 +98,15 @@ func NewController(
 
 // Add function to add a new object to the queue in case of creating a resource
 func (c *Controller) Add(obj interface{}) {
+
+	switch object := obj.(type) {
+	case *v1.Namespace:
+		c.addSelectedNamespaceToCache(*object)
+		return
+	}
+
 	if options.ReloadOnCreate == "true" {
-		if !c.resourceInIgnoredNamespace(obj) && c.resourceInNamespaceSelector(obj) && secretControllerInitialized && configmapControllerInitialized {
+		if !c.resourceInIgnoredNamespace(obj) && c.resourceInSelectedNamespaces(obj) && secretControllerInitialized && configmapControllerInitialized {
 			c.queue.Add(handler.ResourceCreatedHandler{
 				Resource:   obj,
 				Collectors: c.collectors,
@@ -105,45 +126,47 @@ func (c *Controller) resourceInIgnoredNamespace(raw interface{}) bool {
 	return false
 }
 
-func (c *Controller) resourceInNamespaceSelector(raw interface{}) bool {
+func (c *Controller) resourceInSelectedNamespaces(raw interface{}) bool {
 	if len(c.namespaceSelector) == 0 {
 		return true
 	}
 
 	switch object := raw.(type) {
 	case *v1.ConfigMap:
-		return c.matchLabels(object.ObjectMeta.Namespace)
+		if slices.Contains(selectedNamespacesCache, object.GetNamespace()) {
+			return true
+		}
 	case *v1.Secret:
-		return c.matchLabels(object.ObjectMeta.Namespace)
+		if slices.Contains(selectedNamespacesCache, object.GetNamespace()) {
+			return true
+		}
 	}
-	return true
+	return false
 }
 
-func (c *Controller) matchLabels(resourceNamespace string) bool {
-	namespace, err := c.client.CoreV1().Namespaces().Get(context.Background(), resourceNamespace, metav1.GetOptions{})
-	if err != nil {
-		logrus.Warn(err)
-		return false
-	}
+func (c *Controller) addSelectedNamespaceToCache(namespace v1.Namespace) {
+	selectedNamespacesCache = append(selectedNamespacesCache, namespace.GetName())
+	logrus.Infof("added namespace to be watched: %s", namespace.GetName())
+}
 
-	for selectorKey, selectorVal := range c.namespaceSelector {
-
-		namespaceLabelVal, namespaceLabelKeyExists := namespace.ObjectMeta.Labels[selectorKey]
-
-		if namespaceLabelKeyExists && selectorVal == "*" {
-			continue
-		}
-
-		if !namespaceLabelKeyExists || selectorVal != namespaceLabelVal {
-			return false
+func (c *Controller) removeSelectedNamespaceFromCache(namespace v1.Namespace) {
+	for i, v := range selectedNamespacesCache {
+		if v == namespace.GetName() {
+			selectedNamespacesCache = append(selectedNamespacesCache[:i], selectedNamespacesCache[i+1:]...)
+			logrus.Infof("removed namespace from watch: %s", namespace.GetName())
+			return
 		}
 	}
-	return true
 }
 
 // Update function to add an old object and a new object to the queue in case of updating a resource
 func (c *Controller) Update(old interface{}, new interface{}) {
-	if !c.resourceInIgnoredNamespace(new) && c.resourceInNamespaceSelector(new) {
+	switch new.(type) {
+	case *v1.Namespace:
+		return
+	}
+
+	if !c.resourceInIgnoredNamespace(new) && c.resourceInSelectedNamespaces(new) {
 		c.queue.Add(handler.ResourceUpdatedHandler{
 			Resource:    new,
 			OldResource: old,
@@ -155,6 +178,12 @@ func (c *Controller) Update(old interface{}, new interface{}) {
 
 // Delete function to add an object to the queue in case of deleting a resource
 func (c *Controller) Delete(old interface{}) {
+	switch object := old.(type) {
+	case *v1.Namespace:
+		c.removeSelectedNamespaceFromCache(*object)
+		return
+	}
+
 	// Todo: Any future delete event can be handled here
 }
 

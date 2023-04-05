@@ -9,4 +9,5 @@ import (
 var ResourceMap = map[string]runtime.Object{
 	"configMaps": &v1.ConfigMap{},
 	"secrets":    &v1.Secret{},
+	"namespaces":    &v1.Namespace{},
 }

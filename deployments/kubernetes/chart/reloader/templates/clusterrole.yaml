@@ -38,6 +38,8 @@ rules:
       - namespaces
     verbs:
       - get
+      - list
+      - watch
 {{- end }}
 {{- if and (.Capabilities.APIVersions.Has "apps.openshift.io/v1") (.Values.reloader.isOpenshift) }}
   - apiGroups:
