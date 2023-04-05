@@ -137,6 +137,7 @@ spec:
           failureThreshold: {{ .Values.reloader.deployment.livenessProbe.failureThreshold | default "5" }}
           periodSeconds: {{ .Values.reloader.deployment.livenessProbe.periodSeconds | default "10" }}
           successThreshold: {{ .Values.reloader.deployment.livenessProbe.successThreshold | default "1" }}
+          initialDelaySeconds: {{ .Values.reloader.deployment.livenessProbe.initialDelaySeconds | default "10" }}
         readinessProbe:
           httpGet:
             path: /metrics
@@ -145,6 +146,7 @@ spec:
           failureThreshold: {{ .Values.reloader.deployment.readinessProbe.failureThreshold | default "5" }}
           periodSeconds: {{ .Values.reloader.deployment.readinessProbe.periodSeconds | default "10" }}
           successThreshold: {{ .Values.reloader.deployment.readinessProbe.successThreshold | default "1" }}
+          initialDelaySeconds: {{ .Values.reloader.deployment.readinessProbe.initialDelaySeconds | default "10" }}
 
         {{- $containerSecurityContext := .Values.reloader.deployment.containerSecurityContext | default dict }}
         {{- if .Values.reloader.readOnlyRootFileSystem }}
