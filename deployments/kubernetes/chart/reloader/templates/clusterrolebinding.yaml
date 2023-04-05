@@ -17,7 +17,6 @@ metadata:
 {{ toYaml .Values.reloader.matchLabels | indent 4 }}
 {{- end }}
   name: {{ template "reloader-fullname" . }}-role-binding
-  namespace: {{ .Release.Namespace }}
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
@@ -25,5 +24,5 @@ roleRef:
 subjects:
   - kind: ServiceAccount
     name: {{ template "reloader-serviceAccountName" . }}
-    namespace: {{ .Release.Namespace }}
+    namespace: {{ .Values.namespace | default .Release.Namespace }}
 {{- end }}

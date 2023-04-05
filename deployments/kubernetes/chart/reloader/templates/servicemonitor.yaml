@@ -2,25 +2,52 @@
 apiVersion: monitoring.coreos.com/v1
 kind: ServiceMonitor
 metadata:
+{{- if .Values.reloader.serviceMonitor.annotations }}
+  annotations:
+{{ tpl (toYaml .Values.reloader.serviceMonitor.annotations) . | indent 4 }}
+{{- end }}
   labels:
 {{ include "reloader-labels.chart" . | indent 4 }}
 {{- if .Values.reloader.serviceMonitor.labels }}
-{{ toYaml .Values.reloader.serviceMonitor.labels | indent 4}}
+{{ tpl (toYaml .Values.reloader.serviceMonitor.labels) . | indent 4 }}
 {{- end }}
   name: {{ template "reloader-fullname" . }}
 {{- if .Values.reloader.serviceMonitor.namespace }}
-  namespace: {{ .Values.reloader.serviceMonitor.namespace }}
+  namespace: {{ tpl .Values.reloader.serviceMonitor.namespace . }}
 {{- end }}
 spec:
   endpoints:
   - targetPort: http
     path: "/metrics"
-{{- if .Values.reloader.serviceMonitor.interval }}
-    interval: {{ .Values.reloader.serviceMonitor.interval }}
-{{- end }}
-{{- if .Values.reloader.serviceMonitor.timeout }}
-    scrapeTimeout: {{ .Values.reloader.serviceMonitor.timeout }}
-{{- end }}
+    {{- with .Values.reloader.serviceMonitor.interval }}
+    interval: {{ . }}
+    {{- end }}
+    {{- with .Values.reloader.serviceMonitor.scheme }}
+    scheme: {{ . }}
+    {{- end }}
+    {{- with .Values.reloader.serviceMonitor.bearerTokenFile }}
+    bearerTokenFile: {{ . }}
+    {{- end }}
+    {{- with .Values.reloader.serviceMonitor.tlsConfig }}
+    tlsConfig:
+      {{- toYaml .| nindent 6 }}
+    {{- end }}
+    {{- with .Values.reloader.serviceMonitor.timeout }}
+    scrapeTimeout: {{ . }}
+    {{- end }}
+    honorLabels: {{ .Values.reloader.serviceMonitor.honorLabels }}
+    {{- with .Values.reloader.serviceMonitor.metricRelabelings }}
+    metricRelabelings:
+      {{- tpl (toYaml . | nindent 6) $ }}
+    {{- end }}
+    {{- with .Values.reloader.serviceMonitor.relabelings }}
+    relabelings:
+      {{- toYaml . | nindent 6 }}
+    {{- end }}
+  {{- with .Values.reloader.serviceMonitor.targetLabels }}
+  targetLabels:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
   jobLabel: {{ template "reloader-fullname" . }}
   namespaceSelector:
     matchNames:

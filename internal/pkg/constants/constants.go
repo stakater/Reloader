@@ -1,6 +1,9 @@
 package constants
 
 const (
+	// DefaultHttpListenAddr is the default listening address for global http server
+	DefaultHttpListenAddr = ":9090"
+
 	// ConfigmapEnvVarPostfix is a postfix for configmap envVar
 	ConfigmapEnvVarPostfix = "CONFIGMAP"
 	// SecretEnvVarPostfix is a postfix for secret envVar
@@ -19,4 +22,11 @@ const (
 	EnvVarsReloadStrategy = "env-vars"
 	// AnnotationsReloadStrategy instructs Reloader to add pod template annotations to facilitate a restart
 	AnnotationsReloadStrategy = "annotations"
+)
+
+// Leadership election related consts
+const (
+	LockName        string = "stakater-reloader-lock"
+	PodNameEnv      string = "POD_NAME"
+	PodNamespaceEnv string = "POD_NAMESPACE"
 )

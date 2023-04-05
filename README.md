@@ -31,7 +31,8 @@ metadata:
   annotations:
     reloader.stakater.com/auto: "true"
 spec:
-  template: metadata:
+  template:
+    metadata:
 ```
 
 This will discover deploymentconfigs/deployments/daemonsets/statefulset/rollouts automatically where `foo-configmap` or `foo-secret` is being used either via environment variable or from volume mount. And it will perform rolling upgrade on related pods when `foo-configmap` or `foo-secret`are updated.
@@ -86,7 +87,8 @@ metadata:
   annotations:
     configmap.reloader.stakater.com/reload: "foo-configmap"
 spec:
-  template: metadata:
+  template:
+    metadata:
 ```
 
 Use comma separated list to define multiple configmaps.
@@ -141,6 +143,7 @@ spec:
 - you may override the configmap annotation with the `--configmap-annotation` flag
 - you may override the secret annotation with the `--secret-annotation` flag
 - you may want to prevent watching certain namespaces with the `--namespaces-to-ignore` flag
+- you may want to watch only a set of namespaces with certain labels by using the `--namespace-selector` flag
 - you may want to prevent watching certain resources with the `--resources-to-ignore` flag
 - you can configure logging in JSON format with the `--log-format=json` option
 - you can configure the "reload strategy" with the `--reload-strategy=<strategy-name>` option (details below)
@@ -179,6 +182,25 @@ Reloader can be configured to ignore the resources `secrets` and `configmaps` by
 | --resources-to-ignore=secrets    | To ignore secrets    |
 
 `Note`: At one time only one of these resource can be ignored, trying to do it will cause error in Reloader. Workaround for ignoring both resources is by scaling down the reloader pods to `0`.
+
+Reloader can be configured to watch only namespaces labeled with (one or more) labels of your choosing by using the `--namespace-selector` parameter, for example:
+```
+--namespace-selector=reloder:enabled,test:true
+```
+
+Only namespaces labeled like the following namespace YAML will be watched:
+```yaml
+kind: Namespace
+apiVersion: v1
+metadata:
+  ...
+  labels:
+    reloder: enabled
+    test: true
+  ...
+```
+If you want to select namespace only by the key of the label use ```*``` as the value.
+For example, for ```--namespace-selector=select-this:*``` all namespaces with label-key "select-this" will be selected regardless of the labels value
 
 ### Vanilla kustomize
 
@@ -231,17 +253,32 @@ Reloader can be configured to ignore the resources `secrets` and `configmaps` by
 
 `Note`: At one time only one of these resource can be ignored, trying to do it will cause error in helm template compilation.
 
+Reloader can be configured to watch only namespaces labeled with (one or more) labels of your choosing by using the `namespaceSelector` parameter
+
+| Parameter            | Description                                                    | Type    |
+| ----------------     | -------------------------------------------------------------- | ------- |
+| namespaceSelector    | list of comma separated key:value namespace                    | string  |
+
 You can also set the log format of Reloader to json by setting `logFormat` to `json` in values.yaml and apply the chart
 
 You can enable to scrape Reloader's Prometheus metrics by setting `serviceMonitor.enabled` or `podMonitor.enabled`  to `true` in values.yaml file. Service monitor will be removed in future releases of reloader in favour of Pod monitor.
 
 **Note:** Reloading of OpenShift (DeploymentConfig) and/or Argo Rollouts has to be enabled explicitly because it might not be always possible to use it on a cluster with restricted permissions. This can be done by changing the following parameters:
 
-| Parameter        | Description                                                                  | Type    |
-| ---------------- |------------------------------------------------------------------------------| ------- |
-| isOpenshift      | Enable OpenShift DeploymentConfigs. Valid value are either `true` or `false` | boolean |
-| isArgoRollouts   | Enable Argo Rollouts. Valid value are either `true` or `false`               | boolean |
-| reloadOnCreate   | Enable reload on create events. Valid value are either `true` or `false`     | boolean |
+| Parameter        | Description                                                                                                                              | Type    |
+|------------------|------------------------------------------------------------------------------------------------------------------------------------------| ------- |
+| isOpenshift      | Enable OpenShift DeploymentConfigs. Valid value are either `true` or `false`                                                             | boolean |
+| isArgoRollouts   | Enable Argo Rollouts. Valid value are either `true` or `false`                                                                           | boolean |
+| reloadOnCreate   | Enable reload on create events. Valid value are either `true` or `false`                                                                 | boolean |
+| syncAfterRestart | Enable sync after reloader restarts for **Add** events, works only when reloadOnCreate is `true`. Valid value are either `true` or `false` | boolean |
+
+**ReloadOnCreate** reloadOnCreate controls how Reloader handles secrets being added to the cache for the first time. If reloadOnCreate is set to true:
+* Configmaps/secrets being added to the cache will cause Reloader to perform a rolling update of the associated workload. 
+* When applications are deployed for the first time, Reloader will perform a rolling update of the associated workload. 
+* If you are running Reloader in HA mode all workloads will have a rolling update performed when a new leader is elected. 
+
+If ReloadOnCreate is set to false: 
+* Updates to configMaps/Secrets that occur while there is no leader will not be picked up by the new leader until a subsequent update of the configmap/secret occurs. In the worst case the window in which there can be no leader is 15s as this is the LeaseDuration.
 
 ## Help
 
@@ -251,7 +288,7 @@ You can find more documentation [here](docs)
 
 ### Have a question?
 
-File a GitHub [issue](https://github.com/stakater/Reloader/issues), or send us an [email](mailto:stakater@gmail.com).
+File a GitHub [issue](https://github.com/stakater/Reloader/issues), or send us an [email](mailto:hello@stakater.com).
 
 ### Talk to us on Slack
 

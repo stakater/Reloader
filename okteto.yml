@@ -1,14 +1,17 @@
-name: reloader-reloader
-image: okteto/golang:1
-command: bash
-securityContext:
-  capabilities:
-    add:
-      - SYS_PTRACE
-volumes:
-  - /go/pkg/
-  - /root/.cache/go-build/
-sync:
-  - .:/app
-forward:
-  - 2345:2345
+dev:
+  reloader-reloader:
+    image: okteto/golang:1
+    command: bash
+    volumes:
+      - /go/pkg/
+      - /root/.cache/go-build/
+    sync:
+      - .:/app
+    forward:
+      - 2345:2345
+    workdir: /app
+    autocreate: true
+    securityContext:
+      capabilities:
+        add:
+          - SYS_PTRACE

@@ -54,6 +54,8 @@ func GetSHAfromSecret(data map[string][]byte) string {
 
 type List []string
 
+type Map map[string]string
+
 func (l *List) Contains(s string) bool {
 	for _, v := range *l {
 		if v == s {

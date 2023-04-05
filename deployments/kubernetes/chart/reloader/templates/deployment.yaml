@@ -15,9 +15,13 @@ metadata:
 {{ toYaml .Values.reloader.matchLabels | indent 4 }}
 {{- end }}
   name: {{ template "reloader-fullname" . }}
-  namespace: {{ .Release.Namespace }}
+  namespace: {{ .Values.namespace | default .Release.Namespace }}
 spec:
+{{- if not (.Values.reloader.enableHA) }}
+  replicas: 1
+{{- else }}
   replicas: {{ .Values.reloader.deployment.replicas }}
+{{- end}}
   revisionHistoryLimit: 2
   selector:
     matchLabels:
@@ -41,17 +45,28 @@ spec:
 {{ toYaml .Values.reloader.matchLabels | indent 8 }}
 {{- end }}
     spec:
+      {{- with .Values.reloader.deployment.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
       {{- if .Values.reloader.deployment.nodeSelector }}
       nodeSelector:
 {{ toYaml .Values.reloader.deployment.nodeSelector | indent 8 }}
       {{- end }}
-      {{- if .Values.reloader.deployment.affinity }}
+      {{- if or (.Values.reloader.deployment.affinity) (.Values.reloader.enableHA) }}
       affinity:
+      {{- if .Values.reloader.deployment.affinity }}
 {{ toYaml .Values.reloader.deployment.affinity | indent 8 }}
+      {{- end}}
+{{ include "reloader-podAntiAffinity" . | indent 8 }}
       {{- end }}
       {{- if .Values.reloader.deployment.tolerations }}
       tolerations:
 {{ toYaml .Values.reloader.deployment.tolerations | indent 8 }}
+      {{- end }}
+      {{- if .Values.reloader.deployment.topologySpreadConstraints }}
+      topologySpreadConstraints:
+{{ toYaml .Values.reloader.deployment.topologySpreadConstraints | indent 8 }}
       {{- end }}
       {{- if .Values.reloader.deployment.priorityClassName }}
       priorityClassName: {{ .Values.reloader.deployment.priorityClassName }}
@@ -60,7 +75,7 @@ spec:
       - image: "{{ .Values.reloader.deployment.image.name }}:{{ .Values.reloader.deployment.image.tag }}"
         imagePullPolicy: {{ .Values.reloader.deployment.image.pullPolicy }}
         name: {{ template "reloader-fullname" . }}
-      {{- if or (.Values.reloader.deployment.env.open) (.Values.reloader.deployment.env.secret) (.Values.reloader.deployment.env.field) (eq .Values.reloader.watchGlobally false) }}
+      {{- if or (.Values.reloader.deployment.env.open) (.Values.reloader.deployment.env.secret) (.Values.reloader.deployment.env.field) (.Values.reloader.deployment.env.existing) (eq .Values.reloader.watchGlobally false) (.Values.reloader.enableHA)}}
         env:
       {{- range $name, $value := .Values.reloader.deployment.env.open }}
       {{- if not (empty $value) }}
@@ -78,6 +93,17 @@ spec:
               key: {{ $name | quote }}
       {{- end }}
       {{- end }}
+      {{- range $secret, $values := .Values.reloader.deployment.env.existing }}
+      {{- range $name, $key := $values }}
+      {{- if not ( empty $name) }}
+        - name: {{ $name | quote }}
+          valueFrom:
+            secretKeyRef:
+              name: {{ $secret | quote }}
+              key: {{ $key | quote }}
+      {{- end }}
+      {{- end }}
+      {{- end }}
       {{- range $name, $value := .Values.reloader.deployment.env.field }}
       {{- if not ( empty $value) }}
         - name: {{ $name | quote }}
@@ -92,6 +118,16 @@ spec:
             fieldRef:
               fieldPath: metadata.namespace
       {{- end }}
+      {{- if .Values.reloader.enableHA }}
+        - name: POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        - name: POD_NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
+      {{- end }}
       {{- end }}
 
         ports:
@@ -99,12 +135,13 @@ spec:
           containerPort: 9090
         livenessProbe:
           httpGet:
-            path: /metrics
+            path: /live
             port: http
           timeoutSeconds: {{ .Values.reloader.deployment.livenessProbe.timeoutSeconds | default "5" }}
           failureThreshold: {{ .Values.reloader.deployment.livenessProbe.failureThreshold | default "5" }}
           periodSeconds: {{ .Values.reloader.deployment.livenessProbe.periodSeconds | default "10" }}
           successThreshold: {{ .Values.reloader.deployment.livenessProbe.successThreshold | default "1" }}
+          initialDelaySeconds: {{ .Values.reloader.deployment.livenessProbe.initialDelaySeconds | default "10" }}
         readinessProbe:
           httpGet:
             path: /metrics
@@ -113,17 +150,22 @@ spec:
           failureThreshold: {{ .Values.reloader.deployment.readinessProbe.failureThreshold | default "5" }}
           periodSeconds: {{ .Values.reloader.deployment.readinessProbe.periodSeconds | default "10" }}
           successThreshold: {{ .Values.reloader.deployment.readinessProbe.successThreshold | default "1" }}
+          initialDelaySeconds: {{ .Values.reloader.deployment.readinessProbe.initialDelaySeconds | default "10" }}
 
-      {{- with .Values.reloader.deployment.containerSecurityContext }}
-        securityContext: {{ toYaml . | nindent 10 }}
-      {{- end }}
+        {{- $containerSecurityContext := .Values.reloader.deployment.containerSecurityContext | default dict }}
+        {{- if .Values.reloader.readOnlyRootFileSystem }}
+          {{- $_ := set $containerSecurityContext "readOnlyRootFilesystem" true }}
+        {{- end }}
+
+        securityContext:
+          {{- toYaml $containerSecurityContext | nindent 10 }}
 
       {{- if eq .Values.reloader.readOnlyRootFileSystem true }}
         volumeMounts:
           - mountPath: /tmp/
             name: tmp-volume
       {{- end }}
-      {{- if or (.Values.reloader.logFormat) (.Values.reloader.ignoreSecrets) (.Values.reloader.ignoreNamespaces) (.Values.reloader.ignoreConfigMaps) (.Values.reloader.custom_annotations) (eq .Values.reloader.isArgoRollouts true) (eq .Values.reloader.reloadOnCreate true) (ne .Values.reloader.reloadStrategy "default")}}
+      {{- if or (.Values.reloader.logFormat) (.Values.reloader.ignoreSecrets) (.Values.reloader.ignoreNamespaces) (.Values.reloader.namespaceSelector) (.Values.reloader.ignoreConfigMaps) (.Values.reloader.custom_annotations) (eq .Values.reloader.isArgoRollouts true) (eq .Values.reloader.reloadOnCreate true) (ne .Values.reloader.reloadStrategy "default") (.Values.reloader.enableHA)}}
         args:
           {{- if .Values.reloader.logFormat }}
           - "--log-format={{ .Values.reloader.logFormat }}"
@@ -137,7 +179,9 @@ spec:
           {{- if .Values.reloader.ignoreNamespaces }}
           - "--namespaces-to-ignore={{ .Values.reloader.ignoreNamespaces }}"
           {{- end }}
-
+          {{- if .Values.reloader.namespaceSelector }}
+          - "--namespace-selector={{ .Values.reloader.namespaceSelector }}"
+          {{- end }}          
           {{- if .Values.reloader.custom_annotations }}
             {{- if .Values.reloader.custom_annotations.configmap }}
           - "--configmap-annotation"
@@ -166,9 +210,15 @@ spec:
           {{- if eq .Values.reloader.reloadOnCreate true }}
           - "--reload-on-create={{ .Values.reloader.reloadOnCreate }}"
           {{- end }}
+          {{- if eq .Values.reloader.syncAfterRestart true }}
+          - "--sync-after-restart={{ .Values.reloader.syncAfterRestart }}"
+          {{- end }}
           {{- if ne .Values.reloader.reloadStrategy "default" }}
           - "--reload-strategy={{ .Values.reloader.reloadStrategy }}"
           {{- end }}
+          {{- if or (gt (int .Values.reloader.deployment.replicas) 1) (.Values.reloader.enableHA) }}
+          - "--enable-ha=true"
+          {{- end}}
       {{- end }}
       {{- if .Values.reloader.deployment.resources }}
         resources:

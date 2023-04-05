@@ -16,11 +16,13 @@ import (
 	"github.com/stakater/Reloader/internal/pkg/callbacks"
 	"github.com/stakater/Reloader/internal/pkg/constants"
 	"github.com/stakater/Reloader/internal/pkg/crypto"
+	"github.com/stakater/Reloader/internal/pkg/metrics"
 	"github.com/stakater/Reloader/internal/pkg/options"
 	"github.com/stakater/Reloader/internal/pkg/util"
 	"github.com/stakater/Reloader/pkg/kube"
 	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	core_v1 "k8s.io/client-go/kubernetes/typed/core/v1"
@@ -32,6 +34,19 @@ var (
 	ConfigmapResourceType = "configMaps"
 	// SecretResourceType is a resource type which controller watches for changes
 	SecretResourceType = "secrets"
+)
+
+var (
+	Clients             = kube.GetClients()
+	Pod                 = "test-reloader-" + RandSeq(5)
+	Namespace           = "test-reloader-" + RandSeq(5)
+	ConfigmapNamePrefix = "testconfigmap-reloader"
+	SecretNamePrefix    = "testsecret-reloader"
+	Data                = "dGVzdFNlY3JldEVuY29kaW5nRm9yUmVsb2FkZXI="
+	NewData             = "dGVzdE5ld1NlY3JldEVuY29kaW5nRm9yUmVsb2FkZXI="
+	UpdatedData         = "dGVzdFVwZGF0ZWRTZWNyZXRFbmNvZGluZ0ZvclJlbG9hZGVy"
+	Collectors          = metrics.NewCollectors()
+	SleepDuration       = 3 * time.Second
 )
 
 // CreateNamespace creates namespace for testing
@@ -600,7 +615,7 @@ func GetResourceSHAFromAnnotation(podAnnotations map[string]string) string {
 	return last.Hash
 }
 
-//ConvertResourceToSHA generates SHA from secret or configmap data
+// ConvertResourceToSHA generates SHA from secret or configmap data
 func ConvertResourceToSHA(resourceType string, namespace string, resourceName string, data string) string {
 	values := []string{}
 	if resourceType == SecretResourceType {
@@ -822,7 +837,6 @@ func DeleteSecret(client kubernetes.Interface, namespace string, secretName stri
 
 // RandSeq generates a random sequence
 func RandSeq(n int) string {
-	rand.Seed(time.Now().UnixNano())
 	b := make([]rune, n)
 	for i := range b {
 		b[i] = letters[rand.Intn(len(letters))]
@@ -835,10 +849,15 @@ func VerifyResourceEnvVarUpdate(clients kube.Clients, config util.Config, envVar
 	items := upgradeFuncs.ItemsFunc(clients, config.Namespace)
 	for _, i := range items {
 		containers := upgradeFuncs.ContainersFunc(i)
+		accessor, err := meta.Accessor(i)
+		if err != nil {
+			return false
+		}
+		annotations := accessor.GetAnnotations()
 		// match statefulsets with the correct annotation
-		annotationValue := util.ToObjectMeta(i).Annotations[config.Annotation]
-		searchAnnotationValue := util.ToObjectMeta(i).Annotations[options.AutoSearchAnnotation]
-		reloaderEnabledValue := util.ToObjectMeta(i).Annotations[options.ReloaderAutoAnnotation]
+		annotationValue := annotations[config.Annotation]
+		searchAnnotationValue := annotations[options.AutoSearchAnnotation]
+		reloaderEnabledValue := annotations[options.ReloaderAutoAnnotation]
 		reloaderEnabled, err := strconv.ParseBool(reloaderEnabledValue)
 		matches := false
 		if err == nil && reloaderEnabled {
@@ -874,10 +893,15 @@ func VerifyResourceAnnotationUpdate(clients kube.Clients, config util.Config, up
 	items := upgradeFuncs.ItemsFunc(clients, config.Namespace)
 	for _, i := range items {
 		podAnnotations := upgradeFuncs.PodAnnotationsFunc(i)
+		accessor, err := meta.Accessor(i)
+		if err != nil {
+			return false
+		}
+		annotations := accessor.GetAnnotations()
 		// match statefulsets with the correct annotation
-		annotationValue := util.ToObjectMeta(i).Annotations[config.Annotation]
-		searchAnnotationValue := util.ToObjectMeta(i).Annotations[options.AutoSearchAnnotation]
-		reloaderEnabledValue := util.ToObjectMeta(i).Annotations[options.ReloaderAutoAnnotation]
+		annotationValue := annotations[config.Annotation]
+		searchAnnotationValue := annotations[options.AutoSearchAnnotation]
+		reloaderEnabledValue := annotations[options.ReloaderAutoAnnotation]
 		reloaderEnabled, err := strconv.ParseBool(reloaderEnabledValue)
 		matches := false
 		if err == nil && reloaderEnabled {

@@ -4,8 +4,14 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"os"
+	"regexp"
+	"strconv"
+	"strings"
+
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/sirupsen/logrus"
+	alert "github.com/stakater/Reloader/internal/pkg/alerts"
 	"github.com/stakater/Reloader/internal/pkg/callbacks"
 	"github.com/stakater/Reloader/internal/pkg/constants"
 	"github.com/stakater/Reloader/internal/pkg/metrics"
@@ -13,8 +19,9 @@ import (
 	"github.com/stakater/Reloader/internal/pkg/util"
 	"github.com/stakater/Reloader/pkg/kube"
 	v1 "k8s.io/api/core/v1"
-	"strconv"
-	"strings"
+	"k8s.io/apimachinery/pkg/api/meta"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/client-go/tools/record"
 )
 
 // GetDeploymentRollingUpgradeFuncs returns all callback funcs for a deployment
@@ -87,31 +94,31 @@ func GetArgoRolloutRollingUpgradeFuncs() callbacks.RollingUpgradeFuncs {
 	}
 }
 
-func doRollingUpgrade(config util.Config, collectors metrics.Collectors) error {
+func doRollingUpgrade(config util.Config, collectors metrics.Collectors, recorder record.EventRecorder) error {
 	clients := kube.GetClients()
 
-	err := rollingUpgrade(clients, config, GetDeploymentRollingUpgradeFuncs(), collectors)
+	err := rollingUpgrade(clients, config, GetDeploymentRollingUpgradeFuncs(), collectors, recorder)
 	if err != nil {
 		return err
 	}
-	err = rollingUpgrade(clients, config, GetDaemonSetRollingUpgradeFuncs(), collectors)
+	err = rollingUpgrade(clients, config, GetDaemonSetRollingUpgradeFuncs(), collectors, recorder)
 	if err != nil {
 		return err
 	}
-	err = rollingUpgrade(clients, config, GetStatefulSetRollingUpgradeFuncs(), collectors)
+	err = rollingUpgrade(clients, config, GetStatefulSetRollingUpgradeFuncs(), collectors, recorder)
 	if err != nil {
 		return err
 	}
 
 	if kube.IsOpenshift {
-		err = rollingUpgrade(clients, config, GetDeploymentConfigRollingUpgradeFuncs(), collectors)
+		err = rollingUpgrade(clients, config, GetDeploymentConfigRollingUpgradeFuncs(), collectors, recorder)
 		if err != nil {
 			return err
 		}
 	}
 
 	if options.IsArgoRollouts == "true" {
-		err = rollingUpgrade(clients, config, GetArgoRolloutRollingUpgradeFuncs(), collectors)
+		err = rollingUpgrade(clients, config, GetArgoRolloutRollingUpgradeFuncs(), collectors, recorder)
 		if err != nil {
 			return err
 		}
@@ -120,9 +127,9 @@ func doRollingUpgrade(config util.Config, collectors metrics.Collectors) error {
 	return nil
 }
 
-func rollingUpgrade(clients kube.Clients, config util.Config, upgradeFuncs callbacks.RollingUpgradeFuncs, collectors metrics.Collectors) error {
+func rollingUpgrade(clients kube.Clients, config util.Config, upgradeFuncs callbacks.RollingUpgradeFuncs, collectors metrics.Collectors, recorder record.EventRecorder) error {
 
-	err := PerformRollingUpgrade(clients, config, upgradeFuncs, collectors)
+	err := PerformRollingUpgrade(clients, config, upgradeFuncs, collectors, recorder)
 	if err != nil {
 		logrus.Errorf("Rolling upgrade for '%s' failed with error = %v", config.ResourceName, err)
 	}
@@ -130,7 +137,7 @@ func rollingUpgrade(clients kube.Clients, config util.Config, upgradeFuncs callb
 }
 
 // PerformRollingUpgrade upgrades the deployment if there is any change in configmap or secret data
-func PerformRollingUpgrade(clients kube.Clients, config util.Config, upgradeFuncs callbacks.RollingUpgradeFuncs, collectors metrics.Collectors) error {
+func PerformRollingUpgrade(clients kube.Clients, config util.Config, upgradeFuncs callbacks.RollingUpgradeFuncs, collectors metrics.Collectors, recorder record.EventRecorder) error {
 	items := upgradeFuncs.ItemsFunc(clients, config.Namespace)
 
 	for _, i := range items {
@@ -154,8 +161,9 @@ func PerformRollingUpgrade(clients kube.Clients, config util.Config, upgradeFunc
 		if result != constants.Updated && annotationValue != "" {
 			values := strings.Split(annotationValue, ",")
 			for _, value := range values {
-				value = strings.Trim(value, " ")
-				if value == config.ResourceName {
+				value = strings.TrimSpace(value)
+				re := regexp.MustCompile("^" + value + "$")
+				if re.Match([]byte(config.ResourceName)) {
 					result = invokeReloadStrategy(upgradeFuncs, i, config, false)
 					if result == constants.Updated {
 						break
@@ -172,16 +180,35 @@ func PerformRollingUpgrade(clients kube.Clients, config util.Config, upgradeFunc
 		}
 
 		if result == constants.Updated {
-			err = upgradeFuncs.UpdateFunc(clients, config.Namespace, i)
-			resourceName := util.ToObjectMeta(i).Name
+			accessor, err := meta.Accessor(i)
 			if err != nil {
-				logrus.Errorf("Update for '%s' of type '%s' in namespace '%s' failed with error %v", resourceName, upgradeFuncs.ResourceType, config.Namespace, err)
+				return err
+			}
+			resourceName := accessor.GetName()
+			err = upgradeFuncs.UpdateFunc(clients, config.Namespace, i)
+			if err != nil {
+				message := fmt.Sprintf("Update for '%s' of type '%s' in namespace '%s' failed with error %v", resourceName, upgradeFuncs.ResourceType, config.Namespace, err)
+				logrus.Errorf(message)
 				collectors.Reloaded.With(prometheus.Labels{"success": "false"}).Inc()
+				if recorder != nil {
+					recorder.Event(i, v1.EventTypeWarning, "ReloadFail", message)
+				}
 				return err
 			} else {
-				logrus.Infof("Changes detected in '%s' of type '%s' in namespace '%s'", config.ResourceName, config.Type, config.Namespace)
-				logrus.Infof("Updated '%s' of type '%s' in namespace '%s'", resourceName, upgradeFuncs.ResourceType, config.Namespace)
+				message := fmt.Sprintf("Changes detected in '%s' of type '%s' in namespace '%s'", config.ResourceName, config.Type, config.Namespace)
+				message += fmt.Sprintf(", Updated '%s' of type '%s' in namespace '%s'", resourceName, upgradeFuncs.ResourceType, config.Namespace)
+				logrus.Infof(message)
 				collectors.Reloaded.With(prometheus.Labels{"success": "true"}).Inc()
+				alert_on_reload, ok := os.LookupEnv("ALERT_ON_RELOAD")
+				if recorder != nil {
+					recorder.Event(i, v1.EventTypeNormal, "Reloaded", message)
+				}
+				if ok && alert_on_reload == "true" {
+					msg := fmt.Sprintf(
+						"Reloader detected changes in *%s* of type *%s* in namespace *%s*. Hence reloaded *%s* of type *%s* in namespace *%s*",
+						config.ResourceName, config.Type, config.Namespace, resourceName, upgradeFuncs.ResourceType, config.Namespace)
+					alert.SendWebhookAlert(msg)
+				}
 			}
 		}
 	}
@@ -259,7 +286,7 @@ func getContainerWithEnvReference(containers []v1.Container, resourceName string
 	return nil
 }
 
-func getContainerUsingResource(upgradeFuncs callbacks.RollingUpgradeFuncs, item interface{}, config util.Config, autoReload bool) *v1.Container {
+func getContainerUsingResource(upgradeFuncs callbacks.RollingUpgradeFuncs, item runtime.Object, config util.Config, autoReload bool) *v1.Container {
 	volumes := upgradeFuncs.VolumesFunc(item)
 	containers := upgradeFuncs.ContainersFunc(item)
 	initContainers := upgradeFuncs.InitContainersFunc(item)
@@ -298,7 +325,7 @@ func getContainerUsingResource(upgradeFuncs callbacks.RollingUpgradeFuncs, item 
 	return container
 }
 
-func invokeReloadStrategy(upgradeFuncs callbacks.RollingUpgradeFuncs, item interface{}, config util.Config, autoReload bool) constants.Result {
+func invokeReloadStrategy(upgradeFuncs callbacks.RollingUpgradeFuncs, item runtime.Object, config util.Config, autoReload bool) constants.Result {
 	if options.ReloadStrategy == constants.AnnotationsReloadStrategy {
 		return updatePodAnnotations(upgradeFuncs, item, config, autoReload)
 	}
@@ -306,7 +333,7 @@ func invokeReloadStrategy(upgradeFuncs callbacks.RollingUpgradeFuncs, item inter
 	return updateContainerEnvVars(upgradeFuncs, item, config, autoReload)
 }
 
-func updatePodAnnotations(upgradeFuncs callbacks.RollingUpgradeFuncs, item interface{}, config util.Config, autoReload bool) constants.Result {
+func updatePodAnnotations(upgradeFuncs callbacks.RollingUpgradeFuncs, item runtime.Object, config util.Config, autoReload bool) constants.Result {
 	container := getContainerUsingResource(upgradeFuncs, item, config, autoReload)
 	if container == nil {
 		return constants.NoContainerFound
@@ -358,7 +385,7 @@ func createReloadedAnnotations(target *util.ReloadSource) (map[string]string, er
 	return annotations, nil
 }
 
-func updateContainerEnvVars(upgradeFuncs callbacks.RollingUpgradeFuncs, item interface{}, config util.Config, autoReload bool) constants.Result {
+func updateContainerEnvVars(upgradeFuncs callbacks.RollingUpgradeFuncs, item runtime.Object, config util.Config, autoReload bool) constants.Result {
 	var result constants.Result
 	envVar := constants.EnvVarPrefix + util.ConvertToEnvVarName(config.ResourceName) + "_" + config.Type
 	container := getContainerUsingResource(upgradeFuncs, item, config, autoReload)

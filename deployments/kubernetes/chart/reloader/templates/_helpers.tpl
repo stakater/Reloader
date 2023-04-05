@@ -29,6 +29,23 @@ app.kubernetes.io/managed-by: {{ .Release.Service | quote }}
 {{- end -}}
 
 {{/*
+Create pod anti affinity labels
+*/}}
+{{- define "reloader-podAntiAffinity" -}}
+podAntiAffinity:
+  preferredDuringSchedulingIgnoredDuringExecution:
+  - weight: 100
+    podAffinityTerm:
+      labelSelector:
+        matchExpressions:
+        - key: app
+          operator: In
+          values:
+          - {{ template "reloader-fullname" . }}
+      topologyKey: "kubernetes.io/hostname"
+{{- end -}}
+
+{{/*
 Create the name of the service account to use
 */}}
 {{- define "reloader-serviceAccountName" -}}

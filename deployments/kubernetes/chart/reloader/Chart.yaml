@@ -3,8 +3,8 @@
 apiVersion: v1
 name: reloader
 description: Reloader chart that runs on kubernetes
-version: v0.0.114
-appVersion: v0.0.114
+version: v1.0.20
+appVersion: v1.0.20
 keywords:
   - Reloader
   - kubernetes
@@ -16,16 +16,6 @@ maintainers:
   - name: Stakater
     email: hello@stakater.com
   - name: rasheedamir
-    email: rasheed@aurorasolutions.io
-  - name: waseem-h
-    email: waseemhassan@stakater.com
+    email: rasheed@stakater.com
   - name: faizanahmad055
     email: faizan.ahmad55@outlook.com
-  - name: kahootali
-    email: ali.kahoot@aurorasolutions.io
-  - name: ahmadiq
-    email: ahmad@aurorasolutions.io
-  - name: ahsan-storm
-    email: ahsanmuhammad1@outlook.com
-  - name: ahmedwaleedmalik
-    email: waleed@stakater.com

@@ -1,23 +1,27 @@
 package controller
 
 import (
+	"context"
 	"fmt"
-	"github.com/stakater/Reloader/internal/pkg/options"
 	"time"
 
 	"github.com/sirupsen/logrus"
 	"github.com/stakater/Reloader/internal/pkg/handler"
 	"github.com/stakater/Reloader/internal/pkg/metrics"
+	"github.com/stakater/Reloader/internal/pkg/options"
 	"github.com/stakater/Reloader/internal/pkg/util"
 	"github.com/stakater/Reloader/pkg/kube"
+	v1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/kubernetes"
+	typedcorev1 "k8s.io/client-go/kubernetes/typed/core/v1"
 	"k8s.io/client-go/tools/cache"
+	"k8s.io/client-go/tools/record"
 	"k8s.io/client-go/util/workqueue"
-
-	v1 "k8s.io/api/core/v1"
+	"k8s.io/kubectl/pkg/scheme"
 )
 
 // Controller for checking events
@@ -27,22 +31,38 @@ type Controller struct {
 	queue             workqueue.RateLimitingInterface
 	informer          cache.Controller
 	namespace         string
+	resource          string
 	ignoredNamespaces util.List
 	collectors        metrics.Collectors
+	recorder          record.EventRecorder
+	namespaceSelector map[string]string
 }
 
 // controllerInitialized flag determines whether controlled is being initialized
-var controllerInitialized bool = false
+var secretControllerInitialized bool = false
+var configmapControllerInitialized bool = false
 
 // NewController for initializing a Controller
 func NewController(
-	client kubernetes.Interface, resource string, namespace string, ignoredNamespaces []string, collectors metrics.Collectors) (*Controller, error) {
+	client kubernetes.Interface, resource string, namespace string, ignoredNamespaces []string, namespaceLabelSelector map[string]string, collectors metrics.Collectors) (*Controller, error) {
+
+	if options.SyncAfterRestart {
+		secretControllerInitialized = true
+		configmapControllerInitialized = true
+	}
 
 	c := Controller{
 		client:            client,
 		namespace:         namespace,
 		ignoredNamespaces: ignoredNamespaces,
+		namespaceSelector: namespaceLabelSelector,
+		resource:          resource,
 	}
+	eventBroadcaster := record.NewBroadcaster()
+	eventBroadcaster.StartRecordingToSink(&typedcorev1.EventSinkImpl{
+		Interface: client.CoreV1().Events(""),
+	})
+	recorder := eventBroadcaster.NewRecorder(scheme.Scheme, v1.EventSource{Component: fmt.Sprintf("reloader-%s", resource)})
 
 	queue := workqueue.NewRateLimitingQueue(workqueue.DefaultControllerRateLimiter())
 	listWatcher := cache.NewListWatchFromClient(client.CoreV1().RESTClient(), resource, namespace, fields.Everything())
@@ -56,16 +76,20 @@ func NewController(
 	c.informer = informer
 	c.queue = queue
 	c.collectors = collectors
+	c.recorder = recorder
+
+	logrus.Infof("created controller for: %s", resource)
 	return &c, nil
 }
 
 // Add function to add a new object to the queue in case of creating a resource
 func (c *Controller) Add(obj interface{}) {
 	if options.ReloadOnCreate == "true" {
-		if !c.resourceInIgnoredNamespace(obj) && controllerInitialized {
+		if !c.resourceInIgnoredNamespace(obj) && c.resourceInNamespaceSelector(obj) && secretControllerInitialized && configmapControllerInitialized {
 			c.queue.Add(handler.ResourceCreatedHandler{
 				Resource:   obj,
 				Collectors: c.collectors,
+				Recorder:   c.recorder,
 			})
 		}
 	}
@@ -81,13 +105,50 @@ func (c *Controller) resourceInIgnoredNamespace(raw interface{}) bool {
 	return false
 }
 
+func (c *Controller) resourceInNamespaceSelector(raw interface{}) bool {
+	if len(c.namespaceSelector) == 0 {
+		return true
+	}
+
+	switch object := raw.(type) {
+	case *v1.ConfigMap:
+		return c.matchLabels(object.ObjectMeta.Namespace)
+	case *v1.Secret:
+		return c.matchLabels(object.ObjectMeta.Namespace)
+	}
+	return true
+}
+
+func (c *Controller) matchLabels(resourceNamespace string) bool {
+	namespace, err := c.client.CoreV1().Namespaces().Get(context.Background(), resourceNamespace, metav1.GetOptions{})
+	if err != nil {
+		logrus.Warn(err)
+		return false
+	}
+
+	for selectorKey, selectorVal := range c.namespaceSelector {
+
+		namespaceLabelVal, namespaceLabelKeyExists := namespace.ObjectMeta.Labels[selectorKey]
+
+		if namespaceLabelKeyExists && selectorVal == "*" {
+			continue
+		}
+
+		if !namespaceLabelKeyExists || selectorVal != namespaceLabelVal {
+			return false
+		}
+	}
+	return true
+}
+
 // Update function to add an old object and a new object to the queue in case of updating a resource
 func (c *Controller) Update(old interface{}, new interface{}) {
-	if !c.resourceInIgnoredNamespace(new) {
+	if !c.resourceInIgnoredNamespace(new) && c.resourceInNamespaceSelector(new) {
 		c.queue.Add(handler.ResourceUpdatedHandler{
 			Resource:    new,
 			OldResource: old,
 			Collectors:  c.collectors,
+			Recorder:    c.recorder,
 		})
 	}
 }
@@ -97,7 +158,7 @@ func (c *Controller) Delete(old interface{}) {
 	// Todo: Any future delete event can be handled here
 }
 
-//Run function for controller which handles the queue
+// Run function for controller which handles the queue
 func (c *Controller) Run(threadiness int, stopCh chan struct{}) {
 	defer runtime.HandleCrash()
 
@@ -122,7 +183,11 @@ func (c *Controller) Run(threadiness int, stopCh chan struct{}) {
 
 func (c *Controller) runWorker() {
 	// At this point the controller is fully initialized and we can start processing the resources
-	controllerInitialized = true
+	if c.resource == "secrets" {
+		secretControllerInitialized = true
+	} else if c.resource == "configMaps" {
+		configmapControllerInitialized = true
+	}
 
 	for c.processNextItem() {
 	}
@@ -169,5 +234,6 @@ func (c *Controller) handleErr(err error, key interface{}) {
 	c.queue.Forget(key)
 	// Report to an external entity that, even after several retries, we could not successfully process this key
 	runtime.HandleError(err)
-	logrus.Infof("Dropping the key %q out of the queue: %v", key, err)
+	logrus.Errorf("Dropping key out of the queue: %v", err)
+	logrus.Debugf("Dropping the key %q out of the queue: %v", key, err)
 }

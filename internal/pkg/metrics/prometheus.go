@@ -3,7 +3,6 @@ package metrics
 import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
-	"github.com/sirupsen/logrus"
 	"net/http"
 )
 
@@ -33,11 +32,7 @@ func NewCollectors() Collectors {
 func SetupPrometheusEndpoint() Collectors {
 	collectors := NewCollectors()
 	prometheus.MustRegister(collectors.Reloaded)
-
-	go func() {
-		http.Handle("/metrics", promhttp.Handler())
-		logrus.Fatal(http.ListenAndServe(":9090", nil))
-	}()
+	http.Handle("/metrics", promhttp.Handler())
 
 	return collectors
 }
