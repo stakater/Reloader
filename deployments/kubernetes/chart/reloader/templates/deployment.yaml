@@ -64,6 +64,10 @@ spec:
       tolerations:
 {{ toYaml .Values.reloader.deployment.tolerations | indent 8 }}
       {{- end }}
+      {{- if .Values.reloader.deployment.topologySpreadConstraints }}
+      topologySpreadConstraints:
+{{ toYaml .Values.reloader.deployment.topologySpreadConstraints | indent 8 }}
+      {{- end }}
       {{- if .Values.reloader.deployment.priorityClassName }}
       priorityClassName: {{ .Values.reloader.deployment.priorityClassName }}
       {{- end }}

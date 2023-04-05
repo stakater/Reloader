@@ -66,6 +66,18 @@ reloader:
     #     effect: "NoSchedule"
     tolerations: []
 
+    # Topology spread constraints for pod assignment
+    # Ref: https://kubernetes.io/docs/concepts/workloads/pods/pod-topology-spread-constraints/
+    # Example:
+    # topologySpreadConstraints:
+    #   - maxSkew: 1
+    #     topologyKey: zone
+    #     whenUnsatisfiable: DoNotSchedule
+    #     labelSelector:
+    #       matchLabels:
+    #         app: my-app
+    topologySpreadConstraints: []
+
     annotations: {}
     labels:
       provider: stakater
