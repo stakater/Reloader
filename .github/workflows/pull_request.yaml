@@ -10,6 +10,7 @@ env:
   GOLANG_VERSION: 1.20.2
   KUBERNETES_VERSION: "1.18.0"
   KIND_VERSION: "0.10.0"
+  REGISTRY: ghcr.io
 
 jobs:
   build:
@@ -24,7 +25,7 @@ jobs:
         
     # Setting up helm binary
     - name: Set up Helm
-      uses: azure/setup-helm@v3.4
+      uses: azure/setup-helm@v3
 
     - name: Set up Go
       id: go
@@ -81,23 +82,23 @@ jobs:
         echo "##[set-output name=GIT_TAG;]$(echo ${tag})"
     
     - name: Set up QEMU
-      uses: docker/setup-qemu-action@v1
+      uses: docker/setup-qemu-action@v2
 
     - name: Set up Docker Buildx
-      uses: docker/setup-buildx-action@v1
+      uses: docker/setup-buildx-action@v2
 
-    - name: Login to Registry
-      uses: docker/login-action@v1
+    - name: Login to Docker Registry
+      uses: docker/login-action@v2
       with:
         username: ${{ secrets.STAKATER_DOCKERHUB_USERNAME }}
         password: ${{ secrets.STAKATER_DOCKERHUB_PASSWORD }}
 
-    - name: Generate image repository path
+    - name: Generate image repository path for Docker registry
       run: |
-        echo IMAGE_REPOSITORY=$(echo ${{ github.repository }} | tr '[:upper:]' '[:lower:]') >> $GITHUB_ENV
+        echo DOCKER_IMAGE_REPOSITORY=$(echo ${{ github.repository }} | tr '[:upper:]' '[:lower:]') >> $GITHUB_ENV
 
-    - name: Build and Push Docker Image
-      uses: docker/build-push-action@v2
+    - name: Build and Push Docker Image to Docker registry
+      uses: docker/build-push-action@v4
       with:
         context: .
         file: ${{ env.DOCKER_FILE_PATH  }}
@@ -107,28 +108,49 @@ jobs:
         cache-to: type=inline
         platforms: linux/amd64,linux/arm,linux/arm64
         tags: |
-          ${{ env.IMAGE_REPOSITORY }}:${{ steps.generate_tag.outputs.GIT_TAG }}
+          ${{ env.DOCKER_IMAGE_REPOSITORY }}:${{ steps.generate_tag.outputs.GIT_TAG }}
+        labels: |
+          org.opencontainers.image.source=${{ github.event.repository.clone_url }}
+          org.opencontainers.image.created=${{ steps.prep.outputs.created }}
+          org.opencontainers.image.revision=${{ github.sha }}
+
+    - name: Login to ghcr registry
+      uses: docker/login-action@v2
+      with:
+        registry: ${{env.REGISTRY}}
+        username: ${{github.actor}}
+        password: ${{secrets.GITHUB_TOKEN}}
+
+    - name: Generate image repository path for ghcr registry
+      run: |
+        echo GHCR_IMAGE_REPOSITORY=${{env.REGISTRY}}/$(echo ${{ github.repository }} | tr '[:upper:]' '[:lower:]') >> $GITHUB_ENV
+
+    - name: Build and Push Docker Image to ghcr registry
+      uses: docker/build-push-action@v4
+      with:
+        context: .
+        file: ${{ env.DOCKER_FILE_PATH  }}
+        pull: true
+        push: true
+        build-args: BUILD_PARAMETERS=${{ env.BUILD_PARAMETERS }}
+        cache-to: type=inline
+        platforms: linux/amd64,linux/arm,linux/arm64
+        tags: |
+          ${{ env.GHCR_IMAGE_REPOSITORY }}:${{ steps.generate_tag.outputs.GIT_TAG }}
         labels: |
           org.opencontainers.image.source=${{ github.event.repository.clone_url }}
           org.opencontainers.image.created=${{ steps.prep.outputs.created }}
           org.opencontainers.image.revision=${{ github.sha }}
 
     - name: Comment on PR
-      uses: mshick/add-pr-comment@v1
+      uses: mshick/add-pr-comment@v2
+      if: always()
       env:
-       GITHUB_TOKEN: ${{ secrets.STAKATER_GITHUB_TOKEN }}
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
-        message: '@${{ github.actor }} Image is available for testing. `docker pull ${{ env.IMAGE_REPOSITORY }}:${{ steps.generate_tag.outputs.GIT_TAG }}`'
-        allow-repeats: false
-
-    - name: Notify Failure
-      if: failure()
-      uses: mshick/add-pr-comment@v1
-      env:
-       GITHUB_TOKEN: ${{ secrets.STAKATER_GITHUB_TOKEN }}
-      with:
-        message: '@${{ github.actor }} Yikes! You better fix it before anyone else finds out! [Build](https://github.com/${{ github.repository }}/commit/${{ github.event.pull_request.head.sha }}/checks) has Failed!'
-        allow-repeats: false
+        message-success: '@${{ github.actor }} Image is available for testing. `docker pull ghcr.io/${{ env.IMAGE_REPOSITORY }}:${{ steps.generate_tag.outputs.GIT_TAG }}`'
+        message-failure: '@${{ github.actor }} Yikes! You better fix it before anyone else finds out! [Build](https://github.com/${{ github.repository }}/commit/${{ github.event.pull_request.head.sha }}/checks) has Failed!'
+        allow-repeats: true
 
     - name: Notify Slack
       uses: 8398a7/action-slack@v3

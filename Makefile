@@ -9,7 +9,7 @@ ALL_ARCH ?= arm64 arm amd64
 BUILDER_IMAGE ?=
 BASE_IMAGE    ?=
 BINARY ?= Reloader
-DOCKER_IMAGE ?= stakater/reloader
+DOCKER_IMAGE ?= ghcr.io/stakater/reloader
 
 # Default value "dev"
 VERSION ?= 0.0.1

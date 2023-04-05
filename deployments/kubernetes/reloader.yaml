@@ -131,7 +131,7 @@ spec:
         version: v1.0.20
     spec:
       containers:
-      - image: "stakater/reloader:v1.0.20"
+      - image: "ghcr.io/stakater/reloader:v1.0.20"
         imagePullPolicy: IfNotPresent
         name: reloader-reloader
 

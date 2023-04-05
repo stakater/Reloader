@@ -84,7 +84,7 @@ reloader:
       group: com.stakater.platform
       version: v1.0.20
     image:
-      name: stakater/reloader
+      name: ghcr.io/stakater/reloader
       tag: v1.0.20
       pullPolicy: IfNotPresent
     # Support for extra environment variables.
