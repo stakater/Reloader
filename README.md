@@ -1,13 +1,13 @@
 # ![](assets/web/reloader-round-100px.png) RELOADER
 
 [![Go Report Card](https://goreportcard.com/badge/github.com/stakater/reloader?style=flat-square)](https://goreportcard.com/report/github.com/stakater/reloader)
-[![Go Doc](https://img.shields.io/badge/godoc-reference-blue.svg?style=flat-square)](http://godoc.org/github.com/stakater/reloader)
+[![Go Doc](https://img.shields.io/badge/godoc-reference-blue.svg?style=flat-square)](https://godoc.org/github.com/stakater/reloader)
 [![Release](https://img.shields.io/github/release/stakater/reloader.svg?style=flat-square)](https://github.com/stakater/reloader/releases/latest)
 [![GitHub tag](https://img.shields.io/github/tag/stakater/reloader.svg?style=flat-square)](https://github.com/stakater/reloader/releases/latest)
 [![Docker Pulls](https://img.shields.io/docker/pulls/stakater/reloader.svg?style=flat-square)](https://hub.docker.com/r/stakater/reloader/)
 [![Docker Stars](https://img.shields.io/docker/stars/stakater/reloader.svg?style=flat-square)](https://hub.docker.com/r/stakater/reloader/)
 [![license](https://img.shields.io/github/license/stakater/reloader.svg?style=flat-square)](LICENSE)
-[![Get started with Stakater](https://stakater.github.io/README/stakater-github-banner.png)](http://stakater.com/?utm_source=Reloader&utm_medium=github)
+[![Get started with Stakater](https://stakater.github.io/README/stakater-github-banner.png)](https://stakater.com/?utm_source=Reloader&utm_medium=github)
 
 ## Problem
 
@@ -73,7 +73,7 @@ of whether they have the `reloader.stakater.com/match: "true"` annotation or
 not.
 
 We can also specify a specific configmap or secret which would trigger rolling upgrade only upon change in our specified configmap or secret, this way, it will not trigger rolling upgrade upon changes in all configmaps or secrets used in a deploymentconfig, deployment, daemonset, statefulset or rollout.
-To do this either set the auto annotation to `"false"` (`reloader.stakater.com/auto: "false"`) or remove it altogether, and use annotations mentioned [here](#Configmap) or [here](#Secret)
+To do this either set the auto annotation to `"false"` (`reloader.stakater.com/auto: "false"`) or remove it altogether, and use annotations for [Configmap](#Configmap) or [Secret](#Secret)
 
 ### Configmap
 
@@ -208,7 +208,7 @@ metadata:
   ...
 ```
 
-Reloader can be configured to only watch namespaces labeled with one or more labels using the `--namespace-selector` parameter. Supported operators are `!, in, notin, ==, =, !=`, if no operator is found the 'exists' operator is inferred (ie. key only). Additional examples of these selectors can be found in the (Kubernetes Docs)[https://kubernetes.io/docs/concepts/overview/working-with-objects/labels/#label-selectors]. 
+Reloader can be configured to only watch namespaces labeled with one or more labels using the `--namespace-selector` parameter. Supported operators are `!, in, notin, ==, =, !=`, if no operator is found the 'exists' operator is inferred (ie. key only). Additional examples of these selectors can be found in the [Kubernetes Docs](https://kubernetes.io/docs/concepts/overview/working-with-objects/labels/#label-selectors). 
 
 **Note:** The old `:` delimited key value mappings are deprecated and if provided will be translated to `key=value`. Likewise, if a wildcard value is provided (e.g. `key:*`) it will be translated to the standalone `key` which checks for key existence.
 
@@ -323,7 +323,7 @@ You can find more documentation [here](docs)
 
 ### Have a question?
 
-File a GitHub [issue](https://github.com/stakater/Reloader/issues), or send us an [email](mailto:hello@stakater.com).
+File a GitHub [issue](https://github.com/stakater/Reloader/issues).
 
 ### Talk to us on Slack
 
@@ -361,18 +361,17 @@ View our closed [Pull Requests](https://github.com/stakater/Reloader/pulls?q=is%
 
 ## License
 
-Apache2 © [Stakater](http://stakater.com)
+Apache2 © [Stakater][website]
 
 ## About
 
 `Reloader` is maintained by [Stakater][website]. Like it? Please let us know at <hello@stakater.com>
 
-See [our other projects][community]
+See [our other projects](https://github.com/stakater)
 or contact us in case of professional services and queries on <hello@stakater.com>
 
-[website]: http://stakater.com/
-[community]: https://github.com/stakater/
+[website]: https://stakater.com
 
 ## Acknowledgements
 
-- [ConfigmapController](https://github.com/fabric8io/configmapcontroller); We documented here why we re-created [Reloader](docs/Reloader-vs-ConfigmapController.md)
+- [ConfigmapController](https://github.com/fabric8io/configmapcontroller); We documented [here](docs/Reloader-vs-ConfigmapController.md) why we re-created Reloader
