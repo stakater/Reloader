@@ -9,7 +9,7 @@ metadata:
     meta.helm.sh/release-name: "reloader"
   labels:
     app: reloader-reloader
-    chart: "reloader-v1.0.24"
+    chart: "reloader-v1.0.26"
     release: "reloader"
     heritage: "Helm"
     app.kubernetes.io/managed-by: "Helm"
