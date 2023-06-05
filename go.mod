@@ -8,7 +8,7 @@ require (
 	github.com/openshift/client-go v0.0.0-20210521082421-73d9475a9142
 	github.com/parnurzeal/gorequest v0.2.16
 	github.com/prometheus/client_golang v1.15.0
-	github.com/sirupsen/logrus v1.9.0
+	github.com/sirupsen/logrus v1.9.3
 	github.com/spf13/cobra v1.7.0
 	k8s.io/api v0.27.1
 	k8s.io/apimachinery v0.27.1
