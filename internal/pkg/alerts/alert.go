@@ -75,6 +75,7 @@ func sendSlackAlert(webhookUrl string, proxy string, msg string) []error {
 	return nil
 }
 
+// function to send alert to Microsoft Teams webhook
 func sendTeamsAlert(webhookUrl string, proxy string, msg string) []error {
 	attachment := Attachment{
 		Text: msg,
