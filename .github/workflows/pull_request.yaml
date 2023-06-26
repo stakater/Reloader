@@ -1,7 +1,7 @@
 name: Pull Request
 
 on:
-  pull_request_target:
+  pull_request:
     branches:
       - master
 
@@ -12,6 +12,12 @@ env:
   REGISTRY: ghcr.io
 
 jobs:
+  qa:
+    uses: stakater/.github/.github/workflows/pull_request_doc_qa.yaml@v0.0.43
+    with:
+      MD_CONFIG: .github/md_config.json
+      DOC_SRC: README.md docs
+      MD_LINT_CONFIG: .markdownlint.yaml
   build:
     runs-on: ubuntu-latest
     name: Build
