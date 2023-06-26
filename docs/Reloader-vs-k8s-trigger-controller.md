@@ -13,31 +13,31 @@ Reloader and k8s-trigger-controller are both built for same purpose. So there ar
 
 ### Support for `Daemonsets` and `Statefulsets`
 
-#### `k8s-trigger-controller`:
+#### `k8s-trigger-controller`
 
 `k8s-trigger-controller` only support for deployment `rollout`. It does not support `daemonsets` and `statefulsets` `rollout`.
 
-#### Reloader:
+#### Reloader
 
 Reloader supports deployment `rollout` as well as `daemonsets` and `statefulsets` `rollout`.
 
 ### Hashing usage
 
-#### `k8s-trigger-controller`:
+#### `k8s-trigger-controller`
 
 `k8s-trigger-controller` stores the hash value in an annotation `trigger.k8s.io/[secret|configMap]-NAME-last-hash`
 
-#### Reloader:
+#### Reloader
 
 Reloader stores the hash value in an environment variable `STAKATER_NAME_[SECRET|CONFIGMAP]`
 
 ### Customization
 
-#### `k8s-trigger-controller`:
+#### `k8s-trigger-controller`
 
 `k8s-trigger-controller` restricts you to using the `trigger.k8s.io/[secret-configMap]-NAME-last-hash` annotation
 
-#### Reloader:
+#### Reloader
 
 Reloader allows you to customize the annotation to fit your needs with command line flags:
 

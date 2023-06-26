@@ -17,25 +17,23 @@ The annotation value is comma separated list of `configmaps` or `secrets`. If a 
 
 ### Annotation for Configmap
 
-For a `Deployment` called `foo` have a `ConfigMap` called `foo`. Then add this annotation* to your `Deployment`
+For a `Deployment` called `foo` have a `ConfigMap` called `foo`. Then add this annotation* to your `Deployment`, where the default annotation can be changed with the `--configmap-annotation` flag:
 
 ```yaml
 metadata:
   annotations:
     configmap.reloader.stakater.com/reload: "foo"
 ```
-<small>*the default annotation can be changed with the `--configmap-annotation` flag</small>
 
 ### Annotation for Secret
 
-For a `Deployment` called `foo` have a `Secret` called `foo`. Then add this annotation* to your `Deployment`
+For a `Deployment` called `foo` have a `Secret` called `foo`. Then add this annotation to your `Deployment`, where the default annotation can be changed with the `--secret-annotation` flag:
 
 ```yaml
 metadata:
   annotations:
     secret.reloader.stakater.com/reload: "foo"
 ```
-<small>*the default annotation can be changed with the `--secret-annotation` flag</small>
 
 Above mentioned annotation are also work for `Daemonsets` `Statefulsets` and `Rollouts`
 
@@ -76,6 +74,7 @@ By default Reloader deploys in default namespace and monitors changes in all nam
 ```bash
 helm --namespace {replace this with namespace name} template . > reloader.yaml
 ```
+
 The output file can then be used to deploy Reloader in specific namespace.
 
 ## Compatibility with helm install and upgrade
