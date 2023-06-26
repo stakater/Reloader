@@ -1,4 +1,4 @@
-# ![](assets/web/reloader-round-100px.png) RELOADER
+# ![](assets/web/reloader-round-100px.png) Reloader
 
 [![Go Report Card](https://goreportcard.com/badge/github.com/stakater/reloader?style=flat-square)](https://goreportcard.com/report/github.com/stakater/reloader)
 [![Go Doc](https://img.shields.io/badge/godoc-reference-blue.svg?style=flat-square)](https://godoc.org/github.com/stakater/reloader)
@@ -19,7 +19,7 @@ Reloader can watch changes in `ConfigMap` and `Secret` and do rolling upgrades o
 
 ## Compatibility
 
-Reloader is compatible with kubernetes >= 1.9
+Reloader is compatible with Kubernetes >= 1.9
 
 ## How to use Reloader
 
@@ -72,7 +72,7 @@ will always restart upon a change in configmaps or secrets it uses, regardless
 of whether they have the `reloader.stakater.com/match: "true"` annotation or
 not.
 
-We can also specify a specific configmap or secret which would trigger rolling upgrade only upon change in our specified configmap or secret, this way, it will not trigger rolling upgrade upon changes in all configmaps or secrets used in a deploymentconfig, deployment, daemonset, statefulset or rollout.
+We can also specify a specific configmap or secret which would trigger rolling upgrade only upon change in our specified configmap or secret, this way, it will not trigger rolling upgrade upon changes in all configmaps or secrets used in a `deploymentconfig`, `deployment`, `daemonset`, `statefulset` or `rollout`.
 To do this either set the auto annotation to `"false"` (`reloader.stakater.com/auto: "false"`) or remove it altogether, and use annotations for [Configmap](#Configmap) or [Secret](#Secret)
 
 ### Configmap
@@ -133,8 +133,8 @@ spec:
 
 ### NOTES
 
-- Reloader also supports [sealed-secrets](https://github.com/bitnami-labs/sealed-secrets). [Here](docs/Reloader-with-Sealed-Secrets.md) are the steps to use sealed-secrets with reloader.
-- For [rollouts](https://github.com/argoproj/argo-rollouts/) reloader simply triggers a change is up to you how you configure the rollout strategy.
+- Reloader also supports [sealed-secrets](https://github.com/bitnami-labs/sealed-secrets). [Here](docs/Reloader-with-Sealed-Secrets.md) are the steps to use sealed-secrets with Reloader.
+- For [`rollouts`](https://github.com/argoproj/argo-rollouts/) Reloader simply triggers a change is up to you how you configure the `rollout` strategy.
 - `reloader.stakater.com/auto: "true"` will only reload the pod, if the configmap or secret is used (as a volume mount or as an env) in `DeploymentConfigs/Deployment/Daemonsets/Statefulsets`
 - `secret.reloader.stakater.com/reload` or `configmap.reloader.stakater.com/reload` annotation will reload the pod upon changes in specified configmap or secret, irrespective of the usage of configmap or secret.
 - you may override the auto annotation with the `--auto-annotation` flag
@@ -175,16 +175,16 @@ kubectl apply -f https://raw.githubusercontent.com/stakater/Reloader/master/depl
 
 By default, Reloader gets deployed in `default` namespace and watches changes `secrets` and `configmaps` in all namespaces.
 
-Reloader can be configured to ignore the resources `secrets` and `configmaps` by passing the following args (`spec.template.spec.containers.args`) to its container :
+Reloader can be configured to ignore the resources `secrets` and `configmaps` by passing the following arguments (`spec.template.spec.containers.args`) to its container :
 
-| Args                             | Description          |
+| Argument                         | Description          |
 | -------------------------------- | -------------------- |
 | --resources-to-ignore=configMaps | To ignore configMaps |
 | --resources-to-ignore=secrets    | To ignore secrets    |
 
-**Note:** At one time only one of these resource can be ignored, trying to do it will cause error in Reloader. Workaround for ignoring both resources is by scaling down the reloader pods to `0`.
+**Note:** At one time only one of these resource can be ignored, trying to do it will cause error in Reloader. Workaround for ignoring both resources is by scaling down the Reloader pods to `0`.
 
-Reloader can be configured to only watch secrets/configmaps with one or more labels using the `--resource-label-selector` parameter. Supported operators are `!, in, notin, ==, =, !=`, if no operator is found the 'exists' operator is inferred (ie. key only). Additional examples of these selectors can be found in the [Kubernetes Docs](https://kubernetes.io/docs/concepts/overview/working-with-objects/labels/#label-selectors). 
+Reloader can be configured to only watch secrets/configmaps with one or more labels using the `--resource-label-selector` parameter. Supported operators are `!, in, notin, ==, =, !=`, if no operator is found the 'exists' operator is inferred (i.e. key only). Additional examples of these selectors can be found in the [Kubernetes Docs](https://kubernetes.io/docs/concepts/overview/working-with-objects/labels/#label-selectors). 
 
 **Note:** The old `:` delimited key value mappings are deprecated and if provided will be translated to `key=value`. Likewise, if a wildcard value is provided (e.g. `key:*`) it will be translated to the standalone `key` which checks for key existence.
 
@@ -208,7 +208,7 @@ metadata:
   ...
 ```
 
-Reloader can be configured to only watch namespaces labeled with one or more labels using the `--namespace-selector` parameter. Supported operators are `!, in, notin, ==, =, !=`, if no operator is found the 'exists' operator is inferred (ie. key only). Additional examples of these selectors can be found in the [Kubernetes Docs](https://kubernetes.io/docs/concepts/overview/working-with-objects/labels/#label-selectors). 
+Reloader can be configured to only watch namespaces labeled with one or more labels using the `--namespace-selector` parameter. Supported operators are `!, in, notin, ==, =, !=`, if no operator is found the 'exists' operator is inferred (i.e. key only). Additional examples of these selectors can be found in the [Kubernetes Docs](https://kubernetes.io/docs/concepts/overview/working-with-objects/labels/#label-selectors). 
 
 **Note:** The old `:` delimited key value mappings are deprecated and if provided will be translated to `key=value`. Likewise, if a wildcard value is provided (e.g. `key:*`) it will be translated to the standalone `key` which checks for key existence.
 
@@ -229,7 +229,7 @@ metadata:
   ...
 ```
 
-### Vanilla kustomize
+### Vanilla Kustomize
 
 You can also apply the vanilla manifests by running the following command
 
@@ -255,7 +255,7 @@ namespace: reloader
 
 ### Helm Charts
 
-Alternatively if you have configured helm on your cluster, you can add reloader to helm from our public chart repository and deploy it via helm using below mentioned commands. Follow [this](docs/Helm2-to-Helm3.md) guide, in case you have trouble migrating reloader from Helm2 to Helm3
+Alternatively if you have configured helm on your cluster, you can add Reloader to helm from our public chart repository and deploy it via helm using below mentioned commands. Follow [this](docs/Helm2-to-Helm3.md) guide, in case you have trouble migrating Reloader from Helm2 to Helm3.
 
 ```bash
 helm repo add stakater https://stakater.github.io/stakater-charts
@@ -265,7 +265,7 @@ helm repo update
 helm install stakater/reloader # For helm3 add --generate-name flag or set the release name
 ```
 
-**Note:** By default reloader watches in all namespaces. To watch in single namespace, please run following command. It will install reloader in `test` namespace which will only watch `Deployments`, `Daemonsets` `Statefulsets` and `Rollouts` in `test` namespace.
+**Note:** By default Reloader watches in all namespaces. To watch in single namespace, please run following command. It will install Reloader in `test` namespace which will only watch `Deployments`, `Daemonsets` `Statefulsets` and `Rollouts` in `test` namespace.
 
 ```bash
 helm install stakater/reloader --set reloader.watchGlobally=false --namespace test # For helm3 add --generate-name flag or set the release name
@@ -284,28 +284,28 @@ Reloader can be configured to only watch namespaces labeled with one or more lab
 
 | Parameter            | Description                                                                        | Type    |
 | ----------------     | ---------------------------------------------------------------------------------- | ------- |
-| namespaceSelector    | list of comma separated label selectors, if mulitple are provided they are ANDed   | string  |
+| namespaceSelector    | list of comma separated label selectors, if multiple are provided they are combined with the AND operator | string  |
 
 Reloader can be configured to only watch configmaps/secrets labeled with one or more labels using the `resourceLabelSelector` parameter
 
 | Parameter              | Description                                                                        | Type    |
 | ---------------------- | ---------------------------------------------------------------------------------- | ------- |
-| resourceLabelSelector  | list of comma separated label selectors, if mulitple are provided they are ANDed   | string  |
+| resourceLabelSelector  | list of comma separated label selectors, if multiple are provided they are combined with the AND operator | string  |
 
-**Note:** Both `namespaceSelector` & `resourceLabelSelector` can be used together. If they are then both conditions must be met for the configmap or secret to be eligible to trigger reload events. (e.g. If a configMap matches `resourceLabelSelector` but `namespaceSelector` does not match the namespace the configmap is in, it will be ignored)
+**Note:** Both `namespaceSelector` & `resourceLabelSelector` can be used together. If they are then both conditions must be met for the configmap or secret to be eligible to trigger reload events. (e.g. If a configMap matches `resourceLabelSelector` but `namespaceSelector` does not match the namespace the configmap is in, it will be ignored).
 
-You can also set the log format of Reloader to json by setting `logFormat` to `json` in values.yaml and apply the chart
+You can also set the log format of Reloader to json by setting `logFormat` to `json` in values.yaml and apply the chart.
 
-You can enable to scrape Reloader's Prometheus metrics by setting `serviceMonitor.enabled` or `podMonitor.enabled`  to `true` in values.yaml file. Service monitor will be removed in future releases of reloader in favour of Pod monitor.
+You can enable to scrape Reloader's Prometheus metrics by setting `serviceMonitor.enabled` or `podMonitor.enabled`  to `true` in values.yaml file. Service monitor will be removed in future releases of Reloader in favour of Pod monitor.
 
-**Note:** Reloading of OpenShift (DeploymentConfig) and/or Argo Rollouts has to be enabled explicitly because it might not be always possible to use it on a cluster with restricted permissions. This can be done by changing the following parameters:
+**Note:** Reloading of OpenShift (DeploymentConfig) and/or Argo `Rollouts` has to be enabled explicitly because it might not be always possible to use it on a cluster with restricted permissions. This can be done by changing the following parameters:
 
 | Parameter        | Description                                                                                                                              | Type    |
 |------------------|------------------------------------------------------------------------------------------------------------------------------------------| ------- |
 | isOpenshift      | Enable OpenShift DeploymentConfigs. Valid value are either `true` or `false`                                                             | boolean |
-| isArgoRollouts   | Enable Argo Rollouts. Valid value are either `true` or `false`                                                                           | boolean |
+| isArgoRollouts   | Enable Argo `Rollouts`. Valid value are either `true` or `false`                                                                           | boolean |
 | reloadOnCreate   | Enable reload on create events. Valid value are either `true` or `false`                                                                 | boolean |
-| syncAfterRestart | Enable sync after reloader restarts for **Add** events, works only when reloadOnCreate is `true`. Valid value are either `true` or `false` | boolean |
+| syncAfterRestart | Enable sync after Reloader restarts for **Add** events, works only when reloadOnCreate is `true`. Valid value are either `true` or `false` | boolean |
 
 **ReloadOnCreate** reloadOnCreate controls how Reloader handles secrets being added to the cache for the first time. If reloadOnCreate is set to true:
 * Configmaps/secrets being added to the cache will cause Reloader to perform a rolling update of the associated workload. 
