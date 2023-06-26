@@ -44,7 +44,7 @@ A pod's age can tell whether Reloader is working correctly or not. If you know t
 
 ### Verify from command line
 
-After a change in `secret` or `configmap`. Run the below mentioned command and verify that the pod is newly created.
+After a change in `secret` or `configmap`. Run the below-mentioned command and verify that the pod is newly created.
 
 ```bash
 kubectl get pods <pod name> -n <namespace name>

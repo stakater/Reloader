@@ -1,6 +1,6 @@
 # Helm2 to Helm3 Migration
 
-Follow below mentioned instructions to migrate Reloader from Helm2 to Helm3
+Follow below-mentioned instructions to migrate Reloader from Helm2 to Helm3
 
 ## Instructions
 

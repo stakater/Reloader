@@ -39,7 +39,7 @@ Above mentioned annotation are also work for `Daemonsets` `Statefulsets` and `Ro
 
 ## How Rolling upgrade works?
 
-When Reloader detects changes in configmap. It gets two objects of configmap. First object is an old configmap object which has a state before the latest change. Second object is new configmap object which contains latest changes. Reloader compares both objects and see whether any change in data occurred or not. If Reloader finds any change in new configmap object, only then, it move forward with rolling upgrade.
+When Reloader detects changes in configmap. It gets two objects of configmap. First object is an old configmap object which has a state before the latest change. Second object is new configmap object which contains latest changes. Reloader compares both objects and see whether any change in data occurred or not. If Reloader finds any change in new configmap object, only then, it moves forward with rolling upgrade.
 
 After that, Reloader gets the list of all `deployments`, `daemonsets` and `statefulset` and looks for above mentioned annotation for configmap. If the annotation value contains the configmap name, it then looks for an environment variable which can contain the configmap or secret data change hash.
 

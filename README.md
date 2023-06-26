@@ -265,7 +265,7 @@ namespace: reloader
 
 ### Helm Charts
 
-Alternatively if you have configured helm on your cluster, you can add Reloader to helm from our public chart repository and deploy it via helm using below mentioned commands. Follow [this](docs/Helm2-to-Helm3.md) guide, in case you have trouble migrating Reloader from Helm2 to Helm3.
+Alternatively if you have configured helm on your cluster, you can add Reloader to helm from our public chart repository and deploy it via helm using below-mentioned commands. Follow [this](docs/Helm2-to-Helm3.md) guide, in case you have trouble migrating Reloader from Helm2 to Helm3.
 
 ```bash
 helm repo add stakater https://stakater.github.io/stakater-charts
