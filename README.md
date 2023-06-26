@@ -17,6 +17,18 @@ We would like to watch if some change happens in `ConfigMap` and/or `Secret`; th
 
 Reloader can watch changes in `ConfigMap` and `Secret` and do rolling upgrades on Pods with their associated `DeploymentConfigs`, `Deployments`, `Daemonsets` `Statefulsets` and `Rollouts`.
 
+## Enterprise Version
+
+Reloader is available in two different versions:
+
+1. Open Source version
+1. Enterprise Version, which includes:
+    - SLA for support and unique requests
+    - Slack Support
+    - Certified images
+
+Contact [`sales@stakater.com`](mailto:sales@stakater.com) for info about Reloader Enterprise.
+
 ## Compatibility
 
 Reloader is compatible with Kubernetes >= 1.9
