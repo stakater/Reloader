@@ -16,7 +16,7 @@ jobs:
     uses: stakater/.github/.github/workflows/pull_request_doc_qa.yaml@v0.0.43
     with:
       MD_CONFIG: .github/md_config.json
-      DOC_SRC: docs
+      DOC_SRC: README.md docs
       MD_LINT_CONFIG: .markdownlint.yaml
   build:
     runs-on: ubuntu-latest
