@@ -4,7 +4,7 @@ Reloader's working can be verified by three ways.
 
 ## Verify from logs
 
-Check the logs of reloader and verify that you can see logs looks like below, if you are able to find these logs then it means reloader is working.
+Check the logs of Reloader and verify that you can see logs looks like below, if you are able to find these logs then it means Reloader is working.
 
 ```text
 Changes Detected in test-object of type 'SECRET' in namespace: test-reloader
@@ -22,11 +22,11 @@ Below are the details that explain these logs:
 
 `SECRET` is the type of `test-object`. It can either be `SECRET` or `CONFIGMAP`
 
-### test-reloader
+### `test-reloader`
 
-`test-reloader` is the name of namespace in which reloader has detected the change.
+`test-reloader` is the name of namespace in which Reloader has detected the change.
 
-### test-resource
+### `test-resource`
 
 `test-resource` is the name of resource which is going to be updated
 
@@ -36,9 +36,9 @@ Below are the details that explain these logs:
 
 ## Verify by checking the age of Pod
 
-A pod's age can tell whether reloader is working correctly or not. If you know that a change in a `secret` or `configmap` has occurred, then check the relevant Pod's age immediately. It should be newly created few moments ago.
+A pod's age can tell whether Reloader is working correctly or not. If you know that a change in a `secret` or `configmap` has occurred, then check the relevant Pod's age immediately. It should be newly created few moments ago.
 
-### Verify from kubernetes Dashboard
+### Verify from Kubernetes Dashboard
 
 `kubernetes dashboard` can be used to verify the working of Reloader. After a change in `secret` or `configmap`, check the relevant Pod's age from dashboard. It should be newly created few moments ago.
 
@@ -51,11 +51,12 @@ kubectl get pods <pod name> -n <namespace name>
 ```
 
 ## Verify from metrics
-Some metrics are exported to prometheus endpoint `/metrics` on port `9090`.
 
-When reloader is unable to reload, `reloader_reload_executed_total{success="false"}` metric gets incremented and when it reloads successfully, `reloader_reload_executed_total{success="true"}` gets incremented. You will be able to see the following metrics, with some other metrics, at `/metrics` endpoint.
+Some metrics are exported to Prometheus endpoint `/metrics` on port `9090`.
 
-```
+When Reloader is unable to reload, `reloader_reload_executed_total{success="false"}` metric gets incremented and when it reloads successfully, `reloader_reload_executed_total{success="true"}` gets incremented. You will be able to see the following metrics, with some other metrics, at `/metrics` endpoint.
+
+```text
 reloader_reload_executed_total{success="false"} 15
 reloader_reload_executed_total{success="true"} 12
 ```
