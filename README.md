@@ -21,10 +21,10 @@ Reloader can watch changes in `ConfigMap` and `Secret` and do rolling upgrades o
 
 Reloader is available in two different versions:
 
-1. Open Source version
+1. Open Source Version
 1. Enterprise Version, which includes:
-    - SLA for support and unique requests
-    - Slack Support
+    - SLA (Service Level Agreement) for support and unique requests
+    - Slack support
     - Certified images
 
 Contact [`sales@stakater.com`](mailto:sales@stakater.com) for info about Reloader Enterprise.
