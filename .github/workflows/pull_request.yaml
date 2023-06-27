@@ -55,9 +55,6 @@ jobs:
         cd deployments/kubernetes/chart/reloader
         helm lint
 
-    - name: Link check
-      uses: gaurav-nelson/github-action-markdown-link-check@v1
-
     - name: Install kubectl
       run: |
         curl -LO "https://storage.googleapis.com/kubernetes-release/release/v${KUBERNETES_VERSION}/bin/linux/amd64/kubectl"
@@ -85,7 +82,7 @@ jobs:
       run: |
         sha=${{ github.event.pull_request.head.sha }}
         tag="SNAPSHOT-PR-${{ github.event.pull_request.number }}-${sha:0:8}"
-        echo "##[set-output name=GIT_TAG;]$(echo ${tag})"
+        echo "GIT_TAG=$(echo ${tag})" >> $GITHUB_OUTPUT
 
     - name: Set up QEMU
       uses: docker/setup-qemu-action@v2
