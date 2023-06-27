@@ -32,6 +32,11 @@ jobs:
     - name: Set up Helm
       uses: azure/setup-helm@v3
 
+    - name: Helm chart unit tests
+      uses: d3adb5/helm-unittest-action@v2
+      with:
+        charts: deployments/kubernetes/chart/reloader
+
     - name: Set up Go
       uses: actions/setup-go@v4
       with:
@@ -54,9 +59,6 @@ jobs:
       run: |
         cd deployments/kubernetes/chart/reloader
         helm lint
-
-    - name: Link check
-      uses: gaurav-nelson/github-action-markdown-link-check@v1
 
     - name: Install kubectl
       run: |
@@ -85,7 +87,7 @@ jobs:
       run: |
         sha=${{ github.event.pull_request.head.sha }}
         tag="SNAPSHOT-PR-${{ github.event.pull_request.number }}-${sha:0:8}"
-        echo "##[set-output name=GIT_TAG;]$(echo ${tag})"
+        echo "GIT_TAG=$(echo ${tag})" >> $GITHUB_OUTPUT
 
     - name: Set up QEMU
       uses: docker/setup-qemu-action@v2
