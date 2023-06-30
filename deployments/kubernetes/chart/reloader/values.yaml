@@ -12,6 +12,7 @@ nameOverride: ""
 fullnameOverride: ""
 
 reloader:
+  autoReloadAll: false
   isArgoRollouts: false
   isOpenshift: false
   ignoreSecrets: false

@@ -3,6 +3,8 @@ package options
 import "github.com/stakater/Reloader/internal/pkg/constants"
 
 var (
+	// Auto reload all resources when their corresponding configmaps/secrets are updated
+	AutoReloadAll = false
 	// ConfigmapUpdateOnChangeAnnotation is an annotation to detect changes in
 	// configmaps specified by name
 	ConfigmapUpdateOnChangeAnnotation = "configmap.reloader.stakater.com/reload"
