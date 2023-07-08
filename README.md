@@ -31,7 +31,7 @@ Contact [`sales@stakater.com`](mailto:sales@stakater.com) for info about Reloade
 
 ## Compatibility
 
-Reloader is compatible with Kubernetes >= 1.9
+Reloader is compatible with Kubernetes >= 1.19
 
 ## How to use Reloader
 
