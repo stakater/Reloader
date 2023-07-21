@@ -22,6 +22,7 @@ jobs:
       - name: Check out code
         uses: actions/checkout@v3
         with:
+          token: ${{ secrets.STAKATER_GITHUB_TOKEN }}        
           fetch-depth: 0 # otherwise, you will fail to push refs to dest repo
 
       # Setting up helm binary
