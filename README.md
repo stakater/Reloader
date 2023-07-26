@@ -317,6 +317,8 @@ You can enable to scrape Reloader's Prometheus metrics by setting `serviceMonito
 | reloadOnCreate   | Enable reload on create events. Valid value are either `true` or `false`                                                                 | boolean |
 | syncAfterRestart | Enable sync after Reloader restarts for **Add** events, works only when reloadOnCreate is `true`. Valid value are either `true` or `false` | boolean |
 
+**isOpenShift** Recent versions of OpenShift (tested on 4.13.3) require the specified user to be in an uid range which is dynamically assigned by the namespace. The solution is to unset the runAsUser variable via ``deployment.securityContext.runAsUser=null`` and let OpenShift assign it at install.
+
 **ReloadOnCreate** reloadOnCreate controls how Reloader handles secrets being added to the cache for the first time. If reloadOnCreate is set to true:
 
 - Configmaps/secrets being added to the cache will cause Reloader to perform a rolling update of the associated workload.
