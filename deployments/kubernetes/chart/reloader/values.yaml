@@ -268,3 +268,10 @@ reloader:
     enabled: false
     # Set the minimum available replicas
     # minAvailable: 1
+
+  netpol:
+    enabled: false
+    from: []
+    # - podSelector:
+    #     matchLabels:
+    #       app.kubernetes.io/name: prometheus
