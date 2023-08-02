@@ -14,7 +14,7 @@ require (
 	k8s.io/apimachinery v0.27.1
 	k8s.io/client-go v0.27.1
 	k8s.io/kubectl v0.27.1
-	k8s.io/utils v0.0.0-20230406110748-d93618cff8a2
+	k8s.io/utils v0.0.0-20230726121419-3b25d923346b
 )
 
 require (
