@@ -10,3 +10,4 @@ _gopath/
 vendor
 dist
 Reloader
+!**/chart/reloader
