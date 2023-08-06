@@ -78,15 +78,6 @@ func getObjectMeta(namespace string, name string, autoReload bool) metav1.Object
 	}
 }
 
-func getObjectMetaWithoutAnnotations(namespace string, name string) metav1.ObjectMeta {
-	return metav1.ObjectMeta{
-		Name:        name,
-		Namespace:   namespace,
-		Labels:      map[string]string{"firstLabel": "temp"},
-		Annotations: map[string]string{},
-	}
-}
-
 func getAnnotations(name string, autoReload bool) map[string]string {
 	if autoReload {
 		return map[string]string{
@@ -342,23 +333,6 @@ func GetDeployment(namespace string, deploymentName string) *appsv1.Deployment {
 	replicaset := int32(1)
 	return &appsv1.Deployment{
 		ObjectMeta: getObjectMeta(namespace, deploymentName, false),
-		Spec: appsv1.DeploymentSpec{
-			Selector: &metav1.LabelSelector{
-				MatchLabels: map[string]string{"secondLabel": "temp"},
-			},
-			Replicas: &replicaset,
-			Strategy: appsv1.DeploymentStrategy{
-				Type: appsv1.RollingUpdateDeploymentStrategyType,
-			},
-			Template: getPodTemplateSpecWithVolumes(deploymentName),
-		},
-	}
-}
-
-func getDeploymentWithoutAnnotations(namespace string, deploymentName string) *appsv1.Deployment {
-	replicaset := int32(1)
-	return &appsv1.Deployment{
-		ObjectMeta: getObjectMetaWithoutAnnotations(namespace, deploymentName),
 		Spec: appsv1.DeploymentSpec{
 			Selector: &metav1.LabelSelector{
 				MatchLabels: map[string]string{"secondLabel": "temp"},
@@ -692,16 +666,6 @@ func CreateDeployment(client kubernetes.Interface, deploymentName string, namesp
 	return deployment, err
 }
 
-// CreateDeployment creates a deployment in given namespace and returns the Deployment
-func CreateDeploymentWithoutAnnotations(client kubernetes.Interface, deploymentName string, namespace string) (*appsv1.Deployment, error) {
-	logrus.Infof("Creating Deployment without annotations")
-	deploymentClient := client.AppsV1().Deployments(namespace)
-	deploymentObj := getDeploymentWithoutAnnotations(namespace, deploymentName)
-	deployment, err := deploymentClient.Create(context.TODO(), deploymentObj, metav1.CreateOptions{})
-	time.Sleep(3 * time.Second)
-	return deployment, err
-}
-
 // CreateDeploymentConfig creates a deploymentConfig in given namespace and returns the DeploymentConfig
 func CreateDeploymentConfig(client appsclient.Interface, deploymentName string, namespace string, volumeMount bool) (*openshiftv1.DeploymentConfig, error) {
 	logrus.Infof("Creating DeploymentConfig")
@@ -928,7 +892,6 @@ func VerifyResourceEnvVarUpdate(clients kube.Clients, config util.Config, envVar
 func VerifyResourceAnnotationUpdate(clients kube.Clients, config util.Config, upgradeFuncs callbacks.RollingUpgradeFuncs) bool {
 	items := upgradeFuncs.ItemsFunc(clients, config.Namespace)
 	for _, i := range items {
-		logrus.Printf("Items iteration")
 		podAnnotations := upgradeFuncs.PodAnnotationsFunc(i)
 		accessor, err := meta.Accessor(i)
 		if err != nil {
@@ -939,9 +902,9 @@ func VerifyResourceAnnotationUpdate(clients kube.Clients, config util.Config, up
 		annotationValue := annotations[config.Annotation]
 		searchAnnotationValue := annotations[options.AutoSearchAnnotation]
 		reloaderEnabledValue := annotations[options.ReloaderAutoAnnotation]
-		reloaderEnabled, err := strconv.ParseBool(reloaderEnabledValue)
+		reloaderEnabled, _ := strconv.ParseBool(reloaderEnabledValue)
 		matches := false
-		if (reloaderEnabledValue == "" || err == nil) && (reloaderEnabled || options.AutoReloadAll) {
+		if reloaderEnabled || reloaderEnabledValue == "" && options.AutoReloadAll {
 			matches = true
 		} else if annotationValue != "" {
 			values := strings.Split(annotationValue, ",")

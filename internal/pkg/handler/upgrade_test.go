@@ -25,25 +25,26 @@ import (
 var (
 	clients = kube.Clients{KubernetesClient: testclient.NewSimpleClientset()}
 
-	arsNamespace                           = "test-handler-" + testutil.RandSeq(5)
-	arsConfigmapName                       = "testconfigmap-handler-" + testutil.RandSeq(5)
-	arsSecretName                          = "testsecret-handler-" + testutil.RandSeq(5)
-	arsProjectedConfigMapName              = "testprojectedconfigmap-handler-" + testutil.RandSeq(5)
-	arsProjectedSecretName                 = "testprojectedsecret-handler-" + testutil.RandSeq(5)
-	arsConfigmapWithInitContainer          = "testconfigmapInitContainerhandler-" + testutil.RandSeq(5)
-	arsSecretWithInitContainer             = "testsecretWithInitContainer-handler-" + testutil.RandSeq(5)
-	arsProjectedConfigMapWithInitContainer = "testProjectedConfigMapWithInitContainer-handler" + testutil.RandSeq(5)
-	arsProjectedSecretWithInitContainer    = "testProjectedSecretWithInitContainer-handler" + testutil.RandSeq(5)
-	arsConfigmapWithInitEnv                = "configmapWithInitEnv-" + testutil.RandSeq(5)
-	arsSecretWithInitEnv                   = "secretWithInitEnv-handler-" + testutil.RandSeq(5)
-	arsConfigmapWithEnvName                = "testconfigmapWithEnv-handler-" + testutil.RandSeq(5)
-	arsConfigmapWithEnvFromName            = "testconfigmapWithEnvFrom-handler-" + testutil.RandSeq(5)
-	arsSecretWithEnvName                   = "testsecretWithEnv-handler-" + testutil.RandSeq(5)
-	arsSecretWithEnvFromName               = "testsecretWithEnvFrom-handler-" + testutil.RandSeq(5)
-	arsConfigmapWithPodAnnotations         = "testconfigmapPodAnnotations-handler-" + testutil.RandSeq(5)
-	arsConfigmapWithBothAnnotations        = "testconfigmapBothAnnotations-handler-" + testutil.RandSeq(5)
-	arsConfigmapAnnotated                  = "testconfigmapAnnotated-handler-" + testutil.RandSeq(5)
-	arsConfigMapWithNonAnnotatedDeployment = "testconfigmapNonAnnotatedDeployment-handler-" + testutil.RandSeq(5)
+	arsNamespace                               = "test-handler-" + testutil.RandSeq(5)
+	arsConfigmapName                           = "testconfigmap-handler-" + testutil.RandSeq(5)
+	arsSecretName                              = "testsecret-handler-" + testutil.RandSeq(5)
+	arsProjectedConfigMapName                  = "testprojectedconfigmap-handler-" + testutil.RandSeq(5)
+	arsProjectedSecretName                     = "testprojectedsecret-handler-" + testutil.RandSeq(5)
+	arsConfigmapWithInitContainer              = "testconfigmapInitContainerhandler-" + testutil.RandSeq(5)
+	arsSecretWithInitContainer                 = "testsecretWithInitContainer-handler-" + testutil.RandSeq(5)
+	arsProjectedConfigMapWithInitContainer     = "testProjectedConfigMapWithInitContainer-handler" + testutil.RandSeq(5)
+	arsProjectedSecretWithInitContainer        = "testProjectedSecretWithInitContainer-handler" + testutil.RandSeq(5)
+	arsConfigmapWithInitEnv                    = "configmapWithInitEnv-" + testutil.RandSeq(5)
+	arsSecretWithInitEnv                       = "secretWithInitEnv-handler-" + testutil.RandSeq(5)
+	arsConfigmapWithEnvName                    = "testconfigmapWithEnv-handler-" + testutil.RandSeq(5)
+	arsConfigmapWithEnvFromName                = "testconfigmapWithEnvFrom-handler-" + testutil.RandSeq(5)
+	arsSecretWithEnvName                       = "testsecretWithEnv-handler-" + testutil.RandSeq(5)
+	arsSecretWithEnvFromName                   = "testsecretWithEnvFrom-handler-" + testutil.RandSeq(5)
+	arsConfigmapWithPodAnnotations             = "testconfigmapPodAnnotations-handler-" + testutil.RandSeq(5)
+	arsConfigmapWithBothAnnotations            = "testconfigmapBothAnnotations-handler-" + testutil.RandSeq(5)
+	arsConfigmapAnnotated                      = "testconfigmapAnnotated-handler-" + testutil.RandSeq(5)
+	arsConfigMapWithNonAnnotatedDeployment     = "testconfigmapNonAnnotatedDeployment-handler-" + testutil.RandSeq(5)
+	arsConfigMapWithDeploymentReloadSetToFalse = "testconfigMapWithDeploymentReloadSetToFalse-handler-" + testutil.RandSeq(5)
 
 	ersNamespace                           = "test-handler-" + testutil.RandSeq(5)
 	ersConfigmapName                       = "testconfigmap-handler-" + testutil.RandSeq(5)
@@ -179,6 +180,11 @@ func setupArs() {
 		logrus.Errorf("Error in configmap creation: %v", err)
 	}
 
+	_, err = testutil.CreateConfigMap(clients.KubernetesClient, arsNamespace, arsConfigMapWithDeploymentReloadSetToFalse, "www.google.com")
+	if err != nil {
+		logrus.Errorf("Error in configmap creation: %v", err)
+	}
+
 	// Creating Deployment with configmap
 	_, err = testutil.CreateDeployment(clients.KubernetesClient, arsConfigmapName, arsNamespace, true)
 	if err != nil {
@@ -274,8 +280,19 @@ func setupArs() {
 		logrus.Errorf("Error in Deployment with secret configmap as envFrom source creation: %v", err)
 	}
 
+	// Creating Deployment with envFrom source as secret
+	_, err = testutil.CreateDeploymentWithEnvVarSourceAndAnnotations(
+		clients.KubernetesClient,
+		arsConfigMapWithDeploymentReloadSetToFalse,
+		arsNamespace,
+		map[string]string{options.ReloaderAutoAnnotation: "false"},
+	)
+	if err != nil {
+		logrus.Errorf("Error in Deployment with secret configmap as envFrom source creation: %v", err)
+	}
+
 	// Creating Deployment with configmap and without annotations
-	_, err = testutil.CreateDeploymentWithoutAnnotations(clients.KubernetesClient, arsConfigMapWithNonAnnotatedDeployment, arsNamespace)
+	_, err = testutil.CreateDeploymentWithEnvVarSourceAndAnnotations(clients.KubernetesClient, arsConfigMapWithNonAnnotatedDeployment, arsNamespace, map[string]string{})
 	if err != nil {
 		logrus.Errorf("Error in Deployment with configmap and without annotation creation: %v", err)
 	}
@@ -360,6 +377,7 @@ func setupArs() {
 
 	// Creating Deployment with both annotations
 	_, err = testutil.CreateDeploymentWithPodAnnotations(clients.KubernetesClient, arsConfigmapWithBothAnnotations, arsNamespace, true)
+
 	if err != nil {
 		logrus.Errorf("Error in Deployment with both annotations: %v", err)
 	}
@@ -1274,9 +1292,8 @@ func TestRollingUpgradeForDeploymentWithConfigmapViaSearchAnnotationAndAutoReloa
 	options.AutoReloadAll = true
 	defer func() { options.AutoReloadAll = false }()
 
-	shaData := testutil.ConvertResourceToSHA(testutil.ConfigmapResourceType, arsNamespace, arsConfigmapAnnotated, "www.stakater.com")
-	config := getConfigWithAnnotations(constants.ConfigmapEnvVarPostfix, arsConfigmapAnnotated, shaData, "")
-	config.ResourceAnnotations = map[string]string{"reloader.stakater.com/match": "false"}
+	shaData := testutil.ConvertResourceToSHA(testutil.ConfigmapResourceType, arsNamespace, arsConfigMapWithDeploymentReloadSetToFalse, "www.stakater.com")
+	config := getConfigWithAnnotations(constants.ConfigmapEnvVarPostfix, arsConfigMapWithDeploymentReloadSetToFalse, shaData, options.ReloaderAutoAnnotation)
 	deploymentFuncs := GetDeploymentRollingUpgradeFuncs()
 	collectors := getCollectors()
 
