@@ -7,8 +7,8 @@ on:
 
 env:
   DOCKER_FILE_PATH: Dockerfile
-  KUBERNETES_VERSION: "1.18.0"
-  KIND_VERSION: "0.10.0"
+  KUBERNETES_VERSION: "1.19.0"
+  KIND_VERSION: "0.17.0"
   REGISTRY: ghcr.io
 
 jobs:
