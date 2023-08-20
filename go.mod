@@ -5,7 +5,7 @@ go 1.20
 require (
 	github.com/argoproj/argo-rollouts v1.5.1
 	github.com/openshift/api v3.9.0+incompatible
-	github.com/openshift/client-go v0.0.0-20230718165156-6014fb98e86a
+	github.com/openshift/client-go v0.0.0-20230807132528-be5346fb33cb
 	github.com/parnurzeal/gorequest v0.2.16
 	github.com/prometheus/client_golang v1.16.0
 	github.com/sirupsen/logrus v1.9.3
