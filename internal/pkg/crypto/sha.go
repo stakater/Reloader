@@ -1,7 +1,7 @@
 package crypto
 
 import (
-	"crypto/sha1"
+	"crypto/sha512"
 	"fmt"
 	"io"
 
@@ -10,7 +10,7 @@ import (
 
 // GenerateSHA generates SHA from string
 func GenerateSHA(data string) string {
-	hasher := sha1.New()
+	hasher := sha512.New()
 	_, err := io.WriteString(hasher, data)
 	if err != nil {
 		logrus.Errorf("Unable to write data in hash writer %v", err)
