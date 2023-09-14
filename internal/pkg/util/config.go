@@ -6,7 +6,7 @@ import (
 	v1 "k8s.io/api/core/v1"
 )
 
-//Config contains rolling upgrade configuration parameters
+// Config contains rolling upgrade configuration parameters
 type Config struct {
 	Namespace           string
 	ResourceName        string
