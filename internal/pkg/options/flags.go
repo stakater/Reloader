@@ -30,4 +30,6 @@ var (
 	SyncAfterRestart = false
 	// EnableHA adds support for running multiple replicas via leadership election
 	EnableHA = false
+	// Url to send a request to instead of triggering a reload
+	WebhookUrl = ""
 )
