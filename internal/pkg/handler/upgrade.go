@@ -1,14 +1,17 @@
 package handler
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"regexp"
 	"strconv"
 	"strings"
 
+	"github.com/parnurzeal/gorequest"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/sirupsen/logrus"
 	alert "github.com/stakater/Reloader/internal/pkg/alerts"
@@ -92,6 +95,36 @@ func GetArgoRolloutRollingUpgradeFuncs() callbacks.RollingUpgradeFuncs {
 		VolumesFunc:        callbacks.GetRolloutVolumes,
 		ResourceType:       "Rollout",
 	}
+}
+
+func sendUpgradeWebhook(config util.Config, webhookUrl string) error {
+	message := fmt.Sprintf("Changes detected in '%s' of type '%s' in namespace '%s'", config.ResourceName, config.Type, config.Namespace)
+	message += fmt.Sprintf(", Sending webhook to '%s'", webhookUrl)
+	logrus.Infof(message)
+	body, errs := sendWebhook(webhookUrl)
+	if errs != nil {
+		// return the first error
+		return errs[0]
+	} else {
+		logrus.Info(body)
+	}
+
+	return nil
+}
+
+func sendWebhook(url string) (string, []error) {
+	request := gorequest.New()
+	resp, _, err := request.Post(url).Send(`{"webhook":"update successful"}`).End()
+	if err != nil {
+		// the reloader seems to retry automatically so no retry logic added
+		return "", err
+	}
+	var buffer bytes.Buffer
+	_, bufferErr := io.Copy(&buffer, resp.Body)
+	if bufferErr != nil {
+		logrus.Error(bufferErr)
+	}
+	return buffer.String(), nil
 }
 
 func doRollingUpgrade(config util.Config, collectors metrics.Collectors, recorder record.EventRecorder) error {
