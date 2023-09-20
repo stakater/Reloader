@@ -180,6 +180,15 @@ jobs:
           commit_email: stakater@gmail.com
 
       # Commit back changes
+      - name: Log info about `.git` directory permissions
+        run: |
+          # Debug logging
+          echo "Disk usage: "
+          df -H
+
+          echo ".git files not owned by current user or current group:"
+          find .git ! -user $(id -u) -o ! -group $(id -g) | xargs ls -lah
+
       - name: Commit files
         run: |
           git config --local user.email "stakater@gmail.com"
