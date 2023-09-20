@@ -206,6 +206,10 @@ spec:
           - "--search-match-annotation"
           - "{{ .Values.reloader.custom_annotations.match }}"
             {{- end }}
+            {{- if .Values.reloader.webhookUrl }}
+          - "--webhook-url"
+          - "{{ .Values.reloader.webhookUrl }}"
+            {{- end }}
           {{- end }}
           {{- if eq .Values.reloader.isArgoRollouts true }}
           - "--is-Argo-Rollouts={{ .Values.reloader.isArgoRollouts }}"
