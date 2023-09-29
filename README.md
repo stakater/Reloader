@@ -31,7 +31,7 @@ Contact [`sales@stakater.com`](mailto:sales@stakater.com) for info about Reloade
 
 ## Compatibility
 
-Reloader is compatible with Kubernetes >= 1.9
+Reloader is compatible with Kubernetes >= 1.19
 
 ## How to use Reloader
 
@@ -86,6 +86,10 @@ not.
 
 We can also specify a specific configmap or secret which would trigger rolling upgrade only upon change in our specified configmap or secret, this way, it will not trigger rolling upgrade upon changes in all configmaps or secrets used in a `deploymentconfig`, `deployment`, `daemonset`, `statefulset` or `rollout`.
 To do this either set the auto annotation to `"false"` (`reloader.stakater.com/auto: "false"`) or remove it altogether, and use annotations for [Configmap](.#Configmap) or [Secret](.#Secret).
+
+It's also possible to enable auto reloading for all resources, by setting the `--auto-reload-all` flag.
+In this case, all resources that do not have the auto annotation set to `"false"`, will be reloaded automatically when their ConfigMaps or Secrets are updated.
+Notice that setting the auto annotation to an undefined value counts as false as-well.
 
 ### Configmap
 

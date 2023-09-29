@@ -3,6 +3,7 @@ package handler
 import (
 	"github.com/sirupsen/logrus"
 	"github.com/stakater/Reloader/internal/pkg/metrics"
+	"github.com/stakater/Reloader/internal/pkg/options"
 	"github.com/stakater/Reloader/internal/pkg/util"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/tools/record"
@@ -21,6 +22,10 @@ func (r ResourceCreatedHandler) Handle() error {
 		logrus.Errorf("Resource creation handler received nil resource")
 	} else {
 		config, _ := r.GetConfig()
+		// Send webhook
+		if options.WebhookUrl != "" {
+			return sendUpgradeWebhook(config, options.WebhookUrl)
+		}
 		// process resource based on its type
 		return doRollingUpgrade(config, r.Collectors, r.Recorder)
 	}

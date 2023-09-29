@@ -7,8 +7,8 @@ on:
 
 env:
   DOCKER_FILE_PATH: Dockerfile
-  KUBERNETES_VERSION: "1.18.0"
-  KIND_VERSION: "0.10.0"
+  KUBERNETES_VERSION: "1.19.0"
+  KIND_VERSION: "0.17.0"
   HELM_REGISTRY_URL: "https://stakater.github.io/stakater-charts"
   REGISTRY: ghcr.io
 
@@ -20,7 +20,7 @@ jobs:
 
     steps:
       - name: Check out code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           token: ${{ secrets.STAKATER_GITHUB_TOKEN }}        
           fetch-depth: 0 # otherwise, you will fail to push refs to dest repo
@@ -71,7 +71,7 @@ jobs:
 
       - name: Generate Tag
         id: generate_tag
-        uses: anothrNick/github-tag-action@1.61.0
+        uses: anothrNick/github-tag-action@1.67.0
         env:
           GITHUB_TOKEN: ${{ secrets.STAKATER_GITHUB_TOKEN }}
           WITH_V: true
@@ -146,7 +146,7 @@ jobs:
       # Generate tag for operator without "v"
       - name: Generate Operator Tag
         id: generate_operator_tag
-        uses: anothrNick/github-tag-action@1.61.0
+        uses: anothrNick/github-tag-action@1.67.0
         env:
           GITHUB_TOKEN: ${{ secrets.STAKATER_GITHUB_TOKEN }}
           WITH_V: false
@@ -195,7 +195,7 @@ jobs:
           branch: ${{ github.ref }}
 
       - name: Push Latest Tag
-        uses: anothrNick/github-tag-action@1.61.0
+        uses: anothrNick/github-tag-action@1.67.0
         env:
           GITHUB_TOKEN: ${{ secrets.STAKATER_GITHUB_TOKEN }}
           WITH_V: true
