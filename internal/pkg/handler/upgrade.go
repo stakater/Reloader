@@ -41,10 +41,10 @@ func GetDeploymentRollingUpgradeFuncs() callbacks.RollingUpgradeFuncs {
 	}
 }
 
-// GetDeploymentRollingUpgradeFuncs returns all callback funcs for a deployment
+// GetDeploymentRollingUpgradeFuncs returns all callback funcs for a cronjob
 func GetCronJobCreateJobFuncs() callbacks.RollingUpgradeFuncs {
 	return callbacks.RollingUpgradeFuncs{
-		ItemsFunc:          callbacks.GetCronJobs,
+		ItemsFunc:          callbacks.GetCronJobItems,
 		AnnotationsFunc:    callbacks.GetCronJobAnnotations,
 		PodAnnotationsFunc: callbacks.GetCronJobPodAnnotations,
 		ContainersFunc:     callbacks.GetCronJobContainers,

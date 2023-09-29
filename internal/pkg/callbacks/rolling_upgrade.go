@@ -68,8 +68,8 @@ func GetDeploymentItems(clients kube.Clients, namespace string) []runtime.Object
 	return items
 }
 
-// GetCronJobs returns the jobs in given namespace
-func GetCronJobs(clients kube.Clients, namespace string) []runtime.Object {
+// GetCronJobItems returns the jobs in given namespace
+func GetCronJobItems(clients kube.Clients, namespace string) []runtime.Object {
 	cronjobs, err := clients.KubernetesClient.BatchV1().CronJobs(namespace).List(context.TODO(), meta_v1.ListOptions{})
 	if err != nil {
 		logrus.Errorf("Failed to list cronjobs %v", err)
@@ -199,7 +199,7 @@ func GetDeploymentPodAnnotations(item runtime.Object) map[string]string {
 	return item.(*appsv1.Deployment).Spec.Template.ObjectMeta.Annotations
 }
 
-// GetCronJobPodAnnotations returns the pod's annotations of given deployment
+// GetCronJobPodAnnotations returns the pod's annotations of given cronjob
 func GetCronJobPodAnnotations(item runtime.Object) map[string]string {
 	return item.(*batchv1.CronJob).Spec.JobTemplate.Spec.Template.ObjectMeta.Annotations
 }
@@ -229,7 +229,7 @@ func GetDeploymentContainers(item runtime.Object) []v1.Container {
 	return item.(*appsv1.Deployment).Spec.Template.Spec.Containers
 }
 
-// GetCronJobContainers returns the containers of given deployment
+// GetCronJobContainers returns the containers of given cronjob
 func GetCronJobContainers(item runtime.Object) []v1.Container {
 	return item.(*batchv1.CronJob).Spec.JobTemplate.Spec.Template.Spec.Containers
 }
@@ -259,7 +259,7 @@ func GetDeploymentInitContainers(item runtime.Object) []v1.Container {
 	return item.(*appsv1.Deployment).Spec.Template.Spec.InitContainers
 }
 
-// GetCronJobInitContainers returns the containers of given deployment
+// GetCronJobInitContainers returns the containers of given cronjob
 func GetCronJobInitContainers(item runtime.Object) []v1.Container {
 	return item.(*batchv1.CronJob).Spec.JobTemplate.Spec.Template.Spec.InitContainers
 }
@@ -291,7 +291,7 @@ func UpdateDeployment(clients kube.Clients, namespace string, resource runtime.O
 	return err
 }
 
-// CreateJobFromCronjob performs rolling upgrade on deployment
+// CreateJobFromCronjob performs rolling upgrade on cronjob
 func CreateJobFromCronjob(clients kube.Clients, namespace string, resource runtime.Object) error {
 	cronJob := resource.(*batchv1.CronJob)
 	job := &batchv1.Job{
