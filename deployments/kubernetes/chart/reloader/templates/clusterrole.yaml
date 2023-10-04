@@ -86,6 +86,19 @@ rules:
       - get
       - update
       - patch
+  - apiGroups:
+      - "batch"
+    resources:
+      - cronjobs
+    verbs:
+      - list
+      - get
+  - apiGroups:
+      - "batch"
+    resources:
+      - jobs
+    verbs:
+      - create
 {{- if .Values.reloader.enableHA }}
   - apiGroups:
       - "coordination.k8s.io"
