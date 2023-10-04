@@ -21,17 +21,17 @@ Reloader can watch changes in `ConfigMap` and `Secret` and do rolling upgrades o
 
 Reloader is available in two different versions:
 
-1. Open Source version
+1. Open Source Version
 1. Enterprise Version, which includes:
-    - SLA for support and unique requests
-    - Slack Support
+    - SLA (Service Level Agreement) for support and unique requests
+    - Slack support
     - Certified images
 
 Contact [`sales@stakater.com`](mailto:sales@stakater.com) for info about Reloader Enterprise.
 
 ## Compatibility
 
-Reloader is compatible with Kubernetes >= 1.9
+Reloader is compatible with Kubernetes >= 1.19
 
 ## How to use Reloader
 
@@ -86,6 +86,10 @@ not.
 
 We can also specify a specific configmap or secret which would trigger rolling upgrade only upon change in our specified configmap or secret, this way, it will not trigger rolling upgrade upon changes in all configmaps or secrets used in a `deploymentconfig`, `deployment`, `daemonset`, `statefulset` or `rollout`.
 To do this either set the auto annotation to `"false"` (`reloader.stakater.com/auto: "false"`) or remove it altogether, and use annotations for [Configmap](.#Configmap) or [Secret](.#Secret).
+
+It's also possible to enable auto reloading for all resources, by setting the `--auto-reload-all` flag.
+In this case, all resources that do not have the auto annotation set to `"false"`, will be reloaded automatically when their ConfigMaps or Secrets are updated.
+Notice that setting the auto annotation to an undefined value counts as false as-well.
 
 ### Configmap
 
@@ -316,6 +320,8 @@ You can enable to scrape Reloader's Prometheus metrics by setting `serviceMonito
 | isArgoRollouts   | Enable Argo `Rollouts`. Valid value are either `true` or `false`                                                                           | boolean |
 | reloadOnCreate   | Enable reload on create events. Valid value are either `true` or `false`                                                                 | boolean |
 | syncAfterRestart | Enable sync after Reloader restarts for **Add** events, works only when reloadOnCreate is `true`. Valid value are either `true` or `false` | boolean |
+
+**isOpenShift** Recent versions of OpenShift (tested on 4.13.3) require the specified user to be in an uid range which is dynamically assigned by the namespace. The solution is to unset the runAsUser variable via ``deployment.securityContext.runAsUser=null`` and let OpenShift assign it at install.
 
 **ReloadOnCreate** reloadOnCreate controls how Reloader handles secrets being added to the cache for the first time. If reloadOnCreate is set to true:
 

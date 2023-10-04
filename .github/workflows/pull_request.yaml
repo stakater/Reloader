@@ -1,19 +1,19 @@
 name: Pull Request
 
 on:
-  pull_request:
+  pull_request_target:
     branches:
       - master
 
 env:
   DOCKER_FILE_PATH: Dockerfile
-  KUBERNETES_VERSION: "1.18.0"
-  KIND_VERSION: "0.10.0"
+  KUBERNETES_VERSION: "1.19.0"
+  KIND_VERSION: "0.17.0"
   REGISTRY: ghcr.io
 
 jobs:
   qa:
-    uses: stakater/.github/.github/workflows/pull_request_doc_qa.yaml@v0.0.43
+    uses: stakater/.github/.github/workflows/pull_request_doc_qa.yaml@v0.0.46
     with:
       MD_CONFIG: .github/md_config.json
       DOC_SRC: README.md docs
@@ -24,13 +24,18 @@ jobs:
     if: "! contains(toJSON(github.event.commits.*.message), '[skip-ci]')"
     steps:
     - name: Check out code
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
       with:
         ref: ${{github.event.pull_request.head.sha}}
 
     # Setting up helm binary
     - name: Set up Helm
       uses: azure/setup-helm@v3
+
+    - name: Helm chart unit tests
+      uses: d3adb5/helm-unittest-action@v2
+      with:
+        charts: deployments/kubernetes/chart/reloader
 
     - name: Set up Go
       uses: actions/setup-go@v4
@@ -54,9 +59,6 @@ jobs:
       run: |
         cd deployments/kubernetes/chart/reloader
         helm lint
-
-    - name: Link check
-      uses: gaurav-nelson/github-action-markdown-link-check@v1
 
     - name: Install kubectl
       run: |
@@ -85,7 +87,7 @@ jobs:
       run: |
         sha=${{ github.event.pull_request.head.sha }}
         tag="SNAPSHOT-PR-${{ github.event.pull_request.number }}-${sha:0:8}"
-        echo "##[set-output name=GIT_TAG;]$(echo ${tag})"
+        echo "GIT_TAG=$(echo ${tag})" >> $GITHUB_OUTPUT
 
     - name: Set up QEMU
       uses: docker/setup-qemu-action@v2
@@ -154,7 +156,7 @@ jobs:
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
-        message-success: '@${{ github.actor }} Image is available for testing. `docker pull ghcr.io/${{ env.IMAGE_REPOSITORY }}:${{ steps.generate_tag.outputs.GIT_TAG }}`'
+        message-success: '@${{ github.actor }} Image is available for testing. `docker pull ${{ env.GHCR_IMAGE_REPOSITORY }}:${{ steps.generate_tag.outputs.GIT_TAG }}`'
         message-failure: '@${{ github.actor }} Yikes! You better fix it before anyone else finds out! [Build](https://github.com/${{ github.repository }}/commit/${{ github.event.pull_request.head.sha }}/checks) has Failed!'
         allow-repeats: true
 

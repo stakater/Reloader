@@ -12,6 +12,7 @@ nameOverride: ""
 fullnameOverride: ""
 
 reloader:
+  autoReloadAll: false
   isArgoRollouts: false
   isOpenshift: false
   ignoreSecrets: false
@@ -83,10 +84,10 @@ reloader:
     labels:
       provider: stakater
       group: com.stakater.platform
-      version: v1.0.27
+      version: v1.0.41
     image:
       name: ghcr.io/stakater/reloader
-      tag: v1.0.27
+      tag: v1.0.41
       pullPolicy: IfNotPresent
     # Support for extra environment variables.
     env:
@@ -268,3 +269,12 @@ reloader:
     enabled: false
     # Set the minimum available replicas
     # minAvailable: 1
+
+  netpol:
+    enabled: false
+    from: []
+    # - podSelector:
+    #     matchLabels:
+    #       app.kubernetes.io/name: prometheus
+    
+  webhookUrl: ""

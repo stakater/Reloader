@@ -1,0 +1,30 @@
+{{- if and ( .Values.reloader.netpol.enabled ) }}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  annotations:
+{{ include "reloader-helm3.annotations" . | indent 4 }}
+  labels:
+{{ include "reloader-labels.chart" . | indent 4 }}
+{{- if .Values.reloader.matchLabels }}
+{{ toYaml .Values.reloader.matchLabels | indent 4 }}
+{{- end }}
+  name: {{ template "reloader-fullname" . }}
+spec:
+  podSelector:
+    matchLabels:
+      app: {{ template "reloader-fullname" . }}
+      release: {{ .Release.Name | quote }}
+{{- if .Values.reloader.matchLabels }}
+{{ toYaml .Values.reloader.matchLabels | indent 6 }}
+{{- end }}
+  policyTypes:
+  - Ingress
+  ingress:
+    - ports:
+        - port: http
+      {{- with .Values.reloader.netpol.from}}
+      from:
+        {{- toYaml .| nindent 8 }}
+      {{- end }}
+{{- end }}
