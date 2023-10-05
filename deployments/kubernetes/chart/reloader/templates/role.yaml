@@ -68,6 +68,15 @@ rules:
       - update
       - patch
   - apiGroups:
+      - "batch"
+    resources:
+      - cronjobs
+    verbs:
+      - list
+      - get
+      - update
+      - patch
+  - apiGroups:
       - "extensions"
     resources:
       - deployments
