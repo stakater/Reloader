@@ -115,7 +115,7 @@ jobs:
         uses: docker/login-action@v2
         with:
           registry: ${{env.REGISTRY}}
-          username: ${{github.actor}}
+          username: stakater-user
           password: ${{secrets.GITHUB_TOKEN}}
 
       - name: Generate image repository path for ghcr registry
