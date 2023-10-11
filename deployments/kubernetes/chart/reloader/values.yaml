@@ -277,4 +277,8 @@ reloader:
     #     matchLabels:
     #       app.kubernetes.io/name: prometheus
     
+  volumeMounts: []
+
+  volumes: []
+
   webhookUrl: ""
