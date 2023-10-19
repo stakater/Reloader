@@ -31,7 +31,7 @@ spec:
   egress:
     - ports:
         - port: 443
-      {{- with .Values.reloader.netpol.from}}
+      {{- with .Values.reloader.netpol.to}}
       to:
         {{- toYaml .| nindent 8 }}
       {{- end }}
