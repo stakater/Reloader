@@ -7,6 +7,7 @@ on:
 
 env:
   DOCKER_FILE_PATH: Dockerfile
+  UBI_DOCKER_FILE_PATH: Dockerfile.ubi
   KUBERNETES_VERSION: "1.19.0"
   KIND_VERSION: "0.17.0"
   REGISTRY: ghcr.io
@@ -82,12 +83,14 @@ jobs:
     - name: Test
       run: make test
 
-    - name: Generate Tag
+    - name: Generate Tags
       id: generate_tag
       run: |
         sha=${{ github.event.pull_request.head.sha }}
         tag="SNAPSHOT-PR-${{ github.event.pull_request.number }}-${sha:0:8}"
+        ubi_tag="SNAPSHOT-PR-${{ github.event.pull_request.number }}-UBI-${sha:0:8}"
         echo "GIT_TAG=$(echo ${tag})" >> $GITHUB_OUTPUT
+        echo "GIT_UBI_TAG=$(echo ${ubi_tag})" >> $GITHUB_OUTPUT
 
     - name: Set up QEMU
       uses: docker/setup-qemu-action@v2
@@ -122,6 +125,25 @@ jobs:
           org.opencontainers.image.created=${{ steps.prep.outputs.created }}
           org.opencontainers.image.revision=${{ github.sha }}
 
+    - name: Build and Push Docker UBI Image to Docker registry
+      uses: docker/build-push-action@v4
+      with:
+        context: .
+        file: ${{ env.DOCKER_UBI_FILE_PATH  }}
+        pull: true
+        push: true
+        build-args: |
+          BUILD_PARAMETERS=${{ env.BUILD_PARAMETERS }}
+          BUILDER_IMAGE=${{ env.DOCKER_IMAGE_REPOSITORY }}:${{ steps.generate_tag.outputs.GIT_TAG }}
+        cache-to: type=inline
+        platforms: linux/amd64,linux/arm,linux/arm64
+        tags: |
+          ${{ env.DOCKER_IMAGE_REPOSITORY }}:${{ steps.generate_tag.outputs.GIT_UBI_TAG }}
+        labels: |
+          org.opencontainers.image.source=${{ github.event.repository.clone_url }}
+          org.opencontainers.image.created=${{ steps.prep.outputs.created }}
+          org.opencontainers.image.revision=${{ github.sha }}
+
     - name: Login to ghcr registry
       uses: docker/login-action@v2
       with:
@@ -150,13 +172,32 @@ jobs:
           org.opencontainers.image.created=${{ steps.prep.outputs.created }}
           org.opencontainers.image.revision=${{ github.sha }}
 
+    - name: Build and Push Docker UBI Image to ghcr registry
+      uses: docker/build-push-action@v4
+      with:
+        context: .
+        file: ${{ env.DOCKER_UBI_FILE_PATH  }}
+        pull: true
+        push: true
+        build-args: |
+          BUILD_PARAMETERS=${{ env.BUILD_PARAMETERS }}
+          BUILDER_IMAGE=${{ env.DOCKER_IMAGE_REPOSITORY }}:${{ steps.generate_tag.outputs.GIT_TAG }}
+        cache-to: type=inline
+        platforms: linux/amd64,linux/arm,linux/arm64
+        tags: |
+          ${{ env.GHCR_IMAGE_REPOSITORY }}:${{ steps.generate_tag.outputs.GIT_UBI_TAG }}
+        labels: |
+          org.opencontainers.image.source=${{ github.event.repository.clone_url }}
+          org.opencontainers.image.created=${{ steps.prep.outputs.created }}
+          org.opencontainers.image.revision=${{ github.sha }}
+
     - name: Comment on PR
       uses: mshick/add-pr-comment@v2
       if: always()
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
-        message-success: '@${{ github.actor }} Image is available for testing. `docker pull ${{ env.GHCR_IMAGE_REPOSITORY }}:${{ steps.generate_tag.outputs.GIT_TAG }}`'
+        message-success: '@${{ github.actor }} Images are available for testing. `docker pull ${{ env.GHCR_IMAGE_REPOSITORY }}:${{ steps.generate_tag.outputs.GIT_TAG }}`\n`docker pull ${{ env.GHCR_IMAGE_REPOSITORY }}:${{ steps.generate_tag.outputs.GIT_UBI_TAG }}`'
         message-failure: '@${{ github.actor }} Yikes! You better fix it before anyone else finds out! [Build](https://github.com/${{ github.repository }}/commit/${{ github.event.pull_request.head.sha }}/checks) has Failed!'
         allow-repeats: true
 
