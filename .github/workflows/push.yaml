@@ -168,7 +168,7 @@ jobs:
           push: true
           build-args: |
             BUILD_PARAMETERS=${{ env.BUILD_PARAMETERS }}
-            BUILDER_IMAGE=gcr.io/${{ env.GHCR_IMAGE_REPOSITORY }}:${{ steps.generate_tag.outputs.new_tag }}
+            BUILDER_IMAGE=ghcr.io/${{ env.GHCR_IMAGE_REPOSITORY }}:${{ steps.generate_tag.outputs.new_tag }}
           cache-to: type=inline
           platforms: linux/amd64,linux/arm64
           tags: |
