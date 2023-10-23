@@ -123,7 +123,7 @@ jobs:
             BUILD_PARAMETERS=${{ env.BUILD_PARAMETERS }}
             BUILDER_IMAGE=${{ env.DOCKER_IMAGE_REPOSITORY }}:${{ steps.generate_tag.outputs.new_tag }}
           cache-to: type=inline
-          platforms: linux/amd64,linux/arm,linux/arm64
+          platforms: linux/amd64,linux/arm64
           tags: |
             ${{ env.DOCKER_IMAGE_REPOSITORY }}:ubi-${{ steps.generate_tag.outputs.new_tag }}
           labels: |
@@ -168,9 +168,9 @@ jobs:
           push: true
           build-args: |
             BUILD_PARAMETERS=${{ env.BUILD_PARAMETERS }}
-            BUILDER_IMAGE=${{ env.DOCKER_IMAGE_REPOSITORY }}:${{ steps.generate_tag.outputs.new_tag }}
+            BUILDER_IMAGE=gcr.io/${{ env.GHCR_IMAGE_REPOSITORY }}:${{ steps.generate_tag.outputs.new_tag }}
           cache-to: type=inline
-          platforms: linux/amd64,linux/arm,linux/arm64
+          platforms: linux/amd64,linux/arm64
           tags: |
             ${{ env.GHCR_IMAGE_REPOSITORY }}:ubi-${{ steps.generate_tag.outputs.new_tag }}
           labels: |
