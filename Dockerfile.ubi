@@ -1,9 +1,9 @@
 ARG BUILDER_IMAGE
 ARG BASE_IMAGE
 
-FROM ${BUILDER_IMAGE} as SRC
+FROM --platform=${BUILDPLATFORM} ${BUILDER_IMAGE} as SRC
 
-FROM ${BASE_IMAGE:-registry.access.redhat.com/ubi8/ubi-minimal}
+FROM ${BASE_IMAGE:-registry.access.redhat.com/ubi8/ubi-minimal:latest}
 
 WORKDIR /
 COPY --from=SRC /manager .
