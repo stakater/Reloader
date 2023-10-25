@@ -15,6 +15,10 @@ env:
 
 jobs:
   build:
+    permissions:
+      contents: write
+      packages: write
+
     name: Build
     if: "! contains(toJSON(github.event.commits.*.message), '[skip-ci]')"
     runs-on: ubuntu-latest
@@ -217,6 +221,11 @@ jobs:
           linting: on
           commit_username: stakater-user
           commit_email: stakater@gmail.com
+
+      - name: Publish Helm chart to ghcr.io
+        run: |
+          helm package deployments/kubernetes/chart/reloader/
+          helm push reloader-*.tgz "oci://ghcr.io/${GITHUB_REPOSITORY_OWNER}/charts" 
 
       # Commit back changes
       - name: Log info about `.git` directory permissions
