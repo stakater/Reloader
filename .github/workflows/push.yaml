@@ -121,9 +121,9 @@ jobs:
           push: true
           build-args: |
             BUILD_PARAMETERS=${{ env.BUILD_PARAMETERS }}
-            BUILDER_IMAGE= ${{ env.DOCKER_IMAGE_REPOSITORY }}:${{ steps.generate_tag.outputs.new_tag }}
+            BUILDER_IMAGE=${{ env.DOCKER_IMAGE_REPOSITORY }}:${{ steps.generate_tag.outputs.new_tag }}
           cache-to: type=inline
-          platforms: linux/amd64,linux/arm,linux/arm64
+          platforms: linux/amd64,linux/arm64
           tags: |
             ${{ env.DOCKER_IMAGE_REPOSITORY }}:ubi-${{ steps.generate_tag.outputs.new_tag }}
           labels: |
@@ -163,14 +163,14 @@ jobs:
         uses: docker/build-push-action@v5
         with:
           context: .
-          file: ${{ env.DOCKER_FILE_PATH  }}
+          file: ${{ env.DOCKER_UBI_FILE_PATH  }}
           pull: true
           push: true
           build-args: |
             BUILD_PARAMETERS=${{ env.BUILD_PARAMETERS }}
-            BUILDER_IMAGE= ${{ env.DOCKER_IMAGE_REPOSITORY }}:${{ steps.generate_tag.outputs.new_tag }}
+            BUILDER_IMAGE=${{ env.GHCR_IMAGE_REPOSITORY }}:${{ steps.generate_tag.outputs.new_tag }}
           cache-to: type=inline
-          platforms: linux/amd64,linux/arm,linux/arm64
+          platforms: linux/amd64,linux/arm64
           tags: |
             ${{ env.GHCR_IMAGE_REPOSITORY }}:ubi-${{ steps.generate_tag.outputs.new_tag }}
           labels: |
@@ -219,6 +219,15 @@ jobs:
           commit_email: stakater@gmail.com
 
       # Commit back changes
+      - name: Log info about `.git` directory permissions
+        run: |
+          # Debug logging
+          echo "Disk usage: "
+          df -H
+
+          echo ".git files not owned by current user or current group:"
+          find .git ! -user $(id -u) -o ! -group $(id -g) | xargs ls -lah
+
       - name: Commit files
         run: |
           git config --local user.email "stakater@gmail.com"
