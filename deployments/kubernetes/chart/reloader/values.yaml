@@ -84,10 +84,10 @@ reloader:
     labels:
       provider: stakater
       group: com.stakater.platform
-      version: v1.0.41
+      version: v1.0.46
     image:
       name: ghcr.io/stakater/reloader
-      tag: v1.0.41
+      tag: v1.0.46
       pullPolicy: IfNotPresent
     # Support for extra environment variables.
     env:
@@ -276,5 +276,6 @@ reloader:
     # - podSelector:
     #     matchLabels:
     #       app.kubernetes.io/name: prometheus
+    to: []
     
   webhookUrl: ""
