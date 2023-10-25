@@ -96,7 +96,7 @@ jobs:
           echo DOCKER_IMAGE_REPOSITORY=$(echo ${{ github.repository }} | tr '[:upper:]' '[:lower:]') >> $GITHUB_ENV
 
       - name: Build and Push Docker Image to Docker registry
-        uses: docker/build-push-action@v4
+        uses: docker/build-push-action@v5
         with:
           context: .
           file: ${{ env.DOCKER_FILE_PATH  }}
@@ -113,7 +113,7 @@ jobs:
             org.opencontainers.image.revision=${{ github.sha }}
 
       - name: Build and Push Docker UBI Image to Docker registry
-        uses: docker/build-push-action@v4
+        uses: docker/build-push-action@v5
         with:
           context: .
           file: ${{ env.DOCKER_UBI_FILE_PATH  }}
@@ -143,7 +143,7 @@ jobs:
           echo GHCR_IMAGE_REPOSITORY=${{env.REGISTRY}}/$(echo ${{ github.repository }} | tr '[:upper:]' '[:lower:]') >> $GITHUB_ENV
 
       - name: Build and Push Docker Image to ghcr registry
-        uses: docker/build-push-action@v4
+        uses: docker/build-push-action@v5
         with:
           context: .
           file: ${{ env.DOCKER_FILE_PATH  }}
@@ -160,7 +160,7 @@ jobs:
             org.opencontainers.image.revision=${{ github.sha }}
 
       - name: Build and Push Docker UBI Image to ghcr registry
-        uses: docker/build-push-action@v4
+        uses: docker/build-push-action@v5
         with:
           context: .
           file: ${{ env.DOCKER_UBI_FILE_PATH  }}
