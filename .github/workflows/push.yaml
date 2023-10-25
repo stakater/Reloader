@@ -163,7 +163,7 @@ jobs:
         uses: docker/build-push-action@v4
         with:
           context: .
-          file: ${{ env.DOCKER_FILE_PATH  }}
+          file: ${{ env.DOCKER_UBI_FILE_PATH  }}
           pull: true
           push: true
           build-args: |
