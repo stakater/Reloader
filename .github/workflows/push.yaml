@@ -163,12 +163,12 @@ jobs:
         uses: docker/build-push-action@v4
         with:
           context: .
-          file: ${{ env.DOCKER_FILE_PATH  }}
+          file: ${{ env.DOCKER_UBI_FILE_PATH  }}
           pull: true
           push: true
           build-args: |
             BUILD_PARAMETERS=${{ env.BUILD_PARAMETERS }}
-            BUILDER_IMAGE=ghcr.io/${{ env.GHCR_IMAGE_REPOSITORY }}:${{ steps.generate_tag.outputs.new_tag }}
+            BUILDER_IMAGE=${{ env.GHCR_IMAGE_REPOSITORY }}:${{ steps.generate_tag.outputs.new_tag }}
           cache-to: type=inline
           platforms: linux/amd64,linux/arm64
           tags: |

@@ -7,7 +7,7 @@ on:
 
 env:
   DOCKER_FILE_PATH: Dockerfile
-  UBI_DOCKER_FILE_PATH: Dockerfile.ubi
+  DOCKER_UBI_FILE_PATH: Dockerfile.ubi
   KUBERNETES_VERSION: "1.19.0"
   KIND_VERSION: "0.17.0"
   REGISTRY: ghcr.io
@@ -181,7 +181,7 @@ jobs:
         push: true
         build-args: |
           BUILD_PARAMETERS=${{ env.BUILD_PARAMETERS }}
-          BUILDER_IMAGE=ghcr.io/${{ env.GHCR_IMAGE_REPOSITORY }}:${{ steps.generate_tag.outputs.GIT_TAG }}
+          BUILDER_IMAGE=${{ env.GHCR_IMAGE_REPOSITORY }}:${{ steps.generate_tag.outputs.GIT_TAG }}
         cache-to: type=inline
         platforms: linux/amd64,linux/arm64
         tags: |
