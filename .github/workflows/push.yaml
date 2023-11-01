@@ -15,10 +15,6 @@ env:
 
 jobs:
   build:
-    permissions:
-      contents: write
-      packages: write
-
     name: Build
     if: "! contains(toJSON(github.event.commits.*.message), '[skip-ci]')"
     runs-on: ubuntu-latest
