@@ -1,5 +1,7 @@
 github.com/argoproj/argo-rollouts v1.6.0 h1:u6DfVqAdi4UaDLezd8Yz0fJUlby9tTw20MWu2VCP/So=
 github.com/argoproj/argo-rollouts v1.6.0/go.mod h1:0lpA02iNoyDB/N/QLrmBRaM5AMAzFp2qoYIvwhLozNY=
+github.com/argoproj/argo-rollouts v1.6.2 h1:5Eur0FA9F9L0S+MkhxEtQlD9Hwb86U30QgTyKCUOor8=
+github.com/argoproj/argo-rollouts v1.6.2/go.mod h1:X2kTiBaYCSounmw1kmONdIZTwJNzNQYC0SrXUgSw9UI=
 github.com/beorn7/perks v1.0.1 h1:VlbKKnNfV8bJzeqoa4cOKqO6bYr3WgKZxO8Z16+hsOM=
 github.com/beorn7/perks v1.0.1/go.mod h1:G2ZrVWU2WbWT9wwq4/hrbKbnv/1ERSJQ0ibhJ6rlkpw=
 github.com/cespare/xxhash/v2 v2.2.0 h1:DC2CZ1Ep5Y4k3ZQ899DldepgrayRUGE6BBZ/cd9Cj44=
