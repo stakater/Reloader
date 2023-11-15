@@ -35,6 +35,9 @@ reloader:
   deployment:
     # If you wish to run multiple replicas set reloader.enableHA = true
     replicas: 1
+
+    revisionHistoryLimit: 2
+
     nodeSelector:
     # cloud.google.com/gke-nodepool: default-pool
 
