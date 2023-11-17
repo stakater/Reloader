@@ -10,10 +10,10 @@ require (
 	github.com/prometheus/client_golang v1.17.0
 	github.com/sirupsen/logrus v1.9.3
 	github.com/spf13/cobra v1.8.0
-	k8s.io/api v0.28.3
-	k8s.io/apimachinery v0.28.3
-	k8s.io/client-go v0.28.3
-	k8s.io/kubectl v0.28.3
+	k8s.io/api v0.28.4
+	k8s.io/apimachinery v0.28.4
+	k8s.io/client-go v0.28.4
+	k8s.io/kubectl v0.28.4
 	k8s.io/utils v0.0.0-20230726121419-3b25d923346b
 )
 
@@ -72,8 +72,8 @@ require (
 // Replacements for argo-rollouts
 replace (
 	github.com/go-check/check => github.com/go-check/check v0.0.0-20201130134442-10cb98267c6c
-	k8s.io/api v0.0.0 => k8s.io/api v0.28.3
-	k8s.io/apimachinery v0.0.0 => k8s.io/apimachinery v0.28.3
+	k8s.io/api v0.0.0 => k8s.io/api v0.28.4
+	k8s.io/apimachinery v0.0.0 => k8s.io/apimachinery v0.28.4
 	k8s.io/client-go v0.0.0 => k8s.io/client-go v0.27.4
 	k8s.io/cloud-provider v0.0.0 => k8s.io/cloud-provider v0.24.2
 	k8s.io/controller-manager v0.0.0 => k8s.io/controller-manager v0.24.2
