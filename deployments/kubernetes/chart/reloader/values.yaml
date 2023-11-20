@@ -35,6 +35,9 @@ reloader:
   deployment:
     # If you wish to run multiple replicas set reloader.enableHA = true
     replicas: 1
+
+    revisionHistoryLimit: 2
+
     nodeSelector:
     # cloud.google.com/gke-nodepool: default-pool
 
@@ -84,10 +87,10 @@ reloader:
     labels:
       provider: stakater
       group: com.stakater.platform
-      version: v1.0.47
+      version: v1.0.51
     image:
       name: ghcr.io/stakater/reloader
-      tag: v1.0.47
+      tag: v1.0.51
       pullPolicy: IfNotPresent
     # Support for extra environment variables.
     env:
