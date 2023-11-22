@@ -125,7 +125,7 @@ jobs:
           cache-to: type=inline
           platforms: linux/amd64,linux/arm64
           tags: |
-            ${{ env.DOCKER_IMAGE_REPOSITORY }}:ubi-${{ steps.generate_tag.outputs.new_tag }}
+            ${{ env.DOCKER_IMAGE_REPOSITORY }}:${{ steps.generate_tag.outputs.new_tag }}-ubi
           labels: |
             org.opencontainers.image.source=${{ github.event.repository.clone_url }}
             org.opencontainers.image.created=${{ steps.prep.outputs.created }}
@@ -172,7 +172,7 @@ jobs:
           cache-to: type=inline
           platforms: linux/amd64,linux/arm64
           tags: |
-            ${{ env.GHCR_IMAGE_REPOSITORY }}:ubi-${{ steps.generate_tag.outputs.new_tag }}
+            ${{ env.GHCR_IMAGE_REPOSITORY }}:${{ steps.generate_tag.outputs.new_tag }}-ubi
           labels: |
             org.opencontainers.image.source=${{ github.event.repository.clone_url }}
             org.opencontainers.image.created=${{ steps.prep.outputs.created }}
@@ -217,6 +217,11 @@ jobs:
           linting: on
           commit_username: stakater-user
           commit_email: stakater@gmail.com
+
+      - name: Publish Helm chart to ghcr.io
+        run: |
+          helm package deployments/kubernetes/chart/reloader/
+          helm push reloader-*.tgz "oci://ghcr.io/${GITHUB_REPOSITORY_OWNER}/charts" 
 
       # Commit back changes
       - name: Log info about `.git` directory permissions

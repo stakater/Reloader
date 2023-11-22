@@ -22,7 +22,7 @@ spec:
 {{- else }}
   replicas: {{ .Values.reloader.deployment.replicas }}
 {{- end}}
-  revisionHistoryLimit: 2
+  revisionHistoryLimit: {{ .Values.reloader.deployment.revisionHistoryLimit }}
   selector:
     matchLabels:
       app: {{ template "reloader-fullname" . }}
