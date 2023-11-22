@@ -41,6 +41,20 @@ func GetDeploymentRollingUpgradeFuncs() callbacks.RollingUpgradeFuncs {
 	}
 }
 
+// GetDeploymentRollingUpgradeFuncs returns all callback funcs for a cronjob
+func GetCronJobCreateJobFuncs() callbacks.RollingUpgradeFuncs {
+	return callbacks.RollingUpgradeFuncs{
+		ItemsFunc:          callbacks.GetCronJobItems,
+		AnnotationsFunc:    callbacks.GetCronJobAnnotations,
+		PodAnnotationsFunc: callbacks.GetCronJobPodAnnotations,
+		ContainersFunc:     callbacks.GetCronJobContainers,
+		InitContainersFunc: callbacks.GetCronJobInitContainers,
+		UpdateFunc:         callbacks.CreateJobFromCronjob,
+		VolumesFunc:        callbacks.GetCronJobVolumes,
+		ResourceType:       "CronJob",
+	}
+}
+
 // GetDaemonSetRollingUpgradeFuncs returns all callback funcs for a daemonset
 func GetDaemonSetRollingUpgradeFuncs() callbacks.RollingUpgradeFuncs {
 	return callbacks.RollingUpgradeFuncs{
@@ -131,6 +145,10 @@ func doRollingUpgrade(config util.Config, collectors metrics.Collectors, recorde
 	clients := kube.GetClients()
 
 	err := rollingUpgrade(clients, config, GetDeploymentRollingUpgradeFuncs(), collectors, recorder)
+	if err != nil {
+		return err
+	}
+	err = rollingUpgrade(clients, config, GetCronJobCreateJobFuncs(), collectors, recorder)
 	if err != nil {
 		return err
 	}
