@@ -29,14 +29,16 @@ jobs:
       # Setting up helm binary
       - name: Set up Helm
         uses: azure/setup-helm@v3
-
+        with:
+          version: v3.8.2
+      
       - name: Set up Go
         uses: actions/setup-go@v4
         with:
           go-version-file: 'go.mod'
           check-latest: true
           cache: true
-
+      
       - name: Install Dependencies
         run: |
           make install
@@ -222,7 +224,7 @@ jobs:
         run: |
           helm package deployments/kubernetes/chart/reloader/
           helm push reloader-*.tgz "oci://ghcr.io/${GITHUB_REPOSITORY_OWNER}/charts" 
-
+      
       # Commit back changes
       - name: Log info about `.git` directory permissions
         run: |
