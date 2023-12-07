@@ -206,7 +206,16 @@ jobs:
           helm template reloader deployments/kubernetes/chart/reloader/ --output-dir deployments/kubernetes/manifests && mv deployments/kubernetes/manifests/reloader/templates/* deployments/kubernetes/manifests/ && rm -r deployments/kubernetes/manifests/reloader
 
       # Publish helm chart
-      - name: Publish Helm chart
+      - name: Login to ghcr via helm
+        run: |
+          echo ${{secrets.GITHUB_TOKEN}} | helm registry login ghcr.io/stakater --username stakater-user --password-stdin
+
+      - name: Publish Helm chart to ghcr.io
+        run: |
+          helm package deployments/kubernetes/chart/reloader/
+          helm push reloader-*.tgz oci://ghcr.io/stakater/charts
+
+      - name: Publish Helm chart to gh-pages
         uses: stefanprodan/helm-gh-pages@master
         with:
           branch: master
@@ -220,10 +229,6 @@ jobs:
           commit_username: stakater-user
           commit_email: stakater@gmail.com
 
-      - name: Publish Helm chart to ghcr.io
-        run: |
-          helm package deployments/kubernetes/chart/reloader/
-          helm push reloader-*.tgz oci://ghcr.io/stakater/charts
       
       # Commit back changes
       - name: Log info about `.git` directory permissions
