@@ -212,7 +212,7 @@ jobs:
 
       - name: Publish Helm chart to ghcr.io
         run: |
-          helm package ./charts/* --destination ./packaged-chart
+          helm package ./deployments/kubernetes/chart/reloader --destination ./packaged-chart
           helm push ./packaged-chart/*.tgz oci://ghcr.io/stakater/charts
           rm -rf ./packaged-chart
 
