@@ -11,3 +11,4 @@ vendor
 dist
 Reloader
 !**/chart/reloader
+*.tgz
