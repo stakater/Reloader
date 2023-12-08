@@ -212,8 +212,9 @@ jobs:
 
       - name: Publish Helm chart to ghcr.io
         run: |
-          helm package deployments/kubernetes/chart/reloader/
-          helm push reloader-*.tgz oci://ghcr.io/stakater/charts
+          helm package ./charts/* --destination ./packaged-chart
+          helm push ./packaged-chart/*.tgz oci://ghcr.io/stakater/charts
+          rm -rf ./packaged-chart
 
       - name: Publish Helm chart to gh-pages
         uses: stefanprodan/helm-gh-pages@master
