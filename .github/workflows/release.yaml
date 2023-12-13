@@ -17,7 +17,7 @@ jobs:
           fetch-depth: 0 # See: https://goreleaser.com/ci/actions/
 
       - name: Set up Go
-        uses: actions/setup-go@v4
+        uses: actions/setup-go@v5
         with:
           go-version-file: "go.mod"
           check-latest: true
