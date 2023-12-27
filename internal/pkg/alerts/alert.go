@@ -33,6 +33,8 @@ func SendWebhookAlert(msg string) {
 
 	if alert_sink == "slack" {
 		sendSlackAlert(webhook_url, webhook_proxy, msg)
+	} else if alert_sink == "teams" {
+		sendTeamsAlert(webhook_url, webhook_proxy, msg)
 	} else {
 		msg = strings.Replace(msg, "*", "", -1)
 		sendRawWebhookAlert(webhook_url, webhook_proxy, msg)
@@ -67,6 +69,29 @@ func sendSlackAlert(webhookUrl string, proxy string, msg string) []error {
 		return err
 	}
 	if resp.StatusCode >= 400 {
+		return []error{fmt.Errorf("error sending msg. status: %v", resp.Status)}
+	}
+
+	return nil
+}
+
+// function to send alert to Microsoft Teams webhook
+func sendTeamsAlert(webhookUrl string, proxy string, msg string) []error {
+	attachment := Attachment{
+		Text: msg,
+	}
+
+	request := gorequest.New().Proxy(proxy)
+	resp, _, err := request.
+		Post(webhookUrl).
+		RedirectPolicy(redirectPolicy).
+		Send(attachment).
+		End()
+
+	if err != nil {
+		return err
+	}
+	if resp.StatusCode != 200 {
 		return []error{fmt.Errorf("error sending msg. status: %v", resp.Status)}
 	}
 
