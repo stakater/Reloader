@@ -7,8 +7,9 @@ on:
 
 env:
   DOCKER_FILE_PATH: Dockerfile
-  KUBERNETES_VERSION: "1.18.0"
-  KIND_VERSION: "0.10.0"
+  DOCKER_UBI_FILE_PATH: Dockerfile.ubi
+  KUBERNETES_VERSION: "1.19.0"
+  KIND_VERSION: "0.17.0"
   HELM_REGISTRY_URL: "https://stakater.github.io/stakater-charts"
   REGISTRY: ghcr.io
 
@@ -20,22 +21,24 @@ jobs:
 
     steps:
       - name: Check out code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
-          persist-credentials: false # otherwise, the token used is the GITHUB_TOKEN, instead of your personal token
+          token: ${{ secrets.STAKATER_GITHUB_TOKEN }}        
           fetch-depth: 0 # otherwise, you will fail to push refs to dest repo
 
       # Setting up helm binary
       - name: Set up Helm
         uses: azure/setup-helm@v3
-
+        with:
+          version: v3.11.3
+      
       - name: Set up Go
-        uses: actions/setup-go@v4
+        uses: actions/setup-go@v5
         with:
           go-version-file: 'go.mod'
           check-latest: true
           cache: true
-
+      
       - name: Install Dependencies
         run: |
           make install
@@ -43,7 +46,7 @@ jobs:
       - name: Run golangci-lint
         uses: golangci/golangci-lint-action@v3
         with:
-          version: v1.51.1
+          version: latest
           only-new-issues: false
           args: --timeout 10m
 
@@ -71,7 +74,7 @@ jobs:
 
       - name: Generate Tag
         id: generate_tag
-        uses: anothrNick/github-tag-action@1.61.0
+        uses: anothrNick/github-tag-action@1.67.0
         env:
           GITHUB_TOKEN: ${{ secrets.STAKATER_GITHUB_TOKEN }}
           WITH_V: true
@@ -79,13 +82,13 @@ jobs:
           DRY_RUN: true
 
       - name: Set up QEMU
-        uses: docker/setup-qemu-action@v2
+        uses: docker/setup-qemu-action@v3
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v2
+        uses: docker/setup-buildx-action@v3
 
       - name: Login to Docker Registry
-        uses: docker/login-action@v2
+        uses: docker/login-action@v3
         with:
           username: ${{ secrets.STAKATER_DOCKERHUB_USERNAME }}
           password: ${{ secrets.STAKATER_DOCKERHUB_PASSWORD }}
@@ -95,7 +98,7 @@ jobs:
           echo DOCKER_IMAGE_REPOSITORY=$(echo ${{ github.repository }} | tr '[:upper:]' '[:lower:]') >> $GITHUB_ENV
 
       - name: Build and Push Docker Image to Docker registry
-        uses: docker/build-push-action@v4
+        uses: docker/build-push-action@v5
         with:
           context: .
           file: ${{ env.DOCKER_FILE_PATH  }}
@@ -111,11 +114,30 @@ jobs:
             org.opencontainers.image.created=${{ steps.prep.outputs.created }}
             org.opencontainers.image.revision=${{ github.sha }}
 
+      - name: Build and Push Docker UBI Image to Docker registry
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ${{ env.DOCKER_UBI_FILE_PATH  }}
+          pull: true
+          push: true
+          build-args: |
+            BUILD_PARAMETERS=${{ env.BUILD_PARAMETERS }}
+            BUILDER_IMAGE=${{ env.DOCKER_IMAGE_REPOSITORY }}:${{ steps.generate_tag.outputs.new_tag }}
+          cache-to: type=inline
+          platforms: linux/amd64,linux/arm64
+          tags: |
+            ${{ env.DOCKER_IMAGE_REPOSITORY }}:${{ steps.generate_tag.outputs.new_tag }}-ubi
+          labels: |
+            org.opencontainers.image.source=${{ github.event.repository.clone_url }}
+            org.opencontainers.image.created=${{ steps.prep.outputs.created }}
+            org.opencontainers.image.revision=${{ github.sha }}
+
       - name: Login to ghcr registry
-        uses: docker/login-action@v2
+        uses: docker/login-action@v3
         with:
           registry: ${{env.REGISTRY}}
-          username: ${{github.actor}}
+          username: stakater-user
           password: ${{secrets.GITHUB_TOKEN}}
 
       - name: Generate image repository path for ghcr registry
@@ -123,7 +145,7 @@ jobs:
           echo GHCR_IMAGE_REPOSITORY=${{env.REGISTRY}}/$(echo ${{ github.repository }} | tr '[:upper:]' '[:lower:]') >> $GITHUB_ENV
 
       - name: Build and Push Docker Image to ghcr registry
-        uses: docker/build-push-action@v4
+        uses: docker/build-push-action@v5
         with:
           context: .
           file: ${{ env.DOCKER_FILE_PATH  }}
@@ -139,6 +161,25 @@ jobs:
             org.opencontainers.image.created=${{ steps.prep.outputs.created }}
             org.opencontainers.image.revision=${{ github.sha }}
 
+      - name: Build and Push Docker UBI Image to ghcr registry
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ${{ env.DOCKER_UBI_FILE_PATH  }}
+          pull: true
+          push: true
+          build-args: |
+            BUILD_PARAMETERS=${{ env.BUILD_PARAMETERS }}
+            BUILDER_IMAGE=${{ env.GHCR_IMAGE_REPOSITORY }}:${{ steps.generate_tag.outputs.new_tag }}
+          cache-to: type=inline
+          platforms: linux/amd64,linux/arm64
+          tags: |
+            ${{ env.GHCR_IMAGE_REPOSITORY }}:${{ steps.generate_tag.outputs.new_tag }}-ubi
+          labels: |
+            org.opencontainers.image.source=${{ github.event.repository.clone_url }}
+            org.opencontainers.image.created=${{ steps.prep.outputs.created }}
+            org.opencontainers.image.revision=${{ github.sha }}
+
       ##############################
       ## Add steps to generate required artifacts for a release here(helm chart, operator manifest etc.)
       ##############################
@@ -146,7 +187,7 @@ jobs:
       # Generate tag for operator without "v"
       - name: Generate Operator Tag
         id: generate_operator_tag
-        uses: anothrNick/github-tag-action@1.61.0
+        uses: anothrNick/github-tag-action@1.67.0
         env:
           GITHUB_TOKEN: ${{ secrets.STAKATER_GITHUB_TOKEN }}
           WITH_V: false
@@ -165,7 +206,17 @@ jobs:
           helm template reloader deployments/kubernetes/chart/reloader/ --output-dir deployments/kubernetes/manifests && mv deployments/kubernetes/manifests/reloader/templates/* deployments/kubernetes/manifests/ && rm -r deployments/kubernetes/manifests/reloader
 
       # Publish helm chart
-      - name: Publish Helm chart
+      - name: Login to ghcr via helm
+        run: |
+          echo ${{secrets.GITHUB_TOKEN}} | helm registry login ghcr.io/stakater --username stakater-user --password-stdin
+
+      - name: Publish Helm chart to ghcr.io
+        run: |
+          helm package ./deployments/kubernetes/chart/reloader --destination ./packaged-chart
+          helm push ./packaged-chart/*.tgz oci://ghcr.io/stakater/charts
+          rm -rf ./packaged-chart
+
+      - name: Publish Helm chart to gh-pages
         uses: stefanprodan/helm-gh-pages@master
         with:
           branch: master
@@ -179,7 +230,17 @@ jobs:
           commit_username: stakater-user
           commit_email: stakater@gmail.com
 
+      
       # Commit back changes
+      - name: Log info about `.git` directory permissions
+        run: |
+          # Debug logging
+          echo "Disk usage: "
+          df -H
+
+          echo ".git files not owned by current user or current group:"
+          find .git ! -user $(id -u) -o ! -group $(id -g) | xargs ls -lah
+
       - name: Commit files
         run: |
           git config --local user.email "stakater@gmail.com"
@@ -195,7 +256,7 @@ jobs:
           branch: ${{ github.ref }}
 
       - name: Push Latest Tag
-        uses: anothrNick/github-tag-action@1.61.0
+        uses: anothrNick/github-tag-action@1.67.0
         env:
           GITHUB_TOKEN: ${{ secrets.STAKATER_GITHUB_TOKEN }}
           WITH_V: true

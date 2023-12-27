@@ -43,6 +43,7 @@ var (
 	arsConfigmapWithPodAnnotations         = "testconfigmapPodAnnotations-handler-" + testutil.RandSeq(5)
 	arsConfigmapWithBothAnnotations        = "testconfigmapBothAnnotations-handler-" + testutil.RandSeq(5)
 	arsConfigmapAnnotated                  = "testconfigmapAnnotated-handler-" + testutil.RandSeq(5)
+	arsConfigMapWithNonAnnotatedDeployment = "testconfigmapNonAnnotatedDeployment-handler-" + testutil.RandSeq(5)
 
 	ersNamespace                           = "test-handler-" + testutil.RandSeq(5)
 	ersConfigmapName                       = "testconfigmap-handler-" + testutil.RandSeq(5)
@@ -173,6 +174,11 @@ func setupArs() {
 		logrus.Errorf("Error in configmap creation: %v", err)
 	}
 
+	_, err = testutil.CreateConfigMap(clients.KubernetesClient, arsNamespace, arsConfigMapWithNonAnnotatedDeployment, "www.google.com")
+	if err != nil {
+		logrus.Errorf("Error in configmap creation: %v", err)
+	}
+
 	// Creating Deployment with configmap
 	_, err = testutil.CreateDeployment(clients.KubernetesClient, arsConfigmapName, arsNamespace, true)
 	if err != nil {
@@ -268,6 +274,12 @@ func setupArs() {
 		logrus.Errorf("Error in Deployment with secret configmap as envFrom source creation: %v", err)
 	}
 
+	// Creating Deployment with configmap and without annotations
+	_, err = testutil.CreateDeploymentWithEnvVarSourceAndAnnotations(clients.KubernetesClient, arsConfigMapWithNonAnnotatedDeployment, arsNamespace, map[string]string{})
+	if err != nil {
+		logrus.Errorf("Error in Deployment with configmap and without annotation creation: %v", err)
+	}
+
 	// Creating DaemonSet with configmap
 	_, err = testutil.CreateDaemonSet(clients.KubernetesClient, arsConfigmapName, arsNamespace, true)
 	if err != nil {
@@ -348,6 +360,7 @@ func setupArs() {
 
 	// Creating Deployment with both annotations
 	_, err = testutil.CreateDeploymentWithPodAnnotations(clients.KubernetesClient, arsConfigmapWithBothAnnotations, arsNamespace, true)
+
 	if err != nil {
 		logrus.Errorf("Error in Deployment with both annotations: %v", err)
 	}
@@ -1185,6 +1198,58 @@ func TestRollingUpgradeForDeploymentWithConfigmapUsingArs(t *testing.T) {
 
 	shaData := testutil.ConvertResourceToSHA(testutil.ConfigmapResourceType, arsNamespace, arsConfigmapName, "www.stakater.com")
 	config := getConfigWithAnnotations(constants.ConfigmapEnvVarPostfix, arsConfigmapName, shaData, options.ConfigmapUpdateOnChangeAnnotation)
+	deploymentFuncs := GetDeploymentRollingUpgradeFuncs()
+	collectors := getCollectors()
+
+	err := PerformRollingUpgrade(clients, config, deploymentFuncs, collectors, nil)
+	time.Sleep(5 * time.Second)
+	if err != nil {
+		t.Errorf("Rolling upgrade failed for Deployment with Configmap")
+	}
+
+	logrus.Infof("Verifying deployment update")
+	updated := testutil.VerifyResourceAnnotationUpdate(clients, config, deploymentFuncs)
+	if !updated {
+		t.Errorf("Deployment was not updated")
+	}
+
+	if promtestutil.ToFloat64(collectors.Reloaded.With(labelSucceeded)) != 1 {
+		t.Errorf("Counter was not increased")
+	}
+}
+
+func TestRollingUpgradeForDeploymentWithConfigmapWithoutReloadAnnotationAndWithoutAutoReloadAllNoTriggersUsingArs(t *testing.T) {
+	options.ReloadStrategy = constants.AnnotationsReloadStrategy
+
+	shaData := testutil.ConvertResourceToSHA(testutil.ConfigmapResourceType, arsNamespace, arsConfigMapWithNonAnnotatedDeployment, "www.stakater.com")
+	config := getConfigWithAnnotations(constants.ConfigmapEnvVarPostfix, arsConfigMapWithNonAnnotatedDeployment, shaData, options.ConfigmapUpdateOnChangeAnnotation)
+	deploymentFuncs := GetDeploymentRollingUpgradeFuncs()
+	collectors := getCollectors()
+
+	err := PerformRollingUpgrade(clients, config, deploymentFuncs, collectors, nil)
+	time.Sleep(5 * time.Second)
+	if err != nil {
+		t.Errorf("Rolling upgrade failed for Deployment with Configmap")
+	}
+
+	logrus.Infof("Verifying deployment update")
+	updated := testutil.VerifyResourceAnnotationUpdate(clients, config, deploymentFuncs)
+	if updated {
+		t.Errorf("Deployment was updated")
+	}
+
+	if promtestutil.ToFloat64(collectors.Reloaded.With(labelSucceeded)) > 0 {
+		t.Errorf("Counter was increased")
+	}
+}
+
+func TestRollingUpgradeForDeploymentWithConfigmapWithoutReloadAnnotationButWithAutoReloadAllUsingArs(t *testing.T) {
+	options.ReloadStrategy = constants.AnnotationsReloadStrategy
+	options.AutoReloadAll = true
+	defer func() { options.AutoReloadAll = false }()
+
+	shaData := testutil.ConvertResourceToSHA(testutil.ConfigmapResourceType, arsNamespace, arsConfigMapWithNonAnnotatedDeployment, "www.stakater.com")
+	config := getConfigWithAnnotations(constants.ConfigmapEnvVarPostfix, arsConfigMapWithNonAnnotatedDeployment, shaData, "")
 	deploymentFuncs := GetDeploymentRollingUpgradeFuncs()
 	collectors := getCollectors()
 

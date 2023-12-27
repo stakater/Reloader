@@ -22,7 +22,7 @@ spec:
 {{- else }}
   replicas: {{ .Values.reloader.deployment.replicas }}
 {{- end}}
-  revisionHistoryLimit: 2
+  revisionHistoryLimit: {{ .Values.reloader.deployment.revisionHistoryLimit }}
   selector:
     matchLabels:
       app: {{ template "reloader-fullname" . }}
@@ -160,12 +160,17 @@ spec:
         securityContext:
           {{- toYaml $containerSecurityContext | nindent 10 }}
 
-      {{- if eq .Values.reloader.readOnlyRootFileSystem true }}
+      {{- if (or (.Values.reloader.deployment.volumeMounts) (eq .Values.reloader.readOnlyRootFileSystem true)) }}
         volumeMounts:
+          {{- if eq .Values.reloader.readOnlyRootFileSystem true }}
           - mountPath: /tmp/
             name: tmp-volume
+          {{- end }}
+          {{- with .Values.reloader.deployment.volumeMounts }}
+          {{- . | toYaml | nindent 10 }}
+          {{- end }}
       {{- end }}
-      {{- if or (.Values.reloader.logFormat) (.Values.reloader.ignoreSecrets) (.Values.reloader.ignoreNamespaces) (.Values.reloader.namespaceSelector) (.Values.reloader.resourceLabelSelector) (.Values.reloader.ignoreConfigMaps) (.Values.reloader.custom_annotations) (eq .Values.reloader.isArgoRollouts true) (eq .Values.reloader.reloadOnCreate true) (ne .Values.reloader.reloadStrategy "default") (.Values.reloader.enableHA)}}
+      {{- if or (.Values.reloader.logFormat) (.Values.reloader.ignoreSecrets) (.Values.reloader.ignoreNamespaces) (.Values.reloader.namespaceSelector) (.Values.reloader.resourceLabelSelector) (.Values.reloader.ignoreConfigMaps) (.Values.reloader.custom_annotations) (eq .Values.reloader.isArgoRollouts true) (eq .Values.reloader.reloadOnCreate true) (ne .Values.reloader.reloadStrategy "default") (.Values.reloader.enableHA) (.Values.reloader.autoReloadAll)}}
         args:
           {{- if .Values.reloader.logFormat }}
           - "--log-format={{ .Values.reloader.logFormat }}"
@@ -206,6 +211,10 @@ spec:
           - "--search-match-annotation"
           - "{{ .Values.reloader.custom_annotations.match }}"
             {{- end }}
+            {{- if .Values.reloader.webhookUrl }}
+          - "--webhook-url"
+          - "{{ .Values.reloader.webhookUrl }}"
+            {{- end }}
           {{- end }}
           {{- if eq .Values.reloader.isArgoRollouts true }}
           - "--is-Argo-Rollouts={{ .Values.reloader.isArgoRollouts }}"
@@ -222,6 +231,9 @@ spec:
           {{- if or (gt (int .Values.reloader.deployment.replicas) 1) (.Values.reloader.enableHA) }}
           - "--enable-ha=true"
           {{- end}}
+          {{- if eq .Values.reloader.autoReloadAll true }}
+          - "--auto-reload-all=true"
+          {{- end -}}
       {{- end }}
       {{- if .Values.reloader.deployment.resources }}
         resources:
@@ -234,8 +246,13 @@ spec:
 {{- if hasKey .Values.reloader.deployment "automountServiceAccountToken" }}
       automountServiceAccountToken: {{ .Values.reloader.deployment.automountServiceAccountToken }}
 {{- end }}
-    {{- if eq .Values.reloader.readOnlyRootFileSystem true }}
+    {{- if (or (.Values.reloader.deployment.volumes) (eq .Values.reloader.readOnlyRootFileSystem true)) }}
       volumes:
+        {{- if eq .Values.reloader.readOnlyRootFileSystem true }}
         - emptyDir: {}
           name: tmp-volume
+        {{- end }}
+        {{- with .Values.reloader.deployment.volumes }}
+          {{- . | toYaml | nindent 8 }}
+        {{- end }}
     {{- end }}

@@ -1,0 +1,3 @@
+[submodule "vocabulary"]
+	path = vocabulary
+	url = git@github.com:stakater/vocabulary.git
