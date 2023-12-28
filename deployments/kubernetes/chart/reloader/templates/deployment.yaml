@@ -57,8 +57,9 @@ spec:
       affinity:
       {{- if .Values.reloader.deployment.affinity }}
 {{ toYaml .Values.reloader.deployment.affinity | indent 8 }}
-      {{- end}}
+      {{- else }}
 {{ include "reloader-podAntiAffinity" . | indent 8 }}
+      {{- end }}
       {{- end }}
       {{- if .Values.reloader.deployment.tolerations }}
       tolerations:
