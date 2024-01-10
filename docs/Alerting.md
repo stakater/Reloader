@@ -1,6 +1,5 @@
 # Alerting on Reload
 
-
 Reloader can alert when it triggers a rolling upgrade on Deployments or StatefulSets. Webhook notification alert would be sent to the configured webhook server with all the required information.
 
 ## Enabling the feature
