@@ -197,15 +197,18 @@ func PerformRollingUpgrade(clients kube.Clients, config util.Config, upgradeFunc
 		annotationValue, found := annotations[config.Annotation]
 		searchAnnotationValue, foundSearchAnn := annotations[options.AutoSearchAnnotation]
 		reloaderEnabledValue, foundAuto := annotations[options.ReloaderAutoAnnotation]
-		if !found && !foundAuto && !foundSearchAnn {
+		typedAutoAnnotationEnabledValue, foundTypedAuto := annotations[config.TypedAutoAnnotation]
+		if !found && !foundAuto && !foundTypedAuto && !foundSearchAnn {
 			annotations = upgradeFuncs.PodAnnotationsFunc(i)
 			annotationValue = annotations[config.Annotation]
 			searchAnnotationValue = annotations[options.AutoSearchAnnotation]
 			reloaderEnabledValue = annotations[options.ReloaderAutoAnnotation]
+			typedAutoAnnotationEnabledValue = annotations[config.TypedAutoAnnotation]
 		}
 		result := constants.NotUpdated
 		reloaderEnabled, _ := strconv.ParseBool(reloaderEnabledValue)
-		if reloaderEnabled || reloaderEnabledValue == "" && options.AutoReloadAll {
+		typedAutoAnnotationEnabled, _ := strconv.ParseBool(typedAutoAnnotationEnabledValue)
+		if reloaderEnabled || typedAutoAnnotationEnabled || reloaderEnabledValue == "" && typedAutoAnnotationEnabledValue == "" && options.AutoReloadAll {
 			result = invokeReloadStrategy(upgradeFuncs, i, config, true)
 		}
 

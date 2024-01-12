@@ -204,6 +204,14 @@ spec:
           - "--auto-annotation"
           - "{{ .Values.reloader.custom_annotations.auto }}"
             {{- end }}
+            {{- if .Values.reloader.custom_annotations.secret_auto }}
+          - "--secret-auto-annotation"
+          - "{{ .Values.reloader.custom_annotations.secret_auto }}"
+            {{- end }}
+            {{- if .Values.reloader.custom_annotations.configmap_auto }}
+          - "--configmap-auto-annotation"
+          - "{{ .Values.reloader.custom_annotations.configmap_auto }}"
+            {{- end }}                        
             {{- if .Values.reloader.custom_annotations.search }}
           - "--auto-search-annotation"
           - "{{ .Values.reloader.custom_annotations.search }}"
