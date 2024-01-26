@@ -952,7 +952,7 @@ func VerifyResourceAnnotationUpdate(clients kube.Clients, config util.Config, up
 		reloaderEnabled, _ := strconv.ParseBool(reloaderEnabledValue)
 		typedAutoAnnotationEnabled, _ := strconv.ParseBool(typedAutoAnnotationEnabledValue)
 		matches := false
-		if reloaderEnabled || typedAutoAnnotationEnabled || reloaderEnabledValue == "" && options.AutoReloadAll {
+		if reloaderEnabled || typedAutoAnnotationEnabled || reloaderEnabledValue == "" && typedAutoAnnotationEnabledValue == "" && options.AutoReloadAll {
 			matches = true
 		} else if annotationValue != "" {
 			values := strings.Split(annotationValue, ",")
