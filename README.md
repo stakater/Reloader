@@ -308,9 +308,9 @@ Reloader can be configured to only watch configmaps/secrets labeled with one or 
 
 **Note:** Both `namespaceSelector` & `resourceLabelSelector` can be used together. If they are then both conditions must be met for the configmap or secret to be eligible to trigger reload events. (e.g. If a configMap matches `resourceLabelSelector` but `namespaceSelector` does not match the namespace the configmap is in, it will be ignored).
 
-You can also set the log format of Reloader to json by setting `logFormat` to `json` in values.yaml and apply the chart.
+You can also set the log format of Reloader to JSON by setting `logFormat` to `json` in `values.yaml` and apply the chart.
 
-You can enable to scrape Reloader's Prometheus metrics by setting `serviceMonitor.enabled` or `podMonitor.enabled`  to `true` in values.yaml file. Service monitor will be removed in future releases of Reloader in favour of Pod monitor.
+You can enable to scrape Reloader's Prometheus metrics by setting `serviceMonitor.enabled` or `podMonitor.enabled`  to `true` in `values.yaml` file. Service monitor will be removed in future releases of Reloader in favour of Pod monitor.
 
 **Note:** Reloading of OpenShift (DeploymentConfig) and/or Argo `Rollouts` has to be enabled explicitly because it might not be always possible to use it on a cluster with restricted permissions. This can be done by changing the following parameters:
 
@@ -321,7 +321,7 @@ You can enable to scrape Reloader's Prometheus metrics by setting `serviceMonito
 | reloadOnCreate   | Enable reload on create events. Valid value are either `true` or `false`                                                                 | boolean |
 | syncAfterRestart | Enable sync after Reloader restarts for **Add** events, works only when reloadOnCreate is `true`. Valid value are either `true` or `false` | boolean |
 
-**isOpenShift** Recent versions of OpenShift (tested on 4.13.3) require the specified user to be in an uid range which is dynamically assigned by the namespace. The solution is to unset the runAsUser variable via ``deployment.securityContext.runAsUser=null`` and let OpenShift assign it at install.
+**isOpenShift** Recent versions of OpenShift (tested on 4.13.3) require the specified user to be in an `uid` range which is dynamically assigned by the namespace. The solution is to unset the runAsUser variable via ``deployment.securityContext.runAsUser=null`` and let OpenShift assign it at install.
 
 **ReloadOnCreate** reloadOnCreate controls how Reloader handles secrets being added to the cache for the first time. If reloadOnCreate is set to true:
 
