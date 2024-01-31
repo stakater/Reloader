@@ -12,3 +12,4 @@ dist
 Reloader
 !**/chart/reloader
 *.tgz
+styles/
