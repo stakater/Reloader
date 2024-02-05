@@ -211,20 +211,17 @@ Only configmaps or secrets labeled like the following will be watched:
 kind: ConfigMap
 apiVersion: v1
 metadata:
-  ...
   labels:
     reloader: enabled
     key-exists: yes
     another-label: value1
-
-  ...
 ```
 
 Reloader can be configured to only watch namespaces labeled with one or more labels using the `--namespace-selector` parameter. Supported operators are `!, in, notin, ==, =, !=`, if no operator is found the 'exists' operator is inferred (i.e. key only). Additional examples of these selectors can be found in the [Kubernetes Docs](https://kubernetes.io/docs/concepts/overview/working-with-objects/labels/#label-selectors).
 
 **Note:** The old `:` delimited key value mappings are deprecated and if provided will be translated to `key=value`. Likewise, if a wildcard value is provided (e.g. `key:*`) it will be translated to the standalone `key` which checks for key existence.
 
-These selectors can be combined together, for example with:
+These selectors can be combined, for example with:
 
 ```yaml
 --namespace-selector=reloader=enabled,test=true
@@ -236,11 +233,9 @@ Only namespaces labeled as below would be watched and eligible for reloads:
 kind: Namespace
 apiVersion: v1
 metadata:
-  ...
   labels:
     reloader: enabled
     test: true
-  ...
 ```
 
 ### Vanilla Kustomize
