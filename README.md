@@ -22,7 +22,7 @@ Reloader can watch changes in `ConfigMap` and `Secret` and do rolling upgrades o
 Reloader is available in two different versions:
 
 1. Open Source Version
-1. Enterprise Version, which includes:
+2. Enterprise Version, which includes:
     - SLA (Service Level Agreement) for support and unique requests
     - Slack support
     - Certified images
@@ -189,7 +189,7 @@ By default, Reloader gets deployed in `default` namespace and watches changes `s
 Reloader can be configured to ignore the resources `secrets` and `configmaps` by passing the following arguments (`spec.template.spec.containers.args`) to its container :
 
 | Argument                         | Description          |
-| -------------------------------- | -------------------- |
+|----------------------------------|----------------------|
 | --resources-to-ignore=configMaps | To ignore configMaps |
 | --resources-to-ignore=secrets    | To ignore secrets    |
 
@@ -199,7 +199,7 @@ Reloader can be configured to only watch secrets/configmaps with one or more lab
 
 **Note:** The old `:` delimited key value mappings are deprecated and if provided will be translated to `key=value`. Likewise, if a wildcard value is provided (e.g. `key:*`) it will be translated to the standalone `key` which checks for key existence.
 
-These selectors can be combined together, for example with:
+These selectors can be combined, for example with:
 
 ```yaml
 --resource-label-selector=reloader=enabled,key-exists,another-label in (value1,value2,value3)
@@ -283,7 +283,7 @@ helm install stakater/reloader --set reloader.watchGlobally=false --namespace te
 Reloader can be configured to ignore the resources `secrets` and `configmaps` by using the following parameters of `values.yaml` file:
 
 | Parameter        | Description                                                    | Type    |
-| ---------------- | -------------------------------------------------------------- | ------- |
+|------------------|----------------------------------------------------------------|---------|
 | ignoreSecrets    | To ignore secrets. Valid value are either `true` or `false`    | boolean |
 | ignoreConfigMaps | To ignore configMaps. Valid value are either `true` or `false` | boolean |
 
@@ -291,15 +291,15 @@ Reloader can be configured to ignore the resources `secrets` and `configmaps` by
 
 Reloader can be configured to only watch namespaces labeled with one or more labels using the `namespaceSelector` parameter
 
-| Parameter            | Description                                                                        | Type    |
-| ----------------     | ---------------------------------------------------------------------------------- | ------- |
-| namespaceSelector    | list of comma separated label selectors, if multiple are provided they are combined with the AND operator | string  |
+| Parameter         | Description                                                                                               | Type   |
+|-------------------|-----------------------------------------------------------------------------------------------------------|--------|
+| namespaceSelector | list of comma separated label selectors, if multiple are provided they are combined with the AND operator | string |
 
 Reloader can be configured to only watch configmaps/secrets labeled with one or more labels using the `resourceLabelSelector` parameter
 
-| Parameter              | Description                                                                        | Type    |
-| ---------------------- | ---------------------------------------------------------------------------------- | ------- |
-| resourceLabelSelector  | list of comma separated label selectors, if multiple are provided they are combined with the AND operator | string  |
+| Parameter             | Description                                                                                               | Type   |
+|-----------------------|-----------------------------------------------------------------------------------------------------------|--------|
+| resourceLabelSelector | list of comma separated label selectors, if multiple are provided they are combined with the AND operator | string |
 
 **Note:** Both `namespaceSelector` & `resourceLabelSelector` can be used together. If they are then both conditions must be met for the configmap or secret to be eligible to trigger reload events. (e.g. If a configMap matches `resourceLabelSelector` but `namespaceSelector` does not match the namespace the configmap is in, it will be ignored).
 
@@ -309,16 +309,16 @@ You can enable to scrape Reloader's Prometheus metrics by setting `serviceMonito
 
 **Note:** Reloading of OpenShift (DeploymentConfig) and/or Argo `Rollouts` has to be enabled explicitly because it might not be always possible to use it on a cluster with restricted permissions. This can be done by changing the following parameters:
 
-| Parameter        | Description                                                                                                                              | Type    |
-|------------------|------------------------------------------------------------------------------------------------------------------------------------------| ------- |
-| isOpenshift      | Enable OpenShift DeploymentConfigs. Valid value are either `true` or `false`                                                             | boolean |
+| Parameter        | Description                                                                                                                                | Type    |
+|------------------|--------------------------------------------------------------------------------------------------------------------------------------------|---------|
+| isOpenshift      | Enable OpenShift DeploymentConfigs. Valid value are either `true` or `false`                                                               | boolean |
 | isArgoRollouts   | Enable Argo `Rollouts`. Valid value are either `true` or `false`                                                                           | boolean |
-| reloadOnCreate   | Enable reload on create events. Valid value are either `true` or `false`                                                                 | boolean |
+| reloadOnCreate   | Enable reload on create events. Valid value are either `true` or `false`                                                                   | boolean |
 | syncAfterRestart | Enable sync after Reloader restarts for **Add** events, works only when reloadOnCreate is `true`. Valid value are either `true` or `false` | boolean |
 
 **isOpenShift** Recent versions of OpenShift (tested on 4.13.3) require the specified user to be in an `uid` range which is dynamically assigned by the namespace. The solution is to unset the runAsUser variable via ``deployment.securityContext.runAsUser=null`` and let OpenShift assign it at install.
 
-**ReloadOnCreate** reloadOnCreate controls how Reloader handles secrets being added to the cache for the first time. If reloadOnCreate is set to true:
+**ReloadOnCreate** controls how Reloader handles secrets being added to the cache for the first time. If reloadOnCreate is set to true:
 
 - Configmaps/secrets being added to the cache will cause Reloader to perform a rolling update of the associated workload.
 - When applications are deployed for the first time, Reloader will perform a rolling update of the associated workload.
@@ -354,17 +354,17 @@ Please use the [issue tracker](https://github.com/stakater/Reloader/issues) to r
 ### Developing
 
 1. Deploy Reloader.
-1. Run `okteto up` to activate your development container.
-1. `make build`.
-1. `./Reloader`
+2. Run `okteto up` to activate your development container.
+3. `make build`.
+4. `./Reloader`
 
 PRs are welcome. In general, we follow the "fork-and-pull" Git workflow.
 
 1. **Fork** the repo on GitHub
-1. **Clone** the project to your own machine
-1. **Commit** changes to your own branch
-1. **Push** your work back up to your fork
-1. Submit a **Pull request** so that we can review your changes
+2. **Clone** the project to your own machine
+3. **Commit** changes to your own branch
+4. **Push** your work back up to your fork
+5. Submit a **Pull request** so that we can review your changes
 
 **NOTE:** Be sure to merge the latest from "upstream" before making a pull request!
 
