@@ -282,24 +282,24 @@ helm install stakater/reloader --set reloader.watchGlobally=false --namespace te
 
 Reloader can be configured to ignore the resources `secrets` and `configmaps` by using the following parameters of `values.yaml` file:
 
-| Parameter        | Description                                                    | Type    |
-|------------------|----------------------------------------------------------------|---------|
-| ignoreSecrets    | To ignore secrets. Valid value are either `true` or `false`    | boolean |
-| ignoreConfigMaps | To ignore configMaps. Valid value are either `true` or `false` | boolean |
+| Parameter        | Description                                                    | Type    | Default |
+|------------------|----------------------------------------------------------------|---------|---------|
+| ignoreSecrets    | To ignore secrets. Valid value are either `true` or `false`    | boolean | false   |
+| ignoreConfigMaps | To ignore configMaps. Valid value are either `true` or `false` | boolean | false   |
 
 **Note:** At one time only one of these resource can be ignored, trying to do it will cause error in helm template compilation.
 
 Reloader can be configured to only watch namespaces labeled with one or more labels using the `namespaceSelector` parameter
 
-| Parameter         | Description                                                                                               | Type   |
-|-------------------|-----------------------------------------------------------------------------------------------------------|--------|
-| namespaceSelector | list of comma separated label selectors, if multiple are provided they are combined with the AND operator | string |
+| Parameter         | Description                                                                                               | Type   | Default |
+|-------------------|-----------------------------------------------------------------------------------------------------------|--------|---------|
+| namespaceSelector | list of comma separated label selectors, if multiple are provided they are combined with the AND operator | string |  ""     |
 
 Reloader can be configured to only watch configmaps/secrets labeled with one or more labels using the `resourceLabelSelector` parameter
 
-| Parameter             | Description                                                                                               | Type   |
-|-----------------------|-----------------------------------------------------------------------------------------------------------|--------|
-| resourceLabelSelector | list of comma separated label selectors, if multiple are provided they are combined with the AND operator | string |
+| Parameter             | Description                                                                                               | Type   | Default |
+|-----------------------|-----------------------------------------------------------------------------------------------------------|--------|---------|
+| resourceLabelSelector | list of comma separated label selectors, if multiple are provided they are combined with the AND operator | string |  ""     |
 
 **Note:** Both `namespaceSelector` & `resourceLabelSelector` can be used together. If they are then both conditions must be met for the configmap or secret to be eligible to trigger reload events. (e.g. If a configMap matches `resourceLabelSelector` but `namespaceSelector` does not match the namespace the configmap is in, it will be ignored).
 
@@ -309,24 +309,26 @@ You can enable to scrape Reloader's Prometheus metrics by setting `serviceMonito
 
 **Note:** Reloading of OpenShift (DeploymentConfig) and/or Argo `Rollouts` has to be enabled explicitly because it might not be always possible to use it on a cluster with restricted permissions. This can be done by changing the following parameters:
 
-| Parameter        | Description                                                                                                                                | Type    |
-|------------------|--------------------------------------------------------------------------------------------------------------------------------------------|---------|
-| isOpenshift      | Enable OpenShift DeploymentConfigs. Valid value are either `true` or `false`                                                               | boolean |
-| isArgoRollouts   | Enable Argo `Rollouts`. Valid value are either `true` or `false`                                                                           | boolean |
-| reloadOnCreate   | Enable reload on create events. Valid value are either `true` or `false`                                                                   | boolean |
-| syncAfterRestart | Enable sync after Reloader restarts for **Add** events, works only when reloadOnCreate is `true`. Valid value are either `true` or `false` | boolean |
+| Parameter        | Description                                                                                                                                | Type    | Default |
+|------------------|--------------------------------------------------------------------------------------------------------------------------------------------|---------|---------|
+| isOpenshift      | Enable OpenShift DeploymentConfigs. Valid value are either `true` or `false`                                                               | boolean | false   |
+| isArgoRollouts   | Enable Argo `Rollouts`. Valid value are either `true` or `false`                                                                           | boolean | false   |
+| reloadOnCreate   | Enable reload on create events. Valid value are either `true` or `false`                                                                   | boolean | false   |
+| syncAfterRestart | Enable sync after Reloader restarts for **Add** events, works only when reloadOnCreate is `true`. Valid value are either `true` or `false` | boolean | false   |
 
 **isOpenShift** Recent versions of OpenShift (tested on 4.13.3) require the specified user to be in an `uid` range which is dynamically assigned by the namespace. The solution is to unset the runAsUser variable via ``deployment.securityContext.runAsUser=null`` and let OpenShift assign it at install.
 
-**ReloadOnCreate** controls how Reloader handles secrets being added to the cache for the first time. If reloadOnCreate is set to true:
+**reloadOnCreate** controls how Reloader handles secrets being added to the cache for the first time. If reloadOnCreate is set to true:
 
 - Configmaps/secrets being added to the cache will cause Reloader to perform a rolling update of the associated workload.
 - When applications are deployed for the first time, Reloader will perform a rolling update of the associated workload.
 - If you are running Reloader in HA mode all workloads will have a rolling update performed when a new leader is elected.
 
-If ReloadOnCreate is set to false:
+If reloadOnCreate is set to false:
 
 - Updates to configMaps/Secrets that occur while there is no leader will not be picked up by the new leader until a subsequent update of the configmap/secret occurs. In the worst case the window in which there can be no leader is 15s as this is the LeaseDuration.
+
+**Note:** By default, **reloadOnCreate** and **syncAfterRestart** are both set to false. Both need to be enabled explicitly.
 
 ## Help
 
