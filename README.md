@@ -256,7 +256,7 @@ You can write your own `kustomization.yaml` using ours as a 'base' and write pat
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 
-bases:
+resources:
   - https://github.com/stakater/Reloader/deployments/kubernetes
 
 namespace: reloader
