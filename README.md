@@ -22,7 +22,7 @@ Reloader can watch changes in `ConfigMap` and `Secret` and do rolling upgrades o
 Reloader is available in two different versions:
 
 1. Open Source Version
-2. Enterprise Version, which includes:
+1. Enterprise Version, which includes:
     - SLA (Service Level Agreement) for support and unique requests
     - Slack support
     - Certified images
@@ -356,17 +356,17 @@ Please use the [issue tracker](https://github.com/stakater/Reloader/issues) to r
 ### Developing
 
 1. Deploy Reloader.
-2. Run `okteto up` to activate your development container.
-3. `make build`.
-4. `./Reloader`
+1. Run `okteto up` to activate your development container.
+1. `make build`
+1. `./Reloader`
 
 PRs are welcome. In general, we follow the "fork-and-pull" Git workflow.
 
 1. **Fork** the repo on GitHub
-2. **Clone** the project to your own machine
-3. **Commit** changes to your own branch
-4. **Push** your work back up to your fork
-5. Submit a **Pull request** so that we can review your changes
+1. **Clone** the project to your own machine
+1. **Commit** changes to your own branch
+1. **Push** your work back up to your fork
+1. Submit a **Pull request** so that we can review your changes
 
 **NOTE:** Be sure to merge the latest from "upstream" before making a pull request!
 
