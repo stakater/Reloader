@@ -15,7 +15,7 @@ spec:
   template:
     spec:
       containers:
-      - image: "ghcr.io/stakater/reloader:v1.0.65"
+      - image: "ghcr.io/stakater/reloader:v1.0.67"
         imagePullPolicy: IfNotPresent
         name: reloader-reloader
 
