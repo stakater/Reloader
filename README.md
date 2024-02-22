@@ -290,9 +290,9 @@ helm uninstall {{RELEASE_NAME}} -n {{NAMESPACE}}
 
 #### Global Parameters
 
-| Parameter          | Description                                                     | Type  | Default |
-|--------------------|-----------------------------------------------------------------|-------|---------|
-| `imagePullSecrets` | Reference to one or more secrets to be used when pulling images | array | `[]`    |
+| Parameter                 | Description                                                     | Type  | Default |
+|---------------------------|-----------------------------------------------------------------|-------|---------|
+| `global.imagePullSecrets` | Reference to one or more secrets to be used when pulling images | array | `[]`    |
 
 #### Common Parameters
 
@@ -303,63 +303,63 @@ helm uninstall {{RELEASE_NAME}} -n {{NAMESPACE}}
 
 #### Core Reloader Parameters
 
-| Parameter              | Description                                                                                                                                         | Type    | Default   |
-|------------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------|---------|-----------|
-| autoReloadAll          |                                                                                                                                                     | boolean | `false`   |
-| isArgoRollouts         | Enable Argo `Rollouts`. Valid value are either `true` or `false`                                                                                    | boolean | `false`   |
-| isOpenshift            | Enable OpenShift DeploymentConfigs. Valid value are either `true` or `false`                                                                        | boolean | `false`   |
-| ignoreSecrets          | To ignore secrets. Valid value are either `true` or `false`. Either `ignoreSecrets` or `ignoreConfigMaps` can be ignored, not both at the same time | boolean | `false`   |
-| ignoreConfigMaps       | To ignore configMaps. Valid value are either `true` or `false`                                                                                      | boolean | `false`   |
-| reloadOnCreate         | Enable reload on create events. Valid value are either `true` or `false`                                                                            | boolean | `false`   |
-| syncAfterRestart       | Enable sync after Reloader restarts for **Add** events, works only when reloadOnCreate is `true`. Valid value are either `true` or `false`          | boolean | `false`   |
-| reloadStrategy         | Strategy to trigger resource restart, set to either `default`, `env-vars` or `annotations`                                                          | enum    | `default` |
-| ignoreNamespaces       | List of comma separated namespaces to ignore, if multiple are provided, they are combined with the AND operator                                     | string  | `""`      |
-| namespaceSelector      | List of comma separated namespaces to select, if multiple are provided, they are combined with the AND operator                                     | string  | `""`      |
-| resourceLabelSelector  | List of comma separated label selectors, if multiple are provided they are combined with the AND operator                                           | string  | `""`      |
-| logFormat              | Set type of log format. Value could be either `json` or `""`                                                                                        | string  | `""`      |
-| watchGlobally          | Allow Reloader to watch in all namespaces (`true`) or just in a single namespace (`false`)                                                          | boolean | `true`    |
-| enableHA               | Enable leadership election allowing you to run multiple replicas                                                                                    | boolean | `false`   |
-| readOnlyRootFileSystem | Enforce readOnlyRootFilesystem                                                                                                                      | boolean | `false`   |
-| legacy.rbac            |                                                                                                                                                     | boolean | `false`   |
-| matchLabels            | Pod labels to match                                                                                                                                 | map     | `{}`      |
+| Parameter                         | Description                                                                                                                                         | Type        | Default   |
+|-----------------------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------|-------------|-----------|
+| `reloader.autoReloadAll`          |                                                                                                                                                     | boolean     | `false`   |
+| `reloader.isArgoRollouts`         | Enable Argo `Rollouts`. Valid value are either `true` or `false`                                                                                    | boolean     | `false`   |
+| `reloader.isOpenshift`            | Enable OpenShift DeploymentConfigs. Valid value are either `true` or `false`                                                                        | boolean     | `false`   |
+| `reloader.ignoreSecrets`          | To ignore secrets. Valid value are either `true` or `false`. Either `ignoreSecrets` or `ignoreConfigMaps` can be ignored, not both at the same time | boolean     | `false`   |
+| `reloader.ignoreConfigMaps`       | To ignore configMaps. Valid value are either `true` or `false`                                                                                      | boolean     | `false`   |
+| `reloader.reloadOnCreate`         | Enable reload on create events. Valid value are either `true` or `false`                                                                            | boolean     | `false`   |
+| `reloader.syncAfterRestart`       | Enable sync after Reloader restarts for **Add** events, works only when reloadOnCreate is `true`. Valid value are either `true` or `false`          | boolean     | `false`   |
+| `reloader.reloadStrategy`         | Strategy to trigger resource restart, set to either `default`, `env-vars` or `annotations`                                                          | enumeration | `default` |
+| `reloader.ignoreNamespaces`       | List of comma separated namespaces to ignore, if multiple are provided, they are combined with the AND operator                                     | string      | `""`      |
+| `reloader.namespaceSelector`      | List of comma separated namespaces to select, if multiple are provided, they are combined with the AND operator                                     | string      | `""`      |
+| `reloader.resourceLabelSelector`  | List of comma separated label selectors, if multiple are provided they are combined with the AND operator                                           | string      | `""`      |
+| `reloader.logFormat`              | Set type of log format. Value could be either `json` or `""`                                                                                        | string      | `""`      |
+| `reloader.watchGlobally`          | Allow Reloader to watch in all namespaces (`true`) or just in a single namespace (`false`)                                                          | boolean     | `true`    |
+| `reloader.enableHA`               | Enable leadership election allowing you to run multiple replicas                                                                                    | boolean     | `false`   |
+| `reloader.readOnlyRootFileSystem` | Enforce readOnlyRootFilesystem                                                                                                                      | boolean     | `false`   |
+| `reloader.legacy.rbac`            |                                                                                                                                                     | boolean     | `false`   |
+| `reloader.matchLabels`            | Pod labels to match                                                                                                                                 | map         | `{}`      |
 
 #### Deployment Reloader Parameters
 
-| Parameter                            | Description                                                                             | Type   | Default         |
-|--------------------------------------|-----------------------------------------------------------------------------------------|--------|-----------------|
-| deployment.replicas                  | Number of replicas, if you wish to run multiple replicas set `reloader.enableHA = true` | int    | 1               |
-| deployment.revisionHistoryLimit      | Limit the number of revisions retained in the revision history                          | int    | 2               |
-| deployment.nodeSelector              | Scheduling pod to a specific node based on set labels                                   | map    | `{}`            |
-| deployment.affinity                  | Set affinity rules on pod                                                               | map    | `{}`            |
-| deployment.securityContext           | Set pod security context                                                                | map    | `{}`            |
-| deployment.containerSecurityContext  | Set container security context                                                          | map    | `{}`            |
-| deployment.tolerations               | A list of tolerations to be applied to the deployment                                   | array  | `[]`            |
-| deployment.topologySpreadConstraints | Topology spread constraints for pod assignment                                          | array  | `[]`            |
-| deployment.annotations               | Set deployment annotations                                                              | map    | `{}`            |
-| deployment.labels                    | Set deployment labels, default to stakater settings                                     | array  | see values.yaml |
-| deployment.image                     | Set container image name, tag and policy                                                | array  | see values.yaml |
-| deployment.env                       | Support for extra environment variables                                                 | array  | `[]`            |
-| deployment.livenessProbe             | Set liveness probe timeout values                                                       | map    | `{}`            |
-| deployment.readinessProbe            | Set readiness probe timeout values                                                      | map    | `{}`            |
-| deployment.resources                 | Set container requests and limits (e.g. CPU or memory)                                  | map    | `{}`            |
-| deployment.pod.annotations           | Set annotations for pod                                                                 | map    | `{}`            |
-| deployment.priorityClassName         | Set priority class for pod in cluster                                                   | string | `""`            |
+| Parameter                                       | Description                                                                             | Type   | Default           |
+|-------------------------------------------------|-----------------------------------------------------------------------------------------|--------|-------------------|
+| `reloader.deployment.replicas`                  | Number of replicas, if you wish to run multiple replicas set `reloader.enableHA = true` | int    | 1                 |
+| `reloader.deployment.revisionHistoryLimit`      | Limit the number of revisions retained in the revision history                          | int    | 2                 |
+| `reloader.deployment.nodeSelector`              | Scheduling pod to a specific node based on set labels                                   | map    | `{}`              |
+| `reloader.deployment.affinity`                  | Set affinity rules on pod                                                               | map    | `{}`              |
+| `reloader.deployment.securityContext`           | Set pod security context                                                                | map    | `{}`              |
+| `reloader.deployment.containerSecurityContext`  | Set container security context                                                          | map    | `{}`              |
+| `reloader.deployment.tolerations`               | A list of tolerations to be applied to the deployment                                   | array  | `[]`              |
+| `reloader.deployment.topologySpreadConstraints` | Topology spread constraints for pod assignment                                          | array  | `[]`              |
+| `reloader.deployment.annotations`               | Set deployment annotations                                                              | map    | `{}`              |
+| `reloader.deployment.labels`                    | Set deployment labels, default to stakater settings                                     | array  | `see values.yaml` |
+| `reloader.deployment.image`                     | Set container image name, tag and policy                                                | array  | `see values.yaml` |
+| `reloader.deployment.env`                       | Support for extra environment variables                                                 | array  | `[]`              |
+| `reloader.deployment.livenessProbe`             | Set liveness probe timeout values                                                       | map    | `{}`              |
+| `reloader.deployment.readinessProbe`            | Set readiness probe timeout values                                                      | map    | `{}`              |
+| `reloader.deployment.resources`                 | Set container requests and limits (e.g. CPU or memory)                                  | map    | `{}`              |
+| `reloader.deployment.pod.annotations`           | Set annotations for pod                                                                 | map    | `{}`              |
+| `reloader.deployment.priorityClassName`         | Set priority class for pod in cluster                                                   | string | `""`              |
 
 #### Other Reloader Parameters
 
-| Parameter                   | Description                                                     | Type    | Default |
-|-----------------------------|-----------------------------------------------------------------|---------|---------|
-| service                     |                                                                 | map     | `{}`    |
-| rbac.enabled                | Specifies whether a role based access control should be created | boolean | `true`  |
-| serviceAccount.create       | Specifies whether a ServiceAccount should be created            | boolean | `true`  |
-| `custom_annotations`        | Add custom annotations                                          | map     | `{}`    |
-| serviceMonitor.enabled      | Enable to scrape Reloader's Prometheus metrics (legacy)         | boolean | `false` |
-| podMonitor.enabled          | Enable to scrape Reloader's Prometheus metrics                  | boolean | `false` |
-| podDisruptionBudget.enabled | Limit the number of pods of a replicated application            | boolean | `false` |
-| netpol.enabled              |                                                                 | boolean | `false` |
-| volumeMounts                | Mount volume                                                    | array   | `[]`    |
-| volumes                     | Add volume to a pod                                             | array   | `[]`    |
-| webhookUrl                  | Add webhook to Reloader                                         | string  | `""`    |
+| Parameter                              | Description                                                     | Type    | Default |
+|----------------------------------------|-----------------------------------------------------------------|---------|---------|
+| `reloader.service`                     |                                                                 | map     | `{}`    |
+| `reloader.rbac.enabled`                | Specifies whether a role based access control should be created | boolean | `true`  |
+| `reloader.serviceAccount.create`       | Specifies whether a ServiceAccount should be created            | boolean | `true`  |
+| `reloader.custom_annotations`          | Add custom annotations                                          | map     | `{}`    |
+| `reloader.serviceMonitor.enabled`      | Enable to scrape Reloader's Prometheus metrics (legacy)         | boolean | `false` |
+| `reloader.podMonitor.enabled`          | Enable to scrape Reloader's Prometheus metrics                  | boolean | `false` |
+| `reloader.podDisruptionBudget.enabled` | Limit the number of pods of a replicated application            | boolean | `false` |
+| `reloader.netpol.enabled`              |                                                                 | boolean | `false` |
+| `reloader.volumeMounts`                | Mount volume                                                    | array   | `[]`    |
+| `reloader.volumes`                     | Add volume to a pod                                             | array   | `[]`    |
+| `reloader.webhookUrl`                  | Add webhook to Reloader                                         | string  | `""`    |
 
 #### Additional Remarks
 
