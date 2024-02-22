@@ -266,69 +266,116 @@ namespace: reloader
 
 Alternatively if you have configured helm on your cluster, you can add Reloader to helm from our public chart repository and deploy it via helm using below-mentioned commands. Follow [this](docs/Helm2-to-Helm3.md) guide, in case you have trouble migrating Reloader from Helm2 to Helm3.
 
-```bash
+#### Installation
+
+```yaml
 helm repo add stakater https://stakater.github.io/stakater-charts
 
 helm repo update
 
 helm install stakater/reloader # For helm3 add --generate-name flag or set the release name
+
+helm install {{RELEASE_NAME}} stakater/reloader -n {{NAMESPACE}} --set reloader.watchGlobally=false # By default, Reloader watches in all namespaces. To watch in single namespace, set watchGlobally=false
+
+helm install stakater/reloader --set reloader.watchGlobally=false --namespace test --generate-name # Install Reloader in `test` namespace which will only watch `Deployments`, `Daemonsets` `Statefulsets` and `Rollouts` in `test` namespace.
 ```
 
-**Note:** By default Reloader watches in all namespaces. To watch in single namespace, please run following command. It will install Reloader in `test` namespace which will only watch `Deployments`, `Daemonsets` `Statefulsets` and `Rollouts` in `test` namespace.
+#### Uninstalling
 
-```bash
-helm install stakater/reloader --set reloader.watchGlobally=false --namespace test # For helm3 add --generate-name flag or set the release name
+```yaml
+helm uninstall {{RELEASE_NAME}} -n {{NAMESPACE}}
 ```
 
-Reloader can be configured to ignore the resources `secrets` and `configmaps` by using the following parameters of `values.yaml` file:
+### Parameters
 
-| Parameter        | Description                                                    | Type    | Default |
-|------------------|----------------------------------------------------------------|---------|---------|
-| ignoreSecrets    | To ignore secrets. Valid value are either `true` or `false`    | boolean | false   |
-| ignoreConfigMaps | To ignore configMaps. Valid value are either `true` or `false` | boolean | false   |
+#### Global Parameters
 
-**Note:** At one time only one of these resource can be ignored, trying to do it will cause error in helm template compilation.
+| Parameter               | Description                                                     | Type  | Default |
+|-------------------------|-----------------------------------------------------------------|-------|---------|
+| global.imagePullSecrets | Reference to one or more secrets to be used when pulling images | array | `[]`    |
 
-Reloader can be configured to only watch namespaces labeled with one or more labels using the `namespaceSelector` parameter
+#### Common Parameters
 
-| Parameter         | Description                                                                                               | Type   | Default |
-|-------------------|-----------------------------------------------------------------------------------------------------------|--------|---------|
-| namespaceSelector | list of comma separated label selectors, if multiple are provided they are combined with the AND operator | string |  ""     |
+| Parameter        | Description                   | Type   | Default  |
+|------------------|-------------------------------|--------|----------|
+| nameOverride     | replace the name of the chart | string | `""`     |
+| fullnameOverride | replace the generated name    | string | `""`     |
 
-Reloader can be configured to only watch configmaps/secrets labeled with one or more labels using the `resourceLabelSelector` parameter
+#### Core Reloader Parameters
 
-| Parameter             | Description                                                                                               | Type   | Default |
-|-----------------------|-----------------------------------------------------------------------------------------------------------|--------|---------|
-| resourceLabelSelector | list of comma separated label selectors, if multiple are provided they are combined with the AND operator | string |  ""     |
+| Parameter                       | Description                                                                                                                                         | Type    | Default   |
+|---------------------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------|---------|-----------|
+| reloader.autoReloadAll          |                                                                                                                                                     | boolean | `false`   |
+| reloader.isArgoRollouts         | Enable Argo `Rollouts`. Valid value are either `true` or `false`                                                                                    | boolean | `false`   |
+| reloader.isOpenshift            | Enable OpenShift DeploymentConfigs. Valid value are either `true` or `false`                                                                        | boolean | `false`   |
+| reloader.ignoreSecrets          | To ignore secrets. Valid value are either `true` or `false`. Either `ignoreSecrets` or `ignoreConfigMaps` can be ignored, not both at the same time | boolean | `false`   |
+| reloader.ignoreConfigMaps       | To ignore configMaps. Valid value are either `true` or `false`                                                                                      | boolean | `false`   |
+| reloader.reloadOnCreate         | Enable reload on create events. Valid value are either `true` or `false`                                                                            | boolean | `false`   |
+| reloader.syncAfterRestart       | Enable sync after Reloader restarts for **Add** events, works only when reloadOnCreate is `true`. Valid value are either `true` or `false`          | boolean | `false`   |
+| reloader.reloadStrategy         | Strategy to trigger resource restart, set to either `default`, `env-vars` or `annotations`                                                          | enum    | `default` |
+| reloader.ignoreNamespaces       | List of comma separated namespaces to ignore, if multiple are provided, they are combined with the AND operator                                     | string  | `""`      |
+| reloader.namespaceSelector      | List of comma separated namespaces to select, if multiple are provided, they are combined with the AND operator                                     | string  | `""`      |
+| reloader.resourceLabelSelector  | List of comma separated label selectors, if multiple are provided they are combined with the AND operator                                           | string  | `""`      |
+| reloader.logFormat              | Set type of log format. Value could be either `json` or `""`                                                                                        | string  | `""`      |
+| reloader.watchGlobally          | Allow Reloader to watch in all namespaces (`true`) or just in a single namespace (`false`)                                                          | boolean | `true`    |
+| reloader.enableHA               | Enable leadership election allowing you to run multiple replicas                                                                                    | boolean | `false`   |
+| reloader.readOnlyRootFileSystem | Enforce readOnlyRootFilesystem                                                                                                                      | boolean | `false`   |
+| reloader.legacy.rbac            |                                                                                                                                                     | boolean | `false`   |
+| reloader.matchLabels            | Pod labels to match                                                                                                                                 | map     | `{}`      |
 
-**Note:** Both `namespaceSelector` & `resourceLabelSelector` can be used together. If they are then both conditions must be met for the configmap or secret to be eligible to trigger reload events. (e.g. If a configMap matches `resourceLabelSelector` but `namespaceSelector` does not match the namespace the configmap is in, it will be ignored).
+#### Deployment Reloader Parameters
 
-You can also set the log format of Reloader to JSON by setting `logFormat` to `json` in `values.yaml` and apply the chart.
+| Parameter                                     | Description                                                                             | Type   | Default         |
+|-----------------------------------------------|-----------------------------------------------------------------------------------------|--------|-----------------|
+| reloader.deployment.replicas                  | Number of replicas, if you wish to run multiple replicas set `reloader.enableHA = true` | int    | 1               |
+| reloader.deployment.revisionHistoryLimit      | Limit the number of revisions retained in the revision history                          | int    | 2               |
+| reloader.deployment.nodeSelector              | Scheduling pod to a specific node based on set labels                                   | map    | `{}`            |
+| reloader.deployment.affinity                  | Set affinity rules on pod                                                               | map    | `{}`            |
+| reloader.deployment.securityContext           | Set pod security context                                                                | map    | `{}`            |
+| reloader.deployment.containerSecurityContext  | Set container security context                                                          | map    | `{}`            |
+| reloader.deployment.tolerations               | A list of tolerations to be applied to the deployment                                   | array  | `[]`            |
+| reloader.deployment.topologySpreadConstraints | Topology spread constraints for pod assignment                                          | array  | `[]`            |
+| reloader.deployment.annotations               | Set deployment annotations                                                              | map    | `{}`            |
+| reloader.deployment.labels                    | Set deployment labels, default to stakater settings                                     | array  | see values.yaml |
+| reloader.deployment.image                     | Set container image name, tag and policy                                                | array  | see values.yaml |
+| reloader.deployment.env                       | Support for extra environment variables                                                 | array  | `[]`            |
+| reloader.deployment.livenessProbe             | Set liveness probe timeout values                                                       | map    | `{}`            |
+| reloader.deployment.readinessProbe            | Set readiness probe timeout values                                                      | map    | `{}`            |
+| reloader.deployment.resources                 | Set container requests and limits (e.g. CPU or memory)                                  | map    | `{}`            |
+| reloader.deployment.pod.annotations           | Set annotations for pod                                                                 | map    | `{}`            |
+| reloader.deployment.priorityClassName         | Set priority class for pod in cluster                                                   | string | `""`            |
 
-You can enable to scrape Reloader's Prometheus metrics by setting `serviceMonitor.enabled` or `podMonitor.enabled`  to `true` in `values.yaml` file. Service monitor will be removed in future releases of Reloader in favour of Pod monitor.
+#### Other Reloader Parameters
 
-**Note:** Reloading of OpenShift (DeploymentConfig) and/or Argo `Rollouts` has to be enabled explicitly because it might not be always possible to use it on a cluster with restricted permissions. This can be done by changing the following parameters:
+| Parameter                            | Description                                                     | Type    | Default |
+|--------------------------------------|-----------------------------------------------------------------|---------|---------|
+| reloader.service                     |                                                                 | map     | `{}`    |
+| reloader.rbac.enabled                | Specifies whether a role based access control should be created | boolean | `true`  |
+| reloader.serviceAccount.create       | Specifies whether a ServiceAccount should be created            | boolean | `true`  |
+| reloader.custom_annotations          | Add custom annotations                                          | map     | `{}`    |
+| reloader.serviceMonitor.enabled      | Enable to scrape Reloader's Prometheus metrics (legacy)         | boolean | `false` |
+| reloader.podMonitor.enabled          | Enable to scrape Reloader's Prometheus metrics                  | boolean | `false` |
+| reloader.podDisruptionBudget.enabled | Limit the number of pods of a replicated application            | boolean | `false` |
+| reloader.netpol.enabled              |                                                                 | boolean | `false` |
+| reloader.volumeMounts                | Mount volume                                                    | array   | `[]`    |
+| reloader.volumes                     | Add volume to a pod                                             | array   | `[]`    |
+| reloader.webhookUrl                  | Add webhook to Reloader                                         | string  | `""`    |
 
-| Parameter        | Description                                                                                                                                | Type    | Default |
-|------------------|--------------------------------------------------------------------------------------------------------------------------------------------|---------|---------|
-| isOpenshift      | Enable OpenShift DeploymentConfigs. Valid value are either `true` or `false`                                                               | boolean | false   |
-| isArgoRollouts   | Enable Argo `Rollouts`. Valid value are either `true` or `false`                                                                           | boolean | false   |
-| reloadOnCreate   | Enable reload on create events. Valid value are either `true` or `false`                                                                   | boolean | false   |
-| syncAfterRestart | Enable sync after Reloader restarts for **Add** events, works only when reloadOnCreate is `true`. Valid value are either `true` or `false` | boolean | false   |
+#### Additional Remarks
 
-**isOpenShift** Recent versions of OpenShift (tested on 4.13.3) require the specified user to be in an `uid` range which is dynamically assigned by the namespace. The solution is to unset the runAsUser variable via ``deployment.securityContext.runAsUser=null`` and let OpenShift assign it at install.
-
-**reloadOnCreate** controls how Reloader handles secrets being added to the cache for the first time. If reloadOnCreate is set to true:
-
-- Configmaps/secrets being added to the cache will cause Reloader to perform a rolling update of the associated workload.
-- When applications are deployed for the first time, Reloader will perform a rolling update of the associated workload.
-- If you are running Reloader in HA mode all workloads will have a rolling update performed when a new leader is elected.
-
-If reloadOnCreate is set to false:
-
-- Updates to configMaps/Secrets that occur while there is no leader will not be picked up by the new leader until a subsequent update of the configmap/secret occurs. In the worst case the window in which there can be no leader is 15s as this is the LeaseDuration.
-
-**Note:** By default, **reloadOnCreate** and **syncAfterRestart** are both set to false. Both need to be enabled explicitly.
+- Both `namespaceSelector` & `resourceLabelSelector` can be used together. If they are then both conditions must be met for the configmap or secret to be eligible to trigger reload events. (e.g. If a configMap matches `resourceLabelSelector` but `namespaceSelector` does not match the namespace the configmap is in, it will be ignored).
+- At one time only one of the resources `ignoreConfigMaps` or `ignoreSecrets` can be ignored, trying to do both will cause error in helm template compilation
+- Reloading of OpenShift (DeploymentConfig) and/or Argo `Rollouts` has to be enabled explicitly because it might not be always possible to use it on a cluster with restricted permissions
+- `isOpenShift` Recent versions of OpenShift (tested on 4.13.3) require the specified user to be in an `uid` range which is dynamically assigned by the namespace. The solution is to unset the runAsUser variable via ``deployment.securityContext.runAsUser=null`` and let OpenShift assign it at install
+- `reloadOnCreate` controls how Reloader handles secrets being added to the cache for the first time. If `reloadOnCreate` is set to true:
+  - Configmaps/secrets being added to the cache will cause Reloader to perform a rolling update of the associated workload
+  - When applications are deployed for the first time, Reloader will perform a rolling update of the associated workload
+  - If you are running Reloader in HA mode all workloads will have a rolling update performed when a new leader is elected
+- `serviceMonitor` will be removed in future releases of Reloader in favour of Pod monitor
+- If `reloadOnCreate` is set to false:
+  - Updates to configmaps/secrets that occur while there is no leader will not be picked up by the new leader until a subsequent update of the configmap/secret occurs
+  - In the worst case the window in which there can be no leader is 15s as this is the LeaseDuration
+- By default, `reloadOnCreate` and `syncAfterRestart` are both set to false. Both need to be enabled explicitly
 
 ## Help
 
