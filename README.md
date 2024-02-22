@@ -290,16 +290,16 @@ helm uninstall {{RELEASE_NAME}} -n {{NAMESPACE}}
 
 #### Global Parameters
 
-| Parameter        | Description                                                     | Type  | Default |
-|------------------|-----------------------------------------------------------------|-------|---------|
-| imagePullSecrets | Reference to one or more secrets to be used when pulling images | array | `[]`    |
+| Parameter          | Description                                                     | Type  | Default |
+|--------------------|-----------------------------------------------------------------|-------|---------|
+| `imagePullSecrets` | Reference to one or more secrets to be used when pulling images | array | `[]`    |
 
 #### Common Parameters
 
-| Parameter        | Description                   | Type   | Default  |
-|------------------|-------------------------------|--------|----------|
-| nameOverride     | replace the name of the chart | string | `""`     |
-| fullnameOverride | replace the generated name    | string | `""`     |
+| Parameter          | Description                   | Type   | Default |
+|--------------------|-------------------------------|--------|---------|
+| `nameOverride`     | replace the name of the chart | string | `""`    |
+| `fullnameOverride` | replace the generated name    | string | `""`    |
 
 #### Core Reloader Parameters
 
@@ -352,7 +352,7 @@ helm uninstall {{RELEASE_NAME}} -n {{NAMESPACE}}
 | service                     |                                                                 | map     | `{}`    |
 | rbac.enabled                | Specifies whether a role based access control should be created | boolean | `true`  |
 | serviceAccount.create       | Specifies whether a ServiceAccount should be created            | boolean | `true`  |
-| custom_annotations          | Add custom annotations                                          | map     | `{}`    |
+| `custom_annotations`        | Add custom annotations                                          | map     | `{}`    |
 | serviceMonitor.enabled      | Enable to scrape Reloader's Prometheus metrics (legacy)         | boolean | `false` |
 | podMonitor.enabled          | Enable to scrape Reloader's Prometheus metrics                  | boolean | `false` |
 | podDisruptionBudget.enabled | Limit the number of pods of a replicated application            | boolean | `false` |
