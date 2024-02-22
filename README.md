@@ -368,13 +368,13 @@ helm uninstall {{RELEASE_NAME}} -n {{NAMESPACE}}
 - Reloading of OpenShift (DeploymentConfig) and/or Argo `Rollouts` has to be enabled explicitly because it might not be always possible to use it on a cluster with restricted permissions
 - `isOpenShift` Recent versions of OpenShift (tested on 4.13.3) require the specified user to be in an `uid` range which is dynamically assigned by the namespace. The solution is to unset the runAsUser variable via ``deployment.securityContext.runAsUser=null`` and let OpenShift assign it at install
 - `reloadOnCreate` controls how Reloader handles secrets being added to the cache for the first time. If `reloadOnCreate` is set to true:
-  - Configmaps/secrets being added to the cache will cause Reloader to perform a rolling update of the associated workload
-  - When applications are deployed for the first time, Reloader will perform a rolling update of the associated workload
-  - If you are running Reloader in HA mode all workloads will have a rolling update performed when a new leader is elected
+  1. Configmaps/secrets being added to the cache will cause Reloader to perform a rolling update of the associated workload
+  1. When applications are deployed for the first time, Reloader will perform a rolling update of the associated workload
+  1. If you are running Reloader in HA mode all workloads will have a rolling update performed when a new leader is elected
 - `serviceMonitor` will be removed in future releases of Reloader in favour of Pod monitor
 - If `reloadOnCreate` is set to false:
-  - Updates to configmaps/secrets that occur while there is no leader will not be picked up by the new leader until a subsequent update of the configmap/secret occurs
-  - In the worst case the window in which there can be no leader is 15s as this is the LeaseDuration
+  1. Updates to configmaps/secrets that occur while there is no leader will not be picked up by the new leader until a subsequent update of the configmap/secret occurs
+  1. In the worst case the window in which there can be no leader is 15s as this is the LeaseDuration
 - By default, `reloadOnCreate` and `syncAfterRestart` are both set to false. Both need to be enabled explicitly
 
 ## Help
