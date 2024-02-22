@@ -333,7 +333,7 @@ helm uninstall {{RELEASE_NAME}} -n {{NAMESPACE}}
 | `reloader.deployment.affinity`                  | Set affinity rules on pod                                                               | map    | `{}`              |
 | `reloader.deployment.securityContext`           | Set pod security context                                                                | map    | `{}`              |
 | `reloader.deployment.containerSecurityContext`  | Set container security context                                                          | map    | `{}`              |
-| `reloader.deployment.tolerations`               | A list of tolerations to be applied to the deployment                                   | array  | `[]`              |
+| `reloader.deployment.tolerations`               | A list of `tolerations` to be applied to the deployment                                 | array  | `[]`              |
 | `reloader.deployment.topologySpreadConstraints` | Topology spread constraints for pod assignment                                          | array  | `[]`              |
 | `reloader.deployment.annotations`               | Set deployment annotations                                                              | map    | `{}`              |
 | `reloader.deployment.labels`                    | Set deployment labels, default to stakater settings                                     | array  | `see values.yaml` |
