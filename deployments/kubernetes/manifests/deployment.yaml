@@ -3,6 +3,18 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
+  annotations:
+    meta.helm.sh/release-namespace: "default"
+    meta.helm.sh/release-name: "reloader"
+  labels:
+    app: reloader-reloader
+    chart: "reloader-1.0.69"
+    release: "reloader"
+    heritage: "Helm"
+    app.kubernetes.io/managed-by: "Helm"
+    group: com.stakater.platform
+    provider: stakater
+    version: v1.0.69
   name: reloader-reloader
   namespace: default
 spec:
@@ -13,9 +25,19 @@ spec:
       app: reloader-reloader
       release: "reloader"
   template:
+    metadata:
+      labels:
+        app: reloader-reloader
+        chart: "reloader-1.0.69"
+        release: "reloader"
+        heritage: "Helm"
+        app.kubernetes.io/managed-by: "Helm"
+        group: com.stakater.platform
+        provider: stakater
+        version: v1.0.69
     spec:
       containers:
-      - image: "ghcr.io/stakater/reloader:v1.0.68"
+      - image: "ghcr.io/stakater/reloader:v1.0.69"
         imagePullPolicy: IfNotPresent
         name: reloader-reloader
 
