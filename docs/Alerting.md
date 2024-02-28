@@ -4,7 +4,7 @@ Reloader can alert when it triggers a rolling upgrade on Deployments or Stateful
 
 ## Enabling the feature
 
-In-order to enable this feature, you need to update the `reloader.env.secret` section of values.yaml providing the information needed for alert.
+In-order to enable this feature, you need to update the `reloader.env.secret` section of `values.yaml` providing the information needed for alert:
 
 ```yaml
       ALERT_ON_RELOAD: [ true/false ] Default: false 

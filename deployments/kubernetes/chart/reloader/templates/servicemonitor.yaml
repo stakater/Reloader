@@ -14,6 +14,8 @@ metadata:
   name: {{ template "reloader-fullname" . }}
 {{- if .Values.reloader.serviceMonitor.namespace }}
   namespace: {{ tpl .Values.reloader.serviceMonitor.namespace . }}
+{{- else }}
+  namespace: {{ .Values.namespace | default .Release.Namespace }}
 {{- end }}
 spec:
   endpoints:

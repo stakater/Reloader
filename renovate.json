@@ -1,6 +1,21 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": [
-    "config:base"
+    "config:recommended"
+  ],
+  "labels": [
+    "dependencies"
+  ],
+  "customManagers": [
+    {
+        "customType": "regex",
+        "fileMatch": [
+            ".vale.ini"
+        ],
+        "matchStrings": [
+            "https:\/\/github\\.com\/(?<depName>.*)\/releases\/download\/(?<currentValue>.*)\/.*\\.zip"
+        ],
+        "datasourceTemplate": "github-releases"
+    }
   ]
 }
