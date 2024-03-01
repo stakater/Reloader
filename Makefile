@@ -86,3 +86,21 @@ bump-chart:
 	sed -i "s/^appVersion:.*/appVersion: v$(VERSION)/" deployments/kubernetes/chart/reloader/Chart.yaml
 	sed -i "s/tag:.*/tag: v$(VERSION)/" deployments/kubernetes/chart/reloader/values.yaml
 	sed -i "s/version:.*/version: v$(VERSION)/" deployments/kubernetes/chart/reloader/values.yaml
+
+YQ_VERSION = v4.42.1
+YQ_BIN = $(shell pwd)/yq
+CURRENT_ARCH := $(shell uname -m | sed 's/x86_64/amd64/' | sed 's/aarch64/arm64/')
+
+YQ_DOWNLOAD_URL = "https://github.com/mikefarah/yq/releases/download/$(YQ_VERSION)/yq_linux_$(CURRENT_ARCH)"
+
+yq-install:
+	@echo "Downloading yq $(YQ_VERSION) for linux/$(CURRENT_ARCH)"
+	@curl -sL $(YQ_DOWNLOAD_URL) -o $(YQ_BIN)
+	@chmod +x $(YQ_BIN)
+	@echo "yq $(YQ_VERSION) installed at $(YQ_BIN)"
+
+remove-labels-annotations: yq-install
+	@for file in $$(find deployments/kubernetes/manifests -type f -name '*.yaml'); do \
+		echo "Processing $$file"; \
+		$(YQ_BIN) eval 'del(.metadata.labels, .metadata.annotations)' -i "$$file"; \
+	done
