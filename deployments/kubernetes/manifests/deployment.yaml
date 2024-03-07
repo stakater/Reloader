@@ -37,35 +37,32 @@ spec:
         version: v1.0.69
     spec:
       containers:
-      - image: "ghcr.io/stakater/reloader:v1.0.69"
-        imagePullPolicy: IfNotPresent
-        name: reloader-reloader
-
-        ports:
-        - name: http
-          containerPort: 9090
-        livenessProbe:
-          httpGet:
-            path: /live
-            port: http
-          timeoutSeconds: 5
-          failureThreshold: 5
-          periodSeconds: 10
-          successThreshold: 1
-          initialDelaySeconds: 10
-        readinessProbe:
-          httpGet:
-            path: /metrics
-            port: http
-          timeoutSeconds: 5
-          failureThreshold: 5
-          periodSeconds: 10
-          successThreshold: 1
-          initialDelaySeconds: 10
-
-        securityContext:
-          {}
-      securityContext: 
+        - image: "ghcr.io/stakater/reloader:v1.0.69"
+          imagePullPolicy: IfNotPresent
+          name: reloader-reloader
+          ports:
+            - name: http
+              containerPort: 9090
+          livenessProbe:
+            httpGet:
+              path: /live
+              port: http
+            timeoutSeconds: 5
+            failureThreshold: 5
+            periodSeconds: 10
+            successThreshold: 1
+            initialDelaySeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /metrics
+              port: http
+            timeoutSeconds: 5
+            failureThreshold: 5
+            periodSeconds: 10
+            successThreshold: 1
+            initialDelaySeconds: 10
+          securityContext: {}
+      securityContext:
         runAsNonRoot: true
         runAsUser: 65534
       serviceAccountName: reloader-reloader

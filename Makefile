@@ -105,3 +105,6 @@ remove-labels-annotations: yq-install
 		$(YQ_BIN) eval 'del(.metadata.labels, .metadata.annotations)' -i "$$file"; \
 	done
 	$(YQ_BIN) eval 'del(.spec.template.metadata.labels)' -i deployments/kubernetes/manifests/deployment.yaml
+	$(YQ_BIN) eval 'del(.spec.selector.matchLabels)' -i deployments/kubernetes/manifests/deployment.yaml
+	$(YQ_BIN) eval '.spec.selector.matchLabels.app = "reloader-reloader"' -i deployments/kubernetes/manifests/deployment.yaml
+	$(YQ_BIN) eval '.spec.template.metadata.labels.app = "reloader-reloader"' -i deployments/kubernetes/manifests/deployment.yaml
