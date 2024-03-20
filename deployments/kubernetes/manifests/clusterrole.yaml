@@ -1,18 +1,8 @@
 ---
 # Source: reloader/templates/clusterrole.yaml
 apiVersion: rbac.authorization.k8s.io/v1
-
 kind: ClusterRole
 metadata:
-  annotations:
-    meta.helm.sh/release-namespace: "default"
-    meta.helm.sh/release-name: "reloader"
-  labels:
-    app: reloader-reloader
-    chart: "reloader-1.0.70"
-    release: "reloader"
-    heritage: "Helm"
-    app.kubernetes.io/managed-by: "Helm"
   name: reloader-reloader-role
 rules:
   - apiGroups:
