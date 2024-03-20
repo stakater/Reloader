@@ -1,0 +1,40 @@
+{{- if and (.Capabilities.APIVersions.Has "autoscaling.k8s.io/v1") (.Values.reloader.verticalPodAutoscaler.enabled) }}
+apiVersion: autoscaling.k8s.io/v1
+kind: VerticalPodAutoscaler
+metadata:
+  name: {{ template "reloader-fullname" . }}
+  namespace: {{ .Values.namespace | default .Release.Namespace }}
+  labels:
+    {{- include "reloader-labels.chart" . | nindent 4 }}
+spec:
+  {{- with .Values.reloader.verticalPodAutoscaler.recommenders }}
+  recommenders:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  resourcePolicy:
+    containerPolicies:
+    - containerName: {{ template "reloader-fullname" . }}
+      {{- with .Values.reloader.verticalPodAutoscaler.controlledResources }}
+      controlledResources:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- if .Values.reloader.verticalPodAutoscaler.controlledValues }}
+      controlledValues: {{ .Values.reloader.verticalPodAutoscaler.controlledValues }}
+      {{- end }}
+      {{- if .Values.reloader.verticalPodAutoscaler.maxAllowed }}
+      maxAllowed:
+        {{ toYaml .Values.reloader.verticalPodAutoscaler.maxAllowed | nindent 8 }}
+      {{- end }}
+      {{- if .Values.reloader.verticalPodAutoscaler.minAllowed }}
+      minAllowed:
+        {{ toYaml .Values.reloader.verticalPodAutoscaler.minAllowed | nindent 8 }}
+      {{- end }}
+  targetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: {{ template "reloader-fullname" . }}
+  {{- with .Values.reloader.verticalPodAutoscaler.updatePolicy }}
+  updatePolicy:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+{{- end }}
