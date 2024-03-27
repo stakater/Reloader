@@ -17,7 +17,7 @@ spec:
         app: reloader-reloader
     spec:
       containers:
-        - image: "ghcr.io/stakater/reloader:v1.0.71"
+        - image: "ghcr.io/stakater/reloader:v1.0.72"
           imagePullPolicy: IfNotPresent
           name: reloader-reloader
           ports:
@@ -45,4 +45,6 @@ spec:
       securityContext:
         runAsNonRoot: true
         runAsUser: 65534
+        seccompProfile:
+          type: RuntimeDefault
       serviceAccountName: reloader-reloader
