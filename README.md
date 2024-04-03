@@ -391,7 +391,7 @@ File a GitHub [issue](https://github.com/stakater/Reloader/issues).
 
 Join and talk to us on Slack for discussing Reloader
 
-[![Join Slack](https://stakater.github.io/README/stakater-join-slack-btn.png)](https://slack.stakater.com/)
+[![Join Slack](https://stakater.github.io/README/stakater-join-slack-btn.png)](https://stakater.slack.com/)
 [![Chat](https://stakater.github.io/README/stakater-chat-btn.png)](https://stakater-community.slack.com/messages/CC5S05S12)
 
 ## Contributing
