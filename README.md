@@ -268,7 +268,7 @@ Alternatively if you have configured helm on your cluster, you can add Reloader 
 
 #### Installation
 
-```yaml
+```bash
 helm repo add stakater https://stakater.github.io/stakater-charts
 
 helm repo update
@@ -282,7 +282,7 @@ helm install stakater/reloader --set reloader.watchGlobally=false --namespace te
 
 #### Uninstalling
 
-```yaml
+```bash
 helm uninstall {{RELEASE_NAME}} -n {{NAMESPACE}}
 ```
 
