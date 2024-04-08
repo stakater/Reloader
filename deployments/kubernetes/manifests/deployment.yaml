@@ -3,18 +3,6 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  annotations:
-    meta.helm.sh/release-namespace: "default"
-    meta.helm.sh/release-name: "reloader"
-  labels:
-    app: reloader-reloader
-    chart: "reloader-1.0.69"
-    release: "reloader"
-    heritage: "Helm"
-    app.kubernetes.io/managed-by: "Helm"
-    group: com.stakater.platform
-    provider: stakater
-    version: v1.0.69
   name: reloader-reloader
   namespace: default
 spec:
@@ -23,49 +11,40 @@ spec:
   selector:
     matchLabels:
       app: reloader-reloader
-      release: "reloader"
   template:
     metadata:
       labels:
         app: reloader-reloader
-        chart: "reloader-1.0.69"
-        release: "reloader"
-        heritage: "Helm"
-        app.kubernetes.io/managed-by: "Helm"
-        group: com.stakater.platform
-        provider: stakater
-        version: v1.0.69
     spec:
       containers:
-      - image: "ghcr.io/stakater/reloader:v1.0.69"
-        imagePullPolicy: IfNotPresent
-        name: reloader-reloader
-
-        ports:
-        - name: http
-          containerPort: 9090
-        livenessProbe:
-          httpGet:
-            path: /live
-            port: http
-          timeoutSeconds: 5
-          failureThreshold: 5
-          periodSeconds: 10
-          successThreshold: 1
-          initialDelaySeconds: 10
-        readinessProbe:
-          httpGet:
-            path: /metrics
-            port: http
-          timeoutSeconds: 5
-          failureThreshold: 5
-          periodSeconds: 10
-          successThreshold: 1
-          initialDelaySeconds: 10
-
-        securityContext:
-          {}
-      securityContext: 
+        - image: "ghcr.io/stakater/reloader:v1.0.75"
+          imagePullPolicy: IfNotPresent
+          name: reloader-reloader
+          ports:
+            - name: http
+              containerPort: 9090
+          livenessProbe:
+            httpGet:
+              path: /live
+              port: http
+            timeoutSeconds: 5
+            failureThreshold: 5
+            periodSeconds: 10
+            successThreshold: 1
+            initialDelaySeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /metrics
+              port: http
+            timeoutSeconds: 5
+            failureThreshold: 5
+            periodSeconds: 10
+            successThreshold: 1
+            initialDelaySeconds: 10
+          securityContext: {}
+      securityContext:
         runAsNonRoot: true
         runAsUser: 65534
+        seccompProfile:
+          type: RuntimeDefault
       serviceAccountName: reloader-reloader
