@@ -89,10 +89,10 @@ reloader:
     labels:
       provider: stakater
       group: com.stakater.platform
-      version: v1.0.75
+      version: v1.0.76
     image:
       name: ghcr.io/stakater/reloader
-      tag: v1.0.75
+      tag: v1.0.76
       pullPolicy: IfNotPresent
     # Support for extra environment variables.
     env:
