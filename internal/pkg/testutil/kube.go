@@ -69,24 +69,34 @@ func DeleteNamespace(namespace string, client kubernetes.Interface) {
 	}
 }
 
-func getObjectMeta(namespace string, name string, autoReload bool) metav1.ObjectMeta {
+func getObjectMeta(namespace string, name string, autoReload bool, secretAutoReload bool, configmapAutoReload bool) metav1.ObjectMeta {
 	return metav1.ObjectMeta{
 		Name:        name,
 		Namespace:   namespace,
 		Labels:      map[string]string{"firstLabel": "temp"},
-		Annotations: getAnnotations(name, autoReload),
+		Annotations: getAnnotations(name, autoReload, secretAutoReload, configmapAutoReload),
 	}
 }
 
-func getAnnotations(name string, autoReload bool) map[string]string {
+func getAnnotations(name string, autoReload bool, secretAutoReload bool, configmapAutoReload bool) map[string]string {
+	annotations := make(map[string]string)
 	if autoReload {
-		return map[string]string{
-			options.ReloaderAutoAnnotation: "true"}
+		annotations[options.ReloaderAutoAnnotation] = "true"
+	}
+	if secretAutoReload {
+		annotations[options.SecretReloaderAutoAnnotation] = "true"
+	}
+	if configmapAutoReload {
+		annotations[options.ConfigmapReloaderAutoAnnotation] = "true"
 	}
 
-	return map[string]string{
-		options.ConfigmapUpdateOnChangeAnnotation: name,
-		options.SecretUpdateOnChangeAnnotation:    name}
+	if len(annotations) > 0 {
+		return annotations
+	} else {
+		return map[string]string{
+			options.ConfigmapUpdateOnChangeAnnotation: name,
+			options.SecretUpdateOnChangeAnnotation:    name}
+	}
 }
 
 func getEnvVarSources(name string) []v1.EnvFromSource {
@@ -332,7 +342,7 @@ func getPodTemplateSpecWithInitContainerAndEnv(name string) v1.PodTemplateSpec {
 func GetDeployment(namespace string, deploymentName string) *appsv1.Deployment {
 	replicaset := int32(1)
 	return &appsv1.Deployment{
-		ObjectMeta: getObjectMeta(namespace, deploymentName, false),
+		ObjectMeta: getObjectMeta(namespace, deploymentName, false, false, false),
 		Spec: appsv1.DeploymentSpec{
 			Selector: &metav1.LabelSelector{
 				MatchLabels: map[string]string{"secondLabel": "temp"},
@@ -351,7 +361,7 @@ func GetDeploymentConfig(namespace string, deploymentConfigName string) *openshi
 	replicaset := int32(1)
 	podTemplateSpecWithVolume := getPodTemplateSpecWithVolumes(deploymentConfigName)
 	return &openshiftv1.DeploymentConfig{
-		ObjectMeta: getObjectMeta(namespace, deploymentConfigName, false),
+		ObjectMeta: getObjectMeta(namespace, deploymentConfigName, false, false, false),
 		Spec: openshiftv1.DeploymentConfigSpec{
 			Replicas: replicaset,
 			Strategy: openshiftv1.DeploymentStrategy{
@@ -366,7 +376,7 @@ func GetDeploymentConfig(namespace string, deploymentConfigName string) *openshi
 func GetDeploymentWithInitContainer(namespace string, deploymentName string) *appsv1.Deployment {
 	replicaset := int32(1)
 	return &appsv1.Deployment{
-		ObjectMeta: getObjectMeta(namespace, deploymentName, false),
+		ObjectMeta: getObjectMeta(namespace, deploymentName, false, false, false),
 		Spec: appsv1.DeploymentSpec{
 			Selector: &metav1.LabelSelector{
 				MatchLabels: map[string]string{"secondLabel": "temp"},
@@ -384,7 +394,7 @@ func GetDeploymentWithInitContainer(namespace string, deploymentName string) *ap
 func GetDeploymentWithInitContainerAndEnv(namespace string, deploymentName string) *appsv1.Deployment {
 	replicaset := int32(1)
 	return &appsv1.Deployment{
-		ObjectMeta: getObjectMeta(namespace, deploymentName, true),
+		ObjectMeta: getObjectMeta(namespace, deploymentName, true, false, false),
 		Spec: appsv1.DeploymentSpec{
 			Selector: &metav1.LabelSelector{
 				MatchLabels: map[string]string{"secondLabel": "temp"},
@@ -401,7 +411,7 @@ func GetDeploymentWithInitContainerAndEnv(namespace string, deploymentName strin
 func GetDeploymentWithEnvVars(namespace string, deploymentName string) *appsv1.Deployment {
 	replicaset := int32(1)
 	return &appsv1.Deployment{
-		ObjectMeta: getObjectMeta(namespace, deploymentName, true),
+		ObjectMeta: getObjectMeta(namespace, deploymentName, true, false, false),
 		Spec: appsv1.DeploymentSpec{
 			Selector: &metav1.LabelSelector{
 				MatchLabels: map[string]string{"secondLabel": "temp"},
@@ -419,7 +429,7 @@ func GetDeploymentConfigWithEnvVars(namespace string, deploymentConfigName strin
 	replicaset := int32(1)
 	podTemplateSpecWithEnvVars := getPodTemplateSpecWithEnvVars(deploymentConfigName)
 	return &openshiftv1.DeploymentConfig{
-		ObjectMeta: getObjectMeta(namespace, deploymentConfigName, false),
+		ObjectMeta: getObjectMeta(namespace, deploymentConfigName, false, false, false),
 		Spec: openshiftv1.DeploymentConfigSpec{
 			Replicas: replicaset,
 			Strategy: openshiftv1.DeploymentStrategy{
@@ -433,7 +443,7 @@ func GetDeploymentConfigWithEnvVars(namespace string, deploymentConfigName strin
 func GetDeploymentWithEnvVarSources(namespace string, deploymentName string) *appsv1.Deployment {
 	replicaset := int32(1)
 	return &appsv1.Deployment{
-		ObjectMeta: getObjectMeta(namespace, deploymentName, true),
+		ObjectMeta: getObjectMeta(namespace, deploymentName, true, false, false),
 		Spec: appsv1.DeploymentSpec{
 			Selector: &metav1.LabelSelector{
 				MatchLabels: map[string]string{"secondLabel": "temp"},
@@ -450,7 +460,7 @@ func GetDeploymentWithEnvVarSources(namespace string, deploymentName string) *ap
 func GetDeploymentWithPodAnnotations(namespace string, deploymentName string, both bool) *appsv1.Deployment {
 	replicaset := int32(1)
 	deployment := &appsv1.Deployment{
-		ObjectMeta: getObjectMeta(namespace, deploymentName, false),
+		ObjectMeta: getObjectMeta(namespace, deploymentName, false, false, false),
 		Spec: appsv1.DeploymentSpec{
 			Selector: &metav1.LabelSelector{
 				MatchLabels: map[string]string{"secondLabel": "temp"},
@@ -465,14 +475,38 @@ func GetDeploymentWithPodAnnotations(namespace string, deploymentName string, bo
 	if !both {
 		deployment.ObjectMeta.Annotations = nil
 	}
-	deployment.Spec.Template.ObjectMeta.Annotations = getAnnotations(deploymentName, true)
+	deployment.Spec.Template.ObjectMeta.Annotations = getAnnotations(deploymentName, true, false, false)
 	return deployment
+}
+
+func GetDeploymentWithTypedAutoAnnotation(namespace string, deploymentName string, resourceType string) *appsv1.Deployment {
+	replicaset := int32(1)
+	var objectMeta metav1.ObjectMeta
+	if resourceType == SecretResourceType {
+		objectMeta = getObjectMeta(namespace, deploymentName, false, true, false)
+	} else if resourceType == ConfigmapResourceType {
+		objectMeta = getObjectMeta(namespace, deploymentName, false, false, true)
+	}
+
+	return &appsv1.Deployment{
+		ObjectMeta: objectMeta,
+		Spec: appsv1.DeploymentSpec{
+			Selector: &metav1.LabelSelector{
+				MatchLabels: map[string]string{"secondLabel": "temp"},
+			},
+			Replicas: &replicaset,
+			Strategy: appsv1.DeploymentStrategy{
+				Type: appsv1.RollingUpdateDeploymentStrategyType,
+			},
+			Template: getPodTemplateSpecWithVolumes(deploymentName),
+		},
+	}
 }
 
 // GetDaemonSet provides daemonset for testing
 func GetDaemonSet(namespace string, daemonsetName string) *appsv1.DaemonSet {
 	return &appsv1.DaemonSet{
-		ObjectMeta: getObjectMeta(namespace, daemonsetName, false),
+		ObjectMeta: getObjectMeta(namespace, daemonsetName, false, false, false),
 		Spec: appsv1.DaemonSetSpec{
 			Selector: &metav1.LabelSelector{
 				MatchLabels: map[string]string{"secondLabel": "temp"},
@@ -487,7 +521,7 @@ func GetDaemonSet(namespace string, daemonsetName string) *appsv1.DaemonSet {
 
 func GetDaemonSetWithEnvVars(namespace string, daemonSetName string) *appsv1.DaemonSet {
 	return &appsv1.DaemonSet{
-		ObjectMeta: getObjectMeta(namespace, daemonSetName, true),
+		ObjectMeta: getObjectMeta(namespace, daemonSetName, true, false, false),
 		Spec: appsv1.DaemonSetSpec{
 			Selector: &metav1.LabelSelector{
 				MatchLabels: map[string]string{"secondLabel": "temp"},
@@ -503,7 +537,7 @@ func GetDaemonSetWithEnvVars(namespace string, daemonSetName string) *appsv1.Dae
 // GetStatefulSet provides statefulset for testing
 func GetStatefulSet(namespace string, statefulsetName string) *appsv1.StatefulSet {
 	return &appsv1.StatefulSet{
-		ObjectMeta: getObjectMeta(namespace, statefulsetName, false),
+		ObjectMeta: getObjectMeta(namespace, statefulsetName, false, false, false),
 		Spec: appsv1.StatefulSetSpec{
 			Selector: &metav1.LabelSelector{
 				MatchLabels: map[string]string{"secondLabel": "temp"},
@@ -519,7 +553,7 @@ func GetStatefulSet(namespace string, statefulsetName string) *appsv1.StatefulSe
 // GetStatefulSet provides statefulset for testing
 func GetStatefulSetWithEnvVar(namespace string, statefulsetName string) *appsv1.StatefulSet {
 	return &appsv1.StatefulSet{
-		ObjectMeta: getObjectMeta(namespace, statefulsetName, true),
+		ObjectMeta: getObjectMeta(namespace, statefulsetName, true, false, false),
 		Spec: appsv1.StatefulSetSpec{
 			Selector: &metav1.LabelSelector{
 				MatchLabels: map[string]string{"secondLabel": "temp"},
@@ -729,6 +763,16 @@ func CreateDeploymentWithEnvVarSourceAndAnnotations(client kubernetes.Interface,
 	return deployment, err
 }
 
+// CreateDeploymentWithTypedAutoAnnotation creates a deployment in given namespace and returns the Deployment with typed auto annotation
+func CreateDeploymentWithTypedAutoAnnotation(client kubernetes.Interface, deploymentName string, namespace string, resourceType string) (*appsv1.Deployment, error) {
+	logrus.Infof("Creating Deployment")
+	deploymentClient := client.AppsV1().Deployments(namespace)
+	deploymentObj := GetDeploymentWithTypedAutoAnnotation(namespace, deploymentName, resourceType)
+	deployment, err := deploymentClient.Create(context.TODO(), deploymentObj, metav1.CreateOptions{})
+	time.Sleep(3 * time.Second)
+	return deployment, err
+}
+
 // CreateDaemonSet creates a deployment in given namespace and returns the DaemonSet
 func CreateDaemonSet(client kubernetes.Interface, daemonsetName string, namespace string, volumeMount bool) (*appsv1.DaemonSet, error) {
 	logrus.Infof("Creating DaemonSet")
@@ -858,9 +902,11 @@ func VerifyResourceEnvVarUpdate(clients kube.Clients, config util.Config, envVar
 		annotationValue := annotations[config.Annotation]
 		searchAnnotationValue := annotations[options.AutoSearchAnnotation]
 		reloaderEnabledValue := annotations[options.ReloaderAutoAnnotation]
+		typedAutoAnnotationEnabledValue := annotations[config.TypedAutoAnnotation]
 		reloaderEnabled, err := strconv.ParseBool(reloaderEnabledValue)
+		typedAutoAnnotationEnabled, errTyped := strconv.ParseBool(typedAutoAnnotationEnabledValue)
 		matches := false
-		if err == nil && reloaderEnabled {
+		if err == nil && reloaderEnabled || errTyped == nil && typedAutoAnnotationEnabled {
 			matches = true
 		} else if annotationValue != "" {
 			values := strings.Split(annotationValue, ",")
@@ -902,9 +948,11 @@ func VerifyResourceAnnotationUpdate(clients kube.Clients, config util.Config, up
 		annotationValue := annotations[config.Annotation]
 		searchAnnotationValue := annotations[options.AutoSearchAnnotation]
 		reloaderEnabledValue := annotations[options.ReloaderAutoAnnotation]
+		typedAutoAnnotationEnabledValue := annotations[config.TypedAutoAnnotation]
 		reloaderEnabled, _ := strconv.ParseBool(reloaderEnabledValue)
+		typedAutoAnnotationEnabled, _ := strconv.ParseBool(typedAutoAnnotationEnabledValue)
 		matches := false
-		if reloaderEnabled || reloaderEnabledValue == "" && options.AutoReloadAll {
+		if reloaderEnabled || typedAutoAnnotationEnabled || reloaderEnabledValue == "" && typedAutoAnnotationEnabledValue == "" && options.AutoReloadAll {
 			matches = true
 		} else if annotationValue != "" {
 			values := strings.Split(annotationValue, ",")
