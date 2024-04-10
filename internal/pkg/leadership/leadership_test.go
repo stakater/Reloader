@@ -113,7 +113,7 @@ func TestRunLeaderElection(t *testing.T) {
 }
 
 // TestRunLeaderElectionWithControllers tests that leadership election works
-// wiht real controllers and that on context cancellation the controllers stop
+// with real controllers and that on context cancellation the controllers stop
 // running.
 func TestRunLeaderElectionWithControllers(t *testing.T) {
 	t.Logf("Creating controller")

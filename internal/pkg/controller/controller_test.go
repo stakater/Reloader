@@ -2449,7 +2449,7 @@ func TestController_resourceInNamespaceSelector(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			fakeClient := fake.NewSimpleClientset()
 			namespace, _ := fakeClient.CoreV1().Namespaces().Create(context.Background(), &tt.fields.namespace, metav1.CreateOptions{})
-			logrus.Infof("created fakeClient namesapce for testing = %s", namespace.Name)
+			logrus.Infof("created fakeClient namespace for testing = %s", namespace.Name)
 
 			c := &Controller{
 				client:            fakeClient,
