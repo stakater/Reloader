@@ -17,7 +17,7 @@ spec:
         app: reloader-reloader
     spec:
       containers:
-        - image: "ghcr.io/stakater/reloader:v1.0.78"
+        - image: "ghcr.io/stakater/reloader:v1.0.79"
           imagePullPolicy: IfNotPresent
           name: reloader-reloader
           ports:
