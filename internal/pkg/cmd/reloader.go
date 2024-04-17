@@ -13,13 +13,14 @@ import (
 
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
+
 	"github.com/stakater/Reloader/internal/pkg/controller"
 	"github.com/stakater/Reloader/internal/pkg/metrics"
 	"github.com/stakater/Reloader/internal/pkg/options"
 	"github.com/stakater/Reloader/internal/pkg/util"
 	"github.com/stakater/Reloader/pkg/kube"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/labels"
 )
 
 // NewReloaderCommand starts the reloader controller
@@ -40,7 +41,8 @@ func NewReloaderCommand() *cobra.Command {
 	cmd.PersistentFlags().StringVar(&options.SecretReloaderAutoAnnotation, "secret-auto-annotation", "secret.reloader.stakater.com/auto", "annotation to detect changes in secrets")
 	cmd.PersistentFlags().StringVar(&options.AutoSearchAnnotation, "auto-search-annotation", "reloader.stakater.com/search", "annotation to detect changes in configmaps or secrets tagged with special match annotation")
 	cmd.PersistentFlags().StringVar(&options.SearchMatchAnnotation, "search-match-annotation", "reloader.stakater.com/match", "annotation to mark secrets or configmaps to match the search")
-	cmd.PersistentFlags().StringVar(&options.LogFormat, "log-format", "", "Log format to use (empty string for text, or JSON")
+	cmd.PersistentFlags().StringVar(&options.LogFormat, "log-format", "", "Log format to use (empty string for text, or JSON)")
+	cmd.PersistentFlags().StringVar(&options.LogLevel, "log-level", "info", "Log level to use (trace, debug, info, warning, error, fatal and panic)")
 	cmd.PersistentFlags().StringVar(&options.WebhookUrl, "webhook-url", "", "webhook to trigger instead of performing a reload")
 	cmd.PersistentFlags().StringSlice("resources-to-ignore", []string{}, "list of resources to ignore (valid options 'configMaps' or 'secrets')")
 	cmd.PersistentFlags().StringSlice("namespaces-to-ignore", []string{}, "list of namespaces to ignore")
@@ -80,7 +82,7 @@ func validateFlags(*cobra.Command, []string) error {
 	return nil
 }
 
-func configureLogging(logFormat string) error {
+func configureLogging(logFormat, logLevel string) error {
 	switch logFormat {
 	case "json":
 		logrus.SetFormatter(&logrus.JSONFormatter{})
@@ -90,6 +92,12 @@ func configureLogging(logFormat string) error {
 			return fmt.Errorf("unsupported logging formatter: %q", logFormat)
 		}
 	}
+	// set log level
+	level, err := logrus.ParseLevel(logLevel)
+	if err != nil {
+		return err
+	}
+	logrus.SetLevel(level)
 	return nil
 }
 
@@ -113,7 +121,7 @@ func getHAEnvs() (string, string) {
 }
 
 func startReloader(cmd *cobra.Command, args []string) {
-	err := configureLogging(options.LogFormat)
+	err := configureLogging(options.LogFormat, options.LogLevel)
 	if err != nil {
 		logrus.Warn(err)
 	}
