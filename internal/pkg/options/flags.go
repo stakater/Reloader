@@ -25,6 +25,8 @@ var (
 	SearchMatchAnnotation = "reloader.stakater.com/match"
 	// LogFormat is the log format to use (json, or empty string for default)
 	LogFormat = ""
+	// LogLevel is the log level to use (trace, debug, info, warning, error, fatal and panic)
+	LogLevel = ""
 	// IsArgoRollouts Adds support for argo rollouts
 	IsArgoRollouts = "false"
 	// ReloadStrategy Specify the update strategy
