@@ -133,6 +133,7 @@ func sendWebhook(url string) (string, []error) {
 		// the reloader seems to retry automatically so no retry logic added
 		return "", err
 	}
+	defer resp.Body.Close()
 	var buffer bytes.Buffer
 	_, bufferErr := io.Copy(&buffer, resp.Body)
 	if bufferErr != nil {
