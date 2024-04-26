@@ -13,3 +13,5 @@ Reloader
 !**/chart/reloader
 *.tgz
 styles/
+site/
+/mkdocs.yml

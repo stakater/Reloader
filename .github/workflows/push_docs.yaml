@@ -1,0 +1,22 @@
+name: Push Documentation Changes
+
+on:
+  push:
+    branches:
+      - master
+    paths:
+      - 'README.md'
+      - 'docs/**'
+
+jobs:
+  push:
+    uses: stakater/.github/.github/workflows/push_container.yaml@v0.0.71
+    with:
+      DOCKER_FILE_PATH: Dockerfile-docs
+      RELEASE_BRANCH: master
+    secrets:
+      CONTAINER_REGISTRY_URL: ghcr.io/stakater
+      CONTAINER_REGISTRY_USERNAME: stakater-user
+      CONTAINER_REGISTRY_PASSWORD: ${{ secrets.STAKATER_GITHUB_TOKEN }}
+      SLACK_WEBHOOK_URL: ${{ secrets.STAKATER_DELIVERY_SLACK_WEBHOOK }}
+      GH_TOKEN: ${{ secrets.STAKATER_GITHUB_TOKEN }}

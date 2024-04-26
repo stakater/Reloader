@@ -1,4 +1,4 @@
-# How it works?
+# How does Reloader work?
 
 Reloader watches for `ConfigMap` and `Secret` and detects if there are changes in data of these objects. After change detection Reloader performs rolling upgrade on relevant Pods via associated `Deployment`, `Daemonset` and `Statefulset`.
 

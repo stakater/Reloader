@@ -1,0 +1,22 @@
+site_name: Stakater Reloader
+docs_dir: docs
+site_url: https://docs.stakater.com/reloader/
+repo_url: https://github.com/stakater/reloader
+edit_uri: blob/master/docs/
+
+theme:
+  favicon: assets/images/favicon.svg
+
+nav:
+  - index.md
+  - How-to Guides:
+    - Verify-Reloader-Working.md
+    - Alerting.md
+    - Reloader-with-Sealed-Secrets.md
+    - Helm2-to-Helm3.md
+  - References:
+    - How-it-works.md
+    - Container Build.md
+    - Comparisons with similar tools:
+      - Reloader-vs-ConfigmapController.md
+      - Reloader-vs-k8s-trigger-controller.md
