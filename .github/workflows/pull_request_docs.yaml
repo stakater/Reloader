@@ -20,7 +20,7 @@ jobs:
     with:
       DOCKER_FILE_PATH: Dockerfile-docs
     secrets:
-      CONTAINER_REGISTRY_URL: ghcr.io/stakater
+      CONTAINER_REGISTRY_URL: ghcr.io/stakater/docs
       CONTAINER_REGISTRY_USERNAME: stakater-user
       CONTAINER_REGISTRY_PASSWORD: ${{ secrets.STAKATER_GITHUB_TOKEN }}
       SLACK_WEBHOOK_URL: ${{ secrets.STAKATER_DELIVERY_SLACK_WEBHOOK }}
