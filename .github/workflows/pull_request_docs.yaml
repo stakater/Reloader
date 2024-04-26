@@ -5,8 +5,14 @@ on:
     branches:
       - master
     paths:
-      - 'README.md'
+      - '.markdownlint.yaml'
+      - '.vale.ini'
+      - 'Dockerfile-docs'
+      - 'docs-nginx.conf'
       - 'docs/**'
+      - 'README.md'
+      - 'theme_common'
+      - 'theme_override'
 
 jobs:
   qa:
