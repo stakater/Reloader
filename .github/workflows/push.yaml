@@ -44,7 +44,7 @@ jobs:
           make install
 
       - name: Run golangci-lint
-        uses: golangci/golangci-lint-action@v4
+        uses: golangci/golangci-lint-action@v5
         with:
           version: latest
           only-new-issues: false
