@@ -1,0 +1,3 @@
+[submodule "theme_common"]
+	path = theme_common
+	url = git@github.com:stakater/stakater-docs-mkdocs-theme.git

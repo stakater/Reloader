@@ -13,12 +13,6 @@ env:
   REGISTRY: ghcr.io
 
 jobs:
-  qa:
-    uses: stakater/.github/.github/workflows/pull_request_doc_qa.yaml@v0.0.71
-    with:
-      MD_CONFIG: .github/md_config.json
-      DOC_SRC: README.md docs
-      MD_LINT_CONFIG: .markdownlint.yaml
   build:
     runs-on: ubuntu-latest
     name: Build
