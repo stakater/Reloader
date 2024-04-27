@@ -4,6 +4,15 @@ on:
   pull_request_target:
     branches:
       - master
+    paths:
+      - '**'
+      - '!.markdownlint.yaml'
+      - '!.vale.ini'
+      - '!Dockerfile-docs'
+      - '!docs-nginx.conf'
+      - '!docs/**'
+      - '!theme_common'
+      - '!theme_override'
 
 env:
   DOCKER_FILE_PATH: Dockerfile
@@ -13,6 +22,12 @@ env:
   REGISTRY: ghcr.io
 
 jobs:
+  qa:
+    uses: stakater/.github/.github/workflows/pull_request_doc_qa.yaml@v0.0.73
+    with:
+      MD_CONFIG: .github/md_config.json
+      DOC_SRC: README.md
+      MD_LINT_CONFIG: .markdownlint.yaml
   build:
     runs-on: ubuntu-latest
     name: Build
