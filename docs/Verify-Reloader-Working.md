@@ -2,7 +2,7 @@
 
 Reloader's working can be verified by three ways.
 
-## Verify from logs
+## Verify From Logs
 
 Check the logs of Reloader and verify that you can see logs looks like below, if you are able to find these logs then it means Reloader is working.
 
@@ -14,11 +14,11 @@ Updated test-resource of type Deployment in namespace: test-reloader
 
 Below are the details that explain these logs:
 
-### test-object
+### `test-object`
 
 `test-object` is the name of a `secret` or a `deployment` in which change has been detected.
 
-### SECRET
+### `SECRET`
 
 `SECRET` is the type of `test-object`. It can either be `SECRET` or `CONFIGMAP`
 
@@ -30,11 +30,11 @@ Below are the details that explain these logs:
 
 `test-resource` is the name of resource which is going to be updated
 
-### Deployment
+### `Deployment`
 
 `Deployment` is the type of `test-resource`. It can either be a `Deployment`, `Daemonset` or `Statefulset`
 
-## Verify by checking the age of Pod
+## Verify by Checking the Age of Pod
 
 A pod's age can tell whether Reloader is working correctly or not. If you know that a change in a `secret` or `configmap` has occurred, then check the relevant Pod's age immediately. It should be newly created few moments ago.
 
@@ -42,7 +42,7 @@ A pod's age can tell whether Reloader is working correctly or not. If you know t
 
 `kubernetes dashboard` can be used to verify the working of Reloader. After a change in `secret` or `configmap`, check the relevant Pod's age from dashboard. It should be newly created few moments ago.
 
-### Verify from command line
+### Verify from Command Line
 
 After a change in `secret` or `configmap`. Run the below-mentioned command and verify that the pod is newly created.
 
@@ -50,7 +50,7 @@ After a change in `secret` or `configmap`. Run the below-mentioned command and v
 kubectl get pods <pod name> -n <namespace name>
 ```
 
-## Verify from metrics
+## Verify From Metrics
 
 Some metrics are exported to Prometheus endpoint `/metrics` on port `9090`.
 

@@ -21,7 +21,7 @@ Reloader and k8s-trigger-controller are both built for same purpose. So there ar
 
 Reloader supports deployment `rollout` as well as `daemonsets` and `statefulsets` `rollout`.
 
-### Hashing usage
+### Hashing Usage
 
 #### `k8s-trigger-controller`
 
