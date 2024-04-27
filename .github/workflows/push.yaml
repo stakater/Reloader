@@ -4,6 +4,16 @@ on:
   push:
     branches:
       - master
+    paths:
+      - '**'
+      - '!.markdownlint.yaml'
+      - '!.vale.ini'
+      - '!Dockerfile-docs'
+      - '!docs-nginx.conf'
+      - '!docs/**'
+      - '!README.md'
+      - '!theme_common'
+      - '!theme_override'
 
 env:
   DOCKER_FILE_PATH: Dockerfile
@@ -23,7 +33,7 @@ jobs:
       - name: Check out code
         uses: actions/checkout@v4
         with:
-          token: ${{ secrets.STAKATER_GITHUB_TOKEN }}        
+          token: ${{ secrets.STAKATER_GITHUB_TOKEN }}
           fetch-depth: 0 # otherwise, you will fail to push refs to dest repo
 
       # Setting up helm binary
@@ -31,14 +41,14 @@ jobs:
         uses: azure/setup-helm@v4
         with:
           version: v3.11.3
-      
+
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
           go-version-file: 'go.mod'
           check-latest: true
           cache: true
-      
+
       - name: Install Dependencies
         run: |
           make install
@@ -233,7 +243,6 @@ jobs:
           commit_username: stakater-user
           commit_email: stakater@gmail.com
 
-      
       # Commit back changes
       - name: Log info about `.git` directory permissions
         run: |

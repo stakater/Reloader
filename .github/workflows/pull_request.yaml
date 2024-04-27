@@ -4,6 +4,16 @@ on:
   pull_request_target:
     branches:
       - master
+    paths:
+      - '**'
+      - '!.markdownlint.yaml'
+      - '!.vale.ini'
+      - '!Dockerfile-docs'
+      - '!docs-nginx.conf'
+      - '!docs/**'
+      - '!README.md'
+      - '!theme_common'
+      - '!theme_override'
 
 env:
   DOCKER_FILE_PATH: Dockerfile
