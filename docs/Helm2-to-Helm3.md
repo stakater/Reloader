@@ -8,7 +8,7 @@ There are 3 steps involved in migrating the Reloader from Helm2 to Helm3.
 
 ### Step 1
 
-Install the helm-2to3 plugin
+Install the `helm-2to3` plugin
 
 ```bash
 helm3 plugin install https://github.com/helm/helm-2to3
