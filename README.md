@@ -311,7 +311,7 @@ helm uninstall {{RELEASE_NAME}} -n {{NAMESPACE}}
 
 | Parameter                         | Description                                                                                                                                         | Type        | Default   |
 |-----------------------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------|-------------|-----------|
-| `reloader.autoReloadAll`          |                                                                                                                                                     | boolean     | `false`   |
+| `reloader.autoReloadAll`          | Global reloading switch.                                                                                                                            | boolean     | `false`   |
 | `reloader.isArgoRollouts`         | Enable Argo `Rollouts`. Valid value are either `true` or `false`                                                                                    | boolean     | `false`   |
 | `reloader.isOpenshift`            | Enable OpenShift DeploymentConfigs. Valid value are either `true` or `false`                                                                        | boolean     | `false`   |
 | `reloader.ignoreSecrets`          | To ignore secrets. Valid value are either `true` or `false`. Either `ignoreSecrets` or `ignoreConfigMaps` can be ignored, not both at the same time | boolean     | `false`   |
