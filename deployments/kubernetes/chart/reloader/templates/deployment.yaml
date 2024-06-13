@@ -171,13 +171,13 @@ spec:
           {{- . | toYaml | nindent 10 }}
           {{- end }}
       {{- end }}
-      {{- if or (.Values.reloader.logFormat) (.Values.reloader.LogLevel) (.Values.reloader.ignoreSecrets) (.Values.reloader.ignoreNamespaces) (.Values.reloader.namespaceSelector) (.Values.reloader.resourceLabelSelector) (.Values.reloader.ignoreConfigMaps) (.Values.reloader.custom_annotations) (eq .Values.reloader.isArgoRollouts true) (eq .Values.reloader.reloadOnCreate true) (ne .Values.reloader.reloadStrategy "default") (.Values.reloader.enableHA) (.Values.reloader.autoReloadAll)}}
+      {{- if or (.Values.reloader.logFormat) (.Values.reloader.logLevel) (.Values.reloader.ignoreSecrets) (.Values.reloader.ignoreNamespaces) (.Values.reloader.namespaceSelector) (.Values.reloader.resourceLabelSelector) (.Values.reloader.ignoreConfigMaps) (.Values.reloader.custom_annotations) (eq .Values.reloader.isArgoRollouts true) (eq .Values.reloader.reloadOnCreate true) (ne .Values.reloader.reloadStrategy "default") (.Values.reloader.enableHA) (.Values.reloader.autoReloadAll)}}
         args:
           {{- if .Values.reloader.logFormat }}
           - "--log-format={{ .Values.reloader.logFormat }}"
           {{- end }}
-          {{- if .Values.reloader.LogLevel }}
-          - "--log-format={{ .Values.reloader.LogLevel }}"
+          {{- if .Values.reloader.logLevel }}
+          - "--log-level={{ .Values.reloader.logLevel }}"
           {{- end }}
           {{- if .Values.reloader.ignoreSecrets }}
           - "--resources-to-ignore=secrets"
