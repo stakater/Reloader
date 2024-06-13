@@ -171,10 +171,13 @@ spec:
           {{- . | toYaml | nindent 10 }}
           {{- end }}
       {{- end }}
-      {{- if or (.Values.reloader.logFormat) (.Values.reloader.ignoreSecrets) (.Values.reloader.ignoreNamespaces) (.Values.reloader.namespaceSelector) (.Values.reloader.resourceLabelSelector) (.Values.reloader.ignoreConfigMaps) (.Values.reloader.custom_annotations) (eq .Values.reloader.isArgoRollouts true) (eq .Values.reloader.reloadOnCreate true) (ne .Values.reloader.reloadStrategy "default") (.Values.reloader.enableHA) (.Values.reloader.autoReloadAll)}}
+      {{- if or (.Values.reloader.logFormat) (.Values.reloader.LogLevel) (.Values.reloader.ignoreSecrets) (.Values.reloader.ignoreNamespaces) (.Values.reloader.namespaceSelector) (.Values.reloader.resourceLabelSelector) (.Values.reloader.ignoreConfigMaps) (.Values.reloader.custom_annotations) (eq .Values.reloader.isArgoRollouts true) (eq .Values.reloader.reloadOnCreate true) (ne .Values.reloader.reloadStrategy "default") (.Values.reloader.enableHA) (.Values.reloader.autoReloadAll)}}
         args:
           {{- if .Values.reloader.logFormat }}
           - "--log-format={{ .Values.reloader.logFormat }}"
+          {{- end }}
+          {{- if .Values.reloader.LogLevel }}
+          - "--log-format={{ .Values.reloader.LogLevel }}"
           {{- end }}
           {{- if .Values.reloader.ignoreSecrets }}
           - "--resources-to-ignore=secrets"
@@ -187,10 +190,10 @@ spec:
           {{- end }}
           {{- if .Values.reloader.namespaceSelector }}
           - "--namespace-selector={{ .Values.reloader.namespaceSelector }}"
-          {{- end }}    
+          {{- end }}
           {{- if .Values.reloader.resourceLabelSelector }}
           - "--resource-label-selector={{ .Values.reloader.resourceLabelSelector }}"
-          {{- end }}             
+          {{- end }}
           {{- if .Values.reloader.custom_annotations }}
             {{- if .Values.reloader.custom_annotations.configmap }}
           - "--configmap-annotation"
@@ -211,7 +214,7 @@ spec:
             {{- if .Values.reloader.custom_annotations.configmap_auto }}
           - "--configmap-auto-annotation"
           - "{{ .Values.reloader.custom_annotations.configmap_auto }}"
-            {{- end }}                        
+            {{- end }}
             {{- if .Values.reloader.custom_annotations.search }}
           - "--auto-search-annotation"
           - "{{ .Values.reloader.custom_annotations.search }}"
