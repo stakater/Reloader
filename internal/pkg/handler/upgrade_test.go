@@ -1465,7 +1465,7 @@ func TestRollingUpgradeForDeploymentWithConfigmapViaSearchAnnotationNoTriggersUs
 		t.Errorf("Counter was increased unexpectedly")
 	}
 
-	if promtestutil.ToFloat64(collectors.Reloaded.With(prometheus.Labels{"success": "true", "namespace": arsNamespace})) > 1 {
+	if promtestutil.ToFloat64(collectors.Reloaded.With(prometheus.Labels{"success": "true", "namespace": arsNamespace})) > 0 {
 		t.Errorf("Counter by namespace was increased unexpectedly")
 	}
 }
@@ -1508,7 +1508,7 @@ func TestRollingUpgradeForDeploymentWithConfigmapViaSearchAnnotationNotMappedUsi
 		t.Errorf("Counter was increased unexpectedly")
 	}
 
-	if promtestutil.ToFloat64(collectors.Reloaded.With(prometheus.Labels{"success": "true", "namespace": arsNamespace})) > 1 {
+	if promtestutil.ToFloat64(collectors.Reloaded.With(prometheus.Labels{"success": "true", "namespace": arsNamespace})) > 0 {
 		t.Errorf("Counter by namespace was increased unexpectedly")
 	}
 }
