@@ -1278,12 +1278,12 @@ func getConfigWithAnnotations(resourceType string, name string, shaData string, 
 	}
 
 	return util.Config{
-		Namespace:            ns,
-		ResourceName:         name,
-		SHAValue:             shaData,
-		Annotation:           annotation,
-		TypedAutoAnnotation:  typedAutoAnnotation,
-		Type:                 resourceType,
+		Namespace:           ns,
+		ResourceName:        name,
+		SHAValue:            shaData,
+		Annotation:          annotation,
+		TypedAutoAnnotation: typedAutoAnnotation,
+		Type:                resourceType,
 	}
 }
 
@@ -1317,6 +1317,10 @@ func TestRollingUpgradeForDeploymentWithConfigmapUsingArs(t *testing.T) {
 	if promtestutil.ToFloat64(collectors.Reloaded.With(labelSucceeded)) != 1 {
 		t.Errorf("Counter was not increased")
 	}
+
+	if promtestutil.ToFloat64(collectors.Reloaded.With(prometheus.Labels{"success": "true", "namespace": arsNamespace})) != 1 {
+		t.Errorf("Counter by namespace was not increased")
+	}
 }
 
 func TestRollingUpgradeForDeploymentWithConfigmapWithoutReloadAnnotationAndWithoutAutoReloadAllNoTriggersUsingArs(t *testing.T) {
@@ -1340,7 +1344,11 @@ func TestRollingUpgradeForDeploymentWithConfigmapWithoutReloadAnnotationAndWitho
 	}
 
 	if promtestutil.ToFloat64(collectors.Reloaded.With(labelSucceeded)) > 0 {
-		t.Errorf("Counter was increased")
+		t.Errorf("Counter was increased unexpectedly")
+	}
+
+	if promtestutil.ToFloat64(collectors.Reloaded.With(prometheus.Labels{"success": "true", "namespace": arsNamespace})) > 0 {
+		t.Errorf("Counter by namespace was increased unexpectedly")
 	}
 }
 
@@ -1369,6 +1377,10 @@ func TestRollingUpgradeForDeploymentWithConfigmapWithoutReloadAnnotationButWithA
 	if promtestutil.ToFloat64(collectors.Reloaded.With(labelSucceeded)) != 1 {
 		t.Errorf("Counter was not increased")
 	}
+
+	if promtestutil.ToFloat64(collectors.Reloaded.With(prometheus.Labels{"success": "true", "namespace": arsNamespace})) != 1 {
+		t.Errorf("Counter by namespace was not increased")
+	}
 }
 
 func TestRollingUpgradeForDeploymentWithConfigmapInProjectedVolumeUsingArs(t *testing.T) {
@@ -1392,6 +1404,10 @@ func TestRollingUpgradeForDeploymentWithConfigmapInProjectedVolumeUsingArs(t *te
 
 	if promtestutil.ToFloat64(collectors.Reloaded.With(labelSucceeded)) != 1 {
 		t.Errorf("Counter was not increased")
+	}
+
+	if promtestutil.ToFloat64(collectors.Reloaded.With(prometheus.Labels{"success": "true", "namespace": arsNamespace})) != 1 {
+		t.Errorf("Counter by namespace was not increased")
 	}
 }
 
@@ -1418,6 +1434,10 @@ func TestRollingUpgradeForDeploymentWithConfigmapViaSearchAnnotationUsingArs(t *
 	if promtestutil.ToFloat64(collectors.Reloaded.With(labelSucceeded)) != 1 {
 		t.Errorf("Counter was not increased")
 	}
+
+	if promtestutil.ToFloat64(collectors.Reloaded.With(prometheus.Labels{"success": "true", "namespace": arsNamespace})) != 1 {
+		t.Errorf("Counter by namespace was not increased")
+	}
 }
 
 func TestRollingUpgradeForDeploymentWithConfigmapViaSearchAnnotationNoTriggersUsingArs(t *testing.T) {
@@ -1443,6 +1463,10 @@ func TestRollingUpgradeForDeploymentWithConfigmapViaSearchAnnotationNoTriggersUs
 
 	if promtestutil.ToFloat64(collectors.Reloaded.With(labelSucceeded)) > 0 {
 		t.Errorf("Counter was increased unexpectedly")
+	}
+
+	if promtestutil.ToFloat64(collectors.Reloaded.With(prometheus.Labels{"success": "true", "namespace": arsNamespace})) > 1 {
+		t.Errorf("Counter by namespace was increased unexpectedly")
 	}
 }
 
@@ -1483,6 +1507,10 @@ func TestRollingUpgradeForDeploymentWithConfigmapViaSearchAnnotationNotMappedUsi
 	if promtestutil.ToFloat64(collectors.Reloaded.With(labelSucceeded)) > 0 {
 		t.Errorf("Counter was increased unexpectedly")
 	}
+
+	if promtestutil.ToFloat64(collectors.Reloaded.With(prometheus.Labels{"success": "true", "namespace": arsNamespace})) > 1 {
+		t.Errorf("Counter by namespace was increased unexpectedly")
+	}
 }
 
 func TestRollingUpgradeForDeploymentWithConfigmapInInitContainerUsingArs(t *testing.T) {
@@ -1507,6 +1535,10 @@ func TestRollingUpgradeForDeploymentWithConfigmapInInitContainerUsingArs(t *test
 
 	if promtestutil.ToFloat64(collectors.Reloaded.With(labelSucceeded)) != 1 {
 		t.Errorf("Counter was not increased")
+	}
+
+	if promtestutil.ToFloat64(collectors.Reloaded.With(prometheus.Labels{"success": "true", "namespace": arsNamespace})) != 1 {
+		t.Errorf("Counter by namespace was not increased")
 	}
 }
 
@@ -1533,6 +1565,10 @@ func TestRollingUpgradeForDeploymentWithConfigmapInProjectVolumeInInitContainerU
 	if promtestutil.ToFloat64(collectors.Reloaded.With(labelSucceeded)) != 1 {
 		t.Errorf("Counter was not increased")
 	}
+
+	if promtestutil.ToFloat64(collectors.Reloaded.With(prometheus.Labels{"success": "true", "namespace": arsNamespace})) != 1 {
+		t.Errorf("Counter by namespace was not increased")
+	}
 }
 
 func TestRollingUpgradeForDeploymentWithConfigmapAsEnvVarUsingArs(t *testing.T) {
@@ -1557,6 +1593,10 @@ func TestRollingUpgradeForDeploymentWithConfigmapAsEnvVarUsingArs(t *testing.T) 
 
 	if promtestutil.ToFloat64(collectors.Reloaded.With(labelSucceeded)) != 1 {
 		t.Errorf("Counter was not increased")
+	}
+
+	if promtestutil.ToFloat64(collectors.Reloaded.With(prometheus.Labels{"success": "true", "namespace": arsNamespace})) != 1 {
+		t.Errorf("Counter by namespace was not increased")
 	}
 }
 
@@ -1583,6 +1623,10 @@ func TestRollingUpgradeForDeploymentWithConfigmapAsEnvVarInInitContainerUsingArs
 	if promtestutil.ToFloat64(collectors.Reloaded.With(labelSucceeded)) != 1 {
 		t.Errorf("Counter was not increased")
 	}
+
+	if promtestutil.ToFloat64(collectors.Reloaded.With(prometheus.Labels{"success": "true", "namespace": arsNamespace})) != 1 {
+		t.Errorf("Counter by namespace was not increased")
+	}
 }
 
 func TestRollingUpgradeForDeploymentWithConfigmapAsEnvVarFromUsingArs(t *testing.T) {
@@ -1607,6 +1651,10 @@ func TestRollingUpgradeForDeploymentWithConfigmapAsEnvVarFromUsingArs(t *testing
 
 	if promtestutil.ToFloat64(collectors.Reloaded.With(labelSucceeded)) != 1 {
 		t.Errorf("Counter was not increased")
+	}
+
+	if promtestutil.ToFloat64(collectors.Reloaded.With(prometheus.Labels{"success": "true", "namespace": arsNamespace})) != 1 {
+		t.Errorf("Counter by namespace was not increased")
 	}
 }
 
@@ -1633,6 +1681,10 @@ func TestRollingUpgradeForDeploymentWithSecretUsingArs(t *testing.T) {
 	if promtestutil.ToFloat64(collectors.Reloaded.With(labelSucceeded)) != 1 {
 		t.Errorf("Counter was not increased")
 	}
+
+	if promtestutil.ToFloat64(collectors.Reloaded.With(prometheus.Labels{"success": "true", "namespace": arsNamespace})) != 1 {
+		t.Errorf("Counter by namespace was not increased")
+	}
 }
 
 func TestRollingUpgradeForDeploymentWithSecretInProjectedVolumeUsingArs(t *testing.T) {
@@ -1657,6 +1709,10 @@ func TestRollingUpgradeForDeploymentWithSecretInProjectedVolumeUsingArs(t *testi
 
 	if promtestutil.ToFloat64(collectors.Reloaded.With(labelSucceeded)) != 1 {
 		t.Errorf("Counter was not increased")
+	}
+
+	if promtestutil.ToFloat64(collectors.Reloaded.With(prometheus.Labels{"success": "true", "namespace": arsNamespace})) != 1 {
+		t.Errorf("Counter by namespace was not increased")
 	}
 }
 
@@ -1683,6 +1739,10 @@ func TestRollingUpgradeForDeploymentWithSecretinInitContainerUsingArs(t *testing
 	if promtestutil.ToFloat64(collectors.Reloaded.With(labelSucceeded)) != 1 {
 		t.Errorf("Counter was not increased")
 	}
+
+	if promtestutil.ToFloat64(collectors.Reloaded.With(prometheus.Labels{"success": "true", "namespace": arsNamespace})) != 1 {
+		t.Errorf("Counter by namespace was not increased")
+	}
 }
 
 func TestRollingUpgradeForDeploymentWithSecretInProjectedVolumeinInitContainerUsingArs(t *testing.T) {
@@ -1707,6 +1767,10 @@ func TestRollingUpgradeForDeploymentWithSecretInProjectedVolumeinInitContainerUs
 
 	if promtestutil.ToFloat64(collectors.Reloaded.With(labelSucceeded)) != 1 {
 		t.Errorf("Counter was not increased")
+	}
+
+	if promtestutil.ToFloat64(collectors.Reloaded.With(prometheus.Labels{"success": "true", "namespace": arsNamespace})) != 1 {
+		t.Errorf("Counter by namespace was not increased")
 	}
 }
 
@@ -1733,6 +1797,10 @@ func TestRollingUpgradeForDeploymentWithSecretAsEnvVarUsingArs(t *testing.T) {
 	if promtestutil.ToFloat64(collectors.Reloaded.With(labelSucceeded)) != 1 {
 		t.Errorf("Counter was not increased")
 	}
+
+	if promtestutil.ToFloat64(collectors.Reloaded.With(prometheus.Labels{"success": "true", "namespace": arsNamespace})) != 1 {
+		t.Errorf("Counter by namespace was not increased")
+	}
 }
 
 func TestRollingUpgradeForDeploymentWithSecretAsEnvVarFromUsingArs(t *testing.T) {
@@ -1757,6 +1825,10 @@ func TestRollingUpgradeForDeploymentWithSecretAsEnvVarFromUsingArs(t *testing.T)
 
 	if promtestutil.ToFloat64(collectors.Reloaded.With(labelSucceeded)) != 1 {
 		t.Errorf("Counter was not increased")
+	}
+
+	if promtestutil.ToFloat64(collectors.Reloaded.With(prometheus.Labels{"success": "true", "namespace": arsNamespace})) != 1 {
+		t.Errorf("Counter by namespace was not increased")
 	}
 }
 
@@ -1783,6 +1855,10 @@ func TestRollingUpgradeForDeploymentWithSecretAsEnvVarInInitContainerUsingArs(t 
 	if promtestutil.ToFloat64(collectors.Reloaded.With(labelSucceeded)) != 1 {
 		t.Errorf("Counter was not increased")
 	}
+
+	if promtestutil.ToFloat64(collectors.Reloaded.With(prometheus.Labels{"success": "true", "namespace": arsNamespace})) != 1 {
+		t.Errorf("Counter by namespace was not increased")
+	}
 }
 
 func TestRollingUpgradeForDeploymentWithSecretAutoAnnotationUsingArs(t *testing.T) {
@@ -1807,6 +1883,10 @@ func TestRollingUpgradeForDeploymentWithSecretAutoAnnotationUsingArs(t *testing.
 
 	if promtestutil.ToFloat64(collectors.Reloaded.With(labelSucceeded)) != 1 {
 		t.Errorf("Counter was not increased")
+	}
+
+	if promtestutil.ToFloat64(collectors.Reloaded.With(prometheus.Labels{"success": "true", "namespace": arsNamespace})) != 1 {
+		t.Errorf("Counter by namespace was not increased")
 	}
 }
 
@@ -1833,6 +1913,10 @@ func TestRollingUpgradeForDeploymentWithConfigMapAutoAnnotationUsingArs(t *testi
 	if promtestutil.ToFloat64(collectors.Reloaded.With(labelSucceeded)) != 1 {
 		t.Errorf("Counter was not increased")
 	}
+
+	if promtestutil.ToFloat64(collectors.Reloaded.With(prometheus.Labels{"success": "true", "namespace": arsNamespace})) != 1 {
+		t.Errorf("Counter by namespace was not increased")
+	}
 }
 
 func TestRollingUpgradeForDaemonSetWithConfigmapUsingArs(t *testing.T) {
@@ -1857,6 +1941,10 @@ func TestRollingUpgradeForDaemonSetWithConfigmapUsingArs(t *testing.T) {
 
 	if promtestutil.ToFloat64(collectors.Reloaded.With(labelSucceeded)) != 1 {
 		t.Errorf("Counter was not increased")
+	}
+
+	if promtestutil.ToFloat64(collectors.Reloaded.With(prometheus.Labels{"success": "true", "namespace": arsNamespace})) != 1 {
+		t.Errorf("Counter by namespace was not increased")
 	}
 }
 
@@ -1883,6 +1971,10 @@ func TestRollingUpgradeForDaemonSetWithConfigmapInProjectedVolumeUsingArs(t *tes
 	if promtestutil.ToFloat64(collectors.Reloaded.With(labelSucceeded)) != 1 {
 		t.Errorf("Counter was not increased")
 	}
+
+	if promtestutil.ToFloat64(collectors.Reloaded.With(prometheus.Labels{"success": "true", "namespace": arsNamespace})) != 1 {
+		t.Errorf("Counter by namespace was not increased")
+	}
 }
 
 func TestRollingUpgradeForDaemonSetWithConfigmapAsEnvVarUsingArs(t *testing.T) {
@@ -1907,6 +1999,10 @@ func TestRollingUpgradeForDaemonSetWithConfigmapAsEnvVarUsingArs(t *testing.T) {
 
 	if promtestutil.ToFloat64(collectors.Reloaded.With(labelSucceeded)) != 1 {
 		t.Errorf("Counter was not increased")
+	}
+
+	if promtestutil.ToFloat64(collectors.Reloaded.With(prometheus.Labels{"success": "true", "namespace": arsNamespace})) != 1 {
+		t.Errorf("Counter by namespace was not increased")
 	}
 }
 
@@ -1933,6 +2029,10 @@ func TestRollingUpgradeForDaemonSetWithSecretUsingArs(t *testing.T) {
 	if promtestutil.ToFloat64(collectors.Reloaded.With(labelSucceeded)) != 1 {
 		t.Errorf("Counter was not increased")
 	}
+
+	if promtestutil.ToFloat64(collectors.Reloaded.With(prometheus.Labels{"success": "true", "namespace": arsNamespace})) != 1 {
+		t.Errorf("Counter by namespace was not increased")
+	}
 }
 
 func TestRollingUpgradeForDaemonSetWithSecretInProjectedVolumeUsingArs(t *testing.T) {
@@ -1957,6 +2057,10 @@ func TestRollingUpgradeForDaemonSetWithSecretInProjectedVolumeUsingArs(t *testin
 
 	if promtestutil.ToFloat64(collectors.Reloaded.With(labelSucceeded)) != 1 {
 		t.Errorf("Counter was not increased")
+	}
+
+	if promtestutil.ToFloat64(collectors.Reloaded.With(prometheus.Labels{"success": "true", "namespace": arsNamespace})) != 1 {
+		t.Errorf("Counter by namespace was not increased")
 	}
 }
 
@@ -1983,6 +2087,10 @@ func TestRollingUpgradeForStatefulSetWithConfigmapUsingArs(t *testing.T) {
 	if promtestutil.ToFloat64(collectors.Reloaded.With(labelSucceeded)) != 1 {
 		t.Errorf("Counter was not increased")
 	}
+
+	if promtestutil.ToFloat64(collectors.Reloaded.With(prometheus.Labels{"success": "true", "namespace": arsNamespace})) != 1 {
+		t.Errorf("Counter by namespace was not increased")
+	}
 }
 
 func TestRollingUpgradeForStatefulSetWithConfigmapInProjectedVolumeUsingArs(t *testing.T) {
@@ -2007,6 +2115,10 @@ func TestRollingUpgradeForStatefulSetWithConfigmapInProjectedVolumeUsingArs(t *t
 
 	if promtestutil.ToFloat64(collectors.Reloaded.With(labelSucceeded)) != 1 {
 		t.Errorf("Counter was not increased")
+	}
+
+	if promtestutil.ToFloat64(collectors.Reloaded.With(prometheus.Labels{"success": "true", "namespace": arsNamespace})) != 1 {
+		t.Errorf("Counter by namespace was not increased")
 	}
 }
 
@@ -2033,6 +2145,10 @@ func TestRollingUpgradeForStatefulSetWithSecretUsingArs(t *testing.T) {
 	if promtestutil.ToFloat64(collectors.Reloaded.With(labelSucceeded)) != 1 {
 		t.Errorf("Counter was not increased")
 	}
+
+	if promtestutil.ToFloat64(collectors.Reloaded.With(prometheus.Labels{"success": "true", "namespace": arsNamespace})) != 1 {
+		t.Errorf("Counter by namespace was not increased")
+	}
 }
 
 func TestRollingUpgradeForStatefulSetWithSecretInProjectedVolumeUsingArs(t *testing.T) {
@@ -2057,6 +2173,10 @@ func TestRollingUpgradeForStatefulSetWithSecretInProjectedVolumeUsingArs(t *test
 
 	if promtestutil.ToFloat64(collectors.Reloaded.With(labelSucceeded)) != 1 {
 		t.Errorf("Counter was not increased")
+	}
+
+	if promtestutil.ToFloat64(collectors.Reloaded.With(prometheus.Labels{"success": "true", "namespace": arsNamespace})) != 1 {
+		t.Errorf("Counter by namespace was not increased")
 	}
 }
 
@@ -2110,6 +2230,10 @@ func TestRollingUpgradeForDeploymentWithPodAnnotationsUsingArs(t *testing.T) {
 	if promtestutil.ToFloat64(collectors.Reloaded.With(labelSucceeded)) != 1 {
 		t.Errorf("Counter was not increased")
 	}
+
+	if promtestutil.ToFloat64(collectors.Reloaded.With(prometheus.Labels{"success": "true", "namespace": arsNamespace})) != 1 {
+		t.Errorf("Counter by namespace was not increased")
+	}
 }
 
 func TestFailedRollingUpgradeUsingArs(t *testing.T) {
@@ -2127,6 +2251,10 @@ func TestFailedRollingUpgradeUsingArs(t *testing.T) {
 
 	if promtestutil.ToFloat64(collectors.Reloaded.With(labelFailed)) != 1 {
 		t.Errorf("Counter was not increased")
+	}
+
+	if promtestutil.ToFloat64(collectors.Reloaded.With(prometheus.Labels{"success": "false", "namespace": arsNamespace})) != 1 {
+		t.Errorf("Counter by namespace was not increased")
 	}
 }
 
@@ -2153,6 +2281,10 @@ func TestRollingUpgradeForDeploymentWithConfigmapUsingErs(t *testing.T) {
 	if promtestutil.ToFloat64(collectors.Reloaded.With(labelSucceeded)) != 1 {
 		t.Errorf("Counter was not increased")
 	}
+
+	if promtestutil.ToFloat64(collectors.Reloaded.With(prometheus.Labels{"success": "true", "namespace": ersNamespace})) != 1 {
+		t.Errorf("Counter by namespace was not increased")
+	}
 }
 
 func TestRollingUpgradeForDeploymentWithConfigmapInProjectedVolumeUsingErs(t *testing.T) {
@@ -2176,6 +2308,10 @@ func TestRollingUpgradeForDeploymentWithConfigmapInProjectedVolumeUsingErs(t *te
 
 	if promtestutil.ToFloat64(collectors.Reloaded.With(labelSucceeded)) != 1 {
 		t.Errorf("Counter was not increased")
+	}
+
+	if promtestutil.ToFloat64(collectors.Reloaded.With(prometheus.Labels{"success": "true", "namespace": ersNamespace})) != 1 {
+		t.Errorf("Counter by namespace was not increased")
 	}
 }
 
@@ -2202,6 +2338,10 @@ func TestRollingUpgradeForDeploymentWithConfigmapViaSearchAnnotationUsingErs(t *
 	if promtestutil.ToFloat64(collectors.Reloaded.With(labelSucceeded)) != 1 {
 		t.Errorf("Counter was not increased")
 	}
+
+	if promtestutil.ToFloat64(collectors.Reloaded.With(prometheus.Labels{"success": "true", "namespace": ersNamespace})) != 1 {
+		t.Errorf("Counter by namespace was not increased")
+	}
 }
 
 func TestRollingUpgradeForDeploymentWithConfigmapViaSearchAnnotationNoTriggersUsingErs(t *testing.T) {
@@ -2227,6 +2367,10 @@ func TestRollingUpgradeForDeploymentWithConfigmapViaSearchAnnotationNoTriggersUs
 
 	if promtestutil.ToFloat64(collectors.Reloaded.With(labelSucceeded)) > 0 {
 		t.Errorf("Counter was increased unexpectedly")
+	}
+
+	if promtestutil.ToFloat64(collectors.Reloaded.With(prometheus.Labels{"success": "true", "namespace": ersNamespace})) > 0 {
+		t.Errorf("Counter by namespace was increased unexpectedly")
 	}
 }
 
@@ -2267,6 +2411,10 @@ func TestRollingUpgradeForDeploymentWithConfigmapViaSearchAnnotationNotMappedUsi
 	if promtestutil.ToFloat64(collectors.Reloaded.With(labelSucceeded)) > 0 {
 		t.Errorf("Counter was increased unexpectedly")
 	}
+
+	if promtestutil.ToFloat64(collectors.Reloaded.With(prometheus.Labels{"success": "true", "namespace": ersNamespace})) > 0 {
+		t.Errorf("Counter by namespace was increased unexpectedly")
+	}
 }
 
 func TestRollingUpgradeForDeploymentWithConfigmapInInitContainerUsingErs(t *testing.T) {
@@ -2291,6 +2439,10 @@ func TestRollingUpgradeForDeploymentWithConfigmapInInitContainerUsingErs(t *test
 
 	if promtestutil.ToFloat64(collectors.Reloaded.With(labelSucceeded)) != 1 {
 		t.Errorf("Counter was not increased")
+	}
+
+	if promtestutil.ToFloat64(collectors.Reloaded.With(prometheus.Labels{"success": "true", "namespace": ersNamespace})) != 1 {
+		t.Errorf("Counter by namespace was not increased")
 	}
 }
 
@@ -2317,6 +2469,10 @@ func TestRollingUpgradeForDeploymentWithConfigmapInProjectVolumeInInitContainerU
 	if promtestutil.ToFloat64(collectors.Reloaded.With(labelSucceeded)) != 1 {
 		t.Errorf("Counter was not increased")
 	}
+
+	if promtestutil.ToFloat64(collectors.Reloaded.With(prometheus.Labels{"success": "true", "namespace": ersNamespace})) != 1 {
+		t.Errorf("Counter by namespace was not increased")
+	}
 }
 
 func TestRollingUpgradeForDeploymentWithConfigmapAsEnvVarUsingErs(t *testing.T) {
@@ -2341,6 +2497,10 @@ func TestRollingUpgradeForDeploymentWithConfigmapAsEnvVarUsingErs(t *testing.T) 
 
 	if promtestutil.ToFloat64(collectors.Reloaded.With(labelSucceeded)) != 1 {
 		t.Errorf("Counter was not increased")
+	}
+
+	if promtestutil.ToFloat64(collectors.Reloaded.With(prometheus.Labels{"success": "true", "namespace": ersNamespace})) != 1 {
+		t.Errorf("Counter by namespace was not increased")
 	}
 }
 
@@ -2367,6 +2527,10 @@ func TestRollingUpgradeForDeploymentWithConfigmapAsEnvVarInInitContainerUsingErs
 	if promtestutil.ToFloat64(collectors.Reloaded.With(labelSucceeded)) != 1 {
 		t.Errorf("Counter was not increased")
 	}
+
+	if promtestutil.ToFloat64(collectors.Reloaded.With(prometheus.Labels{"success": "true", "namespace": ersNamespace})) != 1 {
+		t.Errorf("Counter by namespace was not increased")
+	}
 }
 
 func TestRollingUpgradeForDeploymentWithConfigmapAsEnvVarFromUsingErs(t *testing.T) {
@@ -2391,6 +2555,10 @@ func TestRollingUpgradeForDeploymentWithConfigmapAsEnvVarFromUsingErs(t *testing
 
 	if promtestutil.ToFloat64(collectors.Reloaded.With(labelSucceeded)) != 1 {
 		t.Errorf("Counter was not increased")
+	}
+
+	if promtestutil.ToFloat64(collectors.Reloaded.With(prometheus.Labels{"success": "true", "namespace": ersNamespace})) != 1 {
+		t.Errorf("Counter by namespace was not increased")
 	}
 }
 
@@ -2417,6 +2585,10 @@ func TestRollingUpgradeForDeploymentWithSecretUsingErs(t *testing.T) {
 	if promtestutil.ToFloat64(collectors.Reloaded.With(labelSucceeded)) != 1 {
 		t.Errorf("Counter was not increased")
 	}
+
+	if promtestutil.ToFloat64(collectors.Reloaded.With(prometheus.Labels{"success": "true", "namespace": ersNamespace})) != 1 {
+		t.Errorf("Counter by namespace was not increased")
+	}
 }
 
 func TestRollingUpgradeForDeploymentWithSecretInProjectedVolumeUsingErs(t *testing.T) {
@@ -2441,6 +2613,10 @@ func TestRollingUpgradeForDeploymentWithSecretInProjectedVolumeUsingErs(t *testi
 
 	if promtestutil.ToFloat64(collectors.Reloaded.With(labelSucceeded)) != 1 {
 		t.Errorf("Counter was not increased")
+	}
+
+	if promtestutil.ToFloat64(collectors.Reloaded.With(prometheus.Labels{"success": "true", "namespace": ersNamespace})) != 1 {
+		t.Errorf("Counter by namespace was not increased")
 	}
 }
 
@@ -2467,6 +2643,10 @@ func TestRollingUpgradeForDeploymentWithSecretinInitContainerUsingErs(t *testing
 	if promtestutil.ToFloat64(collectors.Reloaded.With(labelSucceeded)) != 1 {
 		t.Errorf("Counter was not increased")
 	}
+
+	if promtestutil.ToFloat64(collectors.Reloaded.With(prometheus.Labels{"success": "true", "namespace": ersNamespace})) != 1 {
+		t.Errorf("Counter by namespace was not increased")
+	}
 }
 
 func TestRollingUpgradeForDeploymentWithSecretInProjectedVolumeinInitContainerUsingErs(t *testing.T) {
@@ -2491,6 +2671,10 @@ func TestRollingUpgradeForDeploymentWithSecretInProjectedVolumeinInitContainerUs
 
 	if promtestutil.ToFloat64(collectors.Reloaded.With(labelSucceeded)) != 1 {
 		t.Errorf("Counter was not increased")
+	}
+
+	if promtestutil.ToFloat64(collectors.Reloaded.With(prometheus.Labels{"success": "true", "namespace": ersNamespace})) != 1 {
+		t.Errorf("Counter by namespace was not increased")
 	}
 }
 
@@ -2517,6 +2701,10 @@ func TestRollingUpgradeForDeploymentWithSecretAsEnvVarUsingErs(t *testing.T) {
 	if promtestutil.ToFloat64(collectors.Reloaded.With(labelSucceeded)) != 1 {
 		t.Errorf("Counter was not increased")
 	}
+
+	if promtestutil.ToFloat64(collectors.Reloaded.With(prometheus.Labels{"success": "true", "namespace": ersNamespace})) != 1 {
+		t.Errorf("Counter by namespace was not increased")
+	}
 }
 
 func TestRollingUpgradeForDeploymentWithSecretAsEnvVarFromUsingErs(t *testing.T) {
@@ -2541,6 +2729,10 @@ func TestRollingUpgradeForDeploymentWithSecretAsEnvVarFromUsingErs(t *testing.T)
 
 	if promtestutil.ToFloat64(collectors.Reloaded.With(labelSucceeded)) != 1 {
 		t.Errorf("Counter was not increased")
+	}
+
+	if promtestutil.ToFloat64(collectors.Reloaded.With(prometheus.Labels{"success": "true", "namespace": ersNamespace})) != 1 {
+		t.Errorf("Counter by namespace was not increased")
 	}
 }
 
@@ -2567,6 +2759,10 @@ func TestRollingUpgradeForDeploymentWithSecretAsEnvVarInInitContainerUsingErs(t 
 	if promtestutil.ToFloat64(collectors.Reloaded.With(labelSucceeded)) != 1 {
 		t.Errorf("Counter was not increased")
 	}
+
+	if promtestutil.ToFloat64(collectors.Reloaded.With(prometheus.Labels{"success": "true", "namespace": ersNamespace})) != 1 {
+		t.Errorf("Counter by namespace was not increased")
+	}
 }
 
 func TestRollingUpgradeForDeploymentWithSecretAutoAnnotationUsingErs(t *testing.T) {
@@ -2591,6 +2787,10 @@ func TestRollingUpgradeForDeploymentWithSecretAutoAnnotationUsingErs(t *testing.
 
 	if promtestutil.ToFloat64(collectors.Reloaded.With(labelSucceeded)) != 1 {
 		t.Errorf("Counter was not increased")
+	}
+
+	if promtestutil.ToFloat64(collectors.Reloaded.With(prometheus.Labels{"success": "true", "namespace": ersNamespace})) != 1 {
+		t.Errorf("Counter by namespace was not increased")
 	}
 }
 
@@ -2617,6 +2817,10 @@ func TestRollingUpgradeForDeploymentWithConfigMapAutoAnnotationUsingErs(t *testi
 	if promtestutil.ToFloat64(collectors.Reloaded.With(labelSucceeded)) != 1 {
 		t.Errorf("Counter was not increased")
 	}
+
+	if promtestutil.ToFloat64(collectors.Reloaded.With(prometheus.Labels{"success": "true", "namespace": ersNamespace})) != 1 {
+		t.Errorf("Counter by namespace was not increased")
+	}
 }
 
 func TestRollingUpgradeForDaemonSetWithConfigmapUsingErs(t *testing.T) {
@@ -2641,6 +2845,10 @@ func TestRollingUpgradeForDaemonSetWithConfigmapUsingErs(t *testing.T) {
 
 	if promtestutil.ToFloat64(collectors.Reloaded.With(labelSucceeded)) != 1 {
 		t.Errorf("Counter was not increased")
+	}
+
+	if promtestutil.ToFloat64(collectors.Reloaded.With(prometheus.Labels{"success": "true", "namespace": ersNamespace})) != 1 {
+		t.Errorf("Counter by namespace was not increased")
 	}
 }
 
@@ -2667,6 +2875,10 @@ func TestRollingUpgradeForDaemonSetWithConfigmapInProjectedVolumeUsingErs(t *tes
 	if promtestutil.ToFloat64(collectors.Reloaded.With(labelSucceeded)) != 1 {
 		t.Errorf("Counter was not increased")
 	}
+
+	if promtestutil.ToFloat64(collectors.Reloaded.With(prometheus.Labels{"success": "true", "namespace": ersNamespace})) != 1 {
+		t.Errorf("Counter by namespace was not increased")
+	}
 }
 
 func TestRollingUpgradeForDaemonSetWithConfigmapAsEnvVarUsingErs(t *testing.T) {
@@ -2691,6 +2903,10 @@ func TestRollingUpgradeForDaemonSetWithConfigmapAsEnvVarUsingErs(t *testing.T) {
 
 	if promtestutil.ToFloat64(collectors.Reloaded.With(labelSucceeded)) != 1 {
 		t.Errorf("Counter was not increased")
+	}
+
+	if promtestutil.ToFloat64(collectors.Reloaded.With(prometheus.Labels{"success": "true", "namespace": ersNamespace})) != 1 {
+		t.Errorf("Counter by namespace was not increased")
 	}
 }
 
@@ -2717,6 +2933,10 @@ func TestRollingUpgradeForDaemonSetWithSecretUsingErs(t *testing.T) {
 	if promtestutil.ToFloat64(collectors.Reloaded.With(labelSucceeded)) != 1 {
 		t.Errorf("Counter was not increased")
 	}
+
+	if promtestutil.ToFloat64(collectors.Reloaded.With(prometheus.Labels{"success": "true", "namespace": ersNamespace})) != 1 {
+		t.Errorf("Counter by namespace was not increased")
+	}
 }
 
 func TestRollingUpgradeForDaemonSetWithSecretInProjectedVolumeUsingErs(t *testing.T) {
@@ -2741,6 +2961,10 @@ func TestRollingUpgradeForDaemonSetWithSecretInProjectedVolumeUsingErs(t *testin
 
 	if promtestutil.ToFloat64(collectors.Reloaded.With(labelSucceeded)) != 1 {
 		t.Errorf("Counter was not increased")
+	}
+
+	if promtestutil.ToFloat64(collectors.Reloaded.With(prometheus.Labels{"success": "true", "namespace": ersNamespace})) != 1 {
+		t.Errorf("Counter by namespace was not increased")
 	}
 }
 
@@ -2767,6 +2991,10 @@ func TestRollingUpgradeForStatefulSetWithConfigmapUsingErs(t *testing.T) {
 	if promtestutil.ToFloat64(collectors.Reloaded.With(labelSucceeded)) != 1 {
 		t.Errorf("Counter was not increased")
 	}
+
+	if promtestutil.ToFloat64(collectors.Reloaded.With(prometheus.Labels{"success": "true", "namespace": ersNamespace})) != 1 {
+		t.Errorf("Counter by namespace was not increased")
+	}
 }
 
 func TestRollingUpgradeForStatefulSetWithConfigmapInProjectedVolumeUsingErs(t *testing.T) {
@@ -2791,6 +3019,10 @@ func TestRollingUpgradeForStatefulSetWithConfigmapInProjectedVolumeUsingErs(t *t
 
 	if promtestutil.ToFloat64(collectors.Reloaded.With(labelSucceeded)) != 1 {
 		t.Errorf("Counter was not increased")
+	}
+
+	if promtestutil.ToFloat64(collectors.Reloaded.With(prometheus.Labels{"success": "true", "namespace": ersNamespace})) != 1 {
+		t.Errorf("Counter by namespace was not increased")
 	}
 }
 
@@ -2817,6 +3049,10 @@ func TestRollingUpgradeForStatefulSetWithSecretUsingErs(t *testing.T) {
 	if promtestutil.ToFloat64(collectors.Reloaded.With(labelSucceeded)) != 1 {
 		t.Errorf("Counter was not increased")
 	}
+
+	if promtestutil.ToFloat64(collectors.Reloaded.With(prometheus.Labels{"success": "true", "namespace": ersNamespace})) != 1 {
+		t.Errorf("Counter by namespace was not increased")
+	}
 }
 
 func TestRollingUpgradeForStatefulSetWithSecretInProjectedVolumeUsingErs(t *testing.T) {
@@ -2841,6 +3077,10 @@ func TestRollingUpgradeForStatefulSetWithSecretInProjectedVolumeUsingErs(t *test
 
 	if promtestutil.ToFloat64(collectors.Reloaded.With(labelSucceeded)) != 1 {
 		t.Errorf("Counter was not increased")
+	}
+
+	if promtestutil.ToFloat64(collectors.Reloaded.With(prometheus.Labels{"success": "true", "namespace": ersNamespace})) != 1 {
+		t.Errorf("Counter by namespace was not increased")
 	}
 }
 
@@ -2895,6 +3135,10 @@ func TestRollingUpgradeForDeploymentWithPodAnnotationsUsingErs(t *testing.T) {
 	if promtestutil.ToFloat64(collectors.Reloaded.With(labelSucceeded)) != 1 {
 		t.Errorf("Counter was not increased")
 	}
+
+	if promtestutil.ToFloat64(collectors.Reloaded.With(prometheus.Labels{"success": "true", "namespace": ersNamespace})) != 1 {
+		t.Errorf("Counter by namespace was not increased")
+	}
 }
 
 func TestFailedRollingUpgradeUsingErs(t *testing.T) {
@@ -2912,5 +3156,9 @@ func TestFailedRollingUpgradeUsingErs(t *testing.T) {
 
 	if promtestutil.ToFloat64(collectors.Reloaded.With(labelFailed)) != 1 {
 		t.Errorf("Counter was not increased")
+	}
+
+	if promtestutil.ToFloat64(collectors.Reloaded.With(prometheus.Labels{"success": "false", "namespace": ersNamespace})) != 1 {
+		t.Errorf("Counter by namespace was not increased")
 	}
 }
