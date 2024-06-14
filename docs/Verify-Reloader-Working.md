@@ -61,7 +61,7 @@ reloader_reload_executed_total{success="false"} 15
 reloader_reload_executed_total{success="true"} 12
 ```
 
-### Opt-in Granular Metrics
+### Reloads by Namespace
 
 Reloader can also export a metric to show the number of reloads by namespace. This feature is disabled by default, as it can lead to high cardinality in clusters with many namespaces.
 
@@ -72,4 +72,4 @@ reloader_reload_executed_total{success="false", namespace="some-namespace"} 2
 reloader_reload_executed_total{success="true", namespace="some-namespace"} 1
 ```
 
-To opt-in, set the environment variable `METRICS_COUNT_BY_NAMESPACE` to `enabled` or set the Helm value `reloader.enableMetricsByNamespace` to `true`.
+To opt in, set the environment variable `METRICS_COUNT_BY_NAMESPACE` to `enabled` or set the Helm value `reloader.enableMetricsByNamespace` to `true`.
