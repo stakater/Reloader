@@ -128,16 +128,14 @@ reloader:
     #  periodSeconds: 10
     #  successThreshold: 1
 
-    # Specify resource requests/limits for the deployment.
-    # Example:
-    # resources:
-    #   limits:
-    #     cpu: "100m"
-    #     memory: "512Mi"
-    #   requests:
-    #     cpu: "10m"
-    #     memory: "128Mi"
-    resources: {}
+    resources:
+      limits:
+        cpu: "150m"
+        memory: "512Mi"
+      requests:
+        cpu: "10m"
+        memory: "128Mi"
+    
     pod:
       annotations: {}
     priorityClassName: ""
