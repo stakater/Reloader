@@ -27,7 +27,7 @@ func (r ResourceCreatedHandler) Handle() error {
 			return sendUpgradeWebhook(config, options.WebhookUrl)
 		}
 		// process resource based on its type
-		return doRollingUpgrade(config, r.Collectors, r.Recorder)
+		return doRollingUpgrade(config, r.Collectors, r.Recorder, invokeReloadStrategy)
 	}
 	return nil
 }

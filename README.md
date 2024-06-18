@@ -317,6 +317,7 @@ helm uninstall {{RELEASE_NAME}} -n {{NAMESPACE}}
 | `reloader.ignoreSecrets`          | To ignore secrets. Valid value are either `true` or `false`. Either `ignoreSecrets` or `ignoreConfigMaps` can be ignored, not both at the same time | boolean     | `false`   |
 | `reloader.ignoreConfigMaps`       | To ignore configMaps. Valid value are either `true` or `false`                                                                                      | boolean     | `false`   |
 | `reloader.reloadOnCreate`         | Enable reload on create events. Valid value are either `true` or `false`                                                                            | boolean     | `false`   |
+| `reloader.reloadOnDelete`         | Enable reload on delete events. Valid value are either `true` or `false`                                                                            | boolean     | `false`   |
 | `reloader.syncAfterRestart`       | Enable sync after Reloader restarts for **Add** events, works only when reloadOnCreate is `true`. Valid value are either `true` or `false`          | boolean     | `false`   |
 | `reloader.reloadStrategy`         | Strategy to trigger resource restart, set to either `default`, `env-vars` or `annotations`                                                          | enumeration | `default` |
 | `reloader.ignoreNamespaces`       | List of comma separated namespaces to ignore, if multiple are provided, they are combined with the AND operator                                     | string      | `""`      |
@@ -377,11 +378,15 @@ helm uninstall {{RELEASE_NAME}} -n {{NAMESPACE}}
   1. Configmaps/secrets being added to the cache will cause Reloader to perform a rolling update of the associated workload
   1. When applications are deployed for the first time, Reloader will perform a rolling update of the associated workload
   1. If you are running Reloader in HA mode all workloads will have a rolling update performed when a new leader is elected
+- `reloadOnDelete` controls how Reloader handles secrets being deleted. If `reloadOnDelete` is set to true:
+    1. Configmaps/secrets being deleted will cause Reloader to perform a rolling update of the associated workload
 - `serviceMonitor` will be removed in future releases of Reloader in favour of Pod monitor
 - If `reloadOnCreate` is set to false:
   1. Updates to configmaps/secrets that occur while there is no leader will not be picked up by the new leader until a subsequent update of the configmap/secret occurs
   1. In the worst case the window in which there can be no leader is 15s as this is the LeaseDuration
-- By default, `reloadOnCreate` and `syncAfterRestart` are both set to false. Both need to be enabled explicitly
+- If `reloadOnDelete` is set to false:
+    1. Deleting of configmaps/secrets has no effect to pods that references these resources.
+- By default, `reloadOnCreate`, `reloadOnDelete` and `syncAfterRestart` are all set to false. All need to be enabled explicitly
 
 ## Help
 
