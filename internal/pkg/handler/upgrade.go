@@ -142,35 +142,35 @@ func sendWebhook(url string) (string, []error) {
 	return buffer.String(), nil
 }
 
-func doRollingUpgrade(config util.Config, collectors metrics.Collectors, recorder record.EventRecorder) error {
+func doRollingUpgrade(config util.Config, collectors metrics.Collectors, recorder record.EventRecorder, invoke invokeStrategy) error {
 	clients := kube.GetClients()
 
-	err := rollingUpgrade(clients, config, GetDeploymentRollingUpgradeFuncs(), collectors, recorder)
+	err := rollingUpgrade(clients, config, GetDeploymentRollingUpgradeFuncs(), collectors, recorder, invoke)
 	if err != nil {
 		return err
 	}
-	err = rollingUpgrade(clients, config, GetCronJobCreateJobFuncs(), collectors, recorder)
+	err = rollingUpgrade(clients, config, GetCronJobCreateJobFuncs(), collectors, recorder, invoke)
 	if err != nil {
 		return err
 	}
-	err = rollingUpgrade(clients, config, GetDaemonSetRollingUpgradeFuncs(), collectors, recorder)
+	err = rollingUpgrade(clients, config, GetDaemonSetRollingUpgradeFuncs(), collectors, recorder, invoke)
 	if err != nil {
 		return err
 	}
-	err = rollingUpgrade(clients, config, GetStatefulSetRollingUpgradeFuncs(), collectors, recorder)
+	err = rollingUpgrade(clients, config, GetStatefulSetRollingUpgradeFuncs(), collectors, recorder, invoke)
 	if err != nil {
 		return err
 	}
 
 	if kube.IsOpenshift {
-		err = rollingUpgrade(clients, config, GetDeploymentConfigRollingUpgradeFuncs(), collectors, recorder)
+		err = rollingUpgrade(clients, config, GetDeploymentConfigRollingUpgradeFuncs(), collectors, recorder, invoke)
 		if err != nil {
 			return err
 		}
 	}
 
 	if options.IsArgoRollouts == "true" {
-		err = rollingUpgrade(clients, config, GetArgoRolloutRollingUpgradeFuncs(), collectors, recorder)
+		err = rollingUpgrade(clients, config, GetArgoRolloutRollingUpgradeFuncs(), collectors, recorder, invoke)
 		if err != nil {
 			return err
 		}
@@ -179,17 +179,17 @@ func doRollingUpgrade(config util.Config, collectors metrics.Collectors, recorde
 	return nil
 }
 
-func rollingUpgrade(clients kube.Clients, config util.Config, upgradeFuncs callbacks.RollingUpgradeFuncs, collectors metrics.Collectors, recorder record.EventRecorder) error {
+func rollingUpgrade(clients kube.Clients, config util.Config, upgradeFuncs callbacks.RollingUpgradeFuncs, collectors metrics.Collectors, recorder record.EventRecorder, strategy invokeStrategy) error {
 
-	err := PerformRollingUpgrade(clients, config, upgradeFuncs, collectors, recorder)
+	err := PerformAction(clients, config, upgradeFuncs, collectors, recorder, strategy)
 	if err != nil {
 		logrus.Errorf("Rolling upgrade for '%s' failed with error = %v", config.ResourceName, err)
 	}
 	return err
 }
 
-// PerformRollingUpgrade upgrades the deployment if there is any change in configmap or secret data
-func PerformRollingUpgrade(clients kube.Clients, config util.Config, upgradeFuncs callbacks.RollingUpgradeFuncs, collectors metrics.Collectors, recorder record.EventRecorder) error {
+// PerformAction invokes the deployment if there is any change in configmap or secret data
+func PerformAction(clients kube.Clients, config util.Config, upgradeFuncs callbacks.RollingUpgradeFuncs, collectors metrics.Collectors, recorder record.EventRecorder, strategy invokeStrategy) error {
 	items := upgradeFuncs.ItemsFunc(clients, config.Namespace)
 
 	for _, i := range items {
@@ -210,7 +210,7 @@ func PerformRollingUpgrade(clients kube.Clients, config util.Config, upgradeFunc
 		reloaderEnabled, _ := strconv.ParseBool(reloaderEnabledValue)
 		typedAutoAnnotationEnabled, _ := strconv.ParseBool(typedAutoAnnotationEnabledValue)
 		if reloaderEnabled || typedAutoAnnotationEnabled || reloaderEnabledValue == "" && typedAutoAnnotationEnabledValue == "" && options.AutoReloadAll {
-			result = invokeReloadStrategy(upgradeFuncs, i, config, true)
+			result = strategy(upgradeFuncs, i, config, true)
 		}
 
 		if result != constants.Updated && annotationValue != "" {
@@ -219,7 +219,7 @@ func PerformRollingUpgrade(clients kube.Clients, config util.Config, upgradeFunc
 				value = strings.TrimSpace(value)
 				re := regexp.MustCompile("^" + value + "$")
 				if re.Match([]byte(config.ResourceName)) {
-					result = invokeReloadStrategy(upgradeFuncs, i, config, false)
+					result = strategy(upgradeFuncs, i, config, false)
 					if result == constants.Updated {
 						break
 					}
@@ -230,7 +230,7 @@ func PerformRollingUpgrade(clients kube.Clients, config util.Config, upgradeFunc
 		if result != constants.Updated && searchAnnotationValue == "true" {
 			matchAnnotationValue := config.ResourceAnnotations[options.SearchMatchAnnotation]
 			if matchAnnotationValue == "true" {
-				result = invokeReloadStrategy(upgradeFuncs, i, config, true)
+				result = strategy(upgradeFuncs, i, config, true)
 			}
 		}
 
@@ -380,6 +380,8 @@ func getContainerUsingResource(upgradeFuncs callbacks.RollingUpgradeFuncs, item 
 	return container
 }
 
+type invokeStrategy func(upgradeFuncs callbacks.RollingUpgradeFuncs, item runtime.Object, config util.Config, autoReload bool) constants.Result
+
 func invokeReloadStrategy(upgradeFuncs callbacks.RollingUpgradeFuncs, item runtime.Object, config util.Config, autoReload bool) constants.Result {
 	if options.ReloadStrategy == constants.AnnotationsReloadStrategy {
 		return updatePodAnnotations(upgradeFuncs, item, config, autoReload)
@@ -416,6 +418,13 @@ func updatePodAnnotations(upgradeFuncs callbacks.RollingUpgradeFuncs, item runti
 	return constants.Updated
 }
 
+func getReloaderAnnotationKey() string {
+	return fmt.Sprintf("%s/%s",
+		constants.ReloaderAnnotationPrefix,
+		constants.LastReloadedFromAnnotation,
+	)
+}
+
 func createReloadedAnnotations(target *util.ReloadSource) (map[string]string, error) {
 	if target == nil {
 		return nil, errors.New("target is required")
@@ -426,10 +435,7 @@ func createReloadedAnnotations(target *util.ReloadSource) (map[string]string, er
 	// Intentionally only storing the last item in order to keep
 	// the generated annotations as small as possible.
 	annotations := make(map[string]string)
-	lastReloadedResourceName := fmt.Sprintf("%s/%s",
-		constants.ReloaderAnnotationPrefix,
-		constants.LastReloadedFromAnnotation,
-	)
+	lastReloadedResourceName := getReloaderAnnotationKey()
 
 	lastReloadedResource, err := json.Marshal(target)
 	if err != nil {
@@ -440,9 +446,13 @@ func createReloadedAnnotations(target *util.ReloadSource) (map[string]string, er
 	return annotations, nil
 }
 
+func getEnvVarName(resourceName string, typeName string) string {
+	return constants.EnvVarPrefix + util.ConvertToEnvVarName(resourceName) + "_" + typeName
+}
+
 func updateContainerEnvVars(upgradeFuncs callbacks.RollingUpgradeFuncs, item runtime.Object, config util.Config, autoReload bool) constants.Result {
 	var result constants.Result
-	envVar := constants.EnvVarPrefix + util.ConvertToEnvVarName(config.ResourceName) + "_" + config.Type
+	envVar := getEnvVarName(config.ResourceName, config.Type)
 	container := getContainerUsingResource(upgradeFuncs, item, config, autoReload)
 
 	if container == nil {
