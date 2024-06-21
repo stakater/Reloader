@@ -191,6 +191,7 @@ kubectl apply -f https://raw.githubusercontent.com/stakater/Reloader/master/depl
 ```
 
 By default, Reloader gets deployed in `default` namespace and watches changes `secrets` and `configmaps` in all namespaces.Additionally, in the default Reloader deployment, the following resource limits and requests are set:
+
 ```yaml
 resources:
   limits:
