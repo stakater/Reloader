@@ -32,6 +32,8 @@ reloader:
   legacy:
     rbac: false
   matchLabels: {}
+  # Set to true to expose a prometheus counter of reloads by namespace (this metric may have high cardinality in clusters with many namespaces)
+  enableMetricsByNamespace: false
   deployment:
     # If you wish to run multiple replicas set reloader.enableHA = true
     replicas: 1

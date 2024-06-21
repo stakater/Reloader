@@ -338,6 +338,7 @@ helm uninstall {{RELEASE_NAME}} -n {{NAMESPACE}}
 | `reloader.readOnlyRootFileSystem` | Enforce readOnlyRootFilesystem                                                                                                                      | boolean     | `false`   |
 | `reloader.legacy.rbac`            |                                                                                                                                                     | boolean     | `false`   |
 | `reloader.matchLabels`            | Pod labels to match                                                                                                                                 | map         | `{}`      |
+| `reloader.enableMetricsByNamespace`            | Expose an additional Prometheus counter of reloads by namespace (this metric may have high cardinality in clusters with many namespaces) | boolean         | `false`      |
 
 #### Deployment Reloader Parameters
 
