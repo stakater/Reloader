@@ -215,7 +215,7 @@ jobs:
             --set reloader.deployment.resources.limits.cpu=150m \
             --set reloader.deployment.resources.limits.memory=512Mi \
             --set reloader.deployment.resources.requests.cpu=10m \
-            --set reloader.deployment.resources.requests.memory=128Mi > deployments/kubernetes/reloader.yaml
+            --set reloader.deployment.resources.requests.memory=512Mi > deployments/kubernetes/reloader.yaml
           
           helm template reloader deployments/kubernetes/chart/reloader/ --output-dir deployments/kubernetes/manifests && mv deployments/kubernetes/manifests/reloader/templates/* deployments/kubernetes/manifests/ && rm -r deployments/kubernetes/manifests/reloader
 
