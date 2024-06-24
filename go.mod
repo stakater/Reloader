@@ -3,7 +3,7 @@ module github.com/stakater/Reloader
 go 1.21
 
 require (
-	github.com/argoproj/argo-rollouts v1.7.0
+	github.com/argoproj/argo-rollouts v1.7.1
 	github.com/openshift/api v3.9.0+incompatible
 	github.com/openshift/client-go v0.0.0-20231110140829-a6ca51f6d5ba
 	github.com/parnurzeal/gorequest v0.2.16
