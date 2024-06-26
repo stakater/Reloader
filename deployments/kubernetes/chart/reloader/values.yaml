@@ -147,6 +147,11 @@ reloader:
     # imagePullSecrets:
     #   - name: myregistrykey
 
+    # Put "0" in either to have go runtime ignore the set value.
+    # Otherwise, see https://pkg.go.dev/runtime#hdr-Environment_Variables for GOMAXPROCS and GOMEMLIMIT
+    gomaxprocsOverride: ""
+    gomemlimitOverride: ""
+
   service: {}
     # labels: {}
     # annotations: {}

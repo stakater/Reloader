@@ -77,14 +77,22 @@ spec:
         imagePullPolicy: {{ .Values.reloader.deployment.image.pullPolicy }}
         name: {{ template "reloader-fullname" . }}
         env:
-        - name: GOMEMLIMIT
+        - name: GOMAXPROCS
+        {{- if .Values.reloader.deployment.gomaxprocsOverride }}
+          value: {{ .Values.reloader.deployment.gomaxprocsOverride | quote }}
+        {{- else }}
           valueFrom:
             resourceFieldRef:
               resource: limits.memory
-        - name: GOMAXPROCS
+        {{- end }}
+        - name: GOMEMLIMIT
+        {{- if .Values.reloader.deployment.gomemlimitOverride }}
+          value: {{ .Values.reloader.deployment.gomemlimitOverride | quote }}
+        {{- else }}
           valueFrom:
             resourceFieldRef:
               resource: limits.cpu
+        {{- end }}
       {{- range $name, $value := .Values.reloader.deployment.env.open }}
       {{- if not (empty $value) }}
         - name: {{ $name | quote }}
@@ -140,7 +148,6 @@ spec:
           value: enabled
       {{- end }}
       {{- end }}
-
         ports:
         - name: http
           containerPort: 9090
