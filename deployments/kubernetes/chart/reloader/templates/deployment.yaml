@@ -76,8 +76,23 @@ spec:
       - image: "{{ .Values.reloader.deployment.image.name }}:{{ .Values.reloader.deployment.image.tag }}"
         imagePullPolicy: {{ .Values.reloader.deployment.image.pullPolicy }}
         name: {{ template "reloader-fullname" . }}
-      {{- if or (.Values.reloader.deployment.env.open) (.Values.reloader.deployment.env.secret) (.Values.reloader.deployment.env.field) (.Values.reloader.deployment.env.existing) (eq .Values.reloader.watchGlobally false) (.Values.reloader.enableHA) (.Values.reloader.enableMetricsByNamespace)}}
         env:
+        - name: GOMAXPROCS
+        {{- if .Values.reloader.deployment.gomaxprocsOverride }}
+          value: {{ .Values.reloader.deployment.gomaxprocsOverride | quote }}
+        {{- else }}
+          valueFrom:
+            resourceFieldRef:
+              resource: limits.memory
+        {{- end }}
+        - name: GOMEMLIMIT
+        {{- if .Values.reloader.deployment.gomemlimitOverride }}
+          value: {{ .Values.reloader.deployment.gomemlimitOverride | quote }}
+        {{- else }}
+          valueFrom:
+            resourceFieldRef:
+              resource: limits.cpu
+        {{- end }}
       {{- range $name, $value := .Values.reloader.deployment.env.open }}
       {{- if not (empty $value) }}
         - name: {{ $name | quote }}
@@ -112,7 +127,6 @@ spec:
             fieldRef:
               fieldPath: {{ $value | quote}}
       {{- end }}
-      {{- end }}
       {{- if eq .Values.reloader.watchGlobally false }}
         - name: KUBERNETES_NAMESPACE
           valueFrom:
@@ -134,7 +148,6 @@ spec:
           value: enabled
       {{- end }}
       {{- end }}
-
         ports:
         - name: http
           containerPort: 9090
