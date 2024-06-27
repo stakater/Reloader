@@ -1,4 +1,4 @@
-name: Pull Request
+name: Pull Request - Enterprise
 
 on:
   pull_request_target:
