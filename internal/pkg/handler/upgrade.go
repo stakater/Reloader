@@ -245,6 +245,7 @@ func PerformAction(clients kube.Clients, config util.Config, upgradeFuncs callba
 				message := fmt.Sprintf("Update for '%s' of type '%s' in namespace '%s' failed with error %v", resourceName, upgradeFuncs.ResourceType, config.Namespace, err)
 				logrus.Errorf(message)
 				collectors.Reloaded.With(prometheus.Labels{"success": "false"}).Inc()
+				collectors.ReloadedByNamespace.With(prometheus.Labels{"success": "false", "namespace": config.Namespace}).Inc()
 				if recorder != nil {
 					recorder.Event(i, v1.EventTypeWarning, "ReloadFail", message)
 				}
@@ -254,6 +255,7 @@ func PerformAction(clients kube.Clients, config util.Config, upgradeFuncs callba
 				message += fmt.Sprintf(", Updated '%s' of type '%s' in namespace '%s'", resourceName, upgradeFuncs.ResourceType, config.Namespace)
 				logrus.Infof(message)
 				collectors.Reloaded.With(prometheus.Labels{"success": "true"}).Inc()
+				collectors.ReloadedByNamespace.With(prometheus.Labels{"success": "true", "namespace": config.Namespace}).Inc()
 				alert_on_reload, ok := os.LookupEnv("ALERT_ON_RELOAD")
 				if recorder != nil {
 					recorder.Event(i, v1.EventTypeNormal, "Reloaded", message)

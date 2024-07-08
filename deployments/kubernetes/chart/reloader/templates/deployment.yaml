@@ -76,7 +76,7 @@ spec:
       - image: "{{ .Values.reloader.deployment.image.name }}:{{ .Values.reloader.deployment.image.tag }}"
         imagePullPolicy: {{ .Values.reloader.deployment.image.pullPolicy }}
         name: {{ template "reloader-fullname" . }}
-      {{- if or (.Values.reloader.deployment.env.open) (.Values.reloader.deployment.env.secret) (.Values.reloader.deployment.env.field) (.Values.reloader.deployment.env.existing) (eq .Values.reloader.watchGlobally false) (.Values.reloader.enableHA)}}
+      {{- if or (.Values.reloader.deployment.env.open) (.Values.reloader.deployment.env.secret) (.Values.reloader.deployment.env.field) (.Values.reloader.deployment.env.existing) (eq .Values.reloader.watchGlobally false) (.Values.reloader.enableHA) (.Values.reloader.enableMetricsByNamespace)}}
         env:
       {{- range $name, $value := .Values.reloader.deployment.env.open }}
       {{- if not (empty $value) }}
@@ -128,6 +128,10 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: metadata.namespace
+      {{- end }}
+      {{- if .Values.reloader.enableMetricsByNamespace }}
+        - name: METRICS_COUNT_BY_NAMESPACE
+          value: enabled
       {{- end }}
       {{- end }}
 
