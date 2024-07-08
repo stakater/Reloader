@@ -392,7 +392,7 @@ helm uninstall {{RELEASE_NAME}} -n {{NAMESPACE}}
 - If `reloadOnCreate` is set to false:
   1. Updates to configmaps/secrets that occur while there is no leader will not be picked up by the new leader until a subsequent update of the configmap/secret occurs
   1. In the worst case the window in which there can be no leader is 15s as this is the LeaseDuration
-- By default, `reloadOnCreate`, `reloadOnDelete` and `syncAfterRestart` are all set to false. All need to be enabled explicitly
+- By default, `reloadOnCreate` and `syncAfterRestart` are both set to false. Both need to be enabled explicitly
 
 ## Help
 
