@@ -934,6 +934,55 @@ func VerifyResourceEnvVarUpdate(clients kube.Clients, config util.Config, envVar
 	return false
 }
 
+// VerifyResourceEnvVarRemoved verifies whether the rolling upgrade happened or not and all Envvars SKAKATER_name_CONFIGMAP/SECRET are removed
+func VerifyResourceEnvVarRemoved(clients kube.Clients, config util.Config, envVarPostfix string, upgradeFuncs callbacks.RollingUpgradeFuncs) bool {
+	items := upgradeFuncs.ItemsFunc(clients, config.Namespace)
+	for _, i := range items {
+		containers := upgradeFuncs.ContainersFunc(i)
+		accessor, err := meta.Accessor(i)
+		if err != nil {
+			return false
+		}
+
+		annotations := accessor.GetAnnotations()
+		// match statefulsets with the correct annotation
+
+		annotationValue := annotations[config.Annotation]
+		searchAnnotationValue := annotations[options.AutoSearchAnnotation]
+		reloaderEnabledValue := annotations[options.ReloaderAutoAnnotation]
+		typedAutoAnnotationEnabledValue := annotations[config.TypedAutoAnnotation]
+		reloaderEnabled, err := strconv.ParseBool(reloaderEnabledValue)
+		typedAutoAnnotationEnabled, errTyped := strconv.ParseBool(typedAutoAnnotationEnabledValue)
+
+		matches := false
+		if err == nil && reloaderEnabled || errTyped == nil && typedAutoAnnotationEnabled {
+			matches = true
+		} else if annotationValue != "" {
+			values := strings.Split(annotationValue, ",")
+			for _, value := range values {
+				value = strings.Trim(value, " ")
+				if value == config.ResourceName {
+					matches = true
+					break
+				}
+			}
+		} else if searchAnnotationValue == "true" {
+			if config.ResourceAnnotations[options.SearchMatchAnnotation] == "true" {
+				matches = true
+			}
+		}
+
+		if matches {
+			envName := constants.EnvVarPrefix + util.ConvertToEnvVarName(config.ResourceName) + "_" + envVarPostfix
+			value := GetResourceSHAFromEnvVar(containers, envName)
+			if value == "" {
+				return true
+			}
+		}
+	}
+	return false
+}
+
 // VerifyResourceAnnotationUpdate verifies whether the rolling upgrade happened or not
 func VerifyResourceAnnotationUpdate(clients kube.Clients, config util.Config, upgradeFuncs callbacks.RollingUpgradeFuncs) bool {
 	items := upgradeFuncs.ItemsFunc(clients, config.Namespace)
@@ -977,4 +1026,8 @@ func VerifyResourceAnnotationUpdate(clients kube.Clients, config util.Config, up
 		}
 	}
 	return false
+}
+
+func GetSHAfromEmptyData() string {
+	return crypto.GenerateSHA("")
 }

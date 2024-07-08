@@ -178,13 +178,22 @@ func (c *Controller) Update(old interface{}, new interface{}) {
 
 // Delete function to add an object to the queue in case of deleting a resource
 func (c *Controller) Delete(old interface{}) {
+
+	if options.ReloadOnDelete == "true" {
+		if !c.resourceInIgnoredNamespace(old) && c.resourceInSelectedNamespaces(old) && secretControllerInitialized && configmapControllerInitialized {
+			c.queue.Add(handler.ResourceDeleteHandler{
+				Resource:   old,
+				Collectors: c.collectors,
+				Recorder:   c.recorder,
+			})
+		}
+	}
+
 	switch object := old.(type) {
 	case *v1.Namespace:
 		c.removeSelectedNamespaceFromCache(*object)
 		return
 	}
-
-	// Todo: Any future delete event can be handled here
 }
 
 // Run function for controller which handles the queue
