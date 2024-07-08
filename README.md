@@ -390,7 +390,7 @@ helm uninstall {{RELEASE_NAME}} -n {{NAMESPACE}}
     1. When applications are deployed for the first time, Reloader will perform a rolling update of the associated workload
     1. If you are running Reloader in HA mode all workloads will have a rolling update performed when a new leader is elected
 - `reloadOnDelete` controls how Reloader handles secrets being deleted. If `reloadOnDelete` is set to true:
-    1. Configmaps/secrets being deleted will cause Reloader to perform a rolling update of the associated workload- `serviceMonitor` will be removed in future releases of Reloader in favour of Pod monitor
+    1. Configmaps/secrets being deleted will cause Reloader to perform a rolling update of the associated workload
 - `serviceMonitor` will be removed in future releases of Reloader in favour of Pod monitor
 - If `reloadOnCreate` is set to false:
     1. Updates to configmaps/secrets that occur while there is no leader will not be picked up by the new leader until a subsequent update of the configmap/secret occurs
