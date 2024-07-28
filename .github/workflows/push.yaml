@@ -32,7 +32,7 @@ jobs:
       - name: Check out code
         uses: actions/checkout@v4
         with:
-          token: ${{ secrets.STAKATER_GITHUB_TOKEN }}
+          token: ${{ secrets.MPEGUSHIN_GITHUB_TOKEN }}
           fetch-depth: 0 # otherwise, you will fail to push refs to dest repo
 
       # Setting up helm binary
@@ -85,7 +85,7 @@ jobs:
         id: generate_tag
         uses: anothrNick/github-tag-action@1.70.0
         env:
-          GITHUB_TOKEN: ${{ secrets.STAKATER_GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.MPEGUSHIN_GITHUB_TOKEN }}
           WITH_V: true
           DEFAULT_BUMP: patch
           DRY_RUN: true
@@ -198,7 +198,7 @@ jobs:
         id: generate_operator_tag
         uses: anothrNick/github-tag-action@1.70.0
         env:
-          GITHUB_TOKEN: ${{ secrets.STAKATER_GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.MPEGUSHIN_GITHUB_TOKEN }}
           WITH_V: false
           DEFAULT_BUMP: patch
           DRY_RUN: true
@@ -239,7 +239,7 @@ jobs:
           branch: master
           repository: stakater-charts
           target_dir: docs
-          token: ${{ secrets.STAKATER_GITHUB_TOKEN }}
+          token: ${{ secrets.MPEGUSHIN_GITHUB_TOKEN }}
           charts_dir: deployments/kubernetes/chart/
           charts_url: ${{ env.HELM_REGISTRY_URL }}
           owner: stakater
@@ -268,12 +268,12 @@ jobs:
       - name: Push changes
         uses: ad-m/github-push-action@master
         with:
-          github_token: ${{ secrets.STAKATER_GITHUB_TOKEN }}
+          github_token: ${{ secrets.MPEGUSHIN_GITHUB_TOKEN }}
           branch: ${{ github.ref }}
 
       - name: Push Latest Tag
         uses: anothrNick/github-tag-action@1.70.0
         env:
-          GITHUB_TOKEN: ${{ secrets.STAKATER_GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.MPEGUSHIN_GITHUB_TOKEN }}
           WITH_V: true
           DEFAULT_BUMP: patch
