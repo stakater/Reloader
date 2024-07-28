@@ -21,6 +21,7 @@ env:
   KIND_VERSION: "0.17.0"
   HELM_REGISTRY_URL: "https://stakater.github.io/stakater-charts"
   REGISTRY: ghcr.io
+  DOCKER_REPOSITORY: "mpegushin90/reloader"
 
 jobs:
   build:
@@ -52,13 +53,6 @@ jobs:
         run: |
           make install
 
-      - name: Run golangci-lint
-        uses: golangci/golangci-lint-action@v5
-        with:
-          version: latest
-          only-new-issues: false
-          args: --timeout 10m
-
       - name: Generate Tag
         id: generate_tag
         uses: anothrNick/github-tag-action@1.70.0
@@ -82,7 +76,7 @@ jobs:
 
       - name: Generate image repository path for Docker registry
         run: |
-          echo DOCKER_IMAGE_REPOSITORY=$(echo ${{ github.repository }} | tr '[:upper:]' '[:lower:]') >> $GITHUB_ENV
+          echo DOCKER_IMAGE_REPOSITORY=${{ env.DOCKER_REPOSITORY }} >> $GITHUB_ENV
 
       - name: Build and Push Docker Image to Docker registry
         uses: docker/build-push-action@v5
