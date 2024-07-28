@@ -1,4 +1,4 @@
-name: Snyk Container CVE scanning
+name: Snyk Container CVE
 on: push
 jobs:
   snyk:
