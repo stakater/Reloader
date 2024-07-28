@@ -34,16 +34,7 @@ RUN CGO_ENABLED=0 \
 
 # Use distroless as minimal base image to package the manager binary
 # Refer to https://github.com/GoogleContainerTools/distroless for more details
-FROM ghcr.io/linuxcontainers/alpine:latest
-RUN set -x && \
-    # Add iputils to have for support cases ping and related stuff available
-    apk --no-cache add --upgrade iputils && \
-    apk --no-cache add --upgrade bash && \
-    apk --no-cache add --upgrade tzdata && \
-    apk --no-cache add --upgrade curl && \
-    apk --no-cache add --upgrade wget && \
-    apk --no-cache add --upgrade busybox-extras && \
-    apk --no-cache add --upgrade busybox-extras
+FROM ubuntu:latest
 
 WORKDIR /
 COPY --from=builder /workspace/manager .
