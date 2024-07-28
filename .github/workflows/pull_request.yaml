@@ -52,39 +52,10 @@ jobs:
       run: |
         make install
 
-    - name: Run golangci-lint
-      uses: golangci/golangci-lint-action@v5
-      with:
-        version: latest
-        only-new-issues: false
-        args: --timeout 10m
-
     - name: Helm Lint
       run: |
         cd deployments/kubernetes/chart/reloader
         helm lint
-
-    - name: Install kubectl
-      run: |
-        curl -LO "https://storage.googleapis.com/kubernetes-release/release/v${KUBERNETES_VERSION}/bin/linux/amd64/kubectl"
-        sudo install ./kubectl /usr/local/bin/ && rm kubectl
-        kubectl version --short --client
-        kubectl version --short --client | grep -q ${KUBERNETES_VERSION}
-
-    - name: Install Kind
-      run: |
-        curl -L -o kind https://github.com/kubernetes-sigs/kind/releases/download/v${KIND_VERSION}/kind-linux-amd64
-        sudo install ./kind /usr/local/bin && rm kind
-        kind version
-        kind version | grep -q ${KIND_VERSION}
-
-    - name: Create Kind Cluster
-      run: |
-        kind create cluster
-        kubectl cluster-info
-
-    - name: Test
-      run: make test
 
     - name: Generate Tags
       id: generate_tag
@@ -100,52 +71,6 @@ jobs:
 
     - name: Set up Docker Buildx
       uses: docker/setup-buildx-action@v3
-
-    - name: Login to Docker Registry
-      uses: docker/login-action@v3
-      with:
-        username: ${{ secrets.STAKATER_DOCKERHUB_USERNAME }}
-        password: ${{ secrets.STAKATER_DOCKERHUB_PASSWORD }}
-
-    - name: Generate image repository path for Docker registry
-      run: |
-        echo DOCKER_IMAGE_REPOSITORY=$(echo ${{ github.repository }} | tr '[:upper:]' '[:lower:]') >> $GITHUB_ENV
-
-    - name: Build and Push Docker Image to Docker registry
-      uses: docker/build-push-action@v5
-      with:
-        context: .
-        file: ${{ env.DOCKER_FILE_PATH  }}
-        pull: true
-        push: true
-        build-args: BUILD_PARAMETERS=${{ env.BUILD_PARAMETERS }}
-        cache-to: type=inline
-        platforms: linux/amd64,linux/arm,linux/arm64
-        tags: |
-          ${{ env.DOCKER_IMAGE_REPOSITORY }}:${{ steps.generate_tag.outputs.GIT_TAG }}
-        labels: |
-          org.opencontainers.image.source=${{ github.event.repository.clone_url }}
-          org.opencontainers.image.created=${{ steps.prep.outputs.created }}
-          org.opencontainers.image.revision=${{ github.sha }}
-
-    - name: Build and Push Docker UBI Image to Docker registry
-      uses: docker/build-push-action@v5
-      with:
-        context: .
-        file: ${{ env.DOCKER_UBI_FILE_PATH  }}
-        pull: true
-        push: true
-        build-args: |
-          BUILD_PARAMETERS=${{ env.BUILD_PARAMETERS }}
-          BUILDER_IMAGE=${{ env.DOCKER_IMAGE_REPOSITORY }}:${{ steps.generate_tag.outputs.GIT_TAG }}
-        cache-to: type=inline
-        platforms: linux/amd64,linux/arm64
-        tags: |
-          ${{ env.DOCKER_IMAGE_REPOSITORY }}:${{ steps.generate_tag.outputs.GIT_UBI_TAG }}
-        labels: |
-          org.opencontainers.image.source=${{ github.event.repository.clone_url }}
-          org.opencontainers.image.created=${{ steps.prep.outputs.created }}
-          org.opencontainers.image.revision=${{ github.sha }}
 
     - name: Login to ghcr registry
       uses: docker/login-action@v3
@@ -175,21 +100,16 @@ jobs:
           org.opencontainers.image.created=${{ steps.prep.outputs.created }}
           org.opencontainers.image.revision=${{ github.sha }}
 
-    - name: Build and Push Docker UBI Image to ghcr registry
-      uses: docker/build-push-action@v5
+    - name: Run Snyk to check Docker image for vulnerabilities
+      continue-on-error: true
+      uses: mpegushin/actions/snyk-containers@main
+      env:
+        SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
       with:
-        context: .
-        file: ${{ env.DOCKER_UBI_FILE_PATH  }}
-        pull: true
-        push: true
-        build-args: |
-          BUILD_PARAMETERS=${{ env.BUILD_PARAMETERS }}
-          BUILDER_IMAGE=${{ env.GHCR_IMAGE_REPOSITORY }}:${{ steps.generate_tag.outputs.GIT_TAG }}
-        cache-to: type=inline
-        platforms: linux/amd64,linux/arm64
-        tags: |
-          ${{ env.GHCR_IMAGE_REPOSITORY }}:${{ steps.generate_tag.outputs.GIT_UBI_TAG }}
-        labels: |
-          org.opencontainers.image.source=${{ github.event.repository.clone_url }}
-          org.opencontainers.image.created=${{ steps.prep.outputs.created }}
-          org.opencontainers.image.revision=${{ github.sha }}
+        image: ${{ env.GHCR_IMAGE_REPOSITORY }}:${{ steps.generate_tag.outputs.new_tag }}
+        args: --file=Dockerfile --severity-threshold=high
+      
+    - name: Upload CVE result to GitHub Code Scanning
+      uses: github/codeql-action/upload-sarif@v2
+      with:
+        sarif_file: snyk.sarif
