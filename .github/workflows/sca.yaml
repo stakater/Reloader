@@ -3,6 +3,7 @@ on: push
 jobs:
   security:
     runs-on: ubuntu-latest
+    if: "! contains(toJSON(github.event.commits.*.message), '[skip-ci]')"
     steps:
       - uses: actions/checkout@master
       - name: Run Snyk to check for vulnerabilities
