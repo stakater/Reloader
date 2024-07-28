@@ -1,7 +1,7 @@
-name: workflow for Snyk security scan
+name: Snyk SCA
 on: push
 jobs:
-  security:
+  snyk:
     runs-on: ubuntu-latest
     if: "! contains(toJSON(github.event.commits.*.message), '[skip-ci]')"
     steps:
