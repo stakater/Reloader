@@ -10,12 +10,1090 @@
           "version": "1.1292.1",
           "informationUri": "https://docs.snyk.io/",
           "properties": {
-            "artifactsScanned": 38
+            "artifactsScanned": 100
           },
-          "rules": []
+          "rules": [
+            {
+              "id": "SNYK-UBUNTU2010-BASH-1030916",
+              "shortDescription": {
+                "text": "Low severity - Improper Check for Dropped Privileges vulnerability in bash"
+              },
+              "fullDescription": {
+                "text": "(CVE-2019-18276) bash@5.0-6ubuntu2"
+              },
+              "help": {
+                "text": "",
+                "markdown": "## NVD Description\n**_Note:_** _Versions mentioned in the description apply only to the upstream `bash` package and not the `bash` package as distributed by `Ubuntu`._\n_See `How to fix?` for `Ubuntu:20.10` relevant fixed versions and status._\n\nAn issue was discovered in disable_priv_mode in shell.c in GNU Bash through 5.0 patch 11. By default, if Bash is run with its effective UID not equal to its real UID, it will drop privileges by setting its effective UID to its real UID. However, it does so incorrectly. On Linux and other systems that support &#34;saved UID&#34; functionality, the saved UID is not dropped. An attacker with command execution in the shell can use &#34;enable -f&#34; for runtime loading of a new builtin, which can be a shared object that calls setuid() and therefore regains privileges. However, binaries running with an effective UID of 0 are unaffected.\n## Remediation\nThere is no fixed version for `Ubuntu:20.10` `bash`.\n## References\n- [http://people.ubuntu.com/~ubuntu-security/cve/CVE-2019-18276](http://people.ubuntu.com/~ubuntu-security/cve/CVE-2019-18276)\n- [https://security.netapp.com/advisory/ntap-20200430-0003/](https://security.netapp.com/advisory/ntap-20200430-0003/)\n- [https://security-tracker.debian.org/tracker/CVE-2019-18276](https://security-tracker.debian.org/tracker/CVE-2019-18276)\n- [https://security.gentoo.org/glsa/202105-34](https://security.gentoo.org/glsa/202105-34)\n- [https://github.com/bminor/bash/commit/951bdaad7a18cc0dc1036bba86b18b90874d39ff](https://github.com/bminor/bash/commit/951bdaad7a18cc0dc1036bba86b18b90874d39ff)\n- [http://packetstormsecurity.com/files/155498/Bash-5.0-Patch-11-Privilege-Escalation.html](http://packetstormsecurity.com/files/155498/Bash-5.0-Patch-11-Privilege-Escalation.html)\n- [https://www.youtube.com/watch?v=-wGtxJ8opa8](https://www.youtube.com/watch?v=-wGtxJ8opa8)\n- [https://lists.apache.org/thread.html/rf9fa47ab66495c78bb4120b0754dd9531ca2ff0430f6685ac9b07772@%3Cdev.mina.apache.org%3E](https://lists.apache.org/thread.html/rf9fa47ab66495c78bb4120b0754dd9531ca2ff0430f6685ac9b07772@%3Cdev.mina.apache.org%3E)\n- [https://www.oracle.com/security-alerts/cpuapr2022.html](https://www.oracle.com/security-alerts/cpuapr2022.html)\n- [https://lists.apache.org/thread.html/rf9fa47ab66495c78bb4120b0754dd9531ca2ff0430f6685ac9b07772%40%3Cdev.mina.apache.org%3E](https://lists.apache.org/thread.html/rf9fa47ab66495c78bb4120b0754dd9531ca2ff0430f6685ac9b07772%40%3Cdev.mina.apache.org%3E)\n- [https://www.exploit-db.com/exploits/47726](https://www.exploit-db.com/exploits/47726)\n"
+              },
+              "defaultConfiguration": {
+                "level": "warning"
+              },
+              "properties": {
+                "tags": [
+                  "security",
+                  "CWE-273",
+                  "deb"
+                ],
+                "cvssv3_baseScore": 7.8,
+                "security-severity": "7.8"
+              }
+            },
+            {
+              "id": "SNYK-UBUNTU2010-COREUTILS-1028485",
+              "shortDescription": {
+                "text": "Low severity - Improper Input Validation vulnerability in coreutils"
+              },
+              "fullDescription": {
+                "text": "(CVE-2016-2781) coreutils@8.32-3ubuntu1"
+              },
+              "help": {
+                "text": "",
+                "markdown": "## NVD Description\n**_Note:_** _Versions mentioned in the description apply only to the upstream `coreutils` package and not the `coreutils` package as distributed by `Ubuntu`._\n_See `How to fix?` for `Ubuntu:20.10` relevant fixed versions and status._\n\nchroot in GNU coreutils, when used with --userspec, allows local users to escape to the parent session via a crafted TIOCSTI ioctl call, which pushes characters to the terminal&#39;s input buffer.\n## Remediation\nThere is no fixed version for `Ubuntu:20.10` `coreutils`.\n## References\n- [http://people.ubuntu.com/~ubuntu-security/cve/CVE-2016-2781](http://people.ubuntu.com/~ubuntu-security/cve/CVE-2016-2781)\n- [https://security-tracker.debian.org/tracker/CVE-2016-2781](https://security-tracker.debian.org/tracker/CVE-2016-2781)\n- [https://lists.apache.org/thread.html/rf9fa47ab66495c78bb4120b0754dd9531ca2ff0430f6685ac9b07772@%3Cdev.mina.apache.org%3E](https://lists.apache.org/thread.html/rf9fa47ab66495c78bb4120b0754dd9531ca2ff0430f6685ac9b07772@%3Cdev.mina.apache.org%3E)\n- [http://www.openwall.com/lists/oss-security/2016/02/28/2](http://www.openwall.com/lists/oss-security/2016/02/28/2)\n- [http://www.openwall.com/lists/oss-security/2016/02/28/3](http://www.openwall.com/lists/oss-security/2016/02/28/3)\n- [https://lists.apache.org/thread.html/rf9fa47ab66495c78bb4120b0754dd9531ca2ff0430f6685ac9b07772%40%3Cdev.mina.apache.org%3E](https://lists.apache.org/thread.html/rf9fa47ab66495c78bb4120b0754dd9531ca2ff0430f6685ac9b07772%40%3Cdev.mina.apache.org%3E)\n"
+              },
+              "defaultConfiguration": {
+                "level": "warning"
+              },
+              "properties": {
+                "tags": [
+                  "security",
+                  "CWE-20",
+                  "deb"
+                ],
+                "cvssv3_baseScore": 6.5,
+                "security-severity": "6.5"
+              }
+            },
+            {
+              "id": "SNYK-UBUNTU2010-GLIBC-1033733",
+              "shortDescription": {
+                "text": "Low severity - Improper Input Validation vulnerability in glibc"
+              },
+              "fullDescription": {
+                "text": "(CVE-2016-10228) glibc/libc-bin@2.32-0ubuntu3"
+              },
+              "help": {
+                "text": "",
+                "markdown": "## NVD Description\n**_Note:_** _Versions mentioned in the description apply only to the upstream `glibc` package and not the `glibc` package as distributed by `Ubuntu`._\n_See `How to fix?` for `Ubuntu:20.10` relevant fixed versions and status._\n\nThe iconv program in the GNU C Library (aka glibc or libc6) 2.31 and earlier, when invoked with multiple suffixes in the destination encoding (TRANSLATE or IGNORE) along with the -c option, enters an infinite loop when processing invalid multi-byte input sequences, leading to a denial of service.\n## Remediation\nThere is no fixed version for `Ubuntu:20.10` `glibc`.\n## References\n- [http://people.ubuntu.com/~ubuntu-security/cve/CVE-2016-10228](http://people.ubuntu.com/~ubuntu-security/cve/CVE-2016-10228)\n- [https://sourceware.org/bugzilla/show_bug.cgi?id=19519#c21](https://sourceware.org/bugzilla/show_bug.cgi?id=19519#c21)\n- [https://sourceware.org/bugzilla/show_bug.cgi?id=26224](https://sourceware.org/bugzilla/show_bug.cgi?id=26224)\n- [https://security-tracker.debian.org/tracker/CVE-2016-10228](https://security-tracker.debian.org/tracker/CVE-2016-10228)\n- [https://security.gentoo.org/glsa/202101-20](https://security.gentoo.org/glsa/202101-20)\n- [https://sourceware.org/bugzilla/show_bug.cgi?id=19519](https://sourceware.org/bugzilla/show_bug.cgi?id=19519)\n- [https://lists.apache.org/thread.html/rf9fa47ab66495c78bb4120b0754dd9531ca2ff0430f6685ac9b07772@%3Cdev.mina.apache.org%3E](https://lists.apache.org/thread.html/rf9fa47ab66495c78bb4120b0754dd9531ca2ff0430f6685ac9b07772@%3Cdev.mina.apache.org%3E)\n- [http://openwall.com/lists/oss-security/2017/03/01/10](http://openwall.com/lists/oss-security/2017/03/01/10)\n- [http://www.securityfocus.com/bid/96525](http://www.securityfocus.com/bid/96525)\n- [https://www.oracle.com/security-alerts/cpuapr2022.html](https://www.oracle.com/security-alerts/cpuapr2022.html)\n- [https://lists.debian.org/debian-lts-announce/2022/10/msg00021.html](https://lists.debian.org/debian-lts-announce/2022/10/msg00021.html)\n- [https://lists.apache.org/thread.html/rf9fa47ab66495c78bb4120b0754dd9531ca2ff0430f6685ac9b07772%40%3Cdev.mina.apache.org%3E](https://lists.apache.org/thread.html/rf9fa47ab66495c78bb4120b0754dd9531ca2ff0430f6685ac9b07772%40%3Cdev.mina.apache.org%3E)\n"
+              },
+              "defaultConfiguration": {
+                "level": "warning"
+              },
+              "properties": {
+                "tags": [
+                  "security",
+                  "CWE-20",
+                  "deb"
+                ],
+                "cvssv3_baseScore": 5.9,
+                "security-severity": "5.9"
+              }
+            },
+            {
+              "id": "SNYK-UBUNTU2010-GLIBC-1048388",
+              "shortDescription": {
+                "text": "Low severity - Reachable Assertion vulnerability in glibc"
+              },
+              "fullDescription": {
+                "text": "(CVE-2020-29562) glibc/libc-bin@2.32-0ubuntu3"
+              },
+              "help": {
+                "text": "",
+                "markdown": "## NVD Description\n**_Note:_** _Versions mentioned in the description apply only to the upstream `glibc` package and not the `glibc` package as distributed by `Ubuntu`._\n_See `How to fix?` for `Ubuntu:20.10` relevant fixed versions and status._\n\nThe iconv function in the GNU C Library (aka glibc or libc6) 2.30 to 2.32, when converting UCS4 text containing an irreversible character, fails an assertion in the code path and aborts the program, potentially resulting in a denial of service.\n## Remediation\nThere is no fixed version for `Ubuntu:20.10` `glibc`.\n## References\n- [http://people.ubuntu.com/~ubuntu-security/cve/CVE-2020-29562](http://people.ubuntu.com/~ubuntu-security/cve/CVE-2020-29562)\n- [https://security.netapp.com/advisory/ntap-20210122-0004/](https://security.netapp.com/advisory/ntap-20210122-0004/)\n- [https://lists.fedoraproject.org/archives/list/package-announce@lists.fedoraproject.org/message/TVCUNLQ3HXGS4VPUQKWTJGRAW2KTFGXS/](https://lists.fedoraproject.org/archives/list/package-announce@lists.fedoraproject.org/message/TVCUNLQ3HXGS4VPUQKWTJGRAW2KTFGXS/)\n- [https://security.gentoo.org/glsa/202101-20](https://security.gentoo.org/glsa/202101-20)\n- [https://sourceware.org/bugzilla/show_bug.cgi?id=26923](https://sourceware.org/bugzilla/show_bug.cgi?id=26923)\n- [https://lists.apache.org/thread.html/rf9fa47ab66495c78bb4120b0754dd9531ca2ff0430f6685ac9b07772@%3Cdev.mina.apache.org%3E](https://lists.apache.org/thread.html/rf9fa47ab66495c78bb4120b0754dd9531ca2ff0430f6685ac9b07772@%3Cdev.mina.apache.org%3E)\n- [https://lists.apache.org/thread.html/rf9fa47ab66495c78bb4120b0754dd9531ca2ff0430f6685ac9b07772%40%3Cdev.mina.apache.org%3E](https://lists.apache.org/thread.html/rf9fa47ab66495c78bb4120b0754dd9531ca2ff0430f6685ac9b07772%40%3Cdev.mina.apache.org%3E)\n- [https://lists.fedoraproject.org/archives/list/package-announce%40lists.fedoraproject.org/message/TVCUNLQ3HXGS4VPUQKWTJGRAW2KTFGXS/](https://lists.fedoraproject.org/archives/list/package-announce%40lists.fedoraproject.org/message/TVCUNLQ3HXGS4VPUQKWTJGRAW2KTFGXS/)\n"
+              },
+              "defaultConfiguration": {
+                "level": "warning"
+              },
+              "properties": {
+                "tags": [
+                  "security",
+                  "CWE-617",
+                  "deb"
+                ],
+                "cvssv3_baseScore": 4.8,
+                "security-severity": "4.8"
+              }
+            },
+            {
+              "id": "SNYK-UBUNTU2010-GLIBC-1055782",
+              "shortDescription": {
+                "text": "Low severity - Loop with Unreachable Exit Condition ('Infinite Loop') vulnerability in glibc"
+              },
+              "fullDescription": {
+                "text": "(CVE-2020-27618) glibc/libc-bin@2.32-0ubuntu3"
+              },
+              "help": {
+                "text": "",
+                "markdown": "## NVD Description\n**_Note:_** _Versions mentioned in the description apply only to the upstream `glibc` package and not the `glibc` package as distributed by `Ubuntu`._\n_See `How to fix?` for `Ubuntu:20.10` relevant fixed versions and status._\n\nThe iconv function in the GNU C Library (aka glibc or libc6) 2.32 and earlier, when processing invalid multi-byte input sequences in IBM1364, IBM1371, IBM1388, IBM1390, and IBM1399 encodings, fails to advance the input state, which could lead to an infinite loop in applications, resulting in a denial of service, a different vulnerability from CVE-2016-10228.\n## Remediation\nThere is no fixed version for `Ubuntu:20.10` `glibc`.\n## References\n- [http://people.ubuntu.com/~ubuntu-security/cve/CVE-2020-27618](http://people.ubuntu.com/~ubuntu-security/cve/CVE-2020-27618)\n- [https://security.netapp.com/advisory/ntap-20210401-0006/](https://security.netapp.com/advisory/ntap-20210401-0006/)\n- [https://sourceware.org/bugzilla/show_bug.cgi?id=19519#c21](https://sourceware.org/bugzilla/show_bug.cgi?id=19519#c21)\n- [https://sourceware.org/bugzilla/show_bug.cgi?id=26224](https://sourceware.org/bugzilla/show_bug.cgi?id=26224)\n- [https://security.gentoo.org/glsa/202107-07](https://security.gentoo.org/glsa/202107-07)\n- [https://www.oracle.com/security-alerts/cpujan2022.html](https://www.oracle.com/security-alerts/cpujan2022.html)\n- [https://www.oracle.com/security-alerts/cpuapr2022.html](https://www.oracle.com/security-alerts/cpuapr2022.html)\n- [https://lists.debian.org/debian-lts-announce/2022/10/msg00021.html](https://lists.debian.org/debian-lts-announce/2022/10/msg00021.html)\n"
+              },
+              "defaultConfiguration": {
+                "level": "warning"
+              },
+              "properties": {
+                "tags": [
+                  "security",
+                  "CWE-835",
+                  "deb"
+                ],
+                "cvssv3_baseScore": 5.5,
+                "security-severity": "5.5"
+              }
+            },
+            {
+              "id": "SNYK-UBUNTU2010-GLIBC-1055792",
+              "shortDescription": {
+                "text": "Low severity - Out-of-bounds Read vulnerability in glibc"
+              },
+              "fullDescription": {
+                "text": "(CVE-2019-25013) glibc/libc-bin@2.32-0ubuntu3"
+              },
+              "help": {
+                "text": "",
+                "markdown": "## NVD Description\n**_Note:_** _Versions mentioned in the description apply only to the upstream `glibc` package and not the `glibc` package as distributed by `Ubuntu`._\n_See `How to fix?` for `Ubuntu:20.10` relevant fixed versions and status._\n\nThe iconv feature in the GNU C Library (aka glibc or libc6) through 2.32, when processing invalid multi-byte input sequences in the EUC-KR encoding, may have a buffer over-read.\n## Remediation\nThere is no fixed version for `Ubuntu:20.10` `glibc`.\n## References\n- [http://people.ubuntu.com/~ubuntu-security/cve/CVE-2019-25013](http://people.ubuntu.com/~ubuntu-security/cve/CVE-2019-25013)\n- [https://security.netapp.com/advisory/ntap-20210205-0004/](https://security.netapp.com/advisory/ntap-20210205-0004/)\n- [https://lists.fedoraproject.org/archives/list/package-announce@lists.fedoraproject.org/message/4Y6TX47P47KABSFOL26FLDNVCWXDKDEZ/](https://lists.fedoraproject.org/archives/list/package-announce@lists.fedoraproject.org/message/4Y6TX47P47KABSFOL26FLDNVCWXDKDEZ/)\n- [https://lists.fedoraproject.org/archives/list/package-announce@lists.fedoraproject.org/message/TVCUNLQ3HXGS4VPUQKWTJGRAW2KTFGXS/](https://lists.fedoraproject.org/archives/list/package-announce@lists.fedoraproject.org/message/TVCUNLQ3HXGS4VPUQKWTJGRAW2KTFGXS/)\n- [https://sourceware.org/bugzilla/show_bug.cgi?id=24973](https://sourceware.org/bugzilla/show_bug.cgi?id=24973)\n- [https://sourceware.org/git/?p=glibc.git;a=commit;h=ee7a3144c9922808181009b7b3e50e852fb4999b](https://sourceware.org/git/?p=glibc.git;a=commit;h=ee7a3144c9922808181009b7b3e50e852fb4999b)\n- [https://lists.apache.org/thread.html/r32d767ac804e9b8aad4355bb85960a6a1385eab7afff549a5e98660f@%3Cjira.kafka.apache.org%3E](https://lists.apache.org/thread.html/r32d767ac804e9b8aad4355bb85960a6a1385eab7afff549a5e98660f@%3Cjira.kafka.apache.org%3E)\n- [https://lists.apache.org/thread.html/r448bb851cc8e6e3f93f3c28c70032b37062625d81214744474ac49e7@%3Cdev.kafka.apache.org%3E](https://lists.apache.org/thread.html/r448bb851cc8e6e3f93f3c28c70032b37062625d81214744474ac49e7@%3Cdev.kafka.apache.org%3E)\n- [https://lists.apache.org/thread.html/r4806a391091e082bdea17266452ca656ebc176e51bb3932733b3a0a2@%3Cjira.kafka.apache.org%3E](https://lists.apache.org/thread.html/r4806a391091e082bdea17266452ca656ebc176e51bb3932733b3a0a2@%3Cjira.kafka.apache.org%3E)\n- [https://lists.apache.org/thread.html/r499e4f96d0b5109ef083f2feccd33c51650c1b7d7068aa3bd47efca9@%3Cjira.kafka.apache.org%3E](https://lists.apache.org/thread.html/r499e4f96d0b5109ef083f2feccd33c51650c1b7d7068aa3bd47efca9@%3Cjira.kafka.apache.org%3E)\n- [https://lists.apache.org/thread.html/r5af4430421bb6f9973294691a7904bbd260937e9eef96b20556f43ff@%3Cjira.kafka.apache.org%3E](https://lists.apache.org/thread.html/r5af4430421bb6f9973294691a7904bbd260937e9eef96b20556f43ff@%3Cjira.kafka.apache.org%3E)\n- [https://lists.apache.org/thread.html/r750eee18542bc02bd8350861c424ee60a9b9b225568fa09436a37ece@%3Cissues.zookeeper.apache.org%3E](https://lists.apache.org/thread.html/r750eee18542bc02bd8350861c424ee60a9b9b225568fa09436a37ece@%3Cissues.zookeeper.apache.org%3E)\n- [https://lists.apache.org/thread.html/r7a2e94adfe0a2f0a1d42e4927e8c32ecac97d37db9cb68095fe9ddbc@%3Cdev.zookeeper.apache.org%3E](https://lists.apache.org/thread.html/r7a2e94adfe0a2f0a1d42e4927e8c32ecac97d37db9cb68095fe9ddbc@%3Cdev.zookeeper.apache.org%3E)\n- [https://lists.apache.org/thread.html/rd2354f9ccce41e494fbadcbc5ad87218de6ec0fff8a7b54c8462226c@%3Cissues.zookeeper.apache.org%3E](https://lists.apache.org/thread.html/rd2354f9ccce41e494fbadcbc5ad87218de6ec0fff8a7b54c8462226c@%3Cissues.zookeeper.apache.org%3E)\n- [https://lists.apache.org/thread.html/rf9fa47ab66495c78bb4120b0754dd9531ca2ff0430f6685ac9b07772@%3Cdev.mina.apache.org%3E](https://lists.apache.org/thread.html/rf9fa47ab66495c78bb4120b0754dd9531ca2ff0430f6685ac9b07772@%3Cdev.mina.apache.org%3E)\n- [https://security.gentoo.org/glsa/202107-07](https://security.gentoo.org/glsa/202107-07)\n- [https://www.oracle.com/security-alerts/cpuapr2022.html](https://www.oracle.com/security-alerts/cpuapr2022.html)\n- [https://lists.debian.org/debian-lts-announce/2022/10/msg00021.html](https://lists.debian.org/debian-lts-announce/2022/10/msg00021.html)\n- [https://lists.apache.org/thread.html/r32d767ac804e9b8aad4355bb85960a6a1385eab7afff549a5e98660f%40%3Cjira.kafka.apache.org%3E](https://lists.apache.org/thread.html/r32d767ac804e9b8aad4355bb85960a6a1385eab7afff549a5e98660f%40%3Cjira.kafka.apache.org%3E)\n- [https://lists.apache.org/thread.html/r448bb851cc8e6e3f93f3c28c70032b37062625d81214744474ac49e7%40%3Cdev.kafka.apache.org%3E](https://lists.apache.org/thread.html/r448bb851cc8e6e3f93f3c28c70032b37062625d81214744474ac49e7%40%3Cdev.kafka.apache.org%3E)\n- [https://lists.apache.org/thread.html/r4806a391091e082bdea17266452ca656ebc176e51bb3932733b3a0a2%40%3Cjira.kafka.apache.org%3E](https://lists.apache.org/thread.html/r4806a391091e082bdea17266452ca656ebc176e51bb3932733b3a0a2%40%3Cjira.kafka.apache.org%3E)\n- [https://lists.apache.org/thread.html/r499e4f96d0b5109ef083f2feccd33c51650c1b7d7068aa3bd47efca9%40%3Cjira.kafka.apache.org%3E](https://lists.apache.org/thread.html/r499e4f96d0b5109ef083f2feccd33c51650c1b7d7068aa3bd47efca9%40%3Cjira.kafka.apache.org%3E)\n- [https://lists.apache.org/thread.html/r5af4430421bb6f9973294691a7904bbd260937e9eef96b20556f43ff%40%3Cjira.kafka.apache.org%3E](https://lists.apache.org/thread.html/r5af4430421bb6f9973294691a7904bbd260937e9eef96b20556f43ff%40%3Cjira.kafka.apache.org%3E)\n- [https://lists.apache.org/thread.html/r750eee18542bc02bd8350861c424ee60a9b9b225568fa09436a37ece%40%3Cissues.zookeeper.apache.org%3E](https://lists.apache.org/thread.html/r750eee18542bc02bd8350861c424ee60a9b9b225568fa09436a37ece%40%3Cissues.zookeeper.apache.org%3E)\n- [https://lists.apache.org/thread.html/r7a2e94adfe0a2f0a1d42e4927e8c32ecac97d37db9cb68095fe9ddbc%40%3Cdev.zookeeper.apache.org%3E](https://lists.apache.org/thread.html/r7a2e94adfe0a2f0a1d42e4927e8c32ecac97d37db9cb68095fe9ddbc%40%3Cdev.zookeeper.apache.org%3E)\n- [https://lists.apache.org/thread.html/rd2354f9ccce41e494fbadcbc5ad87218de6ec0fff8a7b54c8462226c%40%3Cissues.zookeeper.apache.org%3E](https://lists.apache.org/thread.html/rd2354f9ccce41e494fbadcbc5ad87218de6ec0fff8a7b54c8462226c%40%3Cissues.zookeeper.apache.org%3E)\n- [https://lists.apache.org/thread.html/rf9fa47ab66495c78bb4120b0754dd9531ca2ff0430f6685ac9b07772%40%3Cdev.mina.apache.org%3E](https://lists.apache.org/thread.html/rf9fa47ab66495c78bb4120b0754dd9531ca2ff0430f6685ac9b07772%40%3Cdev.mina.apache.org%3E)\n- [https://lists.fedoraproject.org/archives/list/package-announce%40lists.fedoraproject.org/message/4Y6TX47P47KABSFOL26FLDNVCWXDKDEZ/](https://lists.fedoraproject.org/archives/list/package-announce%40lists.fedoraproject.org/message/4Y6TX47P47KABSFOL26FLDNVCWXDKDEZ/)\n- [https://lists.fedoraproject.org/archives/list/package-announce%40lists.fedoraproject.org/message/TVCUNLQ3HXGS4VPUQKWTJGRAW2KTFGXS/](https://lists.fedoraproject.org/archives/list/package-announce%40lists.fedoraproject.org/message/TVCUNLQ3HXGS4VPUQKWTJGRAW2KTFGXS/)\n- [https://sourceware.org/git/?p=glibc.git%3Ba=commit%3Bh=ee7a3144c9922808181009b7b3e50e852fb4999b](https://sourceware.org/git/?p=glibc.git%3Ba=commit%3Bh=ee7a3144c9922808181009b7b3e50e852fb4999b)\n"
+              },
+              "defaultConfiguration": {
+                "level": "warning"
+              },
+              "properties": {
+                "tags": [
+                  "security",
+                  "CWE-125",
+                  "deb"
+                ],
+                "cvssv3_baseScore": 5.9,
+                "security-severity": "5.9"
+              }
+            },
+            {
+              "id": "SNYK-UBUNTU2010-GLIBC-1122577",
+              "shortDescription": {
+                "text": "Low severity - Reachable Assertion vulnerability in glibc"
+              },
+              "fullDescription": {
+                "text": "(CVE-2021-3326) glibc/libc-bin@2.32-0ubuntu3"
+              },
+              "help": {
+                "text": "",
+                "markdown": "## NVD Description\n**_Note:_** _Versions mentioned in the description apply only to the upstream `glibc` package and not the `glibc` package as distributed by `Ubuntu`._\n_See `How to fix?` for `Ubuntu:20.10` relevant fixed versions and status._\n\nThe iconv function in the GNU C Library (aka glibc or libc6) 2.32 and earlier, when processing invalid input sequences in the ISO-2022-JP-3 encoding, fails an assertion in the code path and aborts the program, potentially resulting in a denial of service.\n## Remediation\nThere is no fixed version for `Ubuntu:20.10` `glibc`.\n## References\n- [http://people.ubuntu.com/~ubuntu-security/cve/CVE-2021-3326](http://people.ubuntu.com/~ubuntu-security/cve/CVE-2021-3326)\n- [https://security.netapp.com/advisory/ntap-20210304-0007/](https://security.netapp.com/advisory/ntap-20210304-0007/)\n- [https://sourceware.org/bugzilla/show_bug.cgi?id=27256](https://sourceware.org/bugzilla/show_bug.cgi?id=27256)\n- [https://sourceware.org/git/?p=glibc.git;a=commit;h=7d88c6142c6efc160c0ee5e4f85cde382c072888](https://sourceware.org/git/?p=glibc.git;a=commit;h=7d88c6142c6efc160c0ee5e4f85cde382c072888)\n- [http://www.openwall.com/lists/oss-security/2021/01/28/2](http://www.openwall.com/lists/oss-security/2021/01/28/2)\n- [https://security.gentoo.org/glsa/202107-07](https://security.gentoo.org/glsa/202107-07)\n- [https://www.oracle.com/security-alerts/cpujan2022.html](https://www.oracle.com/security-alerts/cpujan2022.html)\n- [https://www.oracle.com/security-alerts/cpuapr2022.html](https://www.oracle.com/security-alerts/cpuapr2022.html)\n- [https://lists.debian.org/debian-lts-announce/2022/10/msg00021.html](https://lists.debian.org/debian-lts-announce/2022/10/msg00021.html)\n- [https://sourceware.org/git/?p=glibc.git%3Ba=commit%3Bh=7d88c6142c6efc160c0ee5e4f85cde382c072888](https://sourceware.org/git/?p=glibc.git%3Ba=commit%3Bh=7d88c6142c6efc160c0ee5e4f85cde382c072888)\n"
+              },
+              "defaultConfiguration": {
+                "level": "warning"
+              },
+              "properties": {
+                "tags": [
+                  "security",
+                  "CWE-617",
+                  "deb"
+                ],
+                "cvssv3_baseScore": 7.5,
+                "security-severity": "7.5"
+              }
+            },
+            {
+              "id": "SNYK-UBUNTU2010-GLIBC-1123088",
+              "shortDescription": {
+                "text": "Low severity - Double Free vulnerability in glibc"
+              },
+              "fullDescription": {
+                "text": "(CVE-2021-27645) glibc/libc-bin@2.32-0ubuntu3"
+              },
+              "help": {
+                "text": "",
+                "markdown": "## NVD Description\n**_Note:_** _Versions mentioned in the description apply only to the upstream `glibc` package and not the `glibc` package as distributed by `Ubuntu`._\n_See `How to fix?` for `Ubuntu:20.10` relevant fixed versions and status._\n\nThe nameserver caching daemon (nscd) in the GNU C Library (aka glibc or libc6) 2.29 through 2.33, when processing a request for netgroup lookup, may crash due to a double-free, potentially resulting in degraded service or Denial of Service on the local system. This is related to netgroupcache.c.\n## Remediation\nThere is no fixed version for `Ubuntu:20.10` `glibc`.\n## References\n- [http://people.ubuntu.com/~ubuntu-security/cve/CVE-2021-27645](http://people.ubuntu.com/~ubuntu-security/cve/CVE-2021-27645)\n- [https://lists.fedoraproject.org/archives/list/package-announce@lists.fedoraproject.org/message/7LZNT6KTMCCWPWXEOGSHD3YLYZKUGMH5/](https://lists.fedoraproject.org/archives/list/package-announce@lists.fedoraproject.org/message/7LZNT6KTMCCWPWXEOGSHD3YLYZKUGMH5/)\n- [https://lists.fedoraproject.org/archives/list/package-announce@lists.fedoraproject.org/message/I7TS26LIZSOBLGJEZMJX4PXT5BQDE2WS/](https://lists.fedoraproject.org/archives/list/package-announce@lists.fedoraproject.org/message/I7TS26LIZSOBLGJEZMJX4PXT5BQDE2WS/)\n- [https://sourceware.org/bugzilla/show_bug.cgi?id=27462](https://sourceware.org/bugzilla/show_bug.cgi?id=27462)\n- [https://security.gentoo.org/glsa/202107-07](https://security.gentoo.org/glsa/202107-07)\n- [https://lists.debian.org/debian-lts-announce/2022/10/msg00021.html](https://lists.debian.org/debian-lts-announce/2022/10/msg00021.html)\n- [https://lists.fedoraproject.org/archives/list/package-announce%40lists.fedoraproject.org/message/7LZNT6KTMCCWPWXEOGSHD3YLYZKUGMH5/](https://lists.fedoraproject.org/archives/list/package-announce%40lists.fedoraproject.org/message/7LZNT6KTMCCWPWXEOGSHD3YLYZKUGMH5/)\n- [https://lists.fedoraproject.org/archives/list/package-announce%40lists.fedoraproject.org/message/I7TS26LIZSOBLGJEZMJX4PXT5BQDE2WS/](https://lists.fedoraproject.org/archives/list/package-announce%40lists.fedoraproject.org/message/I7TS26LIZSOBLGJEZMJX4PXT5BQDE2WS/)\n"
+              },
+              "defaultConfiguration": {
+                "level": "warning"
+              },
+              "properties": {
+                "tags": [
+                  "security",
+                  "CWE-415",
+                  "deb"
+                ],
+                "cvssv3_baseScore": 2.5,
+                "security-severity": "2.5"
+              }
+            },
+            {
+              "id": "SNYK-UBUNTU2010-GNUTLS28-1085479",
+              "shortDescription": {
+                "text": "Low severity - Use After Free vulnerability in gnutls28"
+              },
+              "fullDescription": {
+                "text": "(CVE-2021-20231) gnutls28/libgnutls30@3.6.15-4ubuntu2"
+              },
+              "help": {
+                "text": "",
+                "markdown": "## NVD Description\n**_Note:_** _Versions mentioned in the description apply only to the upstream `gnutls28` package and not the `gnutls28` package as distributed by `Ubuntu`._\n_See `How to fix?` for `Ubuntu:20.10` relevant fixed versions and status._\n\nA flaw was found in gnutls. A use after free issue in client sending key_share extension may lead to memory corruption and other consequences.\n## Remediation\nThere is no fixed version for `Ubuntu:20.10` `gnutls28`.\n## References\n- [http://people.ubuntu.com/~ubuntu-security/cve/CVE-2021-20231](http://people.ubuntu.com/~ubuntu-security/cve/CVE-2021-20231)\n- [https://security.netapp.com/advisory/ntap-20210416-0005/](https://security.netapp.com/advisory/ntap-20210416-0005/)\n- [https://lists.fedoraproject.org/archives/list/package-announce@lists.fedoraproject.org/message/OSLAE6PP33A7VYRYMYMUVB3U6B26GZER/](https://lists.fedoraproject.org/archives/list/package-announce@lists.fedoraproject.org/message/OSLAE6PP33A7VYRYMYMUVB3U6B26GZER/)\n- [https://bugzilla.redhat.com/show_bug.cgi?id=1922276](https://bugzilla.redhat.com/show_bug.cgi?id=1922276)\n- [https://www.gnutls.org/security-new.html#GNUTLS-SA-2021-03-10](https://www.gnutls.org/security-new.html#GNUTLS-SA-2021-03-10)\n- [https://lists.apache.org/thread.html/r50661d6f0082709aad9a584431b59ec364f9974b63b07e0800230168@%3Cissues.spark.apache.org%3E](https://lists.apache.org/thread.html/r50661d6f0082709aad9a584431b59ec364f9974b63b07e0800230168@%3Cissues.spark.apache.org%3E)\n- [https://lists.apache.org/thread.html/r5d4001031e7790d8c6396c499522b4ed2aab782da87b1a14184793bb@%3Cissues.spark.apache.org%3E](https://lists.apache.org/thread.html/r5d4001031e7790d8c6396c499522b4ed2aab782da87b1a14184793bb@%3Cissues.spark.apache.org%3E)\n- [https://lists.apache.org/thread.html/r5f88bed447742fcc5c47bf1c7be965ef450131914a6e1f85feba2779@%3Cissues.spark.apache.org%3E](https://lists.apache.org/thread.html/r5f88bed447742fcc5c47bf1c7be965ef450131914a6e1f85feba2779@%3Cissues.spark.apache.org%3E)\n- [https://lists.apache.org/thread.html/r6ac143ba6dd98bd4bf6bf010d46e56e254056459721ba18822d611f7@%3Cissues.spark.apache.org%3E](https://lists.apache.org/thread.html/r6ac143ba6dd98bd4bf6bf010d46e56e254056459721ba18822d611f7@%3Cissues.spark.apache.org%3E)\n- [https://lists.apache.org/thread.html/r9cbc69e57276413788e90a6ee16c7c034ea4258d31935b70db2bd158@%3Cissues.spark.apache.org%3E](https://lists.apache.org/thread.html/r9cbc69e57276413788e90a6ee16c7c034ea4258d31935b70db2bd158@%3Cissues.spark.apache.org%3E)\n- [https://lists.apache.org/thread.html/rcd70a4c88a47a75fd2d5f3ffb7cee8c2a18c713320bd90fdcb57495f@%3Cissues.spark.apache.org%3E](https://lists.apache.org/thread.html/rcd70a4c88a47a75fd2d5f3ffb7cee8c2a18c713320bd90fdcb57495f@%3Cissues.spark.apache.org%3E)\n- [https://lists.apache.org/thread.html/rf5e1256d870193def4a82ad89ab95e63943a313b5ff0d81aa87e4532@%3Cissues.spark.apache.org%3E](https://lists.apache.org/thread.html/rf5e1256d870193def4a82ad89ab95e63943a313b5ff0d81aa87e4532@%3Cissues.spark.apache.org%3E)\n- [https://lists.apache.org/thread.html/rfd5273d72d244178441e6904a2f2b41a3268f569e8092ea0b3b2bb20@%3Cissues.spark.apache.org%3E](https://lists.apache.org/thread.html/rfd5273d72d244178441e6904a2f2b41a3268f569e8092ea0b3b2bb20@%3Cissues.spark.apache.org%3E)\n- [https://lists.apache.org/thread.html/r50661d6f0082709aad9a584431b59ec364f9974b63b07e0800230168%40%3Cissues.spark.apache.org%3E](https://lists.apache.org/thread.html/r50661d6f0082709aad9a584431b59ec364f9974b63b07e0800230168%40%3Cissues.spark.apache.org%3E)\n- [https://lists.apache.org/thread.html/r5d4001031e7790d8c6396c499522b4ed2aab782da87b1a14184793bb%40%3Cissues.spark.apache.org%3E](https://lists.apache.org/thread.html/r5d4001031e7790d8c6396c499522b4ed2aab782da87b1a14184793bb%40%3Cissues.spark.apache.org%3E)\n- [https://lists.apache.org/thread.html/r5f88bed447742fcc5c47bf1c7be965ef450131914a6e1f85feba2779%40%3Cissues.spark.apache.org%3E](https://lists.apache.org/thread.html/r5f88bed447742fcc5c47bf1c7be965ef450131914a6e1f85feba2779%40%3Cissues.spark.apache.org%3E)\n- [https://lists.apache.org/thread.html/r6ac143ba6dd98bd4bf6bf010d46e56e254056459721ba18822d611f7%40%3Cissues.spark.apache.org%3E](https://lists.apache.org/thread.html/r6ac143ba6dd98bd4bf6bf010d46e56e254056459721ba18822d611f7%40%3Cissues.spark.apache.org%3E)\n- [https://lists.apache.org/thread.html/r9cbc69e57276413788e90a6ee16c7c034ea4258d31935b70db2bd158%40%3Cissues.spark.apache.org%3E](https://lists.apache.org/thread.html/r9cbc69e57276413788e90a6ee16c7c034ea4258d31935b70db2bd158%40%3Cissues.spark.apache.org%3E)\n- [https://lists.apache.org/thread.html/rcd70a4c88a47a75fd2d5f3ffb7cee8c2a18c713320bd90fdcb57495f%40%3Cissues.spark.apache.org%3E](https://lists.apache.org/thread.html/rcd70a4c88a47a75fd2d5f3ffb7cee8c2a18c713320bd90fdcb57495f%40%3Cissues.spark.apache.org%3E)\n- [https://lists.apache.org/thread.html/rf5e1256d870193def4a82ad89ab95e63943a313b5ff0d81aa87e4532%40%3Cissues.spark.apache.org%3E](https://lists.apache.org/thread.html/rf5e1256d870193def4a82ad89ab95e63943a313b5ff0d81aa87e4532%40%3Cissues.spark.apache.org%3E)\n- [https://lists.apache.org/thread.html/rfd5273d72d244178441e6904a2f2b41a3268f569e8092ea0b3b2bb20%40%3Cissues.spark.apache.org%3E](https://lists.apache.org/thread.html/rfd5273d72d244178441e6904a2f2b41a3268f569e8092ea0b3b2bb20%40%3Cissues.spark.apache.org%3E)\n- [https://lists.fedoraproject.org/archives/list/package-announce%40lists.fedoraproject.org/message/OSLAE6PP33A7VYRYMYMUVB3U6B26GZER/](https://lists.fedoraproject.org/archives/list/package-announce%40lists.fedoraproject.org/message/OSLAE6PP33A7VYRYMYMUVB3U6B26GZER/)\n"
+              },
+              "defaultConfiguration": {
+                "level": "warning"
+              },
+              "properties": {
+                "tags": [
+                  "security",
+                  "CWE-416",
+                  "deb"
+                ],
+                "cvssv3_baseScore": 9.8,
+                "security-severity": "9.8"
+              }
+            },
+            {
+              "id": "SNYK-UBUNTU2010-GNUTLS28-1085501",
+              "shortDescription": {
+                "text": "Low severity - Use After Free vulnerability in gnutls28"
+              },
+              "fullDescription": {
+                "text": "(CVE-2021-20232) gnutls28/libgnutls30@3.6.15-4ubuntu2"
+              },
+              "help": {
+                "text": "",
+                "markdown": "## NVD Description\n**_Note:_** _Versions mentioned in the description apply only to the upstream `gnutls28` package and not the `gnutls28` package as distributed by `Ubuntu`._\n_See `How to fix?` for `Ubuntu:20.10` relevant fixed versions and status._\n\nA flaw was found in gnutls. A use after free issue in client_send_params in lib/ext/pre_shared_key.c may lead to memory corruption and other potential consequences.\n## Remediation\nThere is no fixed version for `Ubuntu:20.10` `gnutls28`.\n## References\n- [http://people.ubuntu.com/~ubuntu-security/cve/CVE-2021-20232](http://people.ubuntu.com/~ubuntu-security/cve/CVE-2021-20232)\n- [https://security.netapp.com/advisory/ntap-20210416-0005/](https://security.netapp.com/advisory/ntap-20210416-0005/)\n- [https://lists.fedoraproject.org/archives/list/package-announce@lists.fedoraproject.org/message/OSLAE6PP33A7VYRYMYMUVB3U6B26GZER/](https://lists.fedoraproject.org/archives/list/package-announce@lists.fedoraproject.org/message/OSLAE6PP33A7VYRYMYMUVB3U6B26GZER/)\n- [https://bugzilla.redhat.com/show_bug.cgi?id=1922275](https://bugzilla.redhat.com/show_bug.cgi?id=1922275)\n- [https://www.gnutls.org/security-new.html#GNUTLS-SA-2021-03-10](https://www.gnutls.org/security-new.html#GNUTLS-SA-2021-03-10)\n- [https://lists.apache.org/thread.html/r50661d6f0082709aad9a584431b59ec364f9974b63b07e0800230168@%3Cissues.spark.apache.org%3E](https://lists.apache.org/thread.html/r50661d6f0082709aad9a584431b59ec364f9974b63b07e0800230168@%3Cissues.spark.apache.org%3E)\n- [https://lists.apache.org/thread.html/r5d4001031e7790d8c6396c499522b4ed2aab782da87b1a14184793bb@%3Cissues.spark.apache.org%3E](https://lists.apache.org/thread.html/r5d4001031e7790d8c6396c499522b4ed2aab782da87b1a14184793bb@%3Cissues.spark.apache.org%3E)\n- [https://lists.apache.org/thread.html/r5f88bed447742fcc5c47bf1c7be965ef450131914a6e1f85feba2779@%3Cissues.spark.apache.org%3E](https://lists.apache.org/thread.html/r5f88bed447742fcc5c47bf1c7be965ef450131914a6e1f85feba2779@%3Cissues.spark.apache.org%3E)\n- [https://lists.apache.org/thread.html/r6ac143ba6dd98bd4bf6bf010d46e56e254056459721ba18822d611f7@%3Cissues.spark.apache.org%3E](https://lists.apache.org/thread.html/r6ac143ba6dd98bd4bf6bf010d46e56e254056459721ba18822d611f7@%3Cissues.spark.apache.org%3E)\n- [https://lists.apache.org/thread.html/r9cbc69e57276413788e90a6ee16c7c034ea4258d31935b70db2bd158@%3Cissues.spark.apache.org%3E](https://lists.apache.org/thread.html/r9cbc69e57276413788e90a6ee16c7c034ea4258d31935b70db2bd158@%3Cissues.spark.apache.org%3E)\n- [https://lists.apache.org/thread.html/rcd70a4c88a47a75fd2d5f3ffb7cee8c2a18c713320bd90fdcb57495f@%3Cissues.spark.apache.org%3E](https://lists.apache.org/thread.html/rcd70a4c88a47a75fd2d5f3ffb7cee8c2a18c713320bd90fdcb57495f@%3Cissues.spark.apache.org%3E)\n- [https://lists.apache.org/thread.html/rf5e1256d870193def4a82ad89ab95e63943a313b5ff0d81aa87e4532@%3Cissues.spark.apache.org%3E](https://lists.apache.org/thread.html/rf5e1256d870193def4a82ad89ab95e63943a313b5ff0d81aa87e4532@%3Cissues.spark.apache.org%3E)\n- [https://lists.apache.org/thread.html/rfd5273d72d244178441e6904a2f2b41a3268f569e8092ea0b3b2bb20@%3Cissues.spark.apache.org%3E](https://lists.apache.org/thread.html/rfd5273d72d244178441e6904a2f2b41a3268f569e8092ea0b3b2bb20@%3Cissues.spark.apache.org%3E)\n- [https://lists.apache.org/thread.html/r50661d6f0082709aad9a584431b59ec364f9974b63b07e0800230168%40%3Cissues.spark.apache.org%3E](https://lists.apache.org/thread.html/r50661d6f0082709aad9a584431b59ec364f9974b63b07e0800230168%40%3Cissues.spark.apache.org%3E)\n- [https://lists.apache.org/thread.html/r5d4001031e7790d8c6396c499522b4ed2aab782da87b1a14184793bb%40%3Cissues.spark.apache.org%3E](https://lists.apache.org/thread.html/r5d4001031e7790d8c6396c499522b4ed2aab782da87b1a14184793bb%40%3Cissues.spark.apache.org%3E)\n- [https://lists.apache.org/thread.html/r5f88bed447742fcc5c47bf1c7be965ef450131914a6e1f85feba2779%40%3Cissues.spark.apache.org%3E](https://lists.apache.org/thread.html/r5f88bed447742fcc5c47bf1c7be965ef450131914a6e1f85feba2779%40%3Cissues.spark.apache.org%3E)\n- [https://lists.apache.org/thread.html/r6ac143ba6dd98bd4bf6bf010d46e56e254056459721ba18822d611f7%40%3Cissues.spark.apache.org%3E](https://lists.apache.org/thread.html/r6ac143ba6dd98bd4bf6bf010d46e56e254056459721ba18822d611f7%40%3Cissues.spark.apache.org%3E)\n- [https://lists.apache.org/thread.html/r9cbc69e57276413788e90a6ee16c7c034ea4258d31935b70db2bd158%40%3Cissues.spark.apache.org%3E](https://lists.apache.org/thread.html/r9cbc69e57276413788e90a6ee16c7c034ea4258d31935b70db2bd158%40%3Cissues.spark.apache.org%3E)\n- [https://lists.apache.org/thread.html/rcd70a4c88a47a75fd2d5f3ffb7cee8c2a18c713320bd90fdcb57495f%40%3Cissues.spark.apache.org%3E](https://lists.apache.org/thread.html/rcd70a4c88a47a75fd2d5f3ffb7cee8c2a18c713320bd90fdcb57495f%40%3Cissues.spark.apache.org%3E)\n- [https://lists.apache.org/thread.html/rf5e1256d870193def4a82ad89ab95e63943a313b5ff0d81aa87e4532%40%3Cissues.spark.apache.org%3E](https://lists.apache.org/thread.html/rf5e1256d870193def4a82ad89ab95e63943a313b5ff0d81aa87e4532%40%3Cissues.spark.apache.org%3E)\n- [https://lists.apache.org/thread.html/rfd5273d72d244178441e6904a2f2b41a3268f569e8092ea0b3b2bb20%40%3Cissues.spark.apache.org%3E](https://lists.apache.org/thread.html/rfd5273d72d244178441e6904a2f2b41a3268f569e8092ea0b3b2bb20%40%3Cissues.spark.apache.org%3E)\n- [https://lists.fedoraproject.org/archives/list/package-announce%40lists.fedoraproject.org/message/OSLAE6PP33A7VYRYMYMUVB3U6B26GZER/](https://lists.fedoraproject.org/archives/list/package-announce%40lists.fedoraproject.org/message/OSLAE6PP33A7VYRYMYMUVB3U6B26GZER/)\n"
+              },
+              "defaultConfiguration": {
+                "level": "warning"
+              },
+              "properties": {
+                "tags": [
+                  "security",
+                  "CWE-416",
+                  "deb"
+                ],
+                "cvssv3_baseScore": 9.8,
+                "security-severity": "9.8"
+              }
+            },
+            {
+              "id": "SNYK-UBUNTU2010-KRB5-1031825",
+              "shortDescription": {
+                "text": "Low severity - Integer Overflow or Wraparound vulnerability in krb5"
+              },
+              "fullDescription": {
+                "text": "(CVE-2018-5709) krb5/libgssapi-krb5-2@1.17-10ubuntu0.1"
+              },
+              "help": {
+                "text": "",
+                "markdown": "## NVD Description\n**_Note:_** _Versions mentioned in the description apply only to the upstream `krb5` package and not the `krb5` package as distributed by `Ubuntu`._\n_See `How to fix?` for `Ubuntu:20.10` relevant fixed versions and status._\n\nAn issue was discovered in MIT Kerberos 5 (aka krb5) through 1.16. There is a variable &#34;dbentry-&gt;n_key_data&#34; in kadmin/dbutil/dump.c that can store 16-bit data but unknowingly the developer has assigned a &#34;u4&#34; variable to it, which is for 32-bit data. An attacker can use this vulnerability to affect other artifacts of the database as we know that a Kerberos database dump file contains trusted data.\n## Remediation\nThere is no fixed version for `Ubuntu:20.10` `krb5`.\n## References\n- [https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2018-5709](https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2018-5709)\n- [https://security-tracker.debian.org/tracker/CVE-2018-5709](https://security-tracker.debian.org/tracker/CVE-2018-5709)\n- [https://github.com/poojamnit/Kerberos-V5-1.16-Vulnerabilities/tree/master/Integer%20Overflow](https://github.com/poojamnit/Kerberos-V5-1.16-Vulnerabilities/tree/master/Integer%20Overflow)\n- [https://lists.apache.org/thread.html/rf9fa47ab66495c78bb4120b0754dd9531ca2ff0430f6685ac9b07772@%3Cdev.mina.apache.org%3E](https://lists.apache.org/thread.html/rf9fa47ab66495c78bb4120b0754dd9531ca2ff0430f6685ac9b07772@%3Cdev.mina.apache.org%3E)\n- [http://people.ubuntu.com/~ubuntu-security/cve/CVE-2018-5709](http://people.ubuntu.com/~ubuntu-security/cve/CVE-2018-5709)\n- [https://lists.apache.org/thread.html/rf9fa47ab66495c78bb4120b0754dd9531ca2ff0430f6685ac9b07772%40%3Cdev.mina.apache.org%3E](https://lists.apache.org/thread.html/rf9fa47ab66495c78bb4120b0754dd9531ca2ff0430f6685ac9b07772%40%3Cdev.mina.apache.org%3E)\n"
+              },
+              "defaultConfiguration": {
+                "level": "warning"
+              },
+              "properties": {
+                "tags": [
+                  "security",
+                  "CWE-190",
+                  "deb"
+                ],
+                "cvssv3_baseScore": 7.5,
+                "security-severity": "7.5"
+              }
+            },
+            {
+              "id": "SNYK-UBUNTU2010-LIBGCRYPT20-1297921",
+              "shortDescription": {
+                "text": "Low severity - Information Exposure vulnerability in libgcrypt20"
+              },
+              "fullDescription": {
+                "text": "(CVE-2021-33560) libgcrypt20@1.8.5-5ubuntu2"
+              },
+              "help": {
+                "text": "",
+                "markdown": "## NVD Description\n**_Note:_** _Versions mentioned in the description apply only to the upstream `libgcrypt20` package and not the `libgcrypt20` package as distributed by `Ubuntu`._\n_See `How to fix?` for `Ubuntu:20.10` relevant fixed versions and status._\n\nLibgcrypt before 1.8.8 and 1.9.x before 1.9.3 mishandles ElGamal encryption because it lacks exponent blinding to address a side-channel attack against mpi_powm, and the window size is not chosen appropriately. This, for example, affects use of ElGamal in OpenPGP.\n## Remediation\nThere is no fixed version for `Ubuntu:20.10` `libgcrypt20`.\n## References\n- [http://people.ubuntu.com/~ubuntu-security/cve/CVE-2021-33560](http://people.ubuntu.com/~ubuntu-security/cve/CVE-2021-33560)\n- [https://lists.fedoraproject.org/archives/list/package-announce@lists.fedoraproject.org/message/BKKTOIGFW2SGN3DO2UHHVZ7MJSYN4AAB/](https://lists.fedoraproject.org/archives/list/package-announce@lists.fedoraproject.org/message/BKKTOIGFW2SGN3DO2UHHVZ7MJSYN4AAB/)\n- [https://lists.fedoraproject.org/archives/list/package-announce@lists.fedoraproject.org/message/R7OAPCUGPF3VLA7QAJUQSL255D4ITVTL/](https://lists.fedoraproject.org/archives/list/package-announce@lists.fedoraproject.org/message/R7OAPCUGPF3VLA7QAJUQSL255D4ITVTL/)\n- [https://dev.gnupg.org/rCe8b7f10be275bcedb5fc05ed4837a89bfd605c61](https://dev.gnupg.org/rCe8b7f10be275bcedb5fc05ed4837a89bfd605c61)\n- [https://dev.gnupg.org/T5305](https://dev.gnupg.org/T5305)\n- [https://dev.gnupg.org/T5328](https://dev.gnupg.org/T5328)\n- [https://dev.gnupg.org/T5466](https://dev.gnupg.org/T5466)\n- [https://www.oracle.com/security-alerts/cpuoct2021.html](https://www.oracle.com/security-alerts/cpuoct2021.html)\n- [https://lists.debian.org/debian-lts-announce/2021/06/msg00021.html](https://lists.debian.org/debian-lts-announce/2021/06/msg00021.html)\n- [https://www.oracle.com/security-alerts/cpujan2022.html](https://www.oracle.com/security-alerts/cpujan2022.html)\n- [https://www.oracle.com/security-alerts/cpuapr2022.html](https://www.oracle.com/security-alerts/cpuapr2022.html)\n- [https://www.oracle.com/security-alerts/cpujul2022.html](https://www.oracle.com/security-alerts/cpujul2022.html)\n- [https://security.gentoo.org/glsa/202210-13](https://security.gentoo.org/glsa/202210-13)\n- [https://lists.fedoraproject.org/archives/list/package-announce%40lists.fedoraproject.org/message/BKKTOIGFW2SGN3DO2UHHVZ7MJSYN4AAB/](https://lists.fedoraproject.org/archives/list/package-announce%40lists.fedoraproject.org/message/BKKTOIGFW2SGN3DO2UHHVZ7MJSYN4AAB/)\n- [https://lists.fedoraproject.org/archives/list/package-announce%40lists.fedoraproject.org/message/R7OAPCUGPF3VLA7QAJUQSL255D4ITVTL/](https://lists.fedoraproject.org/archives/list/package-announce%40lists.fedoraproject.org/message/R7OAPCUGPF3VLA7QAJUQSL255D4ITVTL/)\n"
+              },
+              "defaultConfiguration": {
+                "level": "warning"
+              },
+              "properties": {
+                "tags": [
+                  "security",
+                  "CWE-203",
+                  "deb"
+                ],
+                "cvssv3_baseScore": 7.5,
+                "security-severity": "7.5"
+              }
+            },
+            {
+              "id": "SNYK-UBUNTU2010-LIBTASN16-1032885",
+              "shortDescription": {
+                "text": "Low severity - CVE-2018-1000654 vulnerability in libtasn1-6"
+              },
+              "fullDescription": {
+                "text": "(CVE-2018-1000654) libtasn1-6@4.16.0-2"
+              },
+              "help": {
+                "text": "",
+                "markdown": "## NVD Description\n**_Note:_** _Versions mentioned in the description apply only to the upstream `libtasn1-6` package and not the `libtasn1-6` package as distributed by `Ubuntu`._\n_See `How to fix?` for `Ubuntu:20.10` relevant fixed versions and status._\n\nGNU Libtasn1-4.13 libtasn1-4.13 version libtasn1-4.13, libtasn1-4.12 contains a DoS, specifically CPU usage will reach 100% when running asn1Paser against the POC due to an issue in _asn1_expand_object_id(p_tree), after a long time, the program will be killed. This attack appears to be exploitable via parsing a crafted file.\n## Remediation\nThere is no fixed version for `Ubuntu:20.10` `libtasn1-6`.\n## References\n- [http://people.ubuntu.com/~ubuntu-security/cve/CVE-2018-1000654](http://people.ubuntu.com/~ubuntu-security/cve/CVE-2018-1000654)\n- [https://gitlab.com/gnutls/libtasn1/issues/4](https://gitlab.com/gnutls/libtasn1/issues/4)\n- [https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2018-1000654](https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2018-1000654)\n- [https://security-tracker.debian.org/tracker/CVE-2018-1000654](https://security-tracker.debian.org/tracker/CVE-2018-1000654)\n- [https://lists.apache.org/thread.html/rf9fa47ab66495c78bb4120b0754dd9531ca2ff0430f6685ac9b07772@%3Cdev.mina.apache.org%3E](https://lists.apache.org/thread.html/rf9fa47ab66495c78bb4120b0754dd9531ca2ff0430f6685ac9b07772@%3Cdev.mina.apache.org%3E)\n- [http://lists.opensuse.org/opensuse-security-announce/2019-06/msg00009.html](http://lists.opensuse.org/opensuse-security-announce/2019-06/msg00009.html)\n- [http://lists.opensuse.org/opensuse-security-announce/2019-06/msg00018.html](http://lists.opensuse.org/opensuse-security-announce/2019-06/msg00018.html)\n- [http://www.securityfocus.com/bid/105151](http://www.securityfocus.com/bid/105151)\n- [https://lists.apache.org/thread.html/rf9fa47ab66495c78bb4120b0754dd9531ca2ff0430f6685ac9b07772%40%3Cdev.mina.apache.org%3E](https://lists.apache.org/thread.html/rf9fa47ab66495c78bb4120b0754dd9531ca2ff0430f6685ac9b07772%40%3Cdev.mina.apache.org%3E)\n"
+              },
+              "defaultConfiguration": {
+                "level": "warning"
+              },
+              "properties": {
+                "tags": [
+                  "security",
+                  "deb"
+                ],
+                "cvssv3_baseScore": 5.5,
+                "security-severity": "5.5"
+              }
+            },
+            {
+              "id": "SNYK-UBUNTU2010-LZ4-1278680",
+              "shortDescription": {
+                "text": "Medium severity - Out-of-bounds Write vulnerability in lz4"
+              },
+              "fullDescription": {
+                "text": "(CVE-2021-3520) lz4/liblz4-1@1.9.2-2"
+              },
+              "help": {
+                "text": "",
+                "markdown": "## NVD Description\n**_Note:_** _Versions mentioned in the description apply only to the upstream `lz4` package and not the `lz4` package as distributed by `Ubuntu`._\n_See `How to fix?` for `Ubuntu:20.10` relevant fixed versions and status._\n\nThere&#39;s a flaw in lz4. An attacker who submits a crafted file to an application linked with lz4 may be able to trigger an integer overflow, leading to calling of memmove() on a negative size argument, causing an out-of-bounds write and/or a crash. The greatest impact of this flaw is to availability, with some potential impact to confidentiality and integrity as well.\n## Remediation\nUpgrade `Ubuntu:20.10` `lz4` to version 1.9.2-2ubuntu0.20.10.1 or higher.\n## References\n- [http://people.ubuntu.com/~ubuntu-security/cve/CVE-2021-3520](http://people.ubuntu.com/~ubuntu-security/cve/CVE-2021-3520)\n- [https://bugzilla.redhat.com/show_bug.cgi?id=1954559](https://bugzilla.redhat.com/show_bug.cgi?id=1954559)\n- [https://www.oracle.com/security-alerts/cpuoct2021.html](https://www.oracle.com/security-alerts/cpuoct2021.html)\n- [https://www.oracle.com//security-alerts/cpujul2021.html](https://www.oracle.com//security-alerts/cpujul2021.html)\n- [https://security.netapp.com/advisory/ntap-20211104-0005/](https://security.netapp.com/advisory/ntap-20211104-0005/)\n- [https://www.oracle.com/security-alerts/cpuapr2022.html](https://www.oracle.com/security-alerts/cpuapr2022.html)\n- [https://access.redhat.com/errata/RHBA-2021:2854](https://access.redhat.com/errata/RHBA-2021:2854)\n- [https://access.redhat.com/errata/RHSA-2021:2575](https://access.redhat.com/errata/RHSA-2021:2575)\n- [https://access.redhat.com/errata/RHSA-2022:1345](https://access.redhat.com/errata/RHSA-2022:1345)\n- [https://access.redhat.com/errata/RHSA-2022:5606](https://access.redhat.com/errata/RHSA-2022:5606)\n- [https://access.redhat.com/errata/RHSA-2022:6407](https://access.redhat.com/errata/RHSA-2022:6407)\n- [https://access.redhat.com/security/cve/CVE-2021-3520](https://access.redhat.com/security/cve/CVE-2021-3520)\n"
+              },
+              "defaultConfiguration": {
+                "level": "warning"
+              },
+              "properties": {
+                "tags": [
+                  "security",
+                  "CWE-787",
+                  "CWE-190",
+                  "deb"
+                ],
+                "cvssv3_baseScore": 9.8,
+                "security-severity": "9.8"
+              }
+            },
+            {
+              "id": "SNYK-UBUNTU2010-NETTLE-1303242",
+              "shortDescription": {
+                "text": "Medium severity - Improper Input Validation vulnerability in nettle"
+              },
+              "fullDescription": {
+                "text": "(CVE-2021-3580) nettle/libnettle8@3.6-2ubuntu0.1"
+              },
+              "help": {
+                "text": "",
+                "markdown": "## NVD Description\n**_Note:_** _Versions mentioned in the description apply only to the upstream `nettle` package and not the `nettle` package as distributed by `Ubuntu`._\n_See `How to fix?` for `Ubuntu:20.10` relevant fixed versions and status._\n\nA flaw was found in the way nettle&#39;s RSA decryption functions handled specially crafted ciphertext. An attacker could use this flaw to provide a manipulated ciphertext leading to application crash and denial of service.\n## Remediation\nUpgrade `Ubuntu:20.10` `nettle` to version 3.6-2ubuntu0.2 or higher.\n## References\n- [http://people.ubuntu.com/~ubuntu-security/cve/CVE-2021-3580](http://people.ubuntu.com/~ubuntu-security/cve/CVE-2021-3580)\n- [https://bugzilla.redhat.com/show_bug.cgi?id=1967983](https://bugzilla.redhat.com/show_bug.cgi?id=1967983)\n- [https://lists.debian.org/debian-lts-announce/2021/09/msg00008.html](https://lists.debian.org/debian-lts-announce/2021/09/msg00008.html)\n- [https://security.netapp.com/advisory/ntap-20211104-0006/](https://security.netapp.com/advisory/ntap-20211104-0006/)\n- [https://security.gentoo.org/glsa/202401-24](https://security.gentoo.org/glsa/202401-24)\n"
+              },
+              "defaultConfiguration": {
+                "level": "warning"
+              },
+              "properties": {
+                "tags": [
+                  "security",
+                  "CWE-20",
+                  "deb"
+                ],
+                "cvssv3_baseScore": 7.5,
+                "security-severity": "7.5"
+              }
+            },
+            {
+              "id": "SNYK-UBUNTU2010-PCRE3-1027817",
+              "shortDescription": {
+                "text": "Low severity - Uncontrolled Recursion vulnerability in pcre3"
+              },
+              "fullDescription": {
+                "text": "(CVE-2017-11164) pcre3/libpcre3@2:8.39-13"
+              },
+              "help": {
+                "text": "",
+                "markdown": "## NVD Description\n**_Note:_** _Versions mentioned in the description apply only to the upstream `pcre3` package and not the `pcre3` package as distributed by `Ubuntu`._\n_See `How to fix?` for `Ubuntu:20.10` relevant fixed versions and status._\n\nIn PCRE 8.41, the OP_KETRMAX feature in the match function in pcre_exec.c allows stack exhaustion (uncontrolled recursion) when processing a crafted regular expression.\n## Remediation\nThere is no fixed version for `Ubuntu:20.10` `pcre3`.\n## References\n- [http://people.ubuntu.com/~ubuntu-security/cve/CVE-2017-11164](http://people.ubuntu.com/~ubuntu-security/cve/CVE-2017-11164)\n- [https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2017-11164](https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2017-11164)\n- [https://security-tracker.debian.org/tracker/CVE-2017-11164](https://security-tracker.debian.org/tracker/CVE-2017-11164)\n- [https://lists.apache.org/thread.html/rf9fa47ab66495c78bb4120b0754dd9531ca2ff0430f6685ac9b07772@%3Cdev.mina.apache.org%3E](https://lists.apache.org/thread.html/rf9fa47ab66495c78bb4120b0754dd9531ca2ff0430f6685ac9b07772@%3Cdev.mina.apache.org%3E)\n- [http://openwall.com/lists/oss-security/2017/07/11/3](http://openwall.com/lists/oss-security/2017/07/11/3)\n- [http://www.securityfocus.com/bid/99575](http://www.securityfocus.com/bid/99575)\n- [http://www.openwall.com/lists/oss-security/2023/04/11/1](http://www.openwall.com/lists/oss-security/2023/04/11/1)\n- [http://www.openwall.com/lists/oss-security/2023/04/12/1](http://www.openwall.com/lists/oss-security/2023/04/12/1)\n- [https://lists.apache.org/thread.html/rf9fa47ab66495c78bb4120b0754dd9531ca2ff0430f6685ac9b07772%40%3Cdev.mina.apache.org%3E](https://lists.apache.org/thread.html/rf9fa47ab66495c78bb4120b0754dd9531ca2ff0430f6685ac9b07772%40%3Cdev.mina.apache.org%3E)\n"
+              },
+              "defaultConfiguration": {
+                "level": "warning"
+              },
+              "properties": {
+                "tags": [
+                  "security",
+                  "CWE-674",
+                  "deb"
+                ],
+                "cvssv3_baseScore": 7.5,
+                "security-severity": "7.5"
+              }
+            },
+            {
+              "id": "SNYK-UBUNTU2010-PCRE3-1030781",
+              "shortDescription": {
+                "text": "Low severity - Out-of-bounds Read vulnerability in pcre3"
+              },
+              "fullDescription": {
+                "text": "(CVE-2019-20838) pcre3/libpcre3@2:8.39-13"
+              },
+              "help": {
+                "text": "",
+                "markdown": "## NVD Description\n**_Note:_** _Versions mentioned in the description apply only to the upstream `pcre3` package and not the `pcre3` package as distributed by `Ubuntu`._\n_See `How to fix?` for `Ubuntu:20.10` relevant fixed versions and status._\n\nlibpcre in PCRE before 8.43 allows a subject buffer over-read in JIT when UTF is disabled, and \\X or \\R has more than one fixed quantifier, a related issue to CVE-2019-20454.\n## Remediation\nThere is no fixed version for `Ubuntu:20.10` `pcre3`.\n## References\n- [http://people.ubuntu.com/~ubuntu-security/cve/CVE-2019-20838](http://people.ubuntu.com/~ubuntu-security/cve/CVE-2019-20838)\n- [https://security-tracker.debian.org/tracker/CVE-2019-20838](https://security-tracker.debian.org/tracker/CVE-2019-20838)\n- [https://support.apple.com/kb/HT211931](https://support.apple.com/kb/HT211931)\n- [https://support.apple.com/kb/HT212147](https://support.apple.com/kb/HT212147)\n- [http://seclists.org/fulldisclosure/2020/Dec/32](http://seclists.org/fulldisclosure/2020/Dec/32)\n- [http://seclists.org/fulldisclosure/2021/Feb/14](http://seclists.org/fulldisclosure/2021/Feb/14)\n- [https://bugs.gentoo.org/717920](https://bugs.gentoo.org/717920)\n- [https://www.pcre.org/original/changelog.txt](https://www.pcre.org/original/changelog.txt)\n- [https://lists.apache.org/thread.html/rf9fa47ab66495c78bb4120b0754dd9531ca2ff0430f6685ac9b07772@%3Cdev.mina.apache.org%3E](https://lists.apache.org/thread.html/rf9fa47ab66495c78bb4120b0754dd9531ca2ff0430f6685ac9b07772@%3Cdev.mina.apache.org%3E)\n- [https://lists.apache.org/thread.html/rf9fa47ab66495c78bb4120b0754dd9531ca2ff0430f6685ac9b07772%40%3Cdev.mina.apache.org%3E](https://lists.apache.org/thread.html/rf9fa47ab66495c78bb4120b0754dd9531ca2ff0430f6685ac9b07772%40%3Cdev.mina.apache.org%3E)\n"
+              },
+              "defaultConfiguration": {
+                "level": "warning"
+              },
+              "properties": {
+                "tags": [
+                  "security",
+                  "CWE-125",
+                  "deb"
+                ],
+                "cvssv3_baseScore": 7.5,
+                "security-severity": "7.5"
+              }
+            },
+            {
+              "id": "SNYK-UBUNTU2010-SHADOW-1028989",
+              "shortDescription": {
+                "text": "Low severity - Time-of-check Time-of-use (TOCTOU) vulnerability in shadow"
+              },
+              "fullDescription": {
+                "text": "(CVE-2013-4235) shadow/passwd@1:4.8.1-1ubuntu6"
+              },
+              "help": {
+                "text": "",
+                "markdown": "## NVD Description\n**_Note:_** _Versions mentioned in the description apply only to the upstream `shadow` package and not the `shadow` package as distributed by `Ubuntu`._\n_See `How to fix?` for `Ubuntu:20.10` relevant fixed versions and status._\n\nshadow: TOCTOU (time-of-check time-of-use) race condition when copying and removing directory trees\n## Remediation\nThere is no fixed version for `Ubuntu:20.10` `shadow`.\n## References\n- [http://people.ubuntu.com/~ubuntu-security/cve/CVE-2013-4235](http://people.ubuntu.com/~ubuntu-security/cve/CVE-2013-4235)\n- [https://security-tracker.debian.org/tracker/CVE-2013-4235](https://security-tracker.debian.org/tracker/CVE-2013-4235)\n- [https://lists.apache.org/thread.html/rf9fa47ab66495c78bb4120b0754dd9531ca2ff0430f6685ac9b07772@%3Cdev.mina.apache.org%3E](https://lists.apache.org/thread.html/rf9fa47ab66495c78bb4120b0754dd9531ca2ff0430f6685ac9b07772@%3Cdev.mina.apache.org%3E)\n- [https://bugzilla.redhat.com/show_bug.cgi?id=CVE-2013-4235](https://bugzilla.redhat.com/show_bug.cgi?id=CVE-2013-4235)\n- [https://access.redhat.com/security/cve/cve-2013-4235](https://access.redhat.com/security/cve/cve-2013-4235)\n- [https://security.gentoo.org/glsa/202210-26](https://security.gentoo.org/glsa/202210-26)\n- [https://lists.apache.org/thread.html/rf9fa47ab66495c78bb4120b0754dd9531ca2ff0430f6685ac9b07772%40%3Cdev.mina.apache.org%3E](https://lists.apache.org/thread.html/rf9fa47ab66495c78bb4120b0754dd9531ca2ff0430f6685ac9b07772%40%3Cdev.mina.apache.org%3E)\n"
+              },
+              "defaultConfiguration": {
+                "level": "warning"
+              },
+              "properties": {
+                "tags": [
+                  "security",
+                  "CWE-367",
+                  "deb"
+                ],
+                "cvssv3_baseScore": 4.7,
+                "security-severity": "4.7"
+              }
+            },
+            {
+              "id": "SNYK-UBUNTU2010-SYSTEMD-1290724",
+              "shortDescription": {
+                "text": "Low severity - Authentication Bypass vulnerability in systemd"
+              },
+              "fullDescription": {
+                "text": "(CVE-2020-13529) systemd/libsystemd0@246.6-1ubuntu1.3"
+              },
+              "help": {
+                "text": "",
+                "markdown": "## NVD Description\n**_Note:_** _Versions mentioned in the description apply only to the upstream `systemd` package and not the `systemd` package as distributed by `Ubuntu`._\n_See `How to fix?` for `Ubuntu:20.10` relevant fixed versions and status._\n\nAn exploitable denial-of-service vulnerability exists in Systemd 245. A specially crafted DHCP FORCERENEW packet can cause a server running the DHCP client to be vulnerable to a DHCP ACK spoofing attack. An attacker can forge a pair of FORCERENEW and DCHP ACK packets to reconfigure the server.\n## Remediation\nUpgrade `Ubuntu:20.10` `systemd` to version 246.6-1ubuntu1.7 or higher.\n## References\n- [http://people.ubuntu.com/~ubuntu-security/cve/CVE-2020-13529](http://people.ubuntu.com/~ubuntu-security/cve/CVE-2020-13529)\n- [https://security.netapp.com/advisory/ntap-20210625-0005/](https://security.netapp.com/advisory/ntap-20210625-0005/)\n- [https://lists.fedoraproject.org/archives/list/package-announce@lists.fedoraproject.org/message/42TMJVNYRY65B4QCJICBYOEIVZV3KUYI/](https://lists.fedoraproject.org/archives/list/package-announce@lists.fedoraproject.org/message/42TMJVNYRY65B4QCJICBYOEIVZV3KUYI/)\n- [https://security.gentoo.org/glsa/202107-48](https://security.gentoo.org/glsa/202107-48)\n- [https://talosintelligence.com/vulnerability_reports/TALOS-2020-1142](https://talosintelligence.com/vulnerability_reports/TALOS-2020-1142)\n- [http://www.openwall.com/lists/oss-security/2021/08/04/2](http://www.openwall.com/lists/oss-security/2021/08/04/2)\n- [http://www.openwall.com/lists/oss-security/2021/08/17/3](http://www.openwall.com/lists/oss-security/2021/08/17/3)\n- [http://www.openwall.com/lists/oss-security/2021/09/07/3](http://www.openwall.com/lists/oss-security/2021/09/07/3)\n- [https://lists.fedoraproject.org/archives/list/package-announce%40lists.fedoraproject.org/message/42TMJVNYRY65B4QCJICBYOEIVZV3KUYI/](https://lists.fedoraproject.org/archives/list/package-announce%40lists.fedoraproject.org/message/42TMJVNYRY65B4QCJICBYOEIVZV3KUYI/)\n"
+              },
+              "defaultConfiguration": {
+                "level": "warning"
+              },
+              "properties": {
+                "tags": [
+                  "security",
+                  "CWE-290",
+                  "deb"
+                ],
+                "cvssv3_baseScore": 6.1,
+                "security-severity": "6.1"
+              }
+            },
+            {
+              "id": "SNYK-UBUNTU2010-SYSTEMD-1320129",
+              "shortDescription": {
+                "text": "High severity - Allocation of Resources Without Limits or Throttling vulnerability in systemd"
+              },
+              "fullDescription": {
+                "text": "(CVE-2021-33910) systemd/libsystemd0@246.6-1ubuntu1.3"
+              },
+              "help": {
+                "text": "",
+                "markdown": "## NVD Description\n**_Note:_** _Versions mentioned in the description apply only to the upstream `systemd` package and not the `systemd` package as distributed by `Ubuntu`._\n_See `How to fix?` for `Ubuntu:20.10` relevant fixed versions and status._\n\nbasic/unit-name.c in systemd prior to 246.15, 247.8, 248.5, and 249.1 has a Memory Allocation with an Excessive Size Value (involving strdupa and alloca for a pathname controlled by a local attacker) that results in an operating system crash.\n## Remediation\nUpgrade `Ubuntu:20.10` `systemd` to version 246.6-1ubuntu1.7 or higher.\n## References\n- [http://people.ubuntu.com/~ubuntu-security/cve/CVE-2021-33910](http://people.ubuntu.com/~ubuntu-security/cve/CVE-2021-33910)\n- [https://www.debian.org/security/2021/dsa-4942](https://www.debian.org/security/2021/dsa-4942)\n- [https://lists.fedoraproject.org/archives/list/package-announce@lists.fedoraproject.org/message/2LSDMHAKI4LGFOCSPXNVVSEWQFAVFWR7/](https://lists.fedoraproject.org/archives/list/package-announce@lists.fedoraproject.org/message/2LSDMHAKI4LGFOCSPXNVVSEWQFAVFWR7/)\n- [https://lists.fedoraproject.org/archives/list/package-announce@lists.fedoraproject.org/message/42TMJVNYRY65B4QCJICBYOEIVZV3KUYI/](https://lists.fedoraproject.org/archives/list/package-announce@lists.fedoraproject.org/message/42TMJVNYRY65B4QCJICBYOEIVZV3KUYI/)\n- [https://security.gentoo.org/glsa/202107-48](https://security.gentoo.org/glsa/202107-48)\n- [http://packetstormsecurity.com/files/163621/Sequoia-A-Deep-Root-In-Linuxs-Filesystem-Layer.html](http://packetstormsecurity.com/files/163621/Sequoia-A-Deep-Root-In-Linuxs-Filesystem-Layer.html)\n- [https://github.com/systemd/systemd/commit/b34a4f0e6729de292cb3b0c03c1d48f246ad896b](https://github.com/systemd/systemd/commit/b34a4f0e6729de292cb3b0c03c1d48f246ad896b)\n- [https://github.com/systemd/systemd/pull/20256/commits/441e0115646d54f080e5c3bb0ba477c892861ab9](https://github.com/systemd/systemd/pull/20256/commits/441e0115646d54f080e5c3bb0ba477c892861ab9)\n- [https://github.com/systemd/systemd/releases](https://github.com/systemd/systemd/releases)\n- [https://github.com/systemd/systemd-stable/commit/4a1c5f34bd3e1daed4490e9d97918e504d19733b](https://github.com/systemd/systemd-stable/commit/4a1c5f34bd3e1daed4490e9d97918e504d19733b)\n- [https://github.com/systemd/systemd-stable/commit/764b74113e36ac5219a4b82a05f311b5a92136ce](https://github.com/systemd/systemd-stable/commit/764b74113e36ac5219a4b82a05f311b5a92136ce)\n- [https://github.com/systemd/systemd-stable/commit/b00674347337b7531c92fdb65590ab253bb57538](https://github.com/systemd/systemd-stable/commit/b00674347337b7531c92fdb65590ab253bb57538)\n- [https://github.com/systemd/systemd-stable/commit/cfd14c65374027b34dbbc4f0551456c5dc2d1f61](https://github.com/systemd/systemd-stable/commit/cfd14c65374027b34dbbc4f0551456c5dc2d1f61)\n- [https://www.openwall.com/lists/oss-security/2021/07/20/2](https://www.openwall.com/lists/oss-security/2021/07/20/2)\n- [http://www.openwall.com/lists/oss-security/2021/08/04/2](http://www.openwall.com/lists/oss-security/2021/08/04/2)\n- [http://www.openwall.com/lists/oss-security/2021/08/17/3](http://www.openwall.com/lists/oss-security/2021/08/17/3)\n- [http://www.openwall.com/lists/oss-security/2021/09/07/3](http://www.openwall.com/lists/oss-security/2021/09/07/3)\n- [https://security.netapp.com/advisory/ntap-20211104-0008/](https://security.netapp.com/advisory/ntap-20211104-0008/)\n- [https://cert-portal.siemens.com/productcert/pdf/ssa-222547.pdf](https://cert-portal.siemens.com/productcert/pdf/ssa-222547.pdf)\n- [https://lists.fedoraproject.org/archives/list/package-announce%40lists.fedoraproject.org/message/2LSDMHAKI4LGFOCSPXNVVSEWQFAVFWR7/](https://lists.fedoraproject.org/archives/list/package-announce%40lists.fedoraproject.org/message/2LSDMHAKI4LGFOCSPXNVVSEWQFAVFWR7/)\n- [https://lists.fedoraproject.org/archives/list/package-announce%40lists.fedoraproject.org/message/42TMJVNYRY65B4QCJICBYOEIVZV3KUYI/](https://lists.fedoraproject.org/archives/list/package-announce%40lists.fedoraproject.org/message/42TMJVNYRY65B4QCJICBYOEIVZV3KUYI/)\n"
+              },
+              "defaultConfiguration": {
+                "level": "error"
+              },
+              "properties": {
+                "tags": [
+                  "security",
+                  "CWE-770",
+                  "deb"
+                ],
+                "cvssv3_baseScore": 5.5,
+                "security-severity": "5.5"
+              }
+            }
+          ]
         }
       },
-      "results": []
+      "results": [
+        {
+          "ruleId": "SNYK-UBUNTU2010-BASH-1030916",
+          "level": "note",
+          "message": {
+            "text": "This file introduces a vulnerable bash package with a low severity vulnerability."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "Dockerfile"
+                },
+                "region": {
+                  "startLine": 1
+                }
+              },
+              "logicalLocations": [
+                {
+                  "fullyQualifiedName": "bash@5.0-6ubuntu2"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "ruleId": "SNYK-UBUNTU2010-COREUTILS-1028485",
+          "level": "note",
+          "message": {
+            "text": "This file introduces a vulnerable coreutils package with a low severity vulnerability."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "Dockerfile"
+                },
+                "region": {
+                  "startLine": 1
+                }
+              },
+              "logicalLocations": [
+                {
+                  "fullyQualifiedName": "coreutils@8.32-3ubuntu1"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "ruleId": "SNYK-UBUNTU2010-GLIBC-1033733",
+          "level": "note",
+          "message": {
+            "text": "This file introduces a vulnerable glibc package with a low severity vulnerability."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "Dockerfile"
+                },
+                "region": {
+                  "startLine": 1
+                }
+              },
+              "logicalLocations": [
+                {
+                  "fullyQualifiedName": "glibc@2.32-0ubuntu3"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "ruleId": "SNYK-UBUNTU2010-GLIBC-1048388",
+          "level": "note",
+          "message": {
+            "text": "This file introduces a vulnerable glibc package with a low severity vulnerability."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "Dockerfile"
+                },
+                "region": {
+                  "startLine": 1
+                }
+              },
+              "logicalLocations": [
+                {
+                  "fullyQualifiedName": "glibc@2.32-0ubuntu3"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "ruleId": "SNYK-UBUNTU2010-GLIBC-1055782",
+          "level": "note",
+          "message": {
+            "text": "This file introduces a vulnerable glibc package with a low severity vulnerability."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "Dockerfile"
+                },
+                "region": {
+                  "startLine": 1
+                }
+              },
+              "logicalLocations": [
+                {
+                  "fullyQualifiedName": "glibc@2.32-0ubuntu3"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "ruleId": "SNYK-UBUNTU2010-GLIBC-1055792",
+          "level": "note",
+          "message": {
+            "text": "This file introduces a vulnerable glibc package with a low severity vulnerability."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "Dockerfile"
+                },
+                "region": {
+                  "startLine": 1
+                }
+              },
+              "logicalLocations": [
+                {
+                  "fullyQualifiedName": "glibc@2.32-0ubuntu3"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "ruleId": "SNYK-UBUNTU2010-GLIBC-1122577",
+          "level": "note",
+          "message": {
+            "text": "This file introduces a vulnerable glibc package with a low severity vulnerability."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "Dockerfile"
+                },
+                "region": {
+                  "startLine": 1
+                }
+              },
+              "logicalLocations": [
+                {
+                  "fullyQualifiedName": "glibc@2.32-0ubuntu3"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "ruleId": "SNYK-UBUNTU2010-GLIBC-1123088",
+          "level": "note",
+          "message": {
+            "text": "This file introduces a vulnerable glibc package with a low severity vulnerability."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "Dockerfile"
+                },
+                "region": {
+                  "startLine": 1
+                }
+              },
+              "logicalLocations": [
+                {
+                  "fullyQualifiedName": "glibc@2.32-0ubuntu3"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "ruleId": "SNYK-UBUNTU2010-GNUTLS28-1085479",
+          "level": "note",
+          "message": {
+            "text": "This file introduces a vulnerable gnutls28 package with a low severity vulnerability."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "Dockerfile"
+                },
+                "region": {
+                  "startLine": 1
+                }
+              },
+              "logicalLocations": [
+                {
+                  "fullyQualifiedName": "gnutls28@3.6.15-4ubuntu2"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "ruleId": "SNYK-UBUNTU2010-GNUTLS28-1085501",
+          "level": "note",
+          "message": {
+            "text": "This file introduces a vulnerable gnutls28 package with a low severity vulnerability."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "Dockerfile"
+                },
+                "region": {
+                  "startLine": 1
+                }
+              },
+              "logicalLocations": [
+                {
+                  "fullyQualifiedName": "gnutls28@3.6.15-4ubuntu2"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "ruleId": "SNYK-UBUNTU2010-KRB5-1031825",
+          "level": "note",
+          "message": {
+            "text": "This file introduces a vulnerable krb5 package with a low severity vulnerability."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "Dockerfile"
+                },
+                "region": {
+                  "startLine": 1
+                }
+              },
+              "logicalLocations": [
+                {
+                  "fullyQualifiedName": "krb5@1.17-10ubuntu0.1"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "ruleId": "SNYK-UBUNTU2010-LIBGCRYPT20-1297921",
+          "level": "note",
+          "message": {
+            "text": "This file introduces a vulnerable libgcrypt20 package with a low severity vulnerability."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "Dockerfile"
+                },
+                "region": {
+                  "startLine": 1
+                }
+              },
+              "logicalLocations": [
+                {
+                  "fullyQualifiedName": "libgcrypt20@1.8.5-5ubuntu2"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "ruleId": "SNYK-UBUNTU2010-LIBTASN16-1032885",
+          "level": "note",
+          "message": {
+            "text": "This file introduces a vulnerable libtasn1-6 package with a low severity vulnerability."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "Dockerfile"
+                },
+                "region": {
+                  "startLine": 1
+                }
+              },
+              "logicalLocations": [
+                {
+                  "fullyQualifiedName": "libtasn1-6@4.16.0-2"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "ruleId": "SNYK-UBUNTU2010-LZ4-1278680",
+          "level": "warning",
+          "message": {
+            "text": "This file introduces a vulnerable lz4 package with a medium severity vulnerability."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "Dockerfile"
+                },
+                "region": {
+                  "startLine": 1
+                }
+              },
+              "logicalLocations": [
+                {
+                  "fullyQualifiedName": "lz4@1.9.2-2"
+                }
+              ]
+            }
+          ],
+          "fixes": [
+            {
+              "description": {
+                "text": "Upgrade to lz4/liblz4-1@1.9.2-2ubuntu0.20.10.1"
+              },
+              "artifactChanges": [
+                {
+                  "artifactLocation": {
+                    "uri": "Dockerfile"
+                  },
+                  "replacements": [
+                    {
+                      "deletedRegion": {
+                        "startLine": 1
+                      },
+                      "insertedContent": {
+                        "text": "lz4/liblz4-1@1.9.2-2ubuntu0.20.10.1"
+                      }
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "ruleId": "SNYK-UBUNTU2010-NETTLE-1303242",
+          "level": "warning",
+          "message": {
+            "text": "This file introduces a vulnerable nettle package with a medium severity vulnerability."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "Dockerfile"
+                },
+                "region": {
+                  "startLine": 1
+                }
+              },
+              "logicalLocations": [
+                {
+                  "fullyQualifiedName": "nettle@3.6-2ubuntu0.1"
+                }
+              ]
+            }
+          ],
+          "fixes": [
+            {
+              "description": {
+                "text": "Upgrade to nettle/libnettle8@3.6-2ubuntu0.2"
+              },
+              "artifactChanges": [
+                {
+                  "artifactLocation": {
+                    "uri": "Dockerfile"
+                  },
+                  "replacements": [
+                    {
+                      "deletedRegion": {
+                        "startLine": 1
+                      },
+                      "insertedContent": {
+                        "text": "nettle/libnettle8@3.6-2ubuntu0.2"
+                      }
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "ruleId": "SNYK-UBUNTU2010-PCRE3-1027817",
+          "level": "note",
+          "message": {
+            "text": "This file introduces a vulnerable pcre3 package with a low severity vulnerability."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "Dockerfile"
+                },
+                "region": {
+                  "startLine": 1
+                }
+              },
+              "logicalLocations": [
+                {
+                  "fullyQualifiedName": "pcre3@2:8.39-13"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "ruleId": "SNYK-UBUNTU2010-PCRE3-1030781",
+          "level": "note",
+          "message": {
+            "text": "This file introduces a vulnerable pcre3 package with a low severity vulnerability."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "Dockerfile"
+                },
+                "region": {
+                  "startLine": 1
+                }
+              },
+              "logicalLocations": [
+                {
+                  "fullyQualifiedName": "pcre3@2:8.39-13"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "ruleId": "SNYK-UBUNTU2010-SHADOW-1028989",
+          "level": "note",
+          "message": {
+            "text": "This file introduces a vulnerable shadow package with a low severity vulnerability."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "Dockerfile"
+                },
+                "region": {
+                  "startLine": 1
+                }
+              },
+              "logicalLocations": [
+                {
+                  "fullyQualifiedName": "shadow@1:4.8.1-1ubuntu6"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "ruleId": "SNYK-UBUNTU2010-SYSTEMD-1290724",
+          "level": "note",
+          "message": {
+            "text": "This file introduces a vulnerable systemd package with a low severity vulnerability."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "Dockerfile"
+                },
+                "region": {
+                  "startLine": 1
+                }
+              },
+              "logicalLocations": [
+                {
+                  "fullyQualifiedName": "systemd@246.6-1ubuntu1.3"
+                }
+              ]
+            }
+          ],
+          "fixes": [
+            {
+              "description": {
+                "text": "Upgrade to systemd/libsystemd0@246.6-1ubuntu1.7"
+              },
+              "artifactChanges": [
+                {
+                  "artifactLocation": {
+                    "uri": "Dockerfile"
+                  },
+                  "replacements": [
+                    {
+                      "deletedRegion": {
+                        "startLine": 1
+                      },
+                      "insertedContent": {
+                        "text": "systemd/libsystemd0@246.6-1ubuntu1.7"
+                      }
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "ruleId": "SNYK-UBUNTU2010-SYSTEMD-1320129",
+          "level": "error",
+          "message": {
+            "text": "This file introduces a vulnerable systemd package with a high severity vulnerability."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "Dockerfile"
+                },
+                "region": {
+                  "startLine": 1
+                }
+              },
+              "logicalLocations": [
+                {
+                  "fullyQualifiedName": "systemd@246.6-1ubuntu1.3"
+                }
+              ]
+            }
+          ],
+          "fixes": [
+            {
+              "description": {
+                "text": "Upgrade to systemd/libsystemd0@246.6-1ubuntu1.7"
+              },
+              "artifactChanges": [
+                {
+                  "artifactLocation": {
+                    "uri": "Dockerfile"
+                  },
+                  "replacements": [
+                    {
+                      "deletedRegion": {
+                        "startLine": 1
+                      },
+                      "insertedContent": {
+                        "text": "systemd/libsystemd0@246.6-1ubuntu1.7"
+                      }
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
     },
     {
       "tool": {
