@@ -277,13 +277,3 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.STAKATER_GITHUB_TOKEN }}
           WITH_V: true
           DEFAULT_BUMP: patch
-
-      - name: Notify Slack
-        uses: 8398a7/action-slack@v3
-        if: always() # Pick up events even if the job fails or is canceled.
-        with:
-          status: ${{ job.status }}
-          fields: repo,author,action,eventName,ref,workflow
-        env:
-          GITHUB_TOKEN: ${{ secrets.STAKATER_GITHUB_TOKEN }}
-          SLACK_WEBHOOK_URL: ${{ secrets.STAKATER_DELIVERY_SLACK_WEBHOOK }}
