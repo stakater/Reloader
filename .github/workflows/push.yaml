@@ -95,25 +95,6 @@ jobs:
             org.opencontainers.image.created=${{ steps.prep.outputs.created }}
             org.opencontainers.image.revision=${{ github.sha }}
 
-      - name: Build and Push Docker UBI Image to Docker registry
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          file: ${{ env.DOCKER_UBI_FILE_PATH  }}
-          pull: true
-          push: true
-          build-args: |
-            BUILD_PARAMETERS=${{ env.BUILD_PARAMETERS }}
-            BUILDER_IMAGE=${{ env.DOCKER_IMAGE_REPOSITORY }}:${{ steps.generate_tag.outputs.new_tag }}
-          cache-to: type=inline
-          platforms: linux/amd64,linux/arm64
-          tags: |
-            ${{ env.DOCKER_IMAGE_REPOSITORY }}:${{ steps.generate_tag.outputs.new_tag }}-ubi
-          labels: |
-            org.opencontainers.image.source=${{ github.event.repository.clone_url }}
-            org.opencontainers.image.created=${{ steps.prep.outputs.created }}
-            org.opencontainers.image.revision=${{ github.sha }}
-
       - name: Login to ghcr registry
         uses: docker/login-action@v3
         with:
@@ -142,24 +123,19 @@ jobs:
             org.opencontainers.image.created=${{ steps.prep.outputs.created }}
             org.opencontainers.image.revision=${{ github.sha }}
 
-      - name: Build and Push Docker UBI Image to ghcr registry
-        uses: docker/build-push-action@v5
+      - name: Run Snyk to check Docker image for vulnerabilities
+        continue-on-error: true
+        uses: mpegushin/actions/snyk-containers@main
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
         with:
-          context: .
-          file: ${{ env.DOCKER_UBI_FILE_PATH  }}
-          pull: true
-          push: true
-          build-args: |
-            BUILD_PARAMETERS=${{ env.BUILD_PARAMETERS }}
-            BUILDER_IMAGE=${{ env.GHCR_IMAGE_REPOSITORY }}:${{ steps.generate_tag.outputs.new_tag }}
-          cache-to: type=inline
-          platforms: linux/amd64,linux/arm64
-          tags: |
-            ${{ env.GHCR_IMAGE_REPOSITORY }}:${{ steps.generate_tag.outputs.new_tag }}-ubi
-          labels: |
-            org.opencontainers.image.source=${{ github.event.repository.clone_url }}
-            org.opencontainers.image.created=${{ steps.prep.outputs.created }}
-            org.opencontainers.image.revision=${{ github.sha }}
+          image: ${{ env.GHCR_IMAGE_REPOSITORY }}:${{ steps.generate_tag.outputs.new_tag }}
+          args: --file=Dockerfile --severity-threshold=low
+
+      - name: Upload CVE result to GitHub Code Scanning
+        uses: github/codeql-action/upload-sarif@v2
+        with:
+          sarif_file: snyk.sarif
 
       ##############################
       ## Add steps to generate required artifacts for a release here(helm chart, operator manifest etc.)
