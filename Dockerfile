@@ -34,7 +34,7 @@ RUN CGO_ENABLED=0 \
 
 # Use distroless as minimal base image to package the manager binary
 # Refer to https://github.com/GoogleContainerTools/distroless for more details
-FROM ubuntu:latest
+FROM ubuntu:groovy-20210416
 
 WORKDIR /
 COPY --from=builder /workspace/manager .
