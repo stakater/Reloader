@@ -10,7 +10,7 @@ jobs:
       run: docker build -t mpegushin/reloader .
     - name: Run Snyk to check Docker image for vulnerabilities
       continue-on-error: true
-      uses: snyk/actions/docker@master
+      uses: mpegushin/actions/snyk-containers@master
       env:
         SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
       with:

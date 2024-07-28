@@ -1,4 +1,4 @@
-name: Snyk SCA
+name: Snyk SAST
 on: push
 jobs:
   snyk:
@@ -7,7 +7,7 @@ jobs:
     steps:
       - uses: actions/checkout@master
       - name: Run Snyk to check for vulnerabilities
-        uses: mpegushin/actions/snyk-sca-golang@master
+        uses: mpegushin/actions/snyk-sast@master
         continue-on-error: true
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
