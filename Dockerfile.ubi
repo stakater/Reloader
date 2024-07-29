@@ -4,6 +4,7 @@ ARG BASE_IMAGE
 FROM --platform=${BUILDPLATFORM} ${BUILDER_IMAGE} as SRC
 
 FROM ${BASE_IMAGE:-registry.access.redhat.com/ubi8/ubi:latest} as minimal-ubi
+ARG BUILDPLATFORM
 
 RUN dnf update -y && dnf install -y binutils
 # prep target rootfs for scratch container
