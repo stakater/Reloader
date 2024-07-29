@@ -190,7 +190,7 @@ You can apply vanilla manifests by changing `RELEASE-NAME` placeholder provided 
 kubectl apply -f https://raw.githubusercontent.com/stakater/Reloader/master/deployments/kubernetes/reloader.yaml
 ```
 
-By default, Reloader gets deployed in `default` namespace and watches changes `secrets` and `configmaps` in all namespaces.Additionally, in the default Reloader deployment, the following resource limits and requests are set:
+By default, Reloader gets deployed in `default` namespace and watches changes `secrets` and `configmaps` in all namespaces. Additionally, in the default Reloader deployment, the following resource limits and requests are set:
 
 ```yaml
 resources:
@@ -202,7 +202,7 @@ resources:
     memory: 128Mi
 ```
 
-Reloader can be configured to ignore the resources `secrets` and `configmaps` by passing the following arguments (`spec.template.spec.containers.args`) to its container :
+Reloader can be configured to ignore the resources `secrets` and `configmaps` by passing the following arguments (`spec.template.spec.containers.args`) to its container:
 
 | Argument                         | Description          |
 |----------------------------------|----------------------|
