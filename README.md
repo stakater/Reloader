@@ -190,9 +190,19 @@ You can apply vanilla manifests by changing `RELEASE-NAME` placeholder provided 
 kubectl apply -f https://raw.githubusercontent.com/stakater/Reloader/master/deployments/kubernetes/reloader.yaml
 ```
 
-By default, Reloader gets deployed in `default` namespace and watches changes `secrets` and `configmaps` in all namespaces.
+By default, Reloader gets deployed in `default` namespace and watches changes `secrets` and `configmaps` in all namespaces. Additionally, in the default Reloader deployment, the following resource limits and requests are set:
 
-Reloader can be configured to ignore the resources `secrets` and `configmaps` by passing the following arguments (`spec.template.spec.containers.args`) to its container :
+```yaml
+resources:
+  limits:
+    cpu: 150m
+    memory: 512Mi
+  requests:
+    cpu: 10m
+    memory: 128Mi
+```
+
+Reloader can be configured to ignore the resources `secrets` and `configmaps` by passing the following arguments (`spec.template.spec.containers.args`) to its container:
 
 | Argument                         | Description          |
 |----------------------------------|----------------------|
@@ -317,6 +327,7 @@ helm uninstall {{RELEASE_NAME}} -n {{NAMESPACE}}
 | `reloader.ignoreSecrets`          | To ignore secrets. Valid value are either `true` or `false`. Either `ignoreSecrets` or `ignoreConfigMaps` can be ignored, not both at the same time | boolean     | `false`   |
 | `reloader.ignoreConfigMaps`       | To ignore configMaps. Valid value are either `true` or `false`                                                                                      | boolean     | `false`   |
 | `reloader.reloadOnCreate`         | Enable reload on create events. Valid value are either `true` or `false`                                                                            | boolean     | `false`   |
+| `reloader.reloadOnDelete`         | Enable reload on delete events. Valid value are either `true` or `false`                                                                            | boolean     | `false`   |
 | `reloader.syncAfterRestart`       | Enable sync after Reloader restarts for **Add** events, works only when reloadOnCreate is `true`. Valid value are either `true` or `false`          | boolean     | `false`   |
 | `reloader.reloadStrategy`         | Strategy to trigger resource restart, set to either `default`, `env-vars` or `annotations`                                                          | enumeration | `default` |
 | `reloader.ignoreNamespaces`       | List of comma separated namespaces to ignore, if multiple are provided, they are combined with the AND operator                                     | string      | `""`      |
@@ -328,6 +339,7 @@ helm uninstall {{RELEASE_NAME}} -n {{NAMESPACE}}
 | `reloader.readOnlyRootFileSystem` | Enforce readOnlyRootFilesystem                                                                                                                      | boolean     | `false`   |
 | `reloader.legacy.rbac`            |                                                                                                                                                     | boolean     | `false`   |
 | `reloader.matchLabels`            | Pod labels to match                                                                                                                                 | map         | `{}`      |
+| `reloader.enableMetricsByNamespace`            | Expose an additional Prometheus counter of reloads by namespace (this metric may have high cardinality in clusters with many namespaces) | boolean         | `false`      |
 
 #### Deployment Reloader Parameters
 
@@ -374,14 +386,18 @@ helm uninstall {{RELEASE_NAME}} -n {{NAMESPACE}}
 - Reloading of OpenShift (DeploymentConfig) and/or Argo `Rollouts` has to be enabled explicitly because it might not be always possible to use it on a cluster with restricted permissions
 - `isOpenShift` Recent versions of OpenShift (tested on 4.13.3) require the specified user to be in an `uid` range which is dynamically assigned by the namespace. The solution is to unset the runAsUser variable via ``deployment.securityContext.runAsUser=null`` and let OpenShift assign it at install
 - `reloadOnCreate` controls how Reloader handles secrets being added to the cache for the first time. If `reloadOnCreate` is set to true:
-  1. Configmaps/secrets being added to the cache will cause Reloader to perform a rolling update of the associated workload
-  1. When applications are deployed for the first time, Reloader will perform a rolling update of the associated workload
-  1. If you are running Reloader in HA mode all workloads will have a rolling update performed when a new leader is elected
+    1. Configmaps/secrets being added to the cache will cause Reloader to perform a rolling update of the associated workload
+    1. When applications are deployed for the first time, Reloader will perform a rolling update of the associated workload
+    1. If you are running Reloader in HA mode all workloads will have a rolling update performed when a new leader is elected
+- `reloadOnDelete` controls how Reloader handles secrets being deleted. If `reloadOnDelete` is set to true:
+    1. Configmaps/secrets being deleted will cause Reloader to perform a rolling update of the associated workload
 - `serviceMonitor` will be removed in future releases of Reloader in favour of Pod monitor
 - If `reloadOnCreate` is set to false:
-  1. Updates to configmaps/secrets that occur while there is no leader will not be picked up by the new leader until a subsequent update of the configmap/secret occurs
-  1. In the worst case the window in which there can be no leader is 15s as this is the LeaseDuration
-- By default, `reloadOnCreate` and `syncAfterRestart` are both set to false. Both need to be enabled explicitly
+    1. Updates to configmaps/secrets that occur while there is no leader will not be picked up by the new leader until a subsequent update of the configmap/secret occurs
+    1. In the worst case the window in which there can be no leader is 15s as this is the LeaseDuration
+- If `reloadOnDelete` is set to false:
+    1. Deleting of configmaps/secrets has no effect to pods that references these resources.
+- By default, `reloadOnCreate`, `reloadOnDelete` and `syncAfterRestart` are all set to false. All need to be enabled explicitly
 
 ## Help
 

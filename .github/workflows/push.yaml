@@ -83,7 +83,7 @@ jobs:
 
       - name: Generate Tag
         id: generate_tag
-        uses: anothrNick/github-tag-action@1.69.0
+        uses: anothrNick/github-tag-action@1.70.0
         env:
           GITHUB_TOKEN: ${{ secrets.STAKATER_GITHUB_TOKEN }}
           WITH_V: true
@@ -196,7 +196,7 @@ jobs:
       # Generate tag for operator without "v"
       - name: Generate Operator Tag
         id: generate_operator_tag
-        uses: anothrNick/github-tag-action@1.69.0
+        uses: anothrNick/github-tag-action@1.70.0
         env:
           GITHUB_TOKEN: ${{ secrets.STAKATER_GITHUB_TOKEN }}
           WITH_V: false
@@ -211,7 +211,12 @@ jobs:
 
       - name: Helm Template
         run: |
-          helm template reloader deployments/kubernetes/chart/reloader/ > deployments/kubernetes/reloader.yaml
+          helm template reloader deployments/kubernetes/chart/reloader/ \
+            --set reloader.deployment.resources.limits.cpu=150m \
+            --set reloader.deployment.resources.limits.memory=512Mi \
+            --set reloader.deployment.resources.requests.cpu=10m \
+            --set reloader.deployment.resources.requests.memory=128Mi > deployments/kubernetes/reloader.yaml
+          
           helm template reloader deployments/kubernetes/chart/reloader/ --output-dir deployments/kubernetes/manifests && mv deployments/kubernetes/manifests/reloader/templates/* deployments/kubernetes/manifests/ && rm -r deployments/kubernetes/manifests/reloader
 
       - name: Remove labels and annotations from manifests
@@ -267,7 +272,7 @@ jobs:
           branch: ${{ github.ref }}
 
       - name: Push Latest Tag
-        uses: anothrNick/github-tag-action@1.69.0
+        uses: anothrNick/github-tag-action@1.70.0
         env:
           GITHUB_TOKEN: ${{ secrets.STAKATER_GITHUB_TOKEN }}
           WITH_V: true
