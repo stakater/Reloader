@@ -9,6 +9,12 @@
 [![license](https://img.shields.io/github/license/stakater/reloader.svg?style=flat-square)](LICENSE)
 [![Get started with Stakater](https://stakater.github.io/README/stakater-github-banner.png)](https://stakater.com/?utm_source=Reloader&utm_medium=github)
 
+<div align="center">
+  <a href="https://dash.plotly.com/project-maintenance">
+    <img src="https://dash.plotly.com/assets/images/maintained-by-plotly.png" width="400px" alt="Maintained by Plotly">
+  </a>
+</div>
+
 ## Problem
 
 We would like to watch if some change happens in `ConfigMap` and/or `Secret`; then perform a rolling upgrade on relevant `DeploymentConfig`, `Deployment`, `Daemonset`, `Statefulset` and `Rollout`
