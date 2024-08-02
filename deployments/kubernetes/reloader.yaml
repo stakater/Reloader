@@ -121,7 +121,7 @@ metadata:
     app.kubernetes.io/managed-by: "Helm"
     group: com.stakater.platform
     provider: stakater
-    version: v1.0.119
+    version: latest
   name: reloader-reloader
   namespace: default
 spec:
@@ -141,10 +141,10 @@ spec:
         app.kubernetes.io/managed-by: "Helm"
         group: com.stakater.platform
         provider: stakater
-        version: v1.0.119
+        version: latest
     spec:
       containers:
-      - image: "ghcr.io/stakater/reloader:v1.0.119"
+      - image: "ghcr.io/stakater/reloader:latest"
         imagePullPolicy: IfNotPresent
         name: reloader-reloader
 

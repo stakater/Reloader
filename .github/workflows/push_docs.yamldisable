@@ -1,3 +1,5 @@
+# need changes in underlying workflow or to be merged with release workflow
+# as to release docs images on PR 
 name: Push Documentation Changes
 
 on:

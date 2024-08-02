@@ -1,18 +1,11 @@
 name: Push
 
 on:
-  push:
+  pull_request:
+    types:
+      - closed
     branches:
       - master
-    paths:
-      - '**'
-      - '!.markdownlint.yaml'
-      - '!.vale.ini'
-      - '!Dockerfile-docs'
-      - '!docs-nginx.conf'
-      - '!docs/**'
-      - '!theme_common'
-      - '!theme_override'
 
 env:
   DOCKER_FILE_PATH: Dockerfile
@@ -25,7 +18,7 @@ env:
 jobs:
   build:
     name: Build
-    if: "! contains(toJSON(github.event.commits.*.message), '[skip-ci]')"
+    if: github.event.pull_request.merged == true
     runs-on: ubuntu-latest
 
     steps:
@@ -81,15 +74,6 @@ jobs:
       - name: Test
         run: make test
 
-      - name: Generate Tag
-        id: generate_tag
-        uses: anothrNick/github-tag-action@1.70.0
-        env:
-          GITHUB_TOKEN: ${{ secrets.STAKATER_GITHUB_TOKEN }}
-          WITH_V: true
-          DEFAULT_BUMP: patch
-          DRY_RUN: true
-
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
 
@@ -117,7 +101,7 @@ jobs:
           cache-to: type=inline
           platforms: linux/amd64,linux/arm,linux/arm64
           tags: |
-            ${{ env.DOCKER_IMAGE_REPOSITORY }}:${{ steps.generate_tag.outputs.new_tag }}
+            ${{ env.DOCKER_IMAGE_REPOSITORY }}:merge-${{ github.event.number }}
           labels: |
             org.opencontainers.image.source=${{ github.event.repository.clone_url }}
             org.opencontainers.image.created=${{ steps.prep.outputs.created }}
@@ -132,11 +116,11 @@ jobs:
           push: true
           build-args: |
             BUILD_PARAMETERS=${{ env.BUILD_PARAMETERS }}
-            BUILDER_IMAGE=${{ env.DOCKER_IMAGE_REPOSITORY }}:${{ steps.generate_tag.outputs.new_tag }}
+            BUILDER_IMAGE=${{ env.DOCKER_IMAGE_REPOSITORY }}:merge-${{ github.event.number }}
           cache-to: type=inline
           platforms: linux/amd64,linux/arm64
           tags: |
-            ${{ env.DOCKER_IMAGE_REPOSITORY }}:${{ steps.generate_tag.outputs.new_tag }}-ubi
+            ${{ env.DOCKER_IMAGE_REPOSITORY }}:merge-${{ github.event.number }}-ubi
           labels: |
             org.opencontainers.image.source=${{ github.event.repository.clone_url }}
             org.opencontainers.image.created=${{ steps.prep.outputs.created }}
@@ -164,7 +148,7 @@ jobs:
           cache-to: type=inline
           platforms: linux/amd64,linux/arm,linux/arm64
           tags: |
-            ${{ env.GHCR_IMAGE_REPOSITORY }}:${{ steps.generate_tag.outputs.new_tag }}
+            ${{ env.GHCR_IMAGE_REPOSITORY }}:merge-${{ github.event.number }}
           labels: |
             org.opencontainers.image.source=${{ github.event.repository.clone_url }}
             org.opencontainers.image.created=${{ steps.prep.outputs.created }}
@@ -179,11 +163,11 @@ jobs:
           push: true
           build-args: |
             BUILD_PARAMETERS=${{ env.BUILD_PARAMETERS }}
-            BUILDER_IMAGE=${{ env.GHCR_IMAGE_REPOSITORY }}:${{ steps.generate_tag.outputs.new_tag }}
+            BUILDER_IMAGE=${{ env.GHCR_IMAGE_REPOSITORY }}:merge-${{ github.event.number }}
           cache-to: type=inline
           platforms: linux/amd64,linux/arm64
           tags: |
-            ${{ env.GHCR_IMAGE_REPOSITORY }}:${{ steps.generate_tag.outputs.new_tag }}-ubi
+            ${{ env.GHCR_IMAGE_REPOSITORY }}:merge-${{ github.event.number }}-ubi
           labels: |
             org.opencontainers.image.source=${{ github.event.repository.clone_url }}
             org.opencontainers.image.created=${{ steps.prep.outputs.created }}
@@ -193,90 +177,78 @@ jobs:
       ## Add steps to generate required artifacts for a release here(helm chart, operator manifest etc.)
       ##############################
 
-      # Generate tag for operator without "v"
-      - name: Generate Operator Tag
-        id: generate_operator_tag
-        uses: anothrNick/github-tag-action@1.70.0
-        env:
-          GITHUB_TOKEN: ${{ secrets.STAKATER_GITHUB_TOKEN }}
-          WITH_V: false
-          DEFAULT_BUMP: patch
-          DRY_RUN: true
+      # Skip pushing plain manifests till we decide what to do with them
 
-      # Update chart tag to the latest semver tag
-      - name: Update Chart Version
-        env:
-          VERSION: ${{ steps.generate_operator_tag.outputs.new_tag }}
-        run: make bump-chart
-
-      - name: Helm Template
-        run: |
-          helm template reloader deployments/kubernetes/chart/reloader/ \
-            --set reloader.deployment.resources.limits.cpu=150m \
-            --set reloader.deployment.resources.limits.memory=512Mi \
-            --set reloader.deployment.resources.requests.cpu=10m \
-            --set reloader.deployment.resources.requests.memory=128Mi > deployments/kubernetes/reloader.yaml
+      # - name: Helm Template
+      #   run: |
+      #     helm template reloader deployments/kubernetes/chart/reloader/ \
+      #       --set reloader.deployment.resources.limits.cpu=150m \
+      #       --set reloader.deployment.resources.limits.memory=512Mi \
+      #       --set reloader.deployment.resources.requests.cpu=10m \
+      #       --set reloader.deployment.resources.requests.memory=128Mi > deployments/kubernetes/reloader.yaml
           
-          helm template reloader deployments/kubernetes/chart/reloader/ --output-dir deployments/kubernetes/manifests && mv deployments/kubernetes/manifests/reloader/templates/* deployments/kubernetes/manifests/ && rm -r deployments/kubernetes/manifests/reloader
+      #     helm template reloader deployments/kubernetes/chart/reloader/ --output-dir deployments/kubernetes/manifests && mv deployments/kubernetes/manifests/reloader/templates/* deployments/kubernetes/manifests/ && rm -r deployments/kubernetes/manifests/reloader
 
-      - name: Remove labels and annotations from manifests
-        run: make remove-labels-annotations
+      # - name: Remove labels and annotations from manifests
+      #   run: make remove-labels-annotations
 
-      # Publish helm chart
-      - name: Login to ghcr via helm
-        run: |
-          echo ${{secrets.GITHUB_TOKEN}} | helm registry login ghcr.io/stakater --username stakater-user --password-stdin
+      # Charts are to be pushed to a separate repo with a separate release cycle
 
-      - name: Publish Helm chart to ghcr.io
-        run: |
-          helm package ./deployments/kubernetes/chart/reloader --destination ./packaged-chart
-          helm push ./packaged-chart/*.tgz oci://ghcr.io/stakater/charts
-          rm -rf ./packaged-chart
+      # # Publish helm chart
+      # - name: Login to ghcr via helm
+      #   run: |
+      #     echo ${{secrets.GITHUB_TOKEN}} | helm registry login ghcr.io/stakater --username stakater-user --password-stdin
 
-      - name: Publish Helm chart to gh-pages
-        uses: stefanprodan/helm-gh-pages@master
-        with:
-          branch: master
-          repository: stakater-charts
-          target_dir: docs
-          token: ${{ secrets.STAKATER_GITHUB_TOKEN }}
-          charts_dir: deployments/kubernetes/chart/
-          charts_url: ${{ env.HELM_REGISTRY_URL }}
-          owner: stakater
-          linting: on
-          commit_username: stakater-user
-          commit_email: stakater@gmail.com
+      # - name: Publish Helm chart to ghcr.io
+      #   run: |
+      #     helm package ./deployments/kubernetes/chart/reloader --destination ./packaged-chart
+      #     helm push ./packaged-chart/*.tgz oci://ghcr.io/stakater/charts
+      #     rm -rf ./packaged-chart
 
-      # Commit back changes
-      - name: Log info about `.git` directory permissions
-        run: |
-          # Debug logging
-          echo "Disk usage: "
-          df -H
+      # - name: Publish Helm chart to gh-pages
+      #   uses: stefanprodan/helm-gh-pages@master
+      #   with:
+      #     branch: master
+      #     repository: stakater-charts
+      #     target_dir: docs
+      #     token: ${{ secrets.STAKATER_GITHUB_TOKEN }}
+      #     charts_dir: deployments/kubernetes/chart/
+      #     charts_url: ${{ env.HELM_REGISTRY_URL }}
+      #     owner: stakater
+      #     linting: on
+      #     commit_username: stakater-user
+      #     commit_email: stakater@gmail.com
 
-          echo ".git files not owned by current user or current group:"
-          find .git ! -user $(id -u) -o ! -group $(id -g) | xargs ls -lah
+      # # Commit back changes
+      # - name: Log info about `.git` directory permissions
+      #   run: |
+      #     # Debug logging
+      #     echo "Disk usage: "
+      #     df -H
 
-      - name: Commit files
-        run: |
-          git config --local user.email "stakater@gmail.com"
-          git config --local user.name "stakater-user"
-          git status
-          git add .
-          git commit -m "[skip-ci] Update artifacts" -a
+      #     echo ".git files not owned by current user or current group:"
+      #     find .git ! -user $(id -u) -o ! -group $(id -g) | xargs ls -lah
 
-      - name: Push changes
-        uses: ad-m/github-push-action@master
-        with:
-          github_token: ${{ secrets.STAKATER_GITHUB_TOKEN }}
-          branch: ${{ github.ref }}
+      # - name: Commit files
+      #   run: |
+      #     git config --local user.email "stakater@gmail.com"
+      #     git config --local user.name "stakater-user"
+      #     git status
+      #     git add .
+      #     git commit -m "[skip-ci] Update artifacts" -a
 
-      - name: Push Latest Tag
-        uses: anothrNick/github-tag-action@1.70.0
-        env:
-          GITHUB_TOKEN: ${{ secrets.STAKATER_GITHUB_TOKEN }}
-          WITH_V: true
-          DEFAULT_BUMP: patch
+      # - name: Push changes
+      #   uses: ad-m/github-push-action@master
+      #   with:
+      #     github_token: ${{ secrets.STAKATER_GITHUB_TOKEN }}
+      #     branch: ${{ github.ref }}
+
+      # - name: Push Latest Tag
+      #   uses: anothrNick/github-tag-action@1.70.0
+      #   env:
+      #     GITHUB_TOKEN: ${{ secrets.STAKATER_GITHUB_TOKEN }}
+      #     WITH_V: true
+      #     DEFAULT_BUMP: patch
 
       - name: Notify Slack
         uses: 8398a7/action-slack@v3
