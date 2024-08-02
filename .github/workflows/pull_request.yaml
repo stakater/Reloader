@@ -54,6 +54,13 @@ jobs:
         check-latest: true
         cache: true
 
+    # Get highest tag and remove any suffixes with '-'
+    - name: Get Highest tag
+      id: highest_tag
+      run: |
+        highest_tag=$(git tag -l --sort -version:refname | head -n 1)
+        echo "tag=${highest_tag%%-*}" >> $GITHUB_OUTPUT
+
     - name: Install Dependencies
       run: |
         make install
@@ -139,7 +146,7 @@ jobs:
         push: false
         build-args: |
           BUILD_PARAMETERS=${{ env.BUILD_PARAMETERS }}
-          BUILDER_IMAGE=${{ env.GHCR_IMAGE_REPOSITORY }}:${{ steps.generate_tag.outputs.GIT_TAG }}
+          BUILDER_IMAGE=${{ env.GHCR_IMAGE_REPOSITORY }}:${{ steps.highest_tag.outputs.tag }}
         cache-to: type=inline
         platforms: linux/amd64,linux/arm64
         tags: |
