@@ -61,6 +61,11 @@ jobs:
         highest_tag=$(git tag -l --sort -version:refname | head -n 1)
         echo "tag=${highest_tag%%-*}" >> $GITHUB_OUTPUT
 
+    # Get highest tag and remove any suffixes with '-'
+    - name: Print Highest tag
+      run: |
+        echo ${{ steps.highest_tag.outputs.tag }}
+
     - name: Install Dependencies
       run: |
         make install
