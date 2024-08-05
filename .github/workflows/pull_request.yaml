@@ -58,8 +58,8 @@ jobs:
     - name: Get Highest tag
       id: highest_tag
       run: |
-        highest_tag=$(git tag -l --sort -version:refname | head -n 1)
-        echo "tag=${highest_tag%%-*}" >> $GITHUB_OUTPUT
+        highest=$(git tag -l --sort -version:refname | head -n 1)
+        echo "tag=${highest%%-*}" >> $GITHUB_OUTPUT
 
     # Get highest tag and remove any suffixes with '-'
     - name: Print Highest tag
