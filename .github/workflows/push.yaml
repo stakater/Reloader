@@ -173,6 +173,25 @@ jobs:
             org.opencontainers.image.created=${{ steps.prep.outputs.created }}
             org.opencontainers.image.revision=${{ github.sha }}
 
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            docs:
+              - '.markdownlint.yaml'
+              - '.vale.ini'
+              - 'Dockerfile-docs'
+              - 'docs-nginx.conf'
+              - 'docs/**'
+              - 'README.md'
+              - 'theme_common'
+              - 'theme_override'
+
+      # run only if 'workflows' files were changed
+      - name: workflow tests
+        if: steps.filter.outputs.docs == 'true'
+        run: echo "Workflow file"
+
       ##############################
       ## Add steps to generate required artifacts for a release here(helm chart, operator manifest etc.)
       ##############################
