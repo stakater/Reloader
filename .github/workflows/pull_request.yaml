@@ -39,7 +39,6 @@ jobs:
         ref: ${{github.event.pull_request.head.sha}}
         fetch-depth: 0
 
-
     # Setting up helm binary
     - name: Set up Helm
       uses: azure/setup-helm@v4
@@ -55,25 +54,6 @@ jobs:
         go-version-file: 'go.mod'
         check-latest: true
         cache: true
-
-    - uses: dorny/paths-filter@v3
-      id: filter
-      with:
-        filters: |
-          docs:
-            - '.markdownlint.yaml'
-            - '.vale.ini'
-            - 'Dockerfile-docs'
-            - 'docs-nginx.conf'
-            - 'docs/**'
-            - 'README.md'
-            - 'theme_common'
-            - 'theme_override'
-
-    # run only if 'workflows' files were changed
-    - name: workflow tests
-      if: steps.filter.outputs.docs == 'true'
-      run: echo "Workflow file"
 
     # Get highest tag and remove any suffixes with '-'
     - name: Get Highest tag

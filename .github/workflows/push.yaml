@@ -187,10 +187,24 @@ jobs:
               - 'theme_common'
               - 'theme_override'
 
-      # run only if 'workflows' files were changed
-      - name: workflow tests
+      # run only if 'docs' files were changed
+      - name: Build and Push Docker Image for Docs to ghcr registry
         if: steps.filter.outputs.docs == 'true'
-        run: echo "Workflow file"
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: Dockerfile-docs
+          pull: true
+          push: true
+          build-args: BUILD_PARAMETERS=${{ env.BUILD_PARAMETERS }}
+          cache-to: type=inline
+          platforms: linux/amd64,linux/arm,linux/arm64
+          tags: |
+            ${{ env.GHCR_IMAGE_REPOSITORY }}/docs:merge-${{ github.event.number }}
+          labels: |
+            org.opencontainers.image.source=${{ github.event.repository.clone_url }}
+            org.opencontainers.image.created=${{ steps.prep.outputs.created }}
+            org.opencontainers.image.revision=${{ github.sha }}
 
       ##############################
       ## Add steps to generate required artifacts for a release here(helm chart, operator manifest etc.)
