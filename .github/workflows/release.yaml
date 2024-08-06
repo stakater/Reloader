@@ -131,6 +131,7 @@ jobs:
         run: |
           echo GHCR_IMAGE_REPOSITORY=${{env.REGISTRY}}/$(echo ${{ github.repository }} | tr '[:upper:]' '[:lower:]') >> $GITHUB_ENV
 
+      # tag this image as latest as it will be used in plain manifests
       - name: Build and Push Docker Image to ghcr registry
         uses: docker/build-push-action@v5
         with:
@@ -142,7 +143,7 @@ jobs:
           cache-to: type=inline
           platforms: linux/amd64,linux/arm,linux/arm64
           tags: |
-            ${{ env.GHCR_IMAGE_REPOSITORY }}:${{ steps.generate_tag.outputs.RELEASE_VERSION }}
+            ${{ env.GHCR_IMAGE_REPOSITORY }}:${{ steps.generate_tag.outputs.RELEASE_VERSION }},${{ env.GHCR_IMAGE_REPOSITORY }}:latest
           labels: |
             org.opencontainers.image.source=${{ github.event.repository.clone_url }}
             org.opencontainers.image.created=${{ steps.prep.outputs.created }}
