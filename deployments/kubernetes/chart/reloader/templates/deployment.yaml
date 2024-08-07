@@ -127,6 +127,7 @@ spec:
             fieldRef:
               fieldPath: {{ $value | quote}}
       {{- end }}
+      {{- end }}
       {{- if eq .Values.reloader.watchGlobally false }}
         - name: KUBERNETES_NAMESPACE
           valueFrom:
@@ -146,7 +147,6 @@ spec:
       {{- if .Values.reloader.enableMetricsByNamespace }}
         - name: METRICS_COUNT_BY_NAMESPACE
           value: enabled
-      {{- end }}
       {{- end }}
         ports:
         - name: http
