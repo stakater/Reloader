@@ -2,6 +2,8 @@ package callbacks
 
 import (
 	"context"
+	"time"
+	"fmt"
 
 	"github.com/sirupsen/logrus"
 	"github.com/stakater/Reloader/pkg/kube"
@@ -10,6 +12,7 @@ import (
 	v1 "k8s.io/api/core/v1"
 	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	patchtypes "k8s.io/apimachinery/pkg/types"
 
 	argorolloutv1alpha1 "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	openshiftv1 "github.com/openshift/api/apps/v1"
@@ -330,7 +333,7 @@ func UpdateRollout(clients kube.Clients, namespace string, resource runtime.Obje
 	rolloutBefore, _ := clients.ArgoRolloutClient.ArgoprojV1alpha1().Rollouts(namespace).Get(context.TODO(), rollout.Name, meta_v1.GetOptions{})
 	logrus.Warnf("Before: %+v", rolloutBefore.Spec.Template.Spec.Containers[0].Env)
 	logrus.Warnf("After: %+v", rollout.Spec.Template.Spec.Containers[0].Env)
-	_, err := clients.ArgoRolloutClient.ArgoprojV1alpha1().Rollouts(namespace).Update(context.TODO(), rollout, meta_v1.UpdateOptions{FieldManager: "Reloader"})
+	_, err := clients.ArgoRolloutClient.ArgoprojV1alpha1().Rollouts(namespace).Patch(context.TODO(), rollout.Name, patchtypes.MergePatchType, []byte(fmt.Sprintf(`{"spec": {"restartAt": "%s"}}`, time.Now().Format(time.RFC3339))), meta_v1.PatchOptions{FieldManager: "Reloader"})
 	return err
 }
 
