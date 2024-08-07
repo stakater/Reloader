@@ -83,7 +83,7 @@ spec:
         {{- else }}
           valueFrom:
             resourceFieldRef:
-              resource: limits.memory
+              resource: limits.cpu
         {{- end }}
         - name: GOMEMLIMIT
         {{- if .Values.reloader.deployment.gomemlimitOverride }}
@@ -91,7 +91,7 @@ spec:
         {{- else }}
           valueFrom:
             resourceFieldRef:
-              resource: limits.cpu
+              resource: limits.memory
         {{- end }}
       {{- range $name, $value := .Values.reloader.deployment.env.open }}
       {{- if not (empty $value) }}
@@ -127,6 +127,7 @@ spec:
             fieldRef:
               fieldPath: {{ $value | quote}}
       {{- end }}
+      {{- end }}
       {{- if eq .Values.reloader.watchGlobally false }}
         - name: KUBERNETES_NAMESPACE
           valueFrom:
@@ -146,7 +147,6 @@ spec:
       {{- if .Values.reloader.enableMetricsByNamespace }}
         - name: METRICS_COUNT_BY_NAMESPACE
           value: enabled
-      {{- end }}
       {{- end }}
         ports:
         - name: http
