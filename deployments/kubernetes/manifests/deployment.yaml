@@ -20,6 +20,15 @@ spec:
         - image: "ghcr.io/stakater/reloader:latest"
           imagePullPolicy: IfNotPresent
           name: reloader-reloader
+          env:
+            - name: GOMAXPROCS
+              valueFrom:
+                resourceFieldRef:
+                  resource: limits.cpu
+            - name: GOMEMLIMIT
+              valueFrom:
+                resourceFieldRef:
+                  resource: limits.memory
           ports:
             - name: http
               containerPort: 9090

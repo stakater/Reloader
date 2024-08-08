@@ -92,10 +92,10 @@ reloader:
     labels:
       provider: stakater
       group: com.stakater.platform
-      version: v1.0.119
+      version: v1.0.121
     image:
       name: ghcr.io/stakater/reloader
-      tag: v1.0.119
+      tag: v1.0.121
       pullPolicy: IfNotPresent
     # Support for extra environment variables.
     env:
@@ -146,6 +146,11 @@ reloader:
     priorityClassName: ""
     # imagePullSecrets:
     #   - name: myregistrykey
+
+    # Put "0" in either to have go runtime ignore the set value.
+    # Otherwise, see https://pkg.go.dev/runtime#hdr-Environment_Variables for GOMAXPROCS and GOMEMLIMIT
+    gomaxprocsOverride: ""
+    gomemlimitOverride: ""
 
   service: {}
     # labels: {}
