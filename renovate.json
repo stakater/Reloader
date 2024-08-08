@@ -6,6 +6,12 @@
   "labels": [
     "dependencies"
   ],
+  "rebaseWhen": "never",
+  "vulnerabilityAlerts": {
+    "enabled": true,
+    "labels": ["security"]
+  },
+
   "customManagers": [
     {
         "customType": "regex",
