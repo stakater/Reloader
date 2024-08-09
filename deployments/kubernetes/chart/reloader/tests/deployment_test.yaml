@@ -48,3 +48,16 @@ tests:
     asserts:
       - isEmpty:
           path: spec.template.spec.containers[0].securityContext
+
+  - it: template still sets POD_NAME and POD_NAMESPACE environment variables when enableHA is true
+    set:
+      reloader:
+        enableHA: true
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: POD_NAME
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.name
