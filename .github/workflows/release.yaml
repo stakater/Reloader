@@ -6,6 +6,13 @@ on:
       # restricting it to only Major Versions 0,1,2
       - 'v[012].[0-9]+.[0-9]+'
 
+env:
+  DOCKER_FILE_PATH: Dockerfile
+  DOCKER_UBI_FILE_PATH: Dockerfile.ubi
+  KUBERNETES_VERSION: "1.19.0"
+  KIND_VERSION: "0.17.0"
+  REGISTRY: ghcr.io
+
 jobs:
   build:
     name: GoReleaser build
@@ -91,7 +98,6 @@ jobs:
           file: ${{ env.DOCKER_FILE_PATH  }}
           pull: true
           push: true
-          build-args: BUILD_PARAMETERS=${{ env.BUILD_PARAMETERS }}
           cache-to: type=inline
           platforms: linux/amd64,linux/arm,linux/arm64
           tags: |
@@ -109,7 +115,6 @@ jobs:
           pull: true
           push: true
           build-args: |
-            BUILD_PARAMETERS=${{ env.BUILD_PARAMETERS }}
             BUILDER_IMAGE=${{ env.DOCKER_IMAGE_REPOSITORY }}:${{ steps.generate_tag.outputs.RELEASE_VERSION }}
           cache-to: type=inline
           platforms: linux/amd64,linux/arm64
@@ -139,7 +144,6 @@ jobs:
           file: ${{ env.DOCKER_FILE_PATH  }}
           pull: true
           push: true
-          build-args: BUILD_PARAMETERS=${{ env.BUILD_PARAMETERS }}
           cache-to: type=inline
           platforms: linux/amd64,linux/arm,linux/arm64
           tags: |
@@ -157,7 +161,6 @@ jobs:
           pull: true
           push: true
           build-args: |
-            BUILD_PARAMETERS=${{ env.BUILD_PARAMETERS }}
             BUILDER_IMAGE=${{ env.GHCR_IMAGE_REPOSITORY }}:${{ steps.generate_tag.outputs.RELEASE_VERSION }}
           cache-to: type=inline
           platforms: linux/amd64,linux/arm64
@@ -168,6 +171,20 @@ jobs:
             org.opencontainers.image.created=${{ steps.prep.outputs.created }}
             org.opencontainers.image.revision=${{ github.sha }}
 
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            docs:
+              - '.markdownlint.yaml'
+              - '.vale.ini'
+              - 'Dockerfile-docs'
+              - 'docs-nginx.conf'
+              - 'docs/**'
+              - 'README.md'
+              - 'theme_common'
+              - 'theme_override'
+
       - name: Build and Push Docker Image for Docs to ghcr registry
         if: steps.filter.outputs.docs == 'true'
         uses: docker/build-push-action@v5
@@ -176,7 +193,6 @@ jobs:
           file: Dockerfile-docs
           pull: true
           push: true
-          build-args: BUILD_PARAMETERS=${{ env.BUILD_PARAMETERS }}
           cache-to: type=inline
           tags: |
             ${{ env.GHCR_IMAGE_REPOSITORY }}/docs:${{ steps.generate_tag.outputs.RELEASE_VERSION }}
