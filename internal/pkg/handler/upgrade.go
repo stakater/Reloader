@@ -112,9 +112,9 @@ func GetArgoRolloutRollingUpgradeFuncs() callbacks.RollingUpgradeFuncs {
 }
 
 func sendUpgradeWebhook(config util.Config, webhookUrl string) error {
-	message := fmt.Sprintf("Changes detected in '%s' of type '%s' in namespace '%s'", config.ResourceName, config.Type, config.Namespace)
-	message += fmt.Sprintf(", Sending webhook to '%s'", webhookUrl)
-	logrus.Infof(message)
+	logrus.Infof("Changes detected in '%s' of type '%s' in namespace '%s', Sending webhook to '%s'",
+		config.ResourceName, config.Type, config.Namespace, webhookUrl)
+
 	body, errs := sendWebhook(webhookUrl)
 	if errs != nil {
 		// return the first error
@@ -243,7 +243,8 @@ func PerformAction(clients kube.Clients, config util.Config, upgradeFuncs callba
 			err = upgradeFuncs.UpdateFunc(clients, config.Namespace, i)
 			if err != nil {
 				message := fmt.Sprintf("Update for '%s' of type '%s' in namespace '%s' failed with error %v", resourceName, upgradeFuncs.ResourceType, config.Namespace, err)
-				logrus.Errorf(message)
+				logrus.Errorf("Update for '%s' of type '%s' in namespace '%s' failed with error %v", resourceName, upgradeFuncs.ResourceType, config.Namespace, err)
+
 				collectors.Reloaded.With(prometheus.Labels{"success": "false"}).Inc()
 				collectors.ReloadedByNamespace.With(prometheus.Labels{"success": "false", "namespace": config.Namespace}).Inc()
 				if recorder != nil {
@@ -253,7 +254,9 @@ func PerformAction(clients kube.Clients, config util.Config, upgradeFuncs callba
 			} else {
 				message := fmt.Sprintf("Changes detected in '%s' of type '%s' in namespace '%s'", config.ResourceName, config.Type, config.Namespace)
 				message += fmt.Sprintf(", Updated '%s' of type '%s' in namespace '%s'", resourceName, upgradeFuncs.ResourceType, config.Namespace)
-				logrus.Infof(message)
+
+				logrus.Infof("Changes detected in '%s' of type '%s' in namespace '%s'; updated '%s' of type '%s' in namespace '%s'", config.ResourceName, config.Type, config.Namespace, resourceName, upgradeFuncs.ResourceType, config.Namespace)
+
 				collectors.Reloaded.With(prometheus.Labels{"success": "true"}).Inc()
 				collectors.ReloadedByNamespace.With(prometheus.Labels{"success": "true", "namespace": config.Namespace}).Inc()
 				alert_on_reload, ok := os.LookupEnv("ALERT_ON_RELOAD")

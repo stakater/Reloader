@@ -37,6 +37,7 @@ jobs:
       uses: actions/checkout@v4
       with:
         ref: ${{github.event.pull_request.head.sha}}
+        fetch-depth: 0
 
     # Setting up helm binary
     - name: Set up Helm
@@ -53,6 +54,13 @@ jobs:
         go-version-file: 'go.mod'
         check-latest: true
         cache: true
+
+    # Get highest tag and remove any suffixes with '-'
+    - name: Get Highest tag
+      id: highest_tag
+      run: |
+        highest=$(git tag -l --sort -version:refname | head -n 1)
+        echo "tag=${highest%%-*}" >> $GITHUB_OUTPUT
 
     - name: Install Dependencies
       run: |
@@ -139,7 +147,7 @@ jobs:
         push: false
         build-args: |
           BUILD_PARAMETERS=${{ env.BUILD_PARAMETERS }}
-          BUILDER_IMAGE=${{ env.GHCR_IMAGE_REPOSITORY }}:${{ steps.generate_tag.outputs.GIT_TAG }}
+          BUILDER_IMAGE=${{ env.GHCR_IMAGE_REPOSITORY }}:${{ steps.highest_tag.outputs.tag }}
         cache-to: type=inline
         platforms: linux/amd64,linux/arm64
         tags: |
