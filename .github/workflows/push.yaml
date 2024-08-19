@@ -27,6 +27,7 @@ jobs:
         with:
           token: ${{ secrets.STAKATER_GITHUB_TOKEN }}
           fetch-depth: 0 # otherwise, you will fail to push refs to dest repo
+          submodules: recursive
 
       # Setting up helm binary
       - name: Set up Helm

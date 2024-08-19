@@ -24,6 +24,7 @@ jobs:
         with:
           token: ${{ secrets.STAKATER_GITHUB_TOKEN }}
           fetch-depth: 0 # otherwise, you will fail to push refs to dest repo
+          submodules: recursive
 
       # Setting up helm binary
       - name: Set up Helm
@@ -171,22 +172,7 @@ jobs:
             org.opencontainers.image.created=${{ steps.prep.outputs.created }}
             org.opencontainers.image.revision=${{ github.sha }}
 
-      - uses: dorny/paths-filter@v3
-        id: filter
-        with:
-          filters: |
-            docs:
-              - '.markdownlint.yaml'
-              - '.vale.ini'
-              - 'Dockerfile-docs'
-              - 'docs-nginx.conf'
-              - 'docs/**'
-              - 'README.md'
-              - 'theme_common'
-              - 'theme_override'
-
       - name: Build and Push Docker Image for Docs to ghcr registry
-        if: steps.filter.outputs.docs == 'true'
         uses: docker/build-push-action@v5
         with:
           context: .
