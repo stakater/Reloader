@@ -28,10 +28,14 @@ jobs:
       MD_CONFIG: .github/md_config.json
       DOC_SRC: README.md
       MD_LINT_CONFIG: .markdownlint.yaml
+
   build:
+
+    permissions:
+      contents: read
+
     runs-on: ubuntu-latest
     name: Build
-    if: "! contains(toJSON(github.event.commits.*.message), '[skip-ci]')"
     steps:
     - name: Check out code
       uses: actions/checkout@v4

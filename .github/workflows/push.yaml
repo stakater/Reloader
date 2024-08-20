@@ -17,6 +17,11 @@ env:
 
 jobs:
   build:
+
+    permissions:
+      contents: read
+      packages: write # to push artifacts to `ghcr.io`
+
     name: Build
     if: github.event.pull_request.merged == true
     runs-on: ubuntu-latest
@@ -27,6 +32,7 @@ jobs:
         with:
           token: ${{ secrets.STAKATER_GITHUB_TOKEN }}
           fetch-depth: 0 # otherwise, you will fail to push refs to dest repo
+          submodules: recursive
 
       # Setting up helm binary
       - name: Set up Helm
