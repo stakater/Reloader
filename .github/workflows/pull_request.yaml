@@ -36,6 +36,7 @@ jobs:
     - name: Check out code
       uses: actions/checkout@v4
       with:
+        token: ${{ secrets.STAKATER_GITHUB_TOKEN }}
         ref: ${{github.event.pull_request.head.sha}}
         fetch-depth: 0
 
