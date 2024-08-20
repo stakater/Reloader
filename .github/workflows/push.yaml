@@ -17,6 +17,10 @@ env:
 
 jobs:
   build:
+
+    permissions:
+      contents: read
+
     name: Build
     if: github.event.pull_request.merged == true
     runs-on: ubuntu-latest
