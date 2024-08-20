@@ -18,6 +18,7 @@ jobs:
 
     permissions:
       contents: read
+      packages: write # to push artifacts to `ghcr.io`
 
     name: GoReleaser build
     runs-on: ubuntu-latest
