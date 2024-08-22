@@ -35,11 +35,14 @@ Reloader is compatible with Kubernetes >= 1.19
 
 ## How to use Reloader
 
-For a `Deployment` called `foo` have a `ConfigMap` called `foo-configmap` or `Secret` called `foo-secret` or both. Then add your annotation (by default `reloader.stakater.com/auto`) to main metadata of your `Deployment`
+You have a `Deployment` called `foo` and a `ConfigMap` and/or a `Secret` either mounted as a volume or defined as a environment variable. The `ConfigMap` and `Secret` can be named whatever, but for the sake of this example, lets refer to the `ConfigMap` as `foo-configmap` and the secret as `foo-secret`.
+
+Add the annotation to the main metadata of your `Deployment`. By default this would be `reloader.stakater.com/auto`.
 
 ```yaml
 kind: Deployment
 metadata:
+  name: foo
   annotations:
     reloader.stakater.com/auto: "true"
 spec:
