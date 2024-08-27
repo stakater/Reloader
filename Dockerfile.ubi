@@ -3,7 +3,7 @@ ARG BASE_IMAGE
 
 FROM --platform=${BUILDPLATFORM} ${BUILDER_IMAGE} as SRC
 
-FROM ${BASE_IMAGE:-registry.access.redhat.com/ubi8/ubi:latest} as minimal-ubi
+FROM ${BASE_IMAGE:-registry.access.redhat.com/ubi8/ubi:latest} as ubi
 ARG TARGETARCH
 
 
@@ -31,7 +31,7 @@ RUN rpm --root /image --initdb \
   && rpm --root /image -ivh --justdb --nodeps `for i in ${PACKAGES}; do echo $i.rpm; done`
 
 FROM scratch
-COPY --from=minimal-ubi /image/ /
+COPY --from=ubi /image/ /
 COPY --from=SRC /manager .
 USER 65532:65532
 # Port for metrics and probes
