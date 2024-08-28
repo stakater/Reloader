@@ -53,6 +53,31 @@ jobs:
       with:
         charts: deployments/kubernetes/chart/reloader
 
+    # Publish helm chart
+    - name: Login to ghcr via helm
+      run: |
+        echo ${{secrets.GITHUB_TOKEN}} | helm registry login ghcr.io/stakater --username stakater-user --password-stdin
+
+    - name: Publish Helm chart to ghcr.io
+      run: |
+        helm package ./deployments/kubernetes/chart/reloader --destination ./packaged-chart
+        helm push ./packaged-chart/*.tgz oci://ghcr.io/stakater/charts
+        rm -rf ./packaged-chart
+
+    - name: Publish Helm chart to gh-pages
+      uses: stefanprodan/helm-gh-pages@master
+      with:
+        branch: master
+        repository: stakater-charts
+        target_dir: docs
+        token: ${{ secrets.STAKATER_GITHUB_TOKEN }}
+        charts_dir: deployments/kubernetes/chart/
+        charts_url: ${{ env.HELM_REGISTRY_URL }}
+        owner: stakater
+        linting: on
+        commit_username: stakater-user
+        commit_email: stakater@gmail.com
+
     - name: Set up Go
       uses: actions/setup-go@v5
       with:
@@ -161,31 +186,6 @@ jobs:
           org.opencontainers.image.source=${{ github.event.repository.clone_url }}
           org.opencontainers.image.created=${{ steps.prep.outputs.created }}
           org.opencontainers.image.revision=${{ github.sha }}
-
-    # Publish helm chart
-    - name: Login to ghcr via helm
-      run: |
-        echo ${{secrets.GITHUB_TOKEN}} | helm registry login ghcr.io/stakater --username stakater-user --password-stdin
-
-    - name: Publish Helm chart to ghcr.io
-      run: |
-        helm package ./deployments/kubernetes/chart/reloader --destination ./packaged-chart
-        helm push ./packaged-chart/*.tgz oci://ghcr.io/stakater/charts
-        rm -rf ./packaged-chart
-
-    - name: Publish Helm chart to gh-pages
-      uses: stefanprodan/helm-gh-pages@master
-      with:
-        branch: master
-        repository: stakater-charts
-        target_dir: docs
-        token: ${{ secrets.STAKATER_GITHUB_TOKEN }}
-        charts_dir: deployments/kubernetes/chart/
-        charts_url: ${{ env.HELM_REGISTRY_URL }}
-        owner: stakater
-        linting: on
-        commit_username: stakater-user
-        commit_email: stakater@gmail.com
 
     # - name: Comment on PR
     #   uses: mshick/add-pr-comment@v2
