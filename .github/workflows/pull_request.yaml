@@ -44,6 +44,13 @@ jobs:
         ref: ${{github.event.pull_request.head.sha}}
         fetch-depth: 0
 
+    - name: Login to ghcr registry
+      uses: docker/login-action@v3
+      with:
+        registry: ${{env.REGISTRY}}
+        username: stakater-user
+        password: ${{secrets.GITHUB_TOKEN}}
+
     # Setting up helm binary
     - name: Set up Helm
       uses: azure/setup-helm@v4
