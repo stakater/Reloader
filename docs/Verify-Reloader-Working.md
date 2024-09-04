@@ -16,7 +16,7 @@ Below are the details that explain these logs:
 
 ### `test-object`
 
-`test-object` is the name of a `secret` or a `deployment` in which change has been detected.
+`test-object` is the name of a `secret` or a `configmap` in which change has been detected.
 
 ### `SECRET`
 
