@@ -84,6 +84,7 @@ spec:
           valueFrom:
             resourceFieldRef:
               resource: limits.cpu
+              divisor: '1'
         {{- end }}
         - name: GOMEMLIMIT
         {{- if .Values.reloader.deployment.gomemlimitOverride }}
@@ -92,6 +93,7 @@ spec:
           valueFrom:
             resourceFieldRef:
               resource: limits.memory
+              divisor: '1'
         {{- end }}
       {{- range $name, $value := .Values.reloader.deployment.env.open }}
       {{- if not (empty $value) }}
