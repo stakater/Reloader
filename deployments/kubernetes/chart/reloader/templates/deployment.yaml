@@ -73,7 +73,11 @@ spec:
       priorityClassName: {{ .Values.reloader.deployment.priorityClassName }}
       {{- end }}
       containers:
+      {{- if $.Values.global.imageRegistry }}
+      - image: "{{ $.Values.global.imageRegistry }}/{{ .Values.reloader.deployment.image.base }}:{{ .Values.reloader.deployment.image.tag }}"
+{{- else }}
       - image: "{{ .Values.reloader.deployment.image.name }}:{{ .Values.reloader.deployment.image.tag }}"
+{{- end }}
         imagePullPolicy: {{ .Values.reloader.deployment.image.pullPolicy }}
         name: {{ template "reloader-fullname" . }}
         env:
