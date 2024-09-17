@@ -27,7 +27,7 @@ jobs:
       - name: Check out code
         uses: actions/checkout@v4
         with:
-          token: ${{ secrets.STAKATER_GITHUB_TOKEN }}
+          token: ${{ secrets.PUBLISH_TOKEN }}
           fetch-depth: 0 # otherwise, you will fail to push refs to dest repo
           submodules: recursive
 
@@ -218,7 +218,7 @@ jobs:
           version: latest
           args: release --clean
         env:
-          GITHUB_TOKEN: ${{ secrets.STAKATER_GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.PUBLISH_TOKEN }}
 
       - name: Notify Slack
         uses: 8398a7/action-slack@v3
@@ -227,5 +227,5 @@ jobs:
           status: ${{ job.status }}
           fields: repo,author,action,eventName,ref,workflow
         env:
-          GITHUB_TOKEN: ${{ secrets.STAKATER_GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.PUBLISH_TOKEN }}
           SLACK_WEBHOOK_URL: ${{ secrets.STAKATER_DELIVERY_SLACK_WEBHOOK }}

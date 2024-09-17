@@ -30,7 +30,7 @@ jobs:
       - name: Check out code
         uses: actions/checkout@v4
         with:
-          token: ${{ secrets.STAKATER_GITHUB_TOKEN }}
+          token: ${{ secrets.PUBLISH_TOKEN }}
           fetch-depth: 0 # otherwise, you will fail to push refs to dest repo
           submodules: recursive
 
@@ -225,7 +225,7 @@ jobs:
       #       --set reloader.deployment.resources.limits.memory=512Mi \
       #       --set reloader.deployment.resources.requests.cpu=10m \
       #       --set reloader.deployment.resources.requests.memory=128Mi > deployments/kubernetes/reloader.yaml
-          
+
       #     helm template reloader deployments/kubernetes/chart/reloader/ --output-dir deployments/kubernetes/manifests && mv deployments/kubernetes/manifests/reloader/templates/* deployments/kubernetes/manifests/ && rm -r deployments/kubernetes/manifests/reloader
 
       # - name: Remove labels and annotations from manifests
@@ -296,5 +296,5 @@ jobs:
           status: ${{ job.status }}
           fields: repo,author,action,eventName,ref,workflow
         env:
-          GITHUB_TOKEN: ${{ secrets.STAKATER_GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.PUBLISH_TOKEN }}
           SLACK_WEBHOOK_URL: ${{ secrets.STAKATER_DELIVERY_SLACK_WEBHOOK }}
