@@ -173,6 +173,7 @@ spec:
 - you may want to prevent watching certain resources with the `--resources-to-ignore` flag
 - you can configure logging in JSON format with the `--log-format=json` option
 - you can configure the "reload strategy" with the `--reload-strategy=<strategy-name>` option (details below)
+- you can configure rollout reload strategy with `reloader.stakater.com/rollout-strategy` annotation, `restart` or `rollout` values are available (defaults to `rollout`)
 
 ## Reload Strategies
 
