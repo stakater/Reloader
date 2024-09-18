@@ -2,6 +2,15 @@ package options
 
 import "github.com/stakater/Reloader/internal/pkg/constants"
 
+type ArgoRolloutStrategy int
+
+const (
+	// RestartStrategy is the annotation value for restart strategy for rollouts
+	RestartStrategy ArgoRolloutStrategy = iota
+	// RolloutStrategy is the annotation value for rollout strategy for rollouts
+	RolloutStrategy
+)
+
 var (
 	// Auto reload all resources when their corresponding configmaps/secrets are updated
 	AutoReloadAll = false
@@ -27,6 +36,8 @@ var (
 	// SearchMatchAnnotation is an annotation to tag secrets to be found with
 	// AutoSearchAnnotation
 	SearchMatchAnnotation = "reloader.stakater.com/match"
+	// RolloutStrategyAnnotation is an annotation to define rollout update strategy
+	RolloutStrategyAnnotation = "reloader.stakater.com/rollout-strategy"
 	// LogFormat is the log format to use (json, or empty string for default)
 	LogFormat = ""
 	// LogLevel is the log level to use (trace, debug, info, warning, error, fatal and panic)
@@ -45,3 +56,14 @@ var (
 	// Url to send a request to instead of triggering a reload
 	WebhookUrl = ""
 )
+
+func ToArgoRolloutStrategy(s string) ArgoRolloutStrategy {
+	switch s {
+	case "restart":
+		return RestartStrategy
+	case "rollout":
+		fallthrough
+	default:
+		return RolloutStrategy
+	}
+}
