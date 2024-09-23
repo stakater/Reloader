@@ -126,7 +126,7 @@ jobs:
     # To identify any broken changes in dockerfiles or dependencies
 
     - name: Build Docker Image
-      uses: docker/build-push-action@v5
+      uses: docker/build-push-action@v6
       with:
         context: .
         file: ${{ env.DOCKER_FILE_PATH  }}
@@ -143,7 +143,7 @@ jobs:
           org.opencontainers.image.revision=${{ github.sha }}
 
     - name: Build Docker UBI Image
-      uses: docker/build-push-action@v5
+      uses: docker/build-push-action@v6
       with:
         context: .
         file: ${{ env.DOCKER_UBI_FILE_PATH  }}
