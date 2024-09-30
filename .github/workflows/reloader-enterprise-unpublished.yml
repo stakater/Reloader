@@ -1,0 +1,17 @@
+name: Dispatch event for unpublished release
+
+on:
+  release:
+    types: [unpublished ]
+
+jobs:
+  dispatch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger target repository workflow
+        run: |
+          curl -X POST \
+          -H "Accept: application/vnd.github.v3+json" \
+          -H "Authorization: token ${{ secrets.STAKATER_AB_TOKEN_FOR_RLDR }}" \
+          https://api.github.com/repos/stakater-ab/reloader-enterprise/dispatches \
+          -d '{"event_type":"release-unpublished "}'
