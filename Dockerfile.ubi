@@ -1,9 +1,9 @@
 ARG BUILDER_IMAGE
 ARG BASE_IMAGE
 
-FROM --platform=${BUILDPLATFORM} ${BUILDER_IMAGE} as SRC
+FROM --platform=${BUILDPLATFORM} ${BUILDER_IMAGE} AS SRC
 
-FROM ${BASE_IMAGE:-registry.access.redhat.com/ubi8/ubi:latest} as ubi
+FROM ${BASE_IMAGE:-registry.access.redhat.com/ubi8/ubi:latest} AS ubi
 ARG TARGETARCH
 
 
