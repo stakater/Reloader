@@ -282,12 +282,12 @@ jobs:
       #     github_token: ${{ secrets.STAKATER_GITHUB_TOKEN }}
       #     branch: ${{ github.ref }}
 
-      # - name: Push Latest Tag
-      #   uses: anothrNick/github-tag-action@1.70.0
-      #   env:
-      #     GITHUB_TOKEN: ${{ secrets.STAKATER_GITHUB_TOKEN }}
-      #     WITH_V: true
-      #     DEFAULT_BUMP: patch
+      - name: Push Latest Tag
+        uses: anothrNick/github-tag-action@1.70.0
+        env:
+          GITHUB_TOKEN: ${{ secrets.PUBLISH_TOKEN }}
+          WITH_V: true
+          DEFAULT_BUMP: patch
 
       - name: Notify Slack
         uses: 8398a7/action-slack@v3
