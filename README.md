@@ -442,6 +442,14 @@ PRs are welcome. In general, we follow the "fork-and-pull" Git workflow.
 
 **NOTE:** Be sure to merge the latest from "upstream" before making a pull request!
 
+## Release Processes
+
+_Repository GitHub releases_: As requested by the community in [issue 685](https://github.com/stakater/Reloader/issues/685), Reloader is now based on a manual release process. Releases are no longer done on every merged PR to the main branch, but manually on request. When a GitHub release is made, the corresponding image is built and pushed to the registry.
+
+_Repository git tagging_: The Reloader repository is tagged on every push to main. The creation of a tag does not trigger anything else, it just acts as a pointer to a commit on main.
+
+_Helm chart versioning_: The Reloader Helm chart release process is still [work in progress](https://github.com/stakater/Reloader/issues/684). This page will be updated when the process is settled. As a headsup, to address the issues that are inherent in the current process the chart will most probably be relocated to the [Stakater charts repository](https://github.com/stakater/charts/). This setup is common in open-source repositories. When a GitHub release has been manually created in this repository, an image will be built, and Renovate in the charts repository will update the Helm chart to use it.
+
 ## Changelog
 
 View our closed [Pull Requests](https://github.com/stakater/Reloader/pulls?q=is%3Apr+is%3Aclosed).
