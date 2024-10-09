@@ -448,7 +448,7 @@ _Repository GitHub releases_: As requested by the community in [issue 685](https
 
 _Repository git tagging_: The Reloader repository is tagged on every push to main. The creation of a tag does not trigger anything else, it just acts as a pointer to a commit on main.
 
-_Helm chart versioning_: The Reloader Helm chart release process is still [work in progress](https://github.com/stakater/Reloader/issues/684). This page will be updated when the process is settled. As a headsup, to address the issues that are inherent in the current process the chart will most probably be relocated to the [Stakater charts repository](https://github.com/stakater/charts/). This setup is common in open-source repositories. When a GitHub release has been manually created in this repository, an image will be built, and Renovate in the charts repository will update the Helm chart to use it.
+_Helm chart versioning_: The Reloader Helm chart release process is still [work in progress](https://github.com/stakater/Reloader/issues/684). This page will be updated when the process is settled. As a heads-up, to address the issues that are inherent in the current process the chart will most probably be relocated to the [Stakater charts repository](https://github.com/stakater/charts/). This setup is common in open-source repositories. When a GitHub release has been manually created in this repository, an image will be built, and Renovate in the charts repository will update the Helm chart to use it.
 
 ## Changelog
 
