@@ -281,8 +281,7 @@ jobs:
         uses: anothrNick/github-tag-action@1.71.0
         env:
           GITHUB_TOKEN: ${{ secrets.PUBLISH_TOKEN }}
-          WITH_V: true
-          DEFAULT_BUMP: patch
+          WITH_V: false
           CUSTOM_TAG: PR-${{ github.event.number }}
 
       - name: Notify Slack
