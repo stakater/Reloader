@@ -282,7 +282,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.PUBLISH_TOKEN }}
           WITH_V: false
-          CUSTOM_TAG: PR-${{ github.event.number }}
+          CUSTOM_TAG: merge-${{ github.event.number }}
 
       - name: Notify Slack
         uses: 8398a7/action-slack@v3
