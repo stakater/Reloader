@@ -110,7 +110,6 @@ jobs:
             ${{ env.DOCKER_IMAGE_REPOSITORY }}:merge-${{ github.event.number }}
           labels: |
             org.opencontainers.image.source=${{ github.event.repository.clone_url }}
-            org.opencontainers.image.created=${{ steps.prep.outputs.created }}
             org.opencontainers.image.revision=${{ github.sha }}
 
       - name: Build and Push Docker UBI Image to Docker registry
@@ -129,7 +128,6 @@ jobs:
             ${{ env.DOCKER_IMAGE_REPOSITORY }}:merge-${{ github.event.number }}-ubi
           labels: |
             org.opencontainers.image.source=${{ github.event.repository.clone_url }}
-            org.opencontainers.image.created=${{ steps.prep.outputs.created }}
             org.opencontainers.image.revision=${{ github.sha }}
 
       - name: Login to ghcr registry
@@ -157,7 +155,6 @@ jobs:
             ${{ env.GHCR_IMAGE_REPOSITORY }}:merge-${{ github.event.number }}
           labels: |
             org.opencontainers.image.source=${{ github.event.repository.clone_url }}
-            org.opencontainers.image.created=${{ steps.prep.outputs.created }}
             org.opencontainers.image.revision=${{ github.sha }}
 
       - name: Build and Push Docker UBI Image to ghcr registry
@@ -176,7 +173,6 @@ jobs:
             ${{ env.GHCR_IMAGE_REPOSITORY }}:merge-${{ github.event.number }}-ubi
           labels: |
             org.opencontainers.image.source=${{ github.event.repository.clone_url }}
-            org.opencontainers.image.created=${{ steps.prep.outputs.created }}
             org.opencontainers.image.revision=${{ github.sha }}
 
       - uses: dorny/paths-filter@v3
@@ -209,7 +205,6 @@ jobs:
             ${{ env.GHCR_IMAGE_REPOSITORY }}/docs:merge-${{ github.event.number }}
           labels: |
             org.opencontainers.image.source=${{ github.event.repository.clone_url }}
-            org.opencontainers.image.created=${{ steps.prep.outputs.created }}
             org.opencontainers.image.revision=${{ github.sha }}
 
       ##############################
@@ -282,12 +277,12 @@ jobs:
       #     github_token: ${{ secrets.STAKATER_GITHUB_TOKEN }}
       #     branch: ${{ github.ref }}
 
-      # - name: Push Latest Tag
-      #   uses: anothrNick/github-tag-action@1.70.0
-      #   env:
-      #     GITHUB_TOKEN: ${{ secrets.STAKATER_GITHUB_TOKEN }}
-      #     WITH_V: true
-      #     DEFAULT_BUMP: patch
+      - name: Push Latest Tag
+        uses: anothrNick/github-tag-action@1.71.0
+        env:
+          GITHUB_TOKEN: ${{ secrets.PUBLISH_TOKEN }}
+          WITH_V: false
+          CUSTOM_TAG: merge-${{ github.event.number }}
 
       - name: Notify Slack
         uses: 8398a7/action-slack@v3
