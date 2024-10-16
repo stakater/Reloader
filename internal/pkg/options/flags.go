@@ -23,6 +23,8 @@ var (
 	// SearchMatchAnnotation is an annotation to tag secrets to be found with
 	// AutoSearchAnnotation
 	SearchMatchAnnotation = "reloader.stakater.com/match"
+	// TriggerRolloutAnnotation controls if rollout strategy will be used to reload
+	TriggerRolloutAnnotation = "reloader.stakater.com/triggerRollout"
 	// LogFormat is the log format to use (json, or empty string for default)
 	LogFormat = ""
 	// LogLevel is the log level to use (trace, debug, info, warning, error, fatal and panic)
