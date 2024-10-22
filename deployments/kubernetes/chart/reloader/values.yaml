@@ -95,7 +95,7 @@ reloader:
       version: v1.0.121
     image:
       name: ghcr.io/stakater/reloader
-      tag: v1.0.121
+      tag: v1.1.0
       pullPolicy: IfNotPresent
     # Support for extra environment variables.
     env:
