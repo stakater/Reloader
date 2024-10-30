@@ -133,7 +133,7 @@ apply:
 deploy: binary-image push apply
 
 .PHONY: k8s-manifests
-k8s-manifests: $(KUSTOMIZE) ## Generate WebhookConfiguration, ClusterRole and CustomResourceDefinition objects
+k8s-manifests: $(KUSTOMIZE) ## Generate k8s manifests using Kustomize from 'manifests' folder
 	$(KUSTOMIZE) build ./deployments/kubernetes/ -o ./deployments/kubernetes/reloader.yaml
 
 # Bump Chart
