@@ -1,14 +1,14 @@
-name: Init ArgoCD Release
+name: Init Release
 on:
   workflow_dispatch:
     inputs:
       TARGET_BRANCH:
-        description: 'TARGET_BRANCH to checkout (e.g. release-2.5)'
+        description: 'TARGET_BRANCH on which release will be based'
         required: true
         type: string
 
       TARGET_VERSION:
-        description: 'TARGET_VERSION to build manifests (e.g. 2.5.0-rc1) Note: the `v` prefix is not used'
+        description: 'TARGET_VERSION to build kubernetes manifests with using Kustomize'
         required: true
         type: string
 
@@ -44,16 +44,10 @@ jobs:
           echo "Bumping version from $(cat VERSION) to ${{ inputs.TARGET_VERSION }}"
           echo "${{ inputs.TARGET_VERSION }}" > VERSION
 
-        # We install kustomize in the dist directory
-      - name: Add dist to PATH
-        run: |
-          echo "/home/runner/work/argo-cd/argo-cd/dist" >> $GITHUB_PATH
-
       - name: Generate new set of manifests
         run: |
           set -ue
-          make install-codegen-tools-local
-          make manifests-local VERSION=${{ inputs.TARGET_VERSION }}
+          make k8s-manifests
           git diff
 
       - name: Generate version compatibility table
