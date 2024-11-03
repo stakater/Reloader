@@ -503,6 +503,37 @@ func GetDeploymentWithTypedAutoAnnotation(namespace string, deploymentName strin
 	}
 }
 
+func GetDeploymentWithExcludeAnnotation(namespace string, deploymentName string, resourceType string) *appsv1.Deployment {
+	replicaset := int32(1)
+
+	annotation := map[string]string{}
+
+	if resourceType == SecretResourceType {
+		annotation[options.SecretExcludeReloaderAnnotation] = deploymentName
+	} else if resourceType == ConfigmapResourceType {
+		annotation[options.ConfigmapExcludeReloaderAnnotation] = deploymentName
+	}
+
+	return &appsv1.Deployment{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:        deploymentName,
+			Namespace:   namespace,
+			Labels:      map[string]string{"firstLabel": "temp"},
+			Annotations: annotation,
+		},
+		Spec: appsv1.DeploymentSpec{
+			Selector: &metav1.LabelSelector{
+				MatchLabels: map[string]string{"secondLabel": "temp"},
+			},
+			Replicas: &replicaset,
+			Strategy: appsv1.DeploymentStrategy{
+				Type: appsv1.RollingUpdateDeploymentStrategyType,
+			},
+			Template: getPodTemplateSpecWithVolumes(deploymentName),
+		},
+	}
+}
+
 // GetDaemonSet provides daemonset for testing
 func GetDaemonSet(namespace string, daemonsetName string) *appsv1.DaemonSet {
 	return &appsv1.DaemonSet{
@@ -768,6 +799,16 @@ func CreateDeploymentWithTypedAutoAnnotation(client kubernetes.Interface, deploy
 	logrus.Infof("Creating Deployment")
 	deploymentClient := client.AppsV1().Deployments(namespace)
 	deploymentObj := GetDeploymentWithTypedAutoAnnotation(namespace, deploymentName, resourceType)
+	deployment, err := deploymentClient.Create(context.TODO(), deploymentObj, metav1.CreateOptions{})
+	time.Sleep(3 * time.Second)
+	return deployment, err
+}
+
+// CreateDeploymentWithExcludeAnnotation creates a deployment in given namespace and returns the Deployment with typed auto annotation
+func CreateDeploymentWithExcludeAnnotation(client kubernetes.Interface, deploymentName string, namespace string, resourceType string) (*appsv1.Deployment, error) {
+	logrus.Infof("Creating Deployment")
+	deploymentClient := client.AppsV1().Deployments(namespace)
+	deploymentObj := GetDeploymentWithExcludeAnnotation(namespace, deploymentName, resourceType)
 	deployment, err := deploymentClient.Create(context.TODO(), deploymentObj, metav1.CreateOptions{})
 	time.Sleep(3 * time.Second)
 	return deployment, err
