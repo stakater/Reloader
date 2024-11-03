@@ -80,16 +80,16 @@ func TestMain(m *testing.M) {
 	testutil.CreateNamespace(arsNamespace, clients.KubernetesClient)
 	testutil.CreateNamespace(ersNamespace, clients.KubernetesClient)
 
-	// logrus.Infof("Setting up the annotation reload strategy test resources")
-	// setupArs()
+	logrus.Infof("Setting up the annotation reload strategy test resources")
+	setupArs()
 	logrus.Infof("Setting up the env-var reload strategy test resources")
 	setupErs()
 
 	logrus.Infof("Running Testcases")
 	retCode := m.Run()
 
-	// logrus.Infof("tearing down the annotation reload strategy test resources")
-	// teardownArs()
+	logrus.Infof("tearing down the annotation reload strategy test resources")
+	teardownArs()
 	logrus.Infof("tearing down the env-var reload strategy test resources")
 	teardownErs()
 
