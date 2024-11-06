@@ -159,7 +159,6 @@ update-manifests-version: ## Generate k8s manifests using Kustomize from 'manife
 
 # Bump Chart
 bump-chart: 
-	sed -i "s/^version:.*/version: $(VERSION)/" deployments/kubernetes/chart/reloader/Chart.yaml
 	sed -i "s/^appVersion:.*/appVersion: v$(VERSION)/" deployments/kubernetes/chart/reloader/Chart.yaml
 	sed -i "s/tag:.*/tag: v$(VERSION)/" deployments/kubernetes/chart/reloader/values.yaml
 	sed -i "s/version:.*/version: v$(VERSION)/" deployments/kubernetes/chart/reloader/values.yaml
