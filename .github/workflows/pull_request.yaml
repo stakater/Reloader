@@ -71,10 +71,10 @@ jobs:
         current-version: ${{ steps.new_chart_version.outputs.result }}
         previous-version: ${{ steps.chart_eval.outputs.CURRENT_CHART_VERSION }}
 
-    - name: Echo Success
+    - name: Fail if Helm Chart version isnt updated
       if: steps.check-version.outputs.is-version-increased != 'true'
       run: |
-        echo "Helm Chart Version wasnt Updated"
+        echo "Helm Chart Version wasnt updated"
         exit 1
 
     - name: Helm chart unit tests
