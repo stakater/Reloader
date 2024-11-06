@@ -44,6 +44,12 @@ jobs:
           echo "Bumping version from $(cat VERSION) to ${{ inputs.TARGET_VERSION }}"
           echo "${{ inputs.TARGET_VERSION }}" > VERSION
 
+      - name: Replace latest tag with version from input
+        run: |
+          set -ue
+          VERSION=${{ inputs.TARGET_VERSION }} make update-manifests-version
+          git diff
+
       - name: Generate new set of manifests
         run: |
           set -ue
