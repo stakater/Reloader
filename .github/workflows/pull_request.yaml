@@ -72,8 +72,10 @@ jobs:
         previous-version: ${{ steps.chart_eval.outputs.CURRENT_CHART_VERSION }}
 
     - name: Echo Success
-      if: steps.check-version.outputs.is-version-increased == 'true'
-      run: echo Version has increased
+      if: steps.check-version.outputs.is-version-increased != 'true'
+      run: |
+        echo "Helm Chart Version wasnt Updated"
+        exit 1
 
     - name: Helm chart unit tests
       uses: d3adb5/helm-unittest-action@v2
