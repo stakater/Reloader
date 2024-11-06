@@ -4,6 +4,7 @@ on:
   pull_request:
     branches:
       - master
+      - 'v**'
     paths:
       - '**'
       - '!.markdownlint.yaml'
@@ -46,6 +47,29 @@ jobs:
     # Setting up helm binary
     - name: Set up Helm
       uses: azure/setup-helm@v4
+
+    - name: Add Stakater Helm Repo
+      run: |
+        helm repo add stakater https://stakater.github.io/stakater-charts
+
+    - name: Get version for chart from helm repo
+      id: chart_eval
+      run: |
+        current_chart_version=$(helm search repo stakater/reloader | tail -n 1 | awk '{print $2}')
+        echo "CURRENT_CHART_VERSION=$(echo ${current_chart_version})" >> $GITHUB_OUTPUT
+
+    - name: Get Updated Chart version from Chart.yaml
+      uses: mikefarah/yq@master
+      id: new_chart_version
+      with:
+        cmd: yq e '.version' deployments/kubernetes/chart/reloader/Chart.yaml
+
+    - name: Check Version
+      uses: aleoyakas/check-semver-increased-action@v1
+      id: check-version
+      with:
+        current-version: ${{ steps.new_chart_version.outputs.result }}
+        previous-version: ${{ steps.chart_eval.outputs.CURRENT_CHART_VERSION }}
 
     - name: Helm chart unit tests
       uses: d3adb5/helm-unittest-action@v2

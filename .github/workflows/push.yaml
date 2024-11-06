@@ -6,6 +6,7 @@ on:
       - closed
     branches:
       - master
+      - 'v**'
 
 env:
   DOCKER_FILE_PATH: Dockerfile

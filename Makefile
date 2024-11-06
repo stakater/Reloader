@@ -35,12 +35,29 @@ KUSTOMIZE ?= $(LOCALBIN)/kustomize-$(KUSTOMIZE_VERSION)
 CONTROLLER_GEN ?= $(LOCALBIN)/controller-gen-$(CONTROLLER_TOOLS_VERSION)
 ENVTEST ?= $(LOCALBIN)/setup-envtest-$(ENVTEST_VERSION)
 GOLANGCI_LINT = $(LOCALBIN)/golangci-lint-$(GOLANGCI_LINT_VERSION)
+YQ ?= $(LOCALBIN)/yq
 
 ## Tool Versions
 KUSTOMIZE_VERSION ?= v5.3.0
 CONTROLLER_TOOLS_VERSION ?= v0.14.0
 ENVTEST_VERSION ?= release-0.17
 GOLANGCI_LINT_VERSION ?= v1.57.2
+
+YQ_VERSION ?= v4.27.5
+YQ_DOWNLOAD_URL = "https://github.com/mikefarah/yq/releases/download/$(YQ_VERSION)/yq_$(OS)_$(ARCH)"
+
+
+.PHONY: yq
+yq: $(YQ) ## Download YQ locally if needed
+$(YQ):
+	@test -d $(LOCALBIN) || mkdir -p $(LOCALBIN)
+	@curl --retry 3 -fsSL $(YQ_DOWNLOAD_URL) -o $(YQ) || { \
+		echo "Failed to download yq from $(YQ_DOWNLOAD_URL). Please check the URL and your network connection."; \
+		exit 1; \
+	}
+	@chmod +x $(YQ)
+	@echo "yq downloaded successfully to $(YQ)."
+
 
 .PHONY: kustomize
 kustomize: $(KUSTOMIZE) ## Download kustomize locally if necessary.
@@ -136,6 +153,10 @@ deploy: binary-image push apply
 k8s-manifests: $(KUSTOMIZE) ## Generate k8s manifests using Kustomize from 'manifests' folder
 	$(KUSTOMIZE) build ./deployments/kubernetes/ -o ./deployments/kubernetes/reloader.yaml
 
+.PHONY: update-manifests-version
+update-manifests-version: ## Generate k8s manifests using Kustomize from 'manifests' folder
+	sed -i 's/image: "ghcr.io\/stakater\/reloader:latest"/image: \"ghcr.io\/stakater\/reloader:v$(VERSION)"/g' deployments/kubernetes/manifests/deployment.yaml
+
 # Bump Chart
 bump-chart: 
 	sed -i "s/^version:.*/version: $(VERSION)/" deployments/kubernetes/chart/reloader/Chart.yaml
@@ -154,13 +175,3 @@ yq-install:
 	@curl -sL $(YQ_DOWNLOAD_URL) -o $(YQ_BIN)
 	@chmod +x $(YQ_BIN)
 	@echo "yq $(YQ_VERSION) installed at $(YQ_BIN)"
-
-remove-labels-annotations: yq-install
-	@for file in $$(find deployments/kubernetes/manifests -type f -name '*.yaml'); do \
-		echo "Processing $$file"; \
-		$(YQ_BIN) eval 'del(.metadata.labels, .metadata.annotations)' -i "$$file"; \
-	done
-	$(YQ_BIN) eval 'del(.spec.template.metadata.labels)' -i deployments/kubernetes/manifests/deployment.yaml
-	$(YQ_BIN) eval 'del(.spec.selector.matchLabels)' -i deployments/kubernetes/manifests/deployment.yaml
-	$(YQ_BIN) eval '.spec.selector.matchLabels.app = "reloader-reloader"' -i deployments/kubernetes/manifests/deployment.yaml
-	$(YQ_BIN) eval '.spec.template.metadata.labels.app = "reloader-reloader"' -i deployments/kubernetes/manifests/deployment.yaml
