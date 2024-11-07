@@ -163,7 +163,7 @@ jobs:
           org.opencontainers.image.created=${{ steps.prep.outputs.created }}
           org.opencontainers.image.revision=${{ github.sha }}
 
-    - name: Check if Helm validation is needs to run
+    - name: Check if Helm validation needs to run
       uses: dorny/paths-filter@v3
       id: filter
       with:
@@ -227,7 +227,7 @@ jobs:
         previous-version: ${{ steps.chart_eval.outputs.CURRENT_CHART_VERSION }}
 
     - name: Fail if Helm Chart version isnt updated
-      if: steps.check-version.outputs.is-version-increased != 'true'
+      if: steps.check-version.outputs.is-version-increased == 'true'
       run: |
         echo "Helm Chart Version wasnt updated"
         exit 1
