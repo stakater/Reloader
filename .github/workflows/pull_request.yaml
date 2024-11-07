@@ -227,7 +227,7 @@ jobs:
         previous-version: ${{ steps.chart_eval.outputs.CURRENT_CHART_VERSION }}
 
     - name: Fail if Helm Chart version isnt updated
-      if: steps.check-version.outputs.is-version-increased == 'true'
+      if: steps.check-version.outputs.is-version-increased != 'true'
       run: |
         echo "Helm Chart Version wasnt updated"
         exit 1
