@@ -5,6 +5,8 @@ global:
   ##
   imageRegistry: ""
   imagePullSecrets: []
+  #imagePullSecrets:
+  #  - name: my-pull-secret
 
 kubernetes:
   host: https://kubernetes.default
