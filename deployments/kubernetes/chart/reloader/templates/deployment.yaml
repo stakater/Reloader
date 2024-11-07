@@ -45,7 +45,6 @@ spec:
 {{ toYaml .Values.reloader.matchLabels | indent 8 }}
 {{- end }}
     spec:
-    Values.global.imageRegistry
       {{- with .Values.global.imagePullSecrets }}
       imagePullSecrets:
         {{- toYaml . | nindent 8 }}
