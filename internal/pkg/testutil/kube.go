@@ -810,7 +810,6 @@ func CreateDeploymentWithExcludeAnnotation(client kubernetes.Interface, deployme
 	deploymentClient := client.AppsV1().Deployments(namespace)
 	deploymentObj := GetDeploymentWithExcludeAnnotation(namespace, deploymentName, resourceType)
 	deployment, err := deploymentClient.Create(context.TODO(), deploymentObj, metav1.CreateOptions{})
-	time.Sleep(3 * time.Second)
 	return deployment, err
 }
 
