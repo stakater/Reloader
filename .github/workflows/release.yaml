@@ -7,8 +7,8 @@ on:
 env:
   DOCKER_FILE_PATH: Dockerfile
   DOCKER_UBI_FILE_PATH: Dockerfile.ubi
-  KUBERNETES_VERSION: "1.19.0"
-  KIND_VERSION: "0.17.0"
+  KUBERNETES_VERSION: "1.30.0"
+  KIND_VERSION: "0.23.0"
   REGISTRY: ghcr.io
 
 jobs:
@@ -57,8 +57,7 @@ jobs:
         run: |
           curl -LO "https://storage.googleapis.com/kubernetes-release/release/v${KUBERNETES_VERSION}/bin/linux/amd64/kubectl"
           sudo install ./kubectl /usr/local/bin/ && rm kubectl
-          kubectl version --short --client
-          kubectl version --short --client | grep -q ${KUBERNETES_VERSION}
+          kubectl version --client=true
 
       - name: Install Kind
         run: |
