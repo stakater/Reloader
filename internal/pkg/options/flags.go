@@ -17,6 +17,10 @@ var (
 	ConfigmapReloaderAutoAnnotation = "configmap.reloader.stakater.com/auto"
 	// SecretReloaderAutoAnnotation is an annotation to detect changes in secrets
 	SecretReloaderAutoAnnotation = "secret.reloader.stakater.com/auto"
+	// ConfigmapReloaderAutoAnnotation is a comma separated list of configmaps that excludes detecting changes on cms
+	ConfigmapExcludeReloaderAnnotation = "configmaps.exclude.reloader.stakater.com/reload"
+	// SecretExcludeReloaderAnnotation is a comma separated list of secrets that excludes detecting changes on secrets
+	SecretExcludeReloaderAnnotation = "secrets.exclude.reloader.stakater.com/reload"
 	// AutoSearchAnnotation is an annotation to detect changes in
 	// configmaps or triggers with the SearchMatchAnnotation
 	AutoSearchAnnotation = "reloader.stakater.com/search"
