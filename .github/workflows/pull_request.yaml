@@ -44,6 +44,12 @@ jobs:
         ref: ${{github.event.pull_request.head.sha}}
         fetch-depth: 0
 
+    - name: Replace latest tag with version from input
+      run: |
+        set -ue
+        VERSION=1.2.0 make update-manifests-version
+        git diff
+
     # Setting up helm binary
     - name: Set up Helm
       uses: azure/setup-helm@v4
@@ -191,12 +197,6 @@ jobs:
       with:
         ref: ${{github.event.pull_request.head.sha}}
         fetch-depth: 0
-
-    - name: Replace latest tag with version from input
-      run: |
-        set -ue
-        VERSION=1.2.0 make update-manifests-version
-        git diff
 
     # Setting up helm binary
     - name: Set up Helm
