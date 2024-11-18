@@ -155,7 +155,7 @@ k8s-manifests: $(KUSTOMIZE) ## Generate k8s manifests using Kustomize from 'mani
 
 .PHONY: update-manifests-version
 update-manifests-version: ## Generate k8s manifests using Kustomize from 'manifests' folder
-	sed -i 's/image: "ghcr.io\/stakater\/reloader:latest"/image: \"ghcr.io\/stakater\/reloader:v$(VERSION)"/g' deployments/kubernetes/manifests/deployment.yaml
+	sed -i 's/image:.*/image: \"ghcr.io\/stakater\/reloader:v$(VERSION)"/g' deployments/kubernetes/manifests/deployment.yaml
 
 # Bump Chart
 bump-chart: 
