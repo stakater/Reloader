@@ -67,10 +67,12 @@ jobs:
           echo "Helm Chart Version wasnt updated"
           exit 1
 
-      # Publish helm chart
-      - name: Login to ghcr via helm
-        run: |
-          echo ${{secrets.GITHUB_TOKEN}} | helm registry login ghcr.io/stakater --username stakater-user --password-stdin
+      - name: Login to GHCR Registry
+        uses: docker/login-action@v2
+        with:
+          registry: ghcr.io/stakater
+          username: ${{ secrets.GHCR_USERNAME }}
+          password: ${{ secrets.GHCR_TOKEN }}
 
       - name: Publish Helm chart to ghcr.io
         run: |
@@ -84,7 +86,7 @@ jobs:
           branch: master
           repository: stakater-charts
           target_dir: docs
-          token: ${{ secrets.STAKATER_GITHUB_TOKEN }}
+          token: ${{ secrets.PUBLISH_TOKEN }}
           charts_dir: deployments/kubernetes/chart/
           charts_url: ${{ env.HELM_REGISTRY_URL }}
           owner: stakater
