@@ -8,6 +8,7 @@ on:
       - master
     paths:
       - 'deployments/kubernetes/chart/reloader/**'
+      - '.github/workflows/push-helm-chart.yaml'
 
 env:
   HELM_REGISTRY_URL: "https://stakater.github.io/stakater-charts"
@@ -70,9 +71,9 @@ jobs:
       - name: Login to GHCR Registry
         uses: docker/login-action@v2
         with:
-          registry: ghcr.io/stakater
-          username: ${{ secrets.GHCR_USERNAME }}
-          password: ${{ secrets.GHCR_TOKEN }}
+          registry: ${{ env.REGISTRY }}
+          username: stakater-user
+          password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Publish Helm chart to ghcr.io
         run: |
@@ -86,7 +87,7 @@ jobs:
           branch: master
           repository: stakater-charts
           target_dir: docs
-          token: ${{ secrets.PUBLISH_TOKEN }}
+          token: ${{ secrets.GHCR_TOKEN }}
           charts_dir: deployments/kubernetes/chart/
           charts_url: ${{ env.HELM_REGISTRY_URL }}
           owner: stakater
