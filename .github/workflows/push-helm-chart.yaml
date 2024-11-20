@@ -69,7 +69,7 @@ jobs:
           exit 1
 
       - name: Login to GHCR Registry
-        uses: docker/login-action@v2
+        uses: docker/login-action@v3
         with:
           registry: ${{ env.REGISTRY }}
           username: stakater-user
