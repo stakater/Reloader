@@ -163,14 +163,3 @@ jobs:
           org.opencontainers.image.source=${{ github.event.repository.clone_url }}
           org.opencontainers.image.created=${{ steps.prep.outputs.created }}
           org.opencontainers.image.revision=${{ github.sha }}
-
-    - name: Check if Helm validation needs to run
-      uses: dorny/paths-filter@v3
-      id: filter
-      with:
-        filters: |
-          chart:
-            - 'deployments/kubernetes/chart/reloader/**'
-
-    outputs:
-      helm_chart_changed: ${{ steps.filter.outputs.chart }}
