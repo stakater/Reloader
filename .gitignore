@@ -16,3 +16,4 @@ styles/
 site/
 /mkdocs.yml
 yq
+bin
