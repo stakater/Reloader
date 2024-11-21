@@ -75,9 +75,13 @@ spec:
       containers:
       {{- if $.Values.global.imageRegistry }}
       - image: "{{ $.Values.global.imageRegistry }}/{{ .Values.reloader.deployment.image.base }}:{{ .Values.reloader.deployment.image.tag }}"
-{{- else }}
+      {{- else }}
+      {{- if .Values.reloader.deployment.image.digest }}
+      - image: "{{ .Values.reloader.deployment.image.name }}@{{ .Values.reloader.deployment.image.digest }}"
+      {{- else }}
       - image: "{{ .Values.reloader.deployment.image.name }}:{{ .Values.reloader.deployment.image.tag }}"
-{{- end }}
+      {{- end }}
+      {{- end }}
         imagePullPolicy: {{ .Values.reloader.deployment.image.pullPolicy }}
         name: {{ template "reloader-fullname" . }}
         env:
