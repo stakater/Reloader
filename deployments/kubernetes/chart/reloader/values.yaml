@@ -99,6 +99,7 @@ reloader:
       name: ghcr.io/stakater/reloader
       base: stakater/reloader
       tag: v1.2.0
+      # digest: sha256:1234567
       pullPolicy: IfNotPresent
     # Support for extra environment variables.
     env:
