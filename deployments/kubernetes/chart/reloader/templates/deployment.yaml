@@ -45,7 +45,7 @@ spec:
 {{ toYaml .Values.reloader.matchLabels | indent 8 }}
 {{- end }}
     spec:
-      {{- with .Values.reloader.deployment.imagePullSecrets }}
+      {{- with .Values.global.imagePullSecrets }}
       imagePullSecrets:
         {{- toYaml . | nindent 8 }}
       {{- end }}
@@ -73,8 +73,8 @@ spec:
       priorityClassName: {{ .Values.reloader.deployment.priorityClassName }}
       {{- end }}
       containers:
-      {{- if $.Values.global.imageRegistry }}
-      - image: "{{ $.Values.global.imageRegistry }}/{{ .Values.reloader.deployment.image.base }}:{{ .Values.reloader.deployment.image.tag }}"
+      {{- if .Values.global.imageRegistry }}
+      - image: "{{ .Values.global.imageRegistry }}/{{ .Values.reloader.deployment.image.base }}:{{ .Values.reloader.deployment.image.tag }}"
 {{- else }}
       - image: "{{ .Values.reloader.deployment.image.name }}:{{ .Values.reloader.deployment.image.tag }}"
 {{- end }}
