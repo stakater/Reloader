@@ -28,7 +28,7 @@ import (
 type Controller struct {
 	client            kubernetes.Interface
 	indexer           cache.Indexer
-	queue             workqueue.RateLimitingInterface
+	queue             workqueue.TypedRateLimitingInterface[any]
 	informer          cache.Controller
 	namespace         string
 	resource          string
@@ -67,7 +67,7 @@ func NewController(
 	})
 	recorder := eventBroadcaster.NewRecorder(scheme.Scheme, v1.EventSource{Component: fmt.Sprintf("reloader-%s", resource)})
 
-	queue := workqueue.NewRateLimitingQueue(workqueue.DefaultControllerRateLimiter())
+	queue := workqueue.NewTypedRateLimitingQueue(workqueue.DefaultTypedControllerRateLimiter[any]())
 
 	optionsModifier := func(options *metav1.ListOptions) {
 		if resource == "namespaces" {
@@ -81,12 +81,17 @@ func NewController(
 
 	listWatcher := cache.NewFilteredListWatchFromClient(client.CoreV1().RESTClient(), resource, namespace, optionsModifier)
 
-	indexer, informer := cache.NewIndexerInformer(listWatcher, kube.ResourceMap[resource], 0, cache.ResourceEventHandlerFuncs{
-		AddFunc:    c.Add,
-		UpdateFunc: c.Update,
-		DeleteFunc: c.Delete,
-	}, cache.Indexers{})
-	c.indexer = indexer
+	ca, informer := cache.NewInformerWithOptions(cache.InformerOptions{
+		ListerWatcher: listWatcher,
+		ObjectType:    kube.ResourceMap[resource],
+		ResyncPeriod:  0,
+		Handler: cache.ResourceEventHandlerFuncs{
+			AddFunc:    c.Add,
+			UpdateFunc: c.Update,
+			DeleteFunc: c.Delete,
+		},
+		Indexers: cache.Indexers{},
+	})
 	c.informer = informer
 	c.queue = queue
 	c.collectors = collectors
