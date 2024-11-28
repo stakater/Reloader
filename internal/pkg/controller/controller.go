@@ -81,7 +81,7 @@ func NewController(
 
 	listWatcher := cache.NewFilteredListWatchFromClient(client.CoreV1().RESTClient(), resource, namespace, optionsModifier)
 
-	ca, informer := cache.NewInformerWithOptions(cache.InformerOptions{
+	_, informer := cache.NewInformerWithOptions(cache.InformerOptions{
 		ListerWatcher: listWatcher,
 		ObjectType:    kube.ResourceMap[resource],
 		ResyncPeriod:  0,
