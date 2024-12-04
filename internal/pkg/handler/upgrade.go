@@ -242,7 +242,7 @@ func PerformAction(clients kube.Clients, config util.Config, upgradeFuncs callba
 			}
 
 			if isResourceExcluded {
-				continue
+				return nil
 			}
 
 			result := constants.NotUpdated
