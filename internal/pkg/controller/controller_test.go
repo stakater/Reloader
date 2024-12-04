@@ -2208,7 +2208,7 @@ func TestController_resourceInIgnoredNamespace(t *testing.T) {
 	type fields struct {
 		client            kubernetes.Interface
 		indexer           cache.Indexer
-		queue             workqueue.RateLimitingInterface
+		queue             workqueue.TypedRateLimitingInterface[any]
 		informer          cache.Controller
 		namespace         string
 		ignoredNamespaces util.List
@@ -2291,7 +2291,7 @@ func TestController_resourceInIgnoredNamespace(t *testing.T) {
 func TestController_resourceInNamespaceSelector(t *testing.T) {
 	type fields struct {
 		indexer           cache.Indexer
-		queue             workqueue.RateLimitingInterface
+		queue             workqueue.TypedRateLimitingInterface[any]
 		informer          cache.Controller
 		namespace         v1.Namespace
 		namespaceSelector string

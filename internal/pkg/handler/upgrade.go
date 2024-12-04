@@ -217,6 +217,9 @@ func PerformAction(clients kube.Clients, config util.Config, upgradeFuncs callba
 			searchAnnotationValue, foundSearchAnn := annotations[options.AutoSearchAnnotation]
 			reloaderEnabledValue, foundAuto := annotations[options.ReloaderAutoAnnotation]
 			typedAutoAnnotationEnabledValue, foundTypedAuto := annotations[config.TypedAutoAnnotation]
+			excludeConfigmapAnnotationValue, foundExcludeConfigmap := annotations[options.ConfigmapExcludeReloaderAnnotation]
+			excludeSecretAnnotationValue, foundExcludeSecret := annotations[options.SecretExcludeReloaderAnnotation]
+
 			if !found && !foundAuto && !foundTypedAuto && !foundSearchAnn {
 				annotations = upgradeFuncs.PodAnnotationsFunc(item)
 				annotationValue = annotations[config.Annotation]
@@ -224,13 +227,30 @@ func PerformAction(clients kube.Clients, config util.Config, upgradeFuncs callba
 				reloaderEnabledValue = annotations[options.ReloaderAutoAnnotation]
 				typedAutoAnnotationEnabledValue = annotations[config.TypedAutoAnnotation]
 			}
+
+			isResourceExcluded := false
+
+			switch config.Type {
+			case constants.ConfigmapEnvVarPostfix:
+				if foundExcludeConfigmap {
+					isResourceExcluded = checkIfResourceIsExcluded(config.ResourceName, excludeConfigmapAnnotationValue)
+				}
+			case constants.SecretEnvVarPostfix:
+				if foundExcludeSecret {
+					isResourceExcluded = checkIfResourceIsExcluded(config.ResourceName, excludeSecretAnnotationValue)
+				}
+			}
+
+			if isResourceExcluded {
+				continue
+			}
+
 			result := constants.NotUpdated
 			reloaderEnabled, _ := strconv.ParseBool(reloaderEnabledValue)
 			typedAutoAnnotationEnabled, _ := strconv.ParseBool(typedAutoAnnotationEnabledValue)
 			if reloaderEnabled || typedAutoAnnotationEnabled || reloaderEnabledValue == "" && typedAutoAnnotationEnabledValue == "" && options.AutoReloadAll {
 				result = strategy(upgradeFuncs, item, config, true)
 			}
-
 			if result != constants.Updated && annotationValue != "" {
 				values := strings.Split(annotationValue, ",")
 				for _, value := range values {
@@ -291,6 +311,21 @@ func PerformAction(clients kube.Clients, config util.Config, upgradeFuncs callba
 		}
 	}
 	return nil
+}
+
+func checkIfResourceIsExcluded(resourceName, excludedResources string) bool {
+	if excludedResources == "" {
+		return false
+	}
+
+	excludedResourcesList := strings.Split(excludedResources, ",")
+	for _, excludedResource := range excludedResourcesList {
+		if strings.TrimSpace(excludedResource) == resourceName {
+			return true
+		}
+	}
+
+	return false
 }
 
 func getVolumeMountName(volumes []v1.Volume, mountType string, volumeName string) string {
