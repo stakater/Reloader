@@ -5,7 +5,12 @@ metadata:
   name: {{ template "reloader-fullname" . }}
   namespace: {{ .Values.namespace | default .Release.Namespace }}
 spec:
+{{- if .Values.reloader.podDisruptionBudget.maxUnavailable }}
+  maxUnavailable: {{ .Values.reloader.podDisruptionBudget.maxUnavailable }}
+{{- end }}
+{{- if and .Values.reloader.podDisruptionBudget.minAvailable (not .Values.reloader.podDisruptionBudget.maxUnavailable)}}
   minAvailable: {{ .Values.reloader.podDisruptionBudget.minAvailable }}
+{{- end }}
   selector:
     matchLabels:
       app: {{ template "reloader-fullname" . }}
