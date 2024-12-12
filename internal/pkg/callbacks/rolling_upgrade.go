@@ -2,8 +2,8 @@ package callbacks
 
 import (
 	"context"
-	"time"
 	"fmt"
+	"time"
 
 	"github.com/sirupsen/logrus"
 	"github.com/stakater/Reloader/pkg/kube"
@@ -17,6 +17,9 @@ import (
 	argorolloutv1alpha1 "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	openshiftv1 "github.com/openshift/api/apps/v1"
 )
+
+// ItemFunc is a generic function to return a specific resource in given namespace
+type ItemFunc func(kube.Clients, string, string) (runtime.Object, error)
 
 // ItemsFunc is a generic function to return a specific resource array in given namespace
 type ItemsFunc func(kube.Clients, string) []runtime.Object
@@ -41,6 +44,7 @@ type PodAnnotationsFunc func(runtime.Object) map[string]string
 
 // RollingUpgradeFuncs contains generic functions to perform rolling upgrade
 type RollingUpgradeFuncs struct {
+	ItemFunc           ItemFunc
 	ItemsFunc          ItemsFunc
 	AnnotationsFunc    AnnotationsFunc
 	PodAnnotationsFunc PodAnnotationsFunc
@@ -49,6 +53,17 @@ type RollingUpgradeFuncs struct {
 	UpdateFunc         UpdateFunc
 	VolumesFunc        VolumesFunc
 	ResourceType       string
+}
+
+// GetDeploymentItem returns the deployment in given namespace
+func GetDeploymentItem(clients kube.Clients, name string, namespace string) (runtime.Object, error) {
+	deployment, err := clients.KubernetesClient.AppsV1().Deployments(namespace).Get(context.TODO(), name, meta_v1.GetOptions{})
+	if err != nil {
+		logrus.Errorf("Failed to get deployment %v", err)
+		return nil, err
+	}
+
+	return deployment, nil
 }
 
 // GetDeploymentItems returns the deployments in given namespace
@@ -71,6 +86,17 @@ func GetDeploymentItems(clients kube.Clients, namespace string) []runtime.Object
 	return items
 }
 
+// GetCronJobItem returns the job in given namespace
+func GetCronJobItem(clients kube.Clients, name string, namespace string) (runtime.Object, error) {
+	cronjob, err := clients.KubernetesClient.BatchV1().CronJobs(namespace).Get(context.TODO(), name, meta_v1.GetOptions{})
+	if err != nil {
+		logrus.Errorf("Failed to get cronjob %v", err)
+		return nil, err
+	}
+
+	return cronjob, nil
+}
+
 // GetCronJobItems returns the jobs in given namespace
 func GetCronJobItems(clients kube.Clients, namespace string) []runtime.Object {
 	cronjobs, err := clients.KubernetesClient.BatchV1().CronJobs(namespace).List(context.TODO(), meta_v1.ListOptions{})
@@ -89,6 +115,17 @@ func GetCronJobItems(clients kube.Clients, namespace string) []runtime.Object {
 	}
 
 	return items
+}
+
+// GetDaemonSetItem returns the daemonSet in given namespace
+func GetDaemonSetItem(clients kube.Clients, name string, namespace string) (runtime.Object, error) {
+	daemonSet, err := clients.KubernetesClient.AppsV1().DaemonSets(namespace).Get(context.TODO(), name, meta_v1.GetOptions{})
+	if err != nil {
+		logrus.Errorf("Failed to get daemonSet %v", err)
+		return nil, err
+	}
+
+	return daemonSet, nil
 }
 
 // GetDaemonSetItems returns the daemonSets in given namespace
@@ -110,6 +147,17 @@ func GetDaemonSetItems(clients kube.Clients, namespace string) []runtime.Object 
 	return items
 }
 
+// GetStatefulSetItem returns the statefulSet in given namespace
+func GetStatefulSetItem(clients kube.Clients, name string, namespace string) (runtime.Object, error) {
+	statefulSet, err := clients.KubernetesClient.AppsV1().StatefulSets(namespace).Get(context.TODO(), name, meta_v1.GetOptions{})
+	if err != nil {
+		logrus.Errorf("Failed to get statefulSet %v", err)
+		return nil, err
+	}
+
+	return statefulSet, nil
+}
+
 // GetStatefulSetItems returns the statefulSets in given namespace
 func GetStatefulSetItems(clients kube.Clients, namespace string) []runtime.Object {
 	statefulSets, err := clients.KubernetesClient.AppsV1().StatefulSets(namespace).List(context.TODO(), meta_v1.ListOptions{})
@@ -129,6 +177,17 @@ func GetStatefulSetItems(clients kube.Clients, namespace string) []runtime.Objec
 	return items
 }
 
+// GetDeploymentConfigItem returns the deploymentConfig in given namespace
+func GetDeploymentConfigItem(clients kube.Clients, name string, namespace string) (runtime.Object, error) {
+	deploymentConfig, err := clients.OpenshiftAppsClient.AppsV1().DeploymentConfigs(namespace).Get(context.TODO(), name, meta_v1.GetOptions{})
+	if err != nil {
+		logrus.Errorf("Failed to get deploymentConfig %v", err)
+		return nil, err
+	}
+
+	return deploymentConfig, nil
+}
+
 // GetDeploymentConfigItems returns the deploymentConfigs in given namespace
 func GetDeploymentConfigItems(clients kube.Clients, namespace string) []runtime.Object {
 	deploymentConfigs, err := clients.OpenshiftAppsClient.AppsV1().DeploymentConfigs(namespace).List(context.TODO(), meta_v1.ListOptions{})
@@ -146,6 +205,17 @@ func GetDeploymentConfigItems(clients kube.Clients, namespace string) []runtime.
 	}
 
 	return items
+}
+
+// GetRolloutItem returns the rollout in given namespace
+func GetRolloutItem(clients kube.Clients, name string, namespace string) (runtime.Object, error) {
+	rollout, err := clients.ArgoRolloutClient.ArgoprojV1alpha1().Rollouts(namespace).Get(context.TODO(), name, meta_v1.GetOptions{})
+	if err != nil {
+		logrus.Errorf("Failed to get Rollout %v", err)
+		return nil, err
+	}
+
+	return rollout, nil
 }
 
 // GetRolloutItems returns the rollouts in given namespace
