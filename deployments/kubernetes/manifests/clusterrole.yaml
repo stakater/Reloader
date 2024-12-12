@@ -48,6 +48,9 @@ rules:
       - jobs
     verbs:
       - create
+      - delete
+      - list
+      - get
   - apiGroups:
       - ""
     resources:

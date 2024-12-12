@@ -2,8 +2,8 @@ package callbacks
 
 import (
 	"context"
-	"time"
 	"fmt"
+	"time"
 
 	"github.com/sirupsen/logrus"
 	"github.com/stakater/Reloader/pkg/kube"
@@ -86,6 +86,26 @@ func GetCronJobItems(clients kube.Clients, namespace string) []runtime.Object {
 			cronjobs.Items[i].Spec.JobTemplate.Spec.Template.ObjectMeta.Annotations = annotations
 		}
 		items[i] = &cronjobs.Items[i]
+	}
+
+	return items
+}
+
+// GetJobItems returns the jobs in given namespace
+func GetJobItems(clients kube.Clients, namespace string) []runtime.Object {
+	jobs, err := clients.KubernetesClient.BatchV1().Jobs(namespace).List(context.TODO(), meta_v1.ListOptions{})
+	if err != nil {
+		logrus.Errorf("Failed to list jobs %v", err)
+	}
+
+	items := make([]runtime.Object, len(jobs.Items))
+	// Ensure we always have pod annotations to add to
+	for i, v := range jobs.Items {
+		if v.Spec.Template.ObjectMeta.Annotations == nil {
+			annotations := make(map[string]string)
+			jobs.Items[i].Spec.Template.ObjectMeta.Annotations = annotations
+		}
+		items[i] = &jobs.Items[i]
 	}
 
 	return items
@@ -177,6 +197,11 @@ func GetCronJobAnnotations(item runtime.Object) map[string]string {
 	return item.(*batchv1.CronJob).ObjectMeta.Annotations
 }
 
+// GetJobAnnotations returns the annotations of given job
+func GetJobAnnotations(item runtime.Object) map[string]string {
+	return item.(*batchv1.Job).ObjectMeta.Annotations
+}
+
 // GetDaemonSetAnnotations returns the annotations of given daemonSet
 func GetDaemonSetAnnotations(item runtime.Object) map[string]string {
 	return item.(*appsv1.DaemonSet).ObjectMeta.Annotations
@@ -205,6 +230,11 @@ func GetDeploymentPodAnnotations(item runtime.Object) map[string]string {
 // GetCronJobPodAnnotations returns the pod's annotations of given cronjob
 func GetCronJobPodAnnotations(item runtime.Object) map[string]string {
 	return item.(*batchv1.CronJob).Spec.JobTemplate.Spec.Template.ObjectMeta.Annotations
+}
+
+// GetJobPodAnnotations returns the pod's annotations of given job
+func GetJobPodAnnotations(item runtime.Object) map[string]string {
+	return item.(*batchv1.Job).Spec.Template.ObjectMeta.Annotations
 }
 
 // GetDaemonSetPodAnnotations returns the pod's annotations of given daemonSet
@@ -237,6 +267,11 @@ func GetCronJobContainers(item runtime.Object) []v1.Container {
 	return item.(*batchv1.CronJob).Spec.JobTemplate.Spec.Template.Spec.Containers
 }
 
+// GetJobContainers returns the containers of given job
+func GetJobContainers(item runtime.Object) []v1.Container {
+	return item.(*batchv1.Job).Spec.Template.Spec.Containers
+}
+
 // GetDaemonSetContainers returns the containers of given daemonSet
 func GetDaemonSetContainers(item runtime.Object) []v1.Container {
 	return item.(*appsv1.DaemonSet).Spec.Template.Spec.Containers
@@ -265,6 +300,11 @@ func GetDeploymentInitContainers(item runtime.Object) []v1.Container {
 // GetCronJobInitContainers returns the containers of given cronjob
 func GetCronJobInitContainers(item runtime.Object) []v1.Container {
 	return item.(*batchv1.CronJob).Spec.JobTemplate.Spec.Template.Spec.InitContainers
+}
+
+// GetJobInitContainers returns the containers of given job
+func GetJobInitContainers(item runtime.Object) []v1.Container {
+	return item.(*batchv1.Job).Spec.Template.Spec.InitContainers
 }
 
 // GetDaemonSetInitContainers returns the containers of given daemonSet
@@ -303,6 +343,38 @@ func CreateJobFromCronjob(clients kube.Clients, namespace string, resource runti
 	}
 	job.GenerateName = cronJob.Name + "-"
 	_, err := clients.KubernetesClient.BatchV1().Jobs(namespace).Create(context.TODO(), job, meta_v1.CreateOptions{FieldManager: "Reloader"})
+	return err
+}
+
+// ReCreateJobFromjob performs rolling upgrade on job
+func ReCreateJobFromjob(clients kube.Clients, namespace string, resource runtime.Object) error {
+	oldJob := resource.(*batchv1.Job)
+	job := oldJob.DeepCopy()
+
+	// Delete the old job
+	policy := meta_v1.DeletePropagationBackground
+	err := clients.KubernetesClient.BatchV1().Jobs(namespace).Delete(context.TODO(), job.Name, meta_v1.DeleteOptions{PropagationPolicy: &policy})
+	if err != nil {
+		return err
+	}
+
+	// Remove fields that should not be specified when creating a new Job
+	job.ObjectMeta.ResourceVersion = ""
+	job.ObjectMeta.UID = ""
+	job.ObjectMeta.CreationTimestamp = meta_v1.Time{}
+	job.Status = batchv1.JobStatus{}
+
+	// Remove problematic labels
+	delete(job.Spec.Template.Labels, "controller-uid")
+	delete(job.Spec.Template.Labels, batchv1.ControllerUidLabel)
+	delete(job.Spec.Template.Labels, batchv1.JobNameLabel)
+	delete(job.Spec.Template.Labels, "job-name")
+
+	// Remove the selector to allow it to be auto-generated
+	job.Spec.Selector = nil
+
+	// Create the new job with same spec
+	_, err = clients.KubernetesClient.BatchV1().Jobs(namespace).Create(context.TODO(), job, meta_v1.CreateOptions{FieldManager: "Reloader"})
 	return err
 }
 
@@ -345,6 +417,11 @@ func GetDeploymentVolumes(item runtime.Object) []v1.Volume {
 // GetCronJobVolumes returns the Volumes of given cronjob
 func GetCronJobVolumes(item runtime.Object) []v1.Volume {
 	return item.(*batchv1.CronJob).Spec.JobTemplate.Spec.Template.Spec.Volumes
+}
+
+// GetJobVolumes returns the Volumes of given job
+func GetJobVolumes(item runtime.Object) []v1.Volume {
+	return item.(*batchv1.Job).Spec.Template.Spec.Volumes
 }
 
 // GetDaemonSetVolumes returns the Volumes of given daemonSet

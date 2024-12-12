@@ -55,6 +55,20 @@ func GetCronJobCreateJobFuncs() callbacks.RollingUpgradeFuncs {
 	}
 }
 
+// GetDeploymentRollingUpgradeFuncs returns all callback funcs for a cronjob
+func GetJobCreateJobFuncs() callbacks.RollingUpgradeFuncs {
+	return callbacks.RollingUpgradeFuncs{
+		ItemsFunc:          callbacks.GetJobItems,
+		AnnotationsFunc:    callbacks.GetJobAnnotations,
+		PodAnnotationsFunc: callbacks.GetJobPodAnnotations,
+		ContainersFunc:     callbacks.GetJobContainers,
+		InitContainersFunc: callbacks.GetJobInitContainers,
+		UpdateFunc:         callbacks.ReCreateJobFromjob,
+		VolumesFunc:        callbacks.GetJobVolumes,
+		ResourceType:       "Job",
+	}
+}
+
 // GetDaemonSetRollingUpgradeFuncs returns all callback funcs for a daemonset
 func GetDaemonSetRollingUpgradeFuncs() callbacks.RollingUpgradeFuncs {
 	return callbacks.RollingUpgradeFuncs{
@@ -150,6 +164,10 @@ func doRollingUpgrade(config util.Config, collectors metrics.Collectors, recorde
 		return err
 	}
 	err = rollingUpgrade(clients, config, GetCronJobCreateJobFuncs(), collectors, recorder, invoke)
+	if err != nil {
+		return err
+	}
+	err = rollingUpgrade(clients, config, GetJobCreateJobFuncs(), collectors, recorder, invoke)
 	if err != nil {
 		return err
 	}
