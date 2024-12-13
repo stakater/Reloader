@@ -346,25 +346,25 @@ helm uninstall {{RELEASE_NAME}} -n {{NAMESPACE}}
 
 #### Deployment Reloader Parameters
 
-| Parameter                                       | Description                                                                             | Type   | Default           |
-|-------------------------------------------------|-----------------------------------------------------------------------------------------|--------|-------------------|
-| `reloader.deployment.replicas`                  | Number of replicas, if you wish to run multiple replicas set `reloader.enableHA = true` | int    | 1                 |
-| `reloader.deployment.revisionHistoryLimit`      | Limit the number of revisions retained in the revision history                          | int    | 2                 |
-| `reloader.deployment.nodeSelector`              | Scheduling pod to a specific node based on set labels                                   | map    | `{}`              |
-| `reloader.deployment.affinity`                  | Set affinity rules on pod                                                               | map    | `{}`              |
-| `reloader.deployment.securityContext`           | Set pod security context                                                                | map    | `{}`              |
-| `reloader.deployment.containerSecurityContext`  | Set container security context                                                          | map    | `{}`              |
-| `reloader.deployment.tolerations`               | A list of `tolerations` to be applied to the deployment                                 | array  | `[]`              |
-| `reloader.deployment.topologySpreadConstraints` | Topology spread constraints for pod assignment                                          | array  | `[]`              |
-| `reloader.deployment.annotations`               | Set deployment annotations                                                              | map    | `{}`              |
-| `reloader.deployment.labels`                    | Set deployment labels, default to stakater settings                                     | array  | `see values.yaml` |
-| `reloader.deployment.image`                     | Set container image name, tag and policy                                                | array  | `see values.yaml` |
-| `reloader.deployment.env`                       | Support for extra environment variables                                                 | array  | `[]`              |
-| `reloader.deployment.livenessProbe`             | Set liveness probe timeout values                                                       | map    | `{}`              |
-| `reloader.deployment.readinessProbe`            | Set readiness probe timeout values                                                      | map    | `{}`              |
-| `reloader.deployment.resources`                 | Set container requests and limits (e.g. CPU or memory)                                  | map    | `{}`              |
-| `reloader.deployment.pod.annotations`           | Set annotations for pod                                                                 | map    | `{}`              |
-| `reloader.deployment.priorityClassName`         | Set priority class for pod in cluster                                                   | string | `""`              |
+| Parameter                                       | Description                                                                                                                                                 | Type   | Default           |
+|-------------------------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------|--------|-------------------|
+| `reloader.deployment.replicas`                  | Number of replicas, if you wish to run multiple replicas set `reloader.enableHA = true`. The replicas will be limited to 1 when `reloader.enableHA = false` | int    | 1                 |
+| `reloader.deployment.revisionHistoryLimit`      | Limit the number of revisions retained in the revision history                                                                                              | int    | 2                 |
+| `reloader.deployment.nodeSelector`              | Scheduling pod to a specific node based on set labels                                                                                                       | map    | `{}`              |
+| `reloader.deployment.affinity`                  | Set affinity rules on pod                                                                                                                                   | map    | `{}`              |
+| `reloader.deployment.securityContext`           | Set pod security context                                                                                                                                    | map    | `{}`              |
+| `reloader.deployment.containerSecurityContext`  | Set container security context                                                                                                                              | map    | `{}`              |
+| `reloader.deployment.tolerations`               | A list of `tolerations` to be applied to the deployment                                                                                                     | array  | `[]`              |
+| `reloader.deployment.topologySpreadConstraints` | Topology spread constraints for pod assignment                                                                                                              | array  | `[]`              |
+| `reloader.deployment.annotations`               | Set deployment annotations                                                                                                                                  | map    | `{}`              |
+| `reloader.deployment.labels`                    | Set deployment labels, default to stakater settings                                                                                                         | array  | `see values.yaml` |
+| `reloader.deployment.image`                     | Set container image name, tag and policy                                                                                                                    | array  | `see values.yaml` |
+| `reloader.deployment.env`                       | Support for extra environment variables                                                                                                                     | array  | `[]`              |
+| `reloader.deployment.livenessProbe`             | Set liveness probe timeout values                                                                                                                           | map    | `{}`              |
+| `reloader.deployment.readinessProbe`            | Set readiness probe timeout values                                                                                                                          | map    | `{}`              |
+| `reloader.deployment.resources`                 | Set container requests and limits (e.g. CPU or memory)                                                                                                      | map    | `{}`              |
+| `reloader.deployment.pod.annotations`           | Set annotations for pod                                                                                                                                     | map    | `{}`              |
+| `reloader.deployment.priorityClassName`         | Set priority class for pod in cluster                                                                                                                       | string | `""`              |
 
 #### Other Reloader Parameters
 
