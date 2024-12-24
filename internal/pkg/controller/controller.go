@@ -79,7 +79,16 @@ func NewController(
 		}
 	}
 
-	listWatcher := cache.NewFilteredListWatchFromClient(client.CoreV1().RESTClient(), resource, namespace, optionsModifier)
+	getterRESTClient := client.CoreV1().RESTClient()
+	if resource == "secretproviderclasspodstatuses" {
+		csiClient, err := kube.GetCSIClient()
+		if err != nil {
+			logrus.Fatal(err)
+		}
+		getterRESTClient = csiClient.SecretsstoreV1().RESTClient()
+	}
+
+	listWatcher := cache.NewFilteredListWatchFromClient(getterRESTClient, resource, namespace, optionsModifier)
 
 	_, informer := cache.NewInformerWithOptions(cache.InformerOptions{
 		ListerWatcher: listWatcher,

@@ -11,6 +11,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
+	csi "sigs.k8s.io/secrets-store-csi-driver/pkg/client/clientset/versioned"
 )
 
 // Clients struct exposes interfaces for kubernetes as well as openshift if available
@@ -18,6 +19,7 @@ type Clients struct {
 	KubernetesClient    kubernetes.Interface
 	OpenshiftAppsClient appsclient.Interface
 	ArgoRolloutClient   argorollout.Interface
+	CSIClient           csi.Interface
 }
 
 var (
@@ -48,10 +50,18 @@ func GetClients() Clients {
 		logrus.Warnf("Unable to create ArgoRollout client error = %v", err)
 	}
 
+	var csiClient *csi.Clientset
+
+	csiClient, err = GetCSIClient()
+	if err != nil {
+		logrus.Warnf("Unable to create CSI client error = %v", err)
+	}
+
 	return Clients{
 		KubernetesClient:    client,
 		OpenshiftAppsClient: appsClient,
 		ArgoRolloutClient:   rolloutClient,
+		CSIClient:           csiClient,
 	}
 }
 
@@ -61,6 +71,14 @@ func GetArgoRolloutClient() (*argorollout.Clientset, error) {
 		return nil, err
 	}
 	return argorollout.NewForConfig(config)
+}
+
+func GetCSIClient() (*csi.Clientset, error) {
+	config, err := getConfig()
+	if err != nil {
+		return nil, err
+	}
+	return csi.NewForConfig(config)
 }
 
 func isOpenshift() bool {

@@ -30,6 +30,8 @@ var (
 	ConfigmapExcludeReloaderAnnotation = "configmaps.exclude.reloader.stakater.com/reload"
 	// SecretExcludeReloaderAnnotation is a comma separated list of secrets that excludes detecting changes on secrets
 	SecretExcludeReloaderAnnotation = "secrets.exclude.reloader.stakater.com/reload"
+	// SecretProviderClassExcludeReloaderAnnotation is a comma separated list of secret provider classes that excludes detecting changes on secret provider class
+	SecretProviderClassExcludeReloaderAnnotation = "secretproviderclass.exclude.reloader.stakater.com/reload"
 	// AutoSearchAnnotation is an annotation to detect changes in
 	// configmaps or triggers with the SearchMatchAnnotation
 	AutoSearchAnnotation = "reloader.stakater.com/search"
@@ -55,6 +57,8 @@ var (
 	EnableHA = false
 	// Url to send a request to instead of triggering a reload
 	WebhookUrl = ""
+	// EnableCsiIntegration Adds support to watch SecretProviderClassPodStatus and restart deployment based on it
+	EnableCSIIntegration = false
 )
 
 func ToArgoRolloutStrategy(s string) ArgoRolloutStrategy {

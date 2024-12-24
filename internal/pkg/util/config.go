@@ -4,9 +4,10 @@ import (
 	"github.com/stakater/Reloader/internal/pkg/constants"
 	"github.com/stakater/Reloader/internal/pkg/options"
 	v1 "k8s.io/api/core/v1"
+	csiv1 "sigs.k8s.io/secrets-store-csi-driver/apis/v1"
 )
 
-//Config contains rolling upgrade configuration parameters
+// Config contains rolling upgrade configuration parameters
 type Config struct {
 	Namespace           string
 	ResourceName        string
@@ -40,5 +41,15 @@ func GetSecretConfig(secret *v1.Secret) Config {
 		TypedAutoAnnotation: options.SecretReloaderAutoAnnotation,
 		SHAValue:            GetSHAfromSecret(secret.Data),
 		Type:                constants.SecretEnvVarPostfix,
+	}
+}
+
+func GetSecretProviderClassPodStatusConfig(podStatus *csiv1.SecretProviderClassPodStatus) Config {
+	return Config{
+		Namespace:           podStatus.Namespace,
+		ResourceName:        podStatus.Status.SecretProviderClassName,
+		ResourceAnnotations: podStatus.Annotations,
+		SHAValue:            GetSHAfromSecretProviderClassPodStatus(podStatus.Status),
+		Type:                constants.SecretProviderClassEnvVarPostfix,
 	}
 }

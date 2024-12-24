@@ -219,6 +219,7 @@ func PerformAction(clients kube.Clients, config util.Config, upgradeFuncs callba
 		typedAutoAnnotationEnabledValue, foundTypedAuto := annotations[config.TypedAutoAnnotation]
 		excludeConfigmapAnnotationValue, foundExcludeConfigmap := annotations[options.ConfigmapExcludeReloaderAnnotation]
 		excludeSecretAnnotationValue, foundExcludeSecret := annotations[options.SecretExcludeReloaderAnnotation]
+		excludeSecretProviderClassProviderAnnotationValue, foundExcludeSecretProviderClass := annotations[options.SecretProviderClassExcludeReloaderAnnotation]
 
 		if !found && !foundAuto && !foundTypedAuto && !foundSearchAnn {
 			annotations = upgradeFuncs.PodAnnotationsFunc(i)
@@ -238,6 +239,10 @@ func PerformAction(clients kube.Clients, config util.Config, upgradeFuncs callba
 		case constants.SecretEnvVarPostfix:
 			if foundExcludeSecret {
 				isResourceExcluded = checkIfResourceIsExcluded(config.ResourceName, excludeSecretAnnotationValue)
+			}
+		case constants.SecretProviderClassEnvVarPostfix:
+			if foundExcludeSecretProviderClass {
+				isResourceExcluded = checkIfResourceIsExcluded(config.ResourceName, excludeSecretProviderClassProviderAnnotationValue)
 			}
 		}
 
@@ -354,6 +359,10 @@ func getVolumeMountName(volumes []v1.Volume, mountType string, volumeName string
 						return volumes[i].Name
 					}
 				}
+			}
+		} else if mountType == constants.SecretProviderClassEnvVarPostfix {
+			if volumes[i].CSI != nil && volumes[i].CSI.VolumeAttributes["secretProviderClass"] == volumeName {
+				return volumes[i].Name
 			}
 		}
 	}

@@ -54,6 +54,7 @@ func NewReloaderCommand() *cobra.Command {
 	cmd.PersistentFlags().StringVar(&options.ReloadOnDelete, "reload-on-delete", "false", "Add support to watch delete events")
 	cmd.PersistentFlags().BoolVar(&options.EnableHA, "enable-ha", false, "Adds support for running multiple replicas via leadership election")
 	cmd.PersistentFlags().BoolVar(&options.SyncAfterRestart, "sync-after-restart", false, "Sync add events after reloader restarts")
+	cmd.PersistentFlags().BoolVar(&options.EnableCSIIntegration, "enable-csi-integration", false, "Watch SecretProviderClassPodStatus for changes")
 
 	return cmd
 }
@@ -176,6 +177,10 @@ func startReloader(cmd *cobra.Command, args []string) {
 
 	var controllers []*controller.Controller
 	for k := range kube.ResourceMap {
+		if k == "secretproviderclasspodstatuses" && !options.EnableCSIIntegration {
+			continue
+		}
+
 		if ignoredResourcesList.Contains(k) || (len(namespaceLabelSelector) == 0 && k == "namespaces") {
 			continue
 		}
