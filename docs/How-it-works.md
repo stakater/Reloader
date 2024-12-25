@@ -1,6 +1,17 @@
 # How Does Reloader Work?
 
-Reloader watches for `ConfigMap` and `Secret` and detects if there are changes in data of these objects. After change detection Reloader performs rolling upgrade on relevant Pods via associated `Deployment`, `Daemonset` and `Statefulset`.
+Reloader watches for `ConfigMap` and `Secret` and detects if there are changes in data of these objects. After change detection Reloader performs rolling upgrade on relevant Pods via associated `Deployment`, `Daemonset` and `Statefulset`:
+
+```mermaid
+flowchart LR
+    subgraph Reloader
+    controller("Controller watches in a loop") -- "Detects a change" --> upgrade_handler("Upgrade handler checks if the change is a valid data change by comparing the change hash")
+    upgrade_handler -- "Update resource" --> update_resource("Updates the resource with computed hash of change")
+    end
+    Reloader -- "Watches" --> secret_configmaps("Secrets/ConfigMaps")
+    Reloader -- "Updates resources with Reloader environment variable" --> resources("Deployments/DaemonSets/StatefulSets resources with Reloader annotation")
+    resources -- "Restart pods based on StrategyType" --> Pods
+```
 
 ## How Does Change Detection Work?
 
