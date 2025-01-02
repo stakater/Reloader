@@ -479,6 +479,10 @@ func updatePodAnnotations(upgradeFuncs callbacks.RollingUpgradeFuncs, item runti
 		return constants.NotUpdated
 	}
 
+	if config.Type == constants.SecretProviderClassEnvVarPostfix && secretProviderClassAnnotationReloaded(pa, config) {
+		return constants.NotUpdated
+	}
+
 	for k, v := range annotations {
 		pa[k] = v
 	}
@@ -491,6 +495,11 @@ func getReloaderAnnotationKey() string {
 		constants.ReloaderAnnotationPrefix,
 		constants.LastReloadedFromAnnotation,
 	)
+}
+
+func secretProviderClassAnnotationReloaded(oldAnnotations map[string]string, newConfig util.Config) bool {
+	annotaion := oldAnnotations[getReloaderAnnotationKey()]
+	return strings.Contains(annotaion, newConfig.ResourceName) && strings.Contains(annotaion, newConfig.SHAValue)
 }
 
 func createReloadedAnnotations(target *util.ReloadSource) (map[string]string, error) {
@@ -527,6 +536,10 @@ func updateContainerEnvVars(upgradeFuncs callbacks.RollingUpgradeFuncs, item run
 		return constants.NoContainerFound
 	}
 
+	if config.Type == constants.SecretProviderClassEnvVarPostfix && secretProviderClassEnvReloaded(upgradeFuncs.ContainersFunc(item), envVar, config.SHAValue) {
+		return constants.NotUpdated
+	}
+
 	//update if env var exists
 	result = updateEnvVar(upgradeFuncs.ContainersFunc(item), envVar, config.SHAValue)
 
@@ -556,4 +569,16 @@ func updateEnvVar(containers []v1.Container, envVar string, shaData string) cons
 		}
 	}
 	return constants.NoEnvVarFound
+}
+
+func secretProviderClassEnvReloaded(containers []v1.Container, envVar string, shaData string) bool {
+	for i := range containers {
+		envs := containers[i].Env
+		for j := range envs {
+			if envs[j].Name == envVar {
+				return envs[j].Value == shaData
+			}
+		}
+	}
+	return false
 }
