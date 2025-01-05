@@ -958,7 +958,7 @@ func setupErs() {
 	if err != nil {
 		logrus.Errorf("Error in Deployment with configmap and with configmap auto annotation: %v", err)
 	}
-    
+
 	// Creating Deployment with secret and with secret exclude annotation
 	_, err = testutil.CreateDeploymentWithExcludeAnnotation(clients.KubernetesClient, ersSecretWithSecretExcludeAnnotation, ersNamespace, testutil.SecretResourceType)
 	if err != nil {
@@ -1177,7 +1177,7 @@ func teardownErs() {
 		logrus.Errorf("Error while deleting deployment with configmap auto annotation %v", deploymentError)
 	}
 
-    // Deleting Deployment with secret and secret exclude annotation
+	// Deleting Deployment with secret and secret exclude annotation
 	deploymentError = testutil.DeleteDeployment(clients.KubernetesClient, ersNamespace, ersSecretWithSecretExcludeAnnotation)
 	if deploymentError != nil {
 		logrus.Errorf("Error while deleting deployment with secret exclude annotation %v", deploymentError)
@@ -3083,7 +3083,6 @@ func TestRollingUpgradeForDeploymentWithSecretAsEnvVarInInitContainerUsingErs(t 
 	}
 
 	testRollingUpgradeInvokeDeleteStrategyErs(t, clients, config, deploymentFuncs, collectors, envVarPostfix)
-
 }
 
 func TestRollingUpgradeForDeploymentWithSecretExcludeAnnotationUsingErs(t *testing.T) {
