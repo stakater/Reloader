@@ -958,7 +958,8 @@ func setupErs() {
 	if err != nil {
 		logrus.Errorf("Error in Deployment with configmap and with configmap auto annotation: %v", err)
 	}
-// Creating Deployment with secret and with secret exclude annotation
+    
+	// Creating Deployment with secret and with secret exclude annotation
 	_, err = testutil.CreateDeploymentWithExcludeAnnotation(clients.KubernetesClient, ersSecretWithSecretExcludeAnnotation, ersNamespace, testutil.SecretResourceType)
 	if err != nil {
 		logrus.Errorf("Error in Deployment with secret and with secret exclude annotation: %v", err)
@@ -969,6 +970,7 @@ func setupErs() {
 	if err != nil {
 		logrus.Errorf("Error in Deployment with configmap and with configmap exclude annotation: %v", err)
 	}
+
 	// Creating DaemonSet with configmap
 	_, err = testutil.CreateDaemonSet(clients.KubernetesClient, ersConfigmapName, ersNamespace, true)
 	if err != nil {
@@ -1174,7 +1176,8 @@ func teardownErs() {
 	if deploymentError != nil {
 		logrus.Errorf("Error while deleting deployment with configmap auto annotation %v", deploymentError)
 	}
-// Deleting Deployment with secret and secret exclude annotation
+
+    // Deleting Deployment with secret and secret exclude annotation
 	deploymentError = testutil.DeleteDeployment(clients.KubernetesClient, ersNamespace, ersSecretWithSecretExcludeAnnotation)
 	if deploymentError != nil {
 		logrus.Errorf("Error while deleting deployment with secret exclude annotation %v", deploymentError)
@@ -1185,6 +1188,7 @@ func teardownErs() {
 	if deploymentError != nil {
 		logrus.Errorf("Error while deleting deployment with configmap exclude annotation %v", deploymentError)
 	}
+
 	// Deleting DaemonSet with configmap
 	daemonSetError := testutil.DeleteDaemonSet(clients.KubernetesClient, ersNamespace, ersConfigmapName)
 	if daemonSetError != nil {
@@ -2036,7 +2040,6 @@ func TestRollingUpgradeForDeploymentWithSecretAsEnvVarInInitContainerUsingArs(t 
 	}
 
 	testRollingUpgradeInvokeDeleteStrategyArs(t, clients, config, deploymentFuncs, collectors, envVarPostfix)
-
 }
 
 func TestRollingUpgradeForDeploymentWithSecretExcludeAnnotationUsingArs(t *testing.T) {
@@ -2058,7 +2061,6 @@ func TestRollingUpgradeForDeploymentWithSecretExcludeAnnotationUsingArs(t *testi
 	if updated {
 		t.Errorf("Deployment which had to be exluded was updated")
 	}
-
 }
 
 func TestRollingUpgradeForDeploymentWithSecretAutoAnnotationUsingArs(t *testing.T) {
@@ -3104,7 +3106,6 @@ func TestRollingUpgradeForDeploymentWithSecretExcludeAnnotationUsingErs(t *testi
 	if updated {
 		t.Errorf("Deployment that had to be excluded was updated")
 	}
-
 }
 
 func TestRollingUpgradeForDeploymentWithSecretAutoAnnotationUsingErs(t *testing.T) {
@@ -3137,7 +3138,6 @@ func TestRollingUpgradeForDeploymentWithSecretAutoAnnotationUsingErs(t *testing.
 	}
 
 	testRollingUpgradeInvokeDeleteStrategyErs(t, clients, config, deploymentFuncs, collectors, envVarPostfix)
-
 }
 
 func TestRollingUpgradeForDeploymentWithConfigMapExcludeAnnotationUsingErs(t *testing.T) {
@@ -3160,7 +3160,6 @@ func TestRollingUpgradeForDeploymentWithConfigMapExcludeAnnotationUsingErs(t *te
 	if updated {
 		t.Errorf("Deployment which had to be excluded was updated")
 	}
-
 }
 
 func TestRollingUpgradeForDeploymentWithConfigMapAutoAnnotationUsingErs(t *testing.T) {
