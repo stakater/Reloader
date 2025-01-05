@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	testclientargorollout "github.com/argoproj/argo-rollouts/pkg/client/clientset/versioned/fake"
 	"github.com/prometheus/client_golang/prometheus"
 	promtestutil "github.com/prometheus/client_golang/prometheus/testutil"
 	"github.com/sirupsen/logrus"
@@ -24,7 +25,7 @@ import (
 )
 
 var (
-	clients = kube.Clients{KubernetesClient: testclient.NewSimpleClientset()}
+	clients = kube.Clients{KubernetesClient: testclient.NewSimpleClientset(), ArgoRolloutClient: testclientargorollout.NewSimpleClientset()}
 
 	arsNamespace                            = "test-handler-" + testutil.RandSeq(5)
 	arsConfigmapName                        = "testconfigmap-handler-" + testutil.RandSeq(5)
@@ -77,7 +78,7 @@ func TestMain(m *testing.M) {
 	testutil.CreateNamespace(ersNamespace, clients.KubernetesClient)
 
 	logrus.Infof("Setting up the annotation reload strategy test resources")
-	setupArs()
+	//setupArs()
 	logrus.Infof("Setting up the env-var reload strategy test resources")
 	setupErs()
 
@@ -85,7 +86,7 @@ func TestMain(m *testing.M) {
 	retCode := m.Run()
 
 	logrus.Infof("tearing down the annotation reload strategy test resources")
-	teardownArs()
+	//teardownArs()
 	logrus.Infof("tearing down the env-var reload strategy test resources")
 	teardownErs()
 
@@ -792,79 +793,79 @@ func setupErs() {
 	if err != nil {
 		logrus.Errorf("Error in Deployment with configmap creation: %v", err)
 	}
-
+	
 	// Creating Deployment with configmap mounted in init container
 	_, err = testutil.CreateDeploymentWithInitContainer(clients.KubernetesClient, ersConfigmapWithInitContainer, ersNamespace, true)
 	if err != nil {
 		logrus.Errorf("Error in Deployment with configmap creation: %v", err)
 	}
-
+	
 	// Creating Deployment with configmap in projected volume
 	_, err = testutil.CreateDeployment(clients.KubernetesClient, ersProjectedConfigMapName, ersNamespace, true)
 	if err != nil {
 		logrus.Errorf("Error in Deployment with configmap creation: %v", err)
 	}
-
+	
 	// Creating Deployment with configmap in projected volume mounted in init container
 	_, err = testutil.CreateDeploymentWithInitContainer(clients.KubernetesClient, ersProjectedConfigMapWithInitContainer, ersNamespace, true)
 	if err != nil {
 		logrus.Errorf("Error in Deployment with configmap creation: %v", err)
 	}
-
+	
 	// Creating Deployment with secret in projected volume
 	_, err = testutil.CreateDeployment(clients.KubernetesClient, ersProjectedSecretName, ersNamespace, true)
 	if err != nil {
 		logrus.Errorf("Error in Deployment with secret creation: %v", err)
 	}
-
+	
 	// Creating Deployment with secret in projected volume mounted in init container
 	_, err = testutil.CreateDeploymentWithInitContainer(clients.KubernetesClient, ersProjectedSecretWithInitContainer, ersNamespace, true)
 	if err != nil {
 		logrus.Errorf("Error in Deployment with secret creation: %v", err)
 	}
-
+	
 	// Creating Deployment with secret mounted in init container
 	_, err = testutil.CreateDeploymentWithInitContainer(clients.KubernetesClient, ersSecretWithInitContainer, ersNamespace, true)
 	if err != nil {
 		logrus.Errorf("Error in Deployment with secret creation: %v", err)
 	}
-
+	
 	// Creating Deployment with configmap mounted as Env in init container
 	_, err = testutil.CreateDeploymentWithInitContainer(clients.KubernetesClient, ersConfigmapWithInitEnv, ersNamespace, false)
 	if err != nil {
 		logrus.Errorf("Error in Deployment with configmap creation: %v", err)
 	}
-
+	
 	// Creating Deployment with secret mounted as Env in init container
 	_, err = testutil.CreateDeploymentWithInitContainer(clients.KubernetesClient, ersSecretWithInitEnv, ersNamespace, false)
 	if err != nil {
 		logrus.Errorf("Error in Deployment with secret creation: %v", err)
 	}
-
+	
 	// Creating Deployment with secret
 	_, err = testutil.CreateDeployment(clients.KubernetesClient, ersSecretName, ersNamespace, true)
 	if err != nil {
 		logrus.Errorf("Error in Deployment with secret creation: %v", err)
 	}
-
+	
 	// Creating Deployment with env var source as configmap
 	_, err = testutil.CreateDeployment(clients.KubernetesClient, ersConfigmapWithEnvName, ersNamespace, false)
 	if err != nil {
 		logrus.Errorf("Error in Deployment with configmap configmap as env var source creation: %v", err)
 	}
-
+	
 	// Creating Deployment with env var source as secret
 	_, err = testutil.CreateDeployment(clients.KubernetesClient, ersSecretWithEnvName, ersNamespace, false)
 	if err != nil {
 		logrus.Errorf("Error in Deployment with secret configmap as env var source creation: %v", err)
 	}
-
+	
 	// Creating Deployment with envFrom source as secret
 	_, err = testutil.CreateDeploymentWithEnvVarSource(clients.KubernetesClient, ersConfigmapWithEnvFromName, ersNamespace)
 	if err != nil {
 		logrus.Errorf("Error in Deployment with secret configmap as envFrom source creation: %v", err)
 	}
-
+	
 	// Creating Deployment with envFrom source as secret
 	_, err = testutil.CreateDeploymentWithEnvVarSource(clients.KubernetesClient, ersSecretWithEnvFromName, ersNamespace)
 	if err != nil {
@@ -887,95 +888,101 @@ func setupErs() {
 	if err != nil {
 		logrus.Errorf("Error in Deployment with secret and with secret auto annotation: %v", err)
 	}
-
+	
 	// Creating Deployment with secret and with secret auto annotation
 	_, err = testutil.CreateDeploymentWithTypedAutoAnnotation(clients.KubernetesClient, ersConfigmapWithConfigMapAutoAnnotation, ersNamespace, testutil.ConfigmapResourceType)
 	if err != nil {
 		logrus.Errorf("Error in Deployment with configmap and with configmap auto annotation: %v", err)
 	}
-
+	
 	// Creating DaemonSet with configmap
 	_, err = testutil.CreateDaemonSet(clients.KubernetesClient, ersConfigmapName, ersNamespace, true)
 	if err != nil {
 		logrus.Errorf("Error in DaemonSet with configmap creation: %v", err)
 	}
-
+	
 	// Creating DaemonSet with secret
 	_, err = testutil.CreateDaemonSet(clients.KubernetesClient, ersSecretName, ersNamespace, true)
 	if err != nil {
 		logrus.Errorf("Error in DaemonSet with secret creation: %v", err)
 	}
-
+	
 	// Creating DaemonSet with configmap in projected volume
 	_, err = testutil.CreateDaemonSet(clients.KubernetesClient, ersProjectedConfigMapName, ersNamespace, true)
 	if err != nil {
 		logrus.Errorf("Error in DaemonSet with configmap creation: %v", err)
 	}
-
+	
 	// Creating DaemonSet with secret in projected volume
 	_, err = testutil.CreateDaemonSet(clients.KubernetesClient, ersProjectedSecretName, ersNamespace, true)
 	if err != nil {
 		logrus.Errorf("Error in DaemonSet with secret creation: %v", err)
 	}
-
+	
 	// Creating DaemonSet with env var source as configmap
 	_, err = testutil.CreateDaemonSet(clients.KubernetesClient, ersConfigmapWithEnvName, ersNamespace, false)
 	if err != nil {
 		logrus.Errorf("Error in DaemonSet with configmap as env var source creation: %v", err)
 	}
-
+	
 	// Creating DaemonSet with env var source as secret
 	_, err = testutil.CreateDaemonSet(clients.KubernetesClient, ersSecretWithEnvName, ersNamespace, false)
 	if err != nil {
 		logrus.Errorf("Error in DaemonSet with secret configmap as env var source creation: %v", err)
 	}
-
+	
 	// Creating StatefulSet with configmap
 	_, err = testutil.CreateStatefulSet(clients.KubernetesClient, ersConfigmapName, ersNamespace, true)
 	if err != nil {
 		logrus.Errorf("Error in StatefulSet with configmap creation: %v", err)
 	}
-
+	
 	// Creating StatefulSet with secret
 	_, err = testutil.CreateStatefulSet(clients.KubernetesClient, ersSecretName, ersNamespace, true)
 	if err != nil {
 		logrus.Errorf("Error in StatefulSet with secret creation: %v", err)
 	}
-
+	
 	// Creating StatefulSet with configmap in projected volume
 	_, err = testutil.CreateStatefulSet(clients.KubernetesClient, ersProjectedConfigMapName, ersNamespace, true)
 	if err != nil {
 		logrus.Errorf("Error in StatefulSet with configmap creation: %v", err)
 	}
-
+	
 	// Creating StatefulSet with secret in projected volume
 	_, err = testutil.CreateStatefulSet(clients.KubernetesClient, ersProjectedSecretName, ersNamespace, true)
 	if err != nil {
 		logrus.Errorf("Error in StatefulSet with configmap creation: %v", err)
 	}
-
+	
 	// Creating StatefulSet with env var source as configmap
 	_, err = testutil.CreateStatefulSet(clients.KubernetesClient, ersConfigmapWithEnvName, ersNamespace, false)
 	if err != nil {
 		logrus.Errorf("Error in StatefulSet with configmap configmap as env var source creation: %v", err)
 	}
-
+	
 	// Creating StatefulSet with env var source as secret
 	_, err = testutil.CreateStatefulSet(clients.KubernetesClient, ersSecretWithEnvName, ersNamespace, false)
 	if err != nil {
 		logrus.Errorf("Error in StatefulSet with secret configmap as env var source creation: %v", err)
 	}
-
+	
 	// Creating Deployment with pod annotations
 	_, err = testutil.CreateDeploymentWithPodAnnotations(clients.KubernetesClient, ersConfigmapWithPodAnnotations, ersNamespace, false)
 	if err != nil {
 		logrus.Errorf("Error in Deployment with pod annotations: %v", err)
 	}
-
+	
 	// Creating Deployment with both annotations
 	_, err = testutil.CreateDeploymentWithPodAnnotations(clients.KubernetesClient, ersConfigmapWithBothAnnotations, ersNamespace, true)
 	if err != nil {
 		logrus.Errorf("Error in Deployment with both annotations: %v", err)
+	}
+
+	// Creating Rollout
+	_, err = testutil.CreateRollout(clients.ArgoRolloutClient, ersConfigmapName, ersNamespace, true, true)
+	if err != nil {
+		logrus.Errorf("Error in Rollout: %v", err)
 	}
 }
 
@@ -985,185 +992,191 @@ func teardownErs() {
 	if deploymentError != nil {
 		logrus.Errorf("Error while deleting deployment with configmap %v", deploymentError)
 	}
-
+	
 	// Deleting Deployment with secret
 	deploymentError = testutil.DeleteDeployment(clients.KubernetesClient, ersNamespace, ersSecretName)
 	if deploymentError != nil {
 		logrus.Errorf("Error while deleting deployment with secret %v", deploymentError)
 	}
-
+	
 	// Deleting Deployment with configmap in projected volume
 	deploymentError = testutil.DeleteDeployment(clients.KubernetesClient, ersNamespace, ersProjectedConfigMapName)
 	if deploymentError != nil {
 		logrus.Errorf("Error while deleting deployment with configmap %v", deploymentError)
 	}
-
+	
 	// Deleting Deployment with configmap in projected volume mounted in init  container
 	deploymentError = testutil.DeleteDeployment(clients.KubernetesClient, ersNamespace, ersProjectedConfigMapWithInitContainer)
 	if deploymentError != nil {
 		logrus.Errorf("Error while deleting deployment with configmap %v", deploymentError)
 	}
-
+	
 	// Deleting Deployment with secret in projected volume
 	deploymentError = testutil.DeleteDeployment(clients.KubernetesClient, ersNamespace, ersProjectedSecretName)
 	if deploymentError != nil {
 		logrus.Errorf("Error while deleting deployment with configmap %v", deploymentError)
 	}
-
+	
 	// Deleting Deployment with secret in projected volume mounted in init container
 	deploymentError = testutil.DeleteDeployment(clients.KubernetesClient, ersNamespace, ersProjectedSecretWithInitContainer)
 	if deploymentError != nil {
 		logrus.Errorf("Error while deleting deployment with configmap %v", deploymentError)
 	}
-
+	
 	// Deleting Deployment with configmap as env var source
 	deploymentError = testutil.DeleteDeployment(clients.KubernetesClient, ersNamespace, ersConfigmapWithEnvName)
 	if deploymentError != nil {
 		logrus.Errorf("Error while deleting deployment with configmap as env var source %v", deploymentError)
 	}
-
+	
 	// Deleting Deployment with secret
 	deploymentError = testutil.DeleteDeployment(clients.KubernetesClient, ersNamespace, ersSecretWithEnvName)
 	if deploymentError != nil {
 		logrus.Errorf("Error while deleting deployment with secret as env var source %v", deploymentError)
 	}
-
+	
 	// Deleting Deployment with configmap mounted in init container
 	deploymentError = testutil.DeleteDeployment(clients.KubernetesClient, ersNamespace, ersConfigmapWithInitContainer)
 	if deploymentError != nil {
 		logrus.Errorf("Error while deleting deployment with configmap mounted in init container %v", deploymentError)
 	}
-
+	
 	// Deleting Deployment with secret mounted in init container
 	deploymentError = testutil.DeleteDeployment(clients.KubernetesClient, ersNamespace, ersSecretWithInitContainer)
 	if deploymentError != nil {
 		logrus.Errorf("Error while deleting deployment with secret mounted in init container %v", deploymentError)
 	}
-
+	
 	// Deleting Deployment with configmap mounted as env in init container
 	deploymentError = testutil.DeleteDeployment(clients.KubernetesClient, ersNamespace, ersConfigmapWithInitEnv)
 	if deploymentError != nil {
 		logrus.Errorf("Error while deleting deployment with configmap mounted as env in init container %v", deploymentError)
 	}
-
+	
 	// Deleting Deployment with secret mounted as env in init container
 	deploymentError = testutil.DeleteDeployment(clients.KubernetesClient, ersNamespace, ersSecretWithInitEnv)
 	if deploymentError != nil {
 		logrus.Errorf("Error while deleting deployment with secret mounted as env in init container %v", deploymentError)
 	}
-
+	
 	// Deleting Deployment with configmap as envFrom source
 	deploymentError = testutil.DeleteDeployment(clients.KubernetesClient, ersNamespace, ersConfigmapWithEnvFromName)
 	if deploymentError != nil {
 		logrus.Errorf("Error while deleting deployment with configmap as envFrom source %v", deploymentError)
 	}
-
+	
 	// Deleting Deployment with secret as envFrom source
 	deploymentError = testutil.DeleteDeployment(clients.KubernetesClient, ersNamespace, ersSecretWithEnvFromName)
 	if deploymentError != nil {
 		logrus.Errorf("Error while deleting deployment with secret as envFrom source %v", deploymentError)
 	}
-
+	
 	// Deleting Deployment with pod annotations
 	deploymentError = testutil.DeleteDeployment(clients.KubernetesClient, ersNamespace, ersConfigmapWithPodAnnotations)
 	if deploymentError != nil {
 		logrus.Errorf("Error while deleting deployment with pod annotations %v", deploymentError)
 	}
-
+	
 	// Deleting Deployment with both annotations
 	deploymentError = testutil.DeleteDeployment(clients.KubernetesClient, ersNamespace, ersConfigmapWithBothAnnotations)
 	if deploymentError != nil {
 		logrus.Errorf("Error while deleting deployment with both annotations %v", deploymentError)
 	}
-
+	
 	// Deleting Deployment with search annotation
 	deploymentError = testutil.DeleteDeployment(clients.KubernetesClient, ersNamespace, ersConfigmapAnnotated)
 	if deploymentError != nil {
 		logrus.Errorf("Error while deleting deployment with search annotation %v", deploymentError)
 	}
-
+	
 	// Deleting Deployment with secret and secret auto annotation
 	deploymentError = testutil.DeleteDeployment(clients.KubernetesClient, ersNamespace, ersSecretWithSecretAutoAnnotation)
 	if deploymentError != nil {
 		logrus.Errorf("Error while deleting deployment with secret auto annotation %v", deploymentError)
 	}
-
+	
 	// Deleting Deployment with configmap and configmap auto annotation
 	deploymentError = testutil.DeleteDeployment(clients.KubernetesClient, ersNamespace, ersConfigmapWithConfigMapAutoAnnotation)
 	if deploymentError != nil {
 		logrus.Errorf("Error while deleting deployment with configmap auto annotation %v", deploymentError)
 	}
-
+	
 	// Deleting DaemonSet with configmap
 	daemonSetError := testutil.DeleteDaemonSet(clients.KubernetesClient, ersNamespace, ersConfigmapName)
 	if daemonSetError != nil {
 		logrus.Errorf("Error while deleting daemonSet with configmap %v", daemonSetError)
 	}
-
+	
 	// Deleting Deployment with secret
 	daemonSetError = testutil.DeleteDaemonSet(clients.KubernetesClient, ersNamespace, ersSecretName)
 	if daemonSetError != nil {
 		logrus.Errorf("Error while deleting daemonSet with secret %v", daemonSetError)
 	}
-
+	
 	// Deleting DaemonSet with configmap in projected volume
 	daemonSetError = testutil.DeleteDaemonSet(clients.KubernetesClient, ersNamespace, ersProjectedConfigMapName)
 	if daemonSetError != nil {
 		logrus.Errorf("Error while deleting daemonSet with configmap %v", daemonSetError)
 	}
-
+	
 	// Deleting Deployment with secret in projected volume
 	daemonSetError = testutil.DeleteDaemonSet(clients.KubernetesClient, ersNamespace, ersProjectedSecretName)
 	if daemonSetError != nil {
 		logrus.Errorf("Error while deleting daemonSet with secret %v", daemonSetError)
 	}
-
+	
 	// Deleting Deployment with configmap as env var source
 	daemonSetError = testutil.DeleteDaemonSet(clients.KubernetesClient, ersNamespace, ersConfigmapWithEnvName)
 	if daemonSetError != nil {
 		logrus.Errorf("Error while deleting daemonSet with configmap as env var source %v", daemonSetError)
 	}
-
+	
 	// Deleting Deployment with secret as env var source
 	daemonSetError = testutil.DeleteDaemonSet(clients.KubernetesClient, ersNamespace, ersSecretWithEnvName)
 	if daemonSetError != nil {
 		logrus.Errorf("Error while deleting daemonSet with secret as env var source %v", daemonSetError)
 	}
-
+	
 	// Deleting StatefulSet with configmap
 	statefulSetError := testutil.DeleteStatefulSet(clients.KubernetesClient, ersNamespace, ersConfigmapName)
 	if statefulSetError != nil {
 		logrus.Errorf("Error while deleting statefulSet with configmap %v", statefulSetError)
 	}
-
+	
 	// Deleting Deployment with secret
 	statefulSetError = testutil.DeleteStatefulSet(clients.KubernetesClient, ersNamespace, ersSecretName)
 	if statefulSetError != nil {
 		logrus.Errorf("Error while deleting statefulSet with secret %v", statefulSetError)
 	}
-
+	
 	// Deleting StatefulSet with configmap in projected volume
 	statefulSetError = testutil.DeleteStatefulSet(clients.KubernetesClient, ersNamespace, ersProjectedConfigMapName)
 	if statefulSetError != nil {
 		logrus.Errorf("Error while deleting statefulSet with configmap %v", statefulSetError)
 	}
-
+	
 	// Deleting Deployment with secret in projected volume
 	statefulSetError = testutil.DeleteStatefulSet(clients.KubernetesClient, ersNamespace, ersProjectedSecretName)
 	if statefulSetError != nil {
 		logrus.Errorf("Error while deleting statefulSet with secret %v", statefulSetError)
 	}
-
+	
 	// Deleting StatefulSet with configmap as env var source
 	statefulSetError = testutil.DeleteStatefulSet(clients.KubernetesClient, ersNamespace, ersConfigmapWithEnvName)
 	if statefulSetError != nil {
 		logrus.Errorf("Error while deleting statefulSet with configmap as env var source %v", statefulSetError)
 	}
-
+	
 	// Deleting Deployment with secret as env var source
 	statefulSetError = testutil.DeleteStatefulSet(clients.KubernetesClient, ersNamespace, ersSecretWithEnvName)
 	if statefulSetError != nil {
 		logrus.Errorf("Error while deleting statefulSet with secret as env var source %v", statefulSetError)
+	}
+
+	// Deleting Rollout with configmap
+	rolloutError := testutil.DeleteRollout(clients.ArgoRolloutClient, ersNamespace, ersConfigmapName)
+	if rolloutError != nil {
+		logrus.Errorf("Error while deleting rollout with configmap %v", rolloutError)
 	}
 
 	// Deleting Configmap
@@ -1403,9 +1416,9 @@ func TestRollingUpgradeForDeploymentWithConfigmapWithoutReloadAnnotationButWithA
 
 	if promtestutil.ToFloat64(collectors.ReloadedByNamespace.With(prometheus.Labels{"success": "true", "namespace": arsNamespace})) != 1 {
 		t.Errorf("Counter by namespace was not increased")
-  }
-  
-  testRollingUpgradeInvokeDeleteStrategyArs(t, clients, config, deploymentFuncs, collectors, envVarPostfix)
+	}
+
+	testRollingUpgradeInvokeDeleteStrategyArs(t, clients, config, deploymentFuncs, collectors, envVarPostfix)
 }
 
 func TestRollingUpgradeForDeploymentWithConfigmapInProjectedVolumeUsingArs(t *testing.T) {
@@ -1432,11 +1445,11 @@ func TestRollingUpgradeForDeploymentWithConfigmapInProjectedVolumeUsingArs(t *te
 		t.Errorf("Counter was not increased")
 	}
 
-  if promtestutil.ToFloat64(collectors.ReloadedByNamespace.With(prometheus.Labels{"success": "true", "namespace": arsNamespace})) != 1 {
+	if promtestutil.ToFloat64(collectors.ReloadedByNamespace.With(prometheus.Labels{"success": "true", "namespace": arsNamespace})) != 1 {
 		t.Errorf("Counter by namespace was not increased")
 	}
 
-  testRollingUpgradeInvokeDeleteStrategyArs(t, clients, config, deploymentFuncs, collectors, envVarPostfix)
+	testRollingUpgradeInvokeDeleteStrategyArs(t, clients, config, deploymentFuncs, collectors, envVarPostfix)
 }
 
 func TestRollingUpgradeForDeploymentWithConfigmapViaSearchAnnotationUsingArs(t *testing.T) {
@@ -1468,7 +1481,7 @@ func TestRollingUpgradeForDeploymentWithConfigmapViaSearchAnnotationUsingArs(t *
 		t.Errorf("Counter by namespace was not increased")
 	}
 
-  testRollingUpgradeInvokeDeleteStrategyArs(t, clients, config, deploymentFuncs, collectors, envVarPostfix)
+	testRollingUpgradeInvokeDeleteStrategyArs(t, clients, config, deploymentFuncs, collectors, envVarPostfix)
 }
 
 func TestRollingUpgradeForDeploymentWithConfigmapViaSearchAnnotationNoTriggersUsingArs(t *testing.T) {
@@ -1575,7 +1588,7 @@ func TestRollingUpgradeForDeploymentWithConfigmapInInitContainerUsingArs(t *test
 		t.Errorf("Counter by namespace was not increased")
 	}
 
-  testRollingUpgradeInvokeDeleteStrategyArs(t, clients, config, deploymentFuncs, collectors, envVarPostfix)
+	testRollingUpgradeInvokeDeleteStrategyArs(t, clients, config, deploymentFuncs, collectors, envVarPostfix)
 }
 
 func TestRollingUpgradeForDeploymentWithConfigmapInProjectVolumeInInitContainerUsingArs(t *testing.T) {
@@ -1607,7 +1620,7 @@ func TestRollingUpgradeForDeploymentWithConfigmapInProjectVolumeInInitContainerU
 		t.Errorf("Counter by namespace was not increased")
 	}
 
-  testRollingUpgradeInvokeDeleteStrategyArs(t, clients, config, deploymentFuncs, collectors, envVarPostfix)
+	testRollingUpgradeInvokeDeleteStrategyArs(t, clients, config, deploymentFuncs, collectors, envVarPostfix)
 }
 
 func TestRollingUpgradeForDeploymentWithConfigmapAsEnvVarUsingArs(t *testing.T) {
@@ -1639,7 +1652,7 @@ func TestRollingUpgradeForDeploymentWithConfigmapAsEnvVarUsingArs(t *testing.T) 
 		t.Errorf("Counter by namespace was not increased")
 	}
 
-  testRollingUpgradeInvokeDeleteStrategyArs(t, clients, config, deploymentFuncs, collectors, envVarPostfix)
+	testRollingUpgradeInvokeDeleteStrategyArs(t, clients, config, deploymentFuncs, collectors, envVarPostfix)
 }
 
 func TestRollingUpgradeForDeploymentWithConfigmapAsEnvVarInInitContainerUsingArs(t *testing.T) {
@@ -1670,8 +1683,8 @@ func TestRollingUpgradeForDeploymentWithConfigmapAsEnvVarInInitContainerUsingArs
 	if promtestutil.ToFloat64(collectors.ReloadedByNamespace.With(prometheus.Labels{"success": "true", "namespace": arsNamespace})) != 1 {
 		t.Errorf("Counter by namespace was not increased")
 	}
-  
-  testRollingUpgradeInvokeDeleteStrategyArs(t, clients, config, deploymentFuncs, collectors, envVarPostfix)
+
+	testRollingUpgradeInvokeDeleteStrategyArs(t, clients, config, deploymentFuncs, collectors, envVarPostfix)
 }
 
 func TestRollingUpgradeForDeploymentWithConfigmapAsEnvVarFromUsingArs(t *testing.T) {
@@ -1703,7 +1716,7 @@ func TestRollingUpgradeForDeploymentWithConfigmapAsEnvVarFromUsingArs(t *testing
 		t.Errorf("Counter by namespace was not increased")
 	}
 
-  testRollingUpgradeInvokeDeleteStrategyArs(t, clients, config, deploymentFuncs, collectors, envVarPostfix)
+	testRollingUpgradeInvokeDeleteStrategyArs(t, clients, config, deploymentFuncs, collectors, envVarPostfix)
 }
 
 func TestRollingUpgradeForDeploymentWithSecretUsingArs(t *testing.T) {
@@ -1735,7 +1748,7 @@ func TestRollingUpgradeForDeploymentWithSecretUsingArs(t *testing.T) {
 		t.Errorf("Counter by namespace was not increased")
 	}
 
-  testRollingUpgradeInvokeDeleteStrategyArs(t, clients, config, deploymentFuncs, collectors, envVarPostfix)
+	testRollingUpgradeInvokeDeleteStrategyArs(t, clients, config, deploymentFuncs, collectors, envVarPostfix)
 }
 
 func TestRollingUpgradeForDeploymentWithSecretInProjectedVolumeUsingArs(t *testing.T) {
@@ -1767,7 +1780,7 @@ func TestRollingUpgradeForDeploymentWithSecretInProjectedVolumeUsingArs(t *testi
 		t.Errorf("Counter by namespace was not increased")
 	}
 
-  testRollingUpgradeInvokeDeleteStrategyArs(t, clients, config, deploymentFuncs, collectors, envVarPostfix)
+	testRollingUpgradeInvokeDeleteStrategyArs(t, clients, config, deploymentFuncs, collectors, envVarPostfix)
 }
 
 func TestRollingUpgradeForDeploymentWithSecretinInitContainerUsingArs(t *testing.T) {
@@ -1799,7 +1812,7 @@ func TestRollingUpgradeForDeploymentWithSecretinInitContainerUsingArs(t *testing
 		t.Errorf("Counter by namespace was not increased")
 	}
 
-  testRollingUpgradeInvokeDeleteStrategyArs(t, clients, config, deploymentFuncs, collectors, envVarPostfix)
+	testRollingUpgradeInvokeDeleteStrategyArs(t, clients, config, deploymentFuncs, collectors, envVarPostfix)
 }
 
 func TestRollingUpgradeForDeploymentWithSecretInProjectedVolumeinInitContainerUsingArs(t *testing.T) {
@@ -1831,7 +1844,7 @@ func TestRollingUpgradeForDeploymentWithSecretInProjectedVolumeinInitContainerUs
 		t.Errorf("Counter by namespace was not increased")
 	}
 
-  testRollingUpgradeInvokeDeleteStrategyArs(t, clients, config, deploymentFuncs, collectors, envVarPostfix)
+	testRollingUpgradeInvokeDeleteStrategyArs(t, clients, config, deploymentFuncs, collectors, envVarPostfix)
 }
 
 func TestRollingUpgradeForDeploymentWithSecretAsEnvVarUsingArs(t *testing.T) {
@@ -1863,7 +1876,7 @@ func TestRollingUpgradeForDeploymentWithSecretAsEnvVarUsingArs(t *testing.T) {
 		t.Errorf("Counter by namespace was not increased")
 	}
 
-  testRollingUpgradeInvokeDeleteStrategyArs(t, clients, config, deploymentFuncs, collectors, envVarPostfix)
+	testRollingUpgradeInvokeDeleteStrategyArs(t, clients, config, deploymentFuncs, collectors, envVarPostfix)
 }
 
 func TestRollingUpgradeForDeploymentWithSecretAsEnvVarFromUsingArs(t *testing.T) {
@@ -1926,7 +1939,7 @@ func TestRollingUpgradeForDeploymentWithSecretAsEnvVarInInitContainerUsingArs(t 
 		t.Errorf("Counter by namespace was not increased")
 	}
 
-  testRollingUpgradeInvokeDeleteStrategyArs(t, clients, config, deploymentFuncs, collectors, envVarPostfix)
+	testRollingUpgradeInvokeDeleteStrategyArs(t, clients, config, deploymentFuncs, collectors, envVarPostfix)
 }
 
 func TestRollingUpgradeForDeploymentWithSecretAutoAnnotationUsingArs(t *testing.T) {
@@ -1958,7 +1971,7 @@ func TestRollingUpgradeForDeploymentWithSecretAutoAnnotationUsingArs(t *testing.
 		t.Errorf("Counter by namespace was not increased")
 	}
 
-  testRollingUpgradeInvokeDeleteStrategyArs(t, clients, config, deploymentFuncs, collectors, envVarPostfix)
+	testRollingUpgradeInvokeDeleteStrategyArs(t, clients, config, deploymentFuncs, collectors, envVarPostfix)
 }
 
 func TestRollingUpgradeForDeploymentWithConfigMapAutoAnnotationUsingArs(t *testing.T) {
@@ -1990,7 +2003,7 @@ func TestRollingUpgradeForDeploymentWithConfigMapAutoAnnotationUsingArs(t *testi
 		t.Errorf("Counter by namespace was not increased")
 	}
 
-  testRollingUpgradeInvokeDeleteStrategyArs(t, clients, config, deploymentFuncs, collectors, envVarPostfix)
+	testRollingUpgradeInvokeDeleteStrategyArs(t, clients, config, deploymentFuncs, collectors, envVarPostfix)
 }
 
 func TestRollingUpgradeForDaemonSetWithConfigmapUsingArs(t *testing.T) {
@@ -2021,8 +2034,8 @@ func TestRollingUpgradeForDaemonSetWithConfigmapUsingArs(t *testing.T) {
 	if promtestutil.ToFloat64(collectors.ReloadedByNamespace.With(prometheus.Labels{"success": "true", "namespace": arsNamespace})) != 1 {
 		t.Errorf("Counter by namespace was not increased")
 	}
-	
-  testRollingUpgradeInvokeDeleteStrategyArs(t, clients, config, daemonSetFuncs, collectors, envVarPostfix)
+
+	testRollingUpgradeInvokeDeleteStrategyArs(t, clients, config, daemonSetFuncs, collectors, envVarPostfix)
 }
 
 func TestRollingUpgradeForDaemonSetWithConfigmapInProjectedVolumeUsingArs(t *testing.T) {
@@ -2054,7 +2067,7 @@ func TestRollingUpgradeForDaemonSetWithConfigmapInProjectedVolumeUsingArs(t *tes
 		t.Errorf("Counter by namespace was not increased")
 	}
 
-  testRollingUpgradeInvokeDeleteStrategyArs(t, clients, config, daemonSetFuncs, collectors, envVarPostfix)
+	testRollingUpgradeInvokeDeleteStrategyArs(t, clients, config, daemonSetFuncs, collectors, envVarPostfix)
 }
 
 func TestRollingUpgradeForDaemonSetWithConfigmapAsEnvVarUsingArs(t *testing.T) {
@@ -2118,7 +2131,7 @@ func TestRollingUpgradeForDaemonSetWithSecretUsingArs(t *testing.T) {
 		t.Errorf("Counter by namespace was not increased")
 	}
 
-  testRollingUpgradeInvokeDeleteStrategyArs(t, clients, config, daemonSetFuncs, collectors, envVarPostfix)
+	testRollingUpgradeInvokeDeleteStrategyArs(t, clients, config, daemonSetFuncs, collectors, envVarPostfix)
 }
 
 func TestRollingUpgradeForDaemonSetWithSecretInProjectedVolumeUsingArs(t *testing.T) {
@@ -2150,7 +2163,7 @@ func TestRollingUpgradeForDaemonSetWithSecretInProjectedVolumeUsingArs(t *testin
 		t.Errorf("Counter by namespace was not increased")
 	}
 
-  testRollingUpgradeInvokeDeleteStrategyArs(t, clients, config, daemonSetFuncs, collectors, envVarPostfix)
+	testRollingUpgradeInvokeDeleteStrategyArs(t, clients, config, daemonSetFuncs, collectors, envVarPostfix)
 }
 
 func TestRollingUpgradeForStatefulSetWithConfigmapUsingArs(t *testing.T) {
@@ -2182,7 +2195,7 @@ func TestRollingUpgradeForStatefulSetWithConfigmapUsingArs(t *testing.T) {
 		t.Errorf("Counter by namespace was not increased")
 	}
 
-  testRollingUpgradeInvokeDeleteStrategyArs(t, clients, config, statefulSetFuncs, collectors, envVarPostfix)
+	testRollingUpgradeInvokeDeleteStrategyArs(t, clients, config, statefulSetFuncs, collectors, envVarPostfix)
 }
 
 func TestRollingUpgradeForStatefulSetWithConfigmapInProjectedVolumeUsingArs(t *testing.T) {
@@ -2214,7 +2227,7 @@ func TestRollingUpgradeForStatefulSetWithConfigmapInProjectedVolumeUsingArs(t *t
 		t.Errorf("Counter by namespace was not increased")
 	}
 
-  testRollingUpgradeInvokeDeleteStrategyArs(t, clients, config, statefulSetFuncs, collectors, envVarPostfix)
+	testRollingUpgradeInvokeDeleteStrategyArs(t, clients, config, statefulSetFuncs, collectors, envVarPostfix)
 }
 
 func TestRollingUpgradeForStatefulSetWithSecretUsingArs(t *testing.T) {
@@ -2246,7 +2259,7 @@ func TestRollingUpgradeForStatefulSetWithSecretUsingArs(t *testing.T) {
 		t.Errorf("Counter by namespace was not increased")
 	}
 
-  testRollingUpgradeInvokeDeleteStrategyArs(t, clients, config, statefulSetFuncs, collectors, envVarPostfix)
+	testRollingUpgradeInvokeDeleteStrategyArs(t, clients, config, statefulSetFuncs, collectors, envVarPostfix)
 }
 
 func TestRollingUpgradeForStatefulSetWithSecretInProjectedVolumeUsingArs(t *testing.T) {
@@ -2278,7 +2291,7 @@ func TestRollingUpgradeForStatefulSetWithSecretInProjectedVolumeUsingArs(t *test
 		t.Errorf("Counter by namespace was not increased")
 	}
 
-  testRollingUpgradeInvokeDeleteStrategyArs(t, clients, config, statefulSetFuncs, collectors, envVarPostfix)
+	testRollingUpgradeInvokeDeleteStrategyArs(t, clients, config, statefulSetFuncs, collectors, envVarPostfix)
 }
 
 func TestRollingUpgradeForDeploymentWithPodAnnotationsUsingArs(t *testing.T) {
@@ -2437,7 +2450,7 @@ func TestRollingUpgradeForDeploymentWithConfigmapInProjectedVolumeUsingErs(t *te
 		t.Errorf("Counter by namespace was not increased")
 	}
 
-  testRollingUpgradeInvokeDeleteStrategyErs(t, clients, config, deploymentFuncs, collectors, envVarPostfix)
+	testRollingUpgradeInvokeDeleteStrategyErs(t, clients, config, deploymentFuncs, collectors, envVarPostfix)
 }
 
 func TestRollingUpgradeForDeploymentWithConfigmapViaSearchAnnotationUsingErs(t *testing.T) {
@@ -2469,7 +2482,7 @@ func TestRollingUpgradeForDeploymentWithConfigmapViaSearchAnnotationUsingErs(t *
 		t.Errorf("Counter by namespace was not increased")
 	}
 
-  testRollingUpgradeInvokeDeleteStrategyErs(t, clients, config, deploymentFuncs, collectors, envVarPostfix)
+	testRollingUpgradeInvokeDeleteStrategyErs(t, clients, config, deploymentFuncs, collectors, envVarPostfix)
 }
 
 func TestRollingUpgradeForDeploymentWithConfigmapViaSearchAnnotationNoTriggersUsingErs(t *testing.T) {
@@ -2576,7 +2589,7 @@ func TestRollingUpgradeForDeploymentWithConfigmapInInitContainerUsingErs(t *test
 		t.Errorf("Counter by namespace was not increased")
 	}
 
-  testRollingUpgradeInvokeDeleteStrategyErs(t, clients, config, deploymentFuncs, collectors, envVarPostfix)
+	testRollingUpgradeInvokeDeleteStrategyErs(t, clients, config, deploymentFuncs, collectors, envVarPostfix)
 }
 
 func TestRollingUpgradeForDeploymentWithConfigmapInProjectVolumeInInitContainerUsingErs(t *testing.T) {
@@ -2640,7 +2653,7 @@ func TestRollingUpgradeForDeploymentWithConfigmapAsEnvVarUsingErs(t *testing.T) 
 		t.Errorf("Counter by namespace was not increased")
 	}
 
-  testRollingUpgradeInvokeDeleteStrategyErs(t, clients, config, deploymentFuncs, collectors, envVarPostfix)
+	testRollingUpgradeInvokeDeleteStrategyErs(t, clients, config, deploymentFuncs, collectors, envVarPostfix)
 }
 
 func TestRollingUpgradeForDeploymentWithConfigmapAsEnvVarInInitContainerUsingErs(t *testing.T) {
@@ -2704,7 +2717,7 @@ func TestRollingUpgradeForDeploymentWithConfigmapAsEnvVarFromUsingErs(t *testing
 		t.Errorf("Counter by namespace was not increased")
 	}
 
-  testRollingUpgradeInvokeDeleteStrategyErs(t, clients, config, deploymentFuncs, collectors, envVarPostfix)
+	testRollingUpgradeInvokeDeleteStrategyErs(t, clients, config, deploymentFuncs, collectors, envVarPostfix)
 }
 
 func TestRollingUpgradeForDeploymentWithSecretUsingErs(t *testing.T) {
@@ -2736,7 +2749,7 @@ func TestRollingUpgradeForDeploymentWithSecretUsingErs(t *testing.T) {
 		t.Errorf("Counter by namespace was not increased")
 	}
 
-  testRollingUpgradeInvokeDeleteStrategyErs(t, clients, config, deploymentFuncs, collectors, envVarPostfix)
+	testRollingUpgradeInvokeDeleteStrategyErs(t, clients, config, deploymentFuncs, collectors, envVarPostfix)
 }
 
 func TestRollingUpgradeForDeploymentWithSecretInProjectedVolumeUsingErs(t *testing.T) {
@@ -2800,7 +2813,7 @@ func TestRollingUpgradeForDeploymentWithSecretinInitContainerUsingErs(t *testing
 		t.Errorf("Counter by namespace was not increased")
 	}
 
-  testRollingUpgradeInvokeDeleteStrategyErs(t, clients, config, deploymentFuncs, collectors, envVarPostfix)
+	testRollingUpgradeInvokeDeleteStrategyErs(t, clients, config, deploymentFuncs, collectors, envVarPostfix)
 }
 
 func TestRollingUpgradeForDeploymentWithSecretInProjectedVolumeinInitContainerUsingErs(t *testing.T) {
@@ -2832,7 +2845,7 @@ func TestRollingUpgradeForDeploymentWithSecretInProjectedVolumeinInitContainerUs
 		t.Errorf("Counter by namespace was not increased")
 	}
 
-  testRollingUpgradeInvokeDeleteStrategyErs(t, clients, config, deploymentFuncs, collectors, envVarPostfix)
+	testRollingUpgradeInvokeDeleteStrategyErs(t, clients, config, deploymentFuncs, collectors, envVarPostfix)
 }
 
 func TestRollingUpgradeForDeploymentWithSecretAsEnvVarUsingErs(t *testing.T) {
@@ -2864,7 +2877,7 @@ func TestRollingUpgradeForDeploymentWithSecretAsEnvVarUsingErs(t *testing.T) {
 		t.Errorf("Counter by namespace was not increased")
 	}
 
-  testRollingUpgradeInvokeDeleteStrategyErs(t, clients, config, deploymentFuncs, collectors, envVarPostfix)
+	testRollingUpgradeInvokeDeleteStrategyErs(t, clients, config, deploymentFuncs, collectors, envVarPostfix)
 }
 
 func TestRollingUpgradeForDeploymentWithSecretAsEnvVarFromUsingErs(t *testing.T) {
@@ -2896,7 +2909,7 @@ func TestRollingUpgradeForDeploymentWithSecretAsEnvVarFromUsingErs(t *testing.T)
 		t.Errorf("Counter by namespace was not increased")
 	}
 
-  testRollingUpgradeInvokeDeleteStrategyErs(t, clients, config, deploymentFuncs, collectors, envVarPostfix)
+	testRollingUpgradeInvokeDeleteStrategyErs(t, clients, config, deploymentFuncs, collectors, envVarPostfix)
 }
 
 func TestRollingUpgradeForDeploymentWithSecretAsEnvVarInInitContainerUsingErs(t *testing.T) {
@@ -2928,7 +2941,7 @@ func TestRollingUpgradeForDeploymentWithSecretAsEnvVarInInitContainerUsingErs(t 
 		t.Errorf("Counter by namespace was not increased")
 	}
 
-  testRollingUpgradeInvokeDeleteStrategyErs(t, clients, config, deploymentFuncs, collectors, envVarPostfix)
+	testRollingUpgradeInvokeDeleteStrategyErs(t, clients, config, deploymentFuncs, collectors, envVarPostfix)
 }
 
 func TestRollingUpgradeForDeploymentWithSecretAutoAnnotationUsingErs(t *testing.T) {
@@ -2957,11 +2970,11 @@ func TestRollingUpgradeForDeploymentWithSecretAutoAnnotationUsingErs(t *testing.
 	}
 
 
-  if promtestutil.ToFloat64(collectors.ReloadedByNamespace.With(prometheus.Labels{"success": "true", "namespace": ersNamespace})) != 1 {
+	if promtestutil.ToFloat64(collectors.ReloadedByNamespace.With(prometheus.Labels{"success": "true", "namespace": ersNamespace})) != 1 {
 		t.Errorf("Counter by namespace was not increased")
 	}
 
-  testRollingUpgradeInvokeDeleteStrategyErs(t, clients, config, deploymentFuncs, collectors, envVarPostfix)
+	testRollingUpgradeInvokeDeleteStrategyErs(t, clients, config, deploymentFuncs, collectors, envVarPostfix)
 }
 
 func TestRollingUpgradeForDeploymentWithConfigMapAutoAnnotationUsingErs(t *testing.T) {
@@ -2993,7 +3006,7 @@ func TestRollingUpgradeForDeploymentWithConfigMapAutoAnnotationUsingErs(t *testi
 		t.Errorf("Counter by namespace was not increased")
 	}
 
-  testRollingUpgradeInvokeDeleteStrategyErs(t, clients, config, deploymentFuncs, collectors, envVarPostfix)
+	testRollingUpgradeInvokeDeleteStrategyErs(t, clients, config, deploymentFuncs, collectors, envVarPostfix)
 }
 
 func TestRollingUpgradeForDaemonSetWithConfigmapUsingErs(t *testing.T) {
@@ -3025,7 +3038,7 @@ func TestRollingUpgradeForDaemonSetWithConfigmapUsingErs(t *testing.T) {
 		t.Errorf("Counter by namespace was not increased")
 	}
 
-  testRollingUpgradeInvokeDeleteStrategyErs(t, clients, config, daemonSetFuncs, collectors, envVarPostfix)
+	testRollingUpgradeInvokeDeleteStrategyErs(t, clients, config, daemonSetFuncs, collectors, envVarPostfix)
 }
 
 func TestRollingUpgradeForDaemonSetWithConfigmapInProjectedVolumeUsingErs(t *testing.T) {
@@ -3057,7 +3070,7 @@ func TestRollingUpgradeForDaemonSetWithConfigmapInProjectedVolumeUsingErs(t *tes
 		t.Errorf("Counter by namespace was not increased")
 	}
 
-  testRollingUpgradeInvokeDeleteStrategyErs(t, clients, config, daemonSetFuncs, collectors, envVarPostfix)
+	testRollingUpgradeInvokeDeleteStrategyErs(t, clients, config, daemonSetFuncs, collectors, envVarPostfix)
 }
 
 func TestRollingUpgradeForDaemonSetWithConfigmapAsEnvVarUsingErs(t *testing.T) {
@@ -3089,7 +3102,7 @@ func TestRollingUpgradeForDaemonSetWithConfigmapAsEnvVarUsingErs(t *testing.T) {
 		t.Errorf("Counter by namespace was not increased")
 	}
 
-  testRollingUpgradeInvokeDeleteStrategyErs(t, clients, config, daemonSetFuncs, collectors, envVarPostfix)
+	testRollingUpgradeInvokeDeleteStrategyErs(t, clients, config, daemonSetFuncs, collectors, envVarPostfix)
 }
 
 func TestRollingUpgradeForDaemonSetWithSecretUsingErs(t *testing.T) {
@@ -3121,7 +3134,7 @@ func TestRollingUpgradeForDaemonSetWithSecretUsingErs(t *testing.T) {
 		t.Errorf("Counter by namespace was not increased")
 	}
 
-  testRollingUpgradeInvokeDeleteStrategyErs(t, clients, config, daemonSetFuncs, collectors, envVarPostfix)
+	testRollingUpgradeInvokeDeleteStrategyErs(t, clients, config, daemonSetFuncs, collectors, envVarPostfix)
 }
 
 func TestRollingUpgradeForDaemonSetWithSecretInProjectedVolumeUsingErs(t *testing.T) {
@@ -3153,7 +3166,7 @@ func TestRollingUpgradeForDaemonSetWithSecretInProjectedVolumeUsingErs(t *testin
 		t.Errorf("Counter by namespace was not increased")
 	}
 
-  testRollingUpgradeInvokeDeleteStrategyErs(t, clients, config, daemonSetFuncs, collectors, envVarPostfix)
+	testRollingUpgradeInvokeDeleteStrategyErs(t, clients, config, daemonSetFuncs, collectors, envVarPostfix)
 }
 
 func TestRollingUpgradeForStatefulSetWithConfigmapUsingErs(t *testing.T) {
@@ -3185,7 +3198,7 @@ func TestRollingUpgradeForStatefulSetWithConfigmapUsingErs(t *testing.T) {
 		t.Errorf("Counter by namespace was not increased")
 	}
 
-  testRollingUpgradeInvokeDeleteStrategyErs(t, clients, config, statefulSetFuncs, collectors, envVarPostfix)
+	testRollingUpgradeInvokeDeleteStrategyErs(t, clients, config, statefulSetFuncs, collectors, envVarPostfix)
 }
 
 func TestRollingUpgradeForStatefulSetWithConfigmapInProjectedVolumeUsingErs(t *testing.T) {
@@ -3217,7 +3230,7 @@ func TestRollingUpgradeForStatefulSetWithConfigmapInProjectedVolumeUsingErs(t *t
 		t.Errorf("Counter by namespace was not increased")
 	}
 
-  testRollingUpgradeInvokeDeleteStrategyErs(t, clients, config, statefulSetFuncs, collectors, envVarPostfix)
+	testRollingUpgradeInvokeDeleteStrategyErs(t, clients, config, statefulSetFuncs, collectors, envVarPostfix)
 }
 
 func TestRollingUpgradeForStatefulSetWithSecretUsingErs(t *testing.T) {
@@ -3281,7 +3294,7 @@ func TestRollingUpgradeForStatefulSetWithSecretInProjectedVolumeUsingErs(t *test
 		t.Errorf("Counter by namespace was not increased")
 	}
 
-  testRollingUpgradeInvokeDeleteStrategyErs(t, clients, config, statefulSetFuncs, collectors, envVarPostfix)
+	testRollingUpgradeInvokeDeleteStrategyErs(t, clients, config, statefulSetFuncs, collectors, envVarPostfix)
 }
 
 func TestRollingUpgradeForDeploymentWithPodAnnotationsUsingErs(t *testing.T) {
@@ -3361,6 +3374,38 @@ func TestFailedRollingUpgradeUsingErs(t *testing.T) {
 	}
 
 	if promtestutil.ToFloat64(collectors.ReloadedByNamespace.With(prometheus.Labels{"success": "false", "namespace": ersNamespace})) != 1 {
+		t.Errorf("Counter by namespace was not increased")
+	}
+}
+
+// write test for argo rollouts
+func TestRollingUpgradeForArgoRolloutsUsingErs(t *testing.T) {
+	options.ReloadStrategy = constants.EnvVarsReloadStrategy
+	options.IsArgoRollouts = "true"
+	envVarPostfix := constants.ConfigmapEnvVarPostfix
+
+	shaData := testutil.ConvertResourceToSHA(testutil.ConfigmapResourceType, ersNamespace, ersConfigmapName, "www.stakater.com")
+	config := getConfigWithAnnotations(envVarPostfix, ersConfigmapName, shaData, options.ConfigmapUpdateOnChangeAnnotation, options.ConfigmapReloaderAutoAnnotation)
+	argoRolloutFuncs := GetArgoRolloutRollingUpgradeFuncs()
+	collectors := getCollectors()
+
+	err := PerformAction(clients, config, argoRolloutFuncs, collectors, nil, invokeReloadStrategy)
+	time.Sleep(5 * time.Second)
+	if err != nil {
+		t.Errorf("Rolling upgrade failed for Argo Rollouts")
+	}
+
+	logrus.Infof("Verifying argo rollout update")
+	updated := testutil.VerifyResourceEnvVarUpdate(clients, config, envVarPostfix, argoRolloutFuncs)
+	if !updated {
+		t.Errorf("Argo Rollout was not updated")
+	}
+
+	if promtestutil.ToFloat64(collectors.Reloaded.With(labelSucceeded)) != 1 {
+		t.Errorf("Counter was not increased")
+	}
+
+	if promtestutil.ToFloat64(collectors.ReloadedByNamespace.With(prometheus.Labels{"success": "true", "namespace": ersNamespace})) != 1 {
 		t.Errorf("Counter by namespace was not increased")
 	}
 }

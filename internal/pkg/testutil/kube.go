@@ -10,6 +10,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
+	argorollout "github.com/argoproj/argo-rollouts/pkg/client/clientset/versioned"
 	openshiftv1 "github.com/openshift/api/apps/v1"
 	appsclient "github.com/openshift/client-go/apps/clientset/versioned"
 	"github.com/sirupsen/logrus"
@@ -78,7 +80,7 @@ func getObjectMeta(namespace string, name string, autoReload bool, secretAutoRel
 	}
 }
 
-func getAnnotations(name string, autoReload bool, secretAutoReload bool, configmapAutoReload bool) map[string]string {
+func getAnnotations(name string, autoReload, secretAutoReload, configmapAutoReload bool) map[string]string {
 	annotations := make(map[string]string)
 	if autoReload {
 		annotations[options.ReloaderAutoAnnotation] = "true"
@@ -649,6 +651,45 @@ func GetResourceSHAFromAnnotation(podAnnotations map[string]string) string {
 	return last.Hash
 }
 
+// GetRollout provides rollout for testing
+func GetRollout(namespace string, rolloutName string, triggerRollout bool) *v1alpha1.Rollout {
+	replicaset := int32(1)
+	objectMeta := getObjectMeta(namespace, rolloutName, false, false, false)
+	if triggerRollout {
+		objectMeta.Annotations[options.TriggerRolloutAnnotation] = "true"
+	}
+	return &v1alpha1.Rollout{
+		ObjectMeta: objectMeta,
+		Spec: v1alpha1.RolloutSpec{
+			Replicas: &replicaset,
+			Selector: &metav1.LabelSelector{
+				MatchLabels: map[string]string{"secondLabel": "temp"},
+			},
+			Strategy: v1alpha1.RolloutStrategy{
+				BlueGreen: &v1alpha1.BlueGreenStrategy{
+					ActiveService: "active-service",
+				},
+			},
+			Template: getPodTemplateSpecWithVolumes(rolloutName),
+		},
+	}
+}
+
+// GetRolloutWithEnvVars provides rollout for testing
+func GetRolloutWithEnvVars(namespace string, rolloutName string, triggerRollout bool) *v1alpha1.Rollout {
+	replicaset := int32(1)
+	return &v1alpha1.Rollout{
+		ObjectMeta: getObjectMeta(namespace, rolloutName, false, false, false),
+		Spec: v1alpha1.RolloutSpec{
+			Replicas: &replicaset,
+			Selector: &metav1.LabelSelector{
+				MatchLabels: map[string]string{"app": rolloutName},
+			},
+			Template: getPodTemplateSpecWithEnvVars(rolloutName),
+		},
+	}
+}
+
 // ConvertResourceToSHA generates SHA from secret or configmap data
 func ConvertResourceToSHA(resourceType string, namespace string, resourceName string, data string) string {
 	values := []string{}
@@ -803,12 +844,35 @@ func CreateStatefulSet(client kubernetes.Interface, statefulsetName string, name
 	return statefulset, err
 }
 
+// CreateRollout creates a rollout in given namespace and returns the Rollout
+func CreateRollout(client argorollout.Interface, rolloutName string, namespace string, volumeMount, triggerRollout bool) (*v1alpha1.Rollout, error) {
+	logrus.Infof("Creating Rollout")
+	rolloutClient := client.ArgoprojV1alpha1().Rollouts(namespace)
+	var rolloutObj *v1alpha1.Rollout
+	if volumeMount {
+		rolloutObj = GetRollout(namespace, rolloutName, triggerRollout)
+	} else {
+		rolloutObj = GetRolloutWithEnvVars(namespace, rolloutName, triggerRollout)
+	}
+	rollout, err := rolloutClient.Create(context.TODO(), rolloutObj, metav1.CreateOptions{})
+	time.Sleep(3 * time.Second)
+	return rollout, err
+}
+
 // DeleteDeployment creates a deployment in given namespace and returns the error if any
 func DeleteDeployment(client kubernetes.Interface, namespace string, deploymentName string) error {
 	logrus.Infof("Deleting Deployment")
 	deploymentError := client.AppsV1().Deployments(namespace).Delete(context.TODO(), deploymentName, metav1.DeleteOptions{})
 	time.Sleep(3 * time.Second)
 	return deploymentError
+}
+
+// DeleteRollout deletes a rollout in given namespace and returns the error if any
+func DeleteRollout(client argorollout.Interface, namespace string, rolloutName string) error {
+	logrus.Infof("Deleting Rollout")
+	rolloutError := client.ArgoprojV1alpha1().Rollouts(namespace).Delete(context.TODO(), rolloutName, metav1.DeleteOptions{})
+	time.Sleep(3 * time.Second)
+	return rolloutError
 }
 
 // DeleteDeploymentConfig deletes a deploymentConfig in given namespace and returns the error if any
