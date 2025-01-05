@@ -3,13 +3,8 @@ root/buildinfo
 etc/ssl/certs
 etc/redhat-release
 usr/share/zoneinfo
-usr/lib64/ld-2.28.so
-usr/lib64/ld-linux-aarch64.so.1
-usr/lib64/libc-2.28.so
+usr/lib/ld-linux-aarch64.so.1
 usr/lib64/libc.so.6
-usr/lib64/libdl-2.28.so
 usr/lib64/libdl.so.2
-usr/lib64/libpthread-2.28.so
 usr/lib64/libpthread.so.0
-usr/lib64/libm-2.28.so
 usr/lib64/libm.so.6

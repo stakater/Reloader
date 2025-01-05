@@ -3,7 +3,10 @@ global:
   ## Reference to one or more secrets to be used when pulling images
   ## ref: https://kubernetes.io/docs/tasks/configure-pod-container/pull-image-private-registry/
   ##
+  imageRegistry: ""
   imagePullSecrets: []
+  #imagePullSecrets:
+  #  - name: my-pull-secret
 
 kubernetes:
   host: https://kubernetes.default
@@ -24,7 +27,8 @@ reloader:
   ignoreNamespaces: "" # Comma separated list of namespaces to ignore
   namespaceSelector: "" # Comma separated list of k8s label selectors for namespaces selection
   resourceLabelSelector: "" # Comma separated list of k8s label selectors for configmap/secret selection
-  logFormat: "" #json
+  logFormat: "" # json
+  logLevel: info # Log level to use (trace, debug, info, warning, error, fatal and panic)
   watchGlobally: true
   # Set to true to enable leadership election allowing you to run multiple replicas
   enableHA: false
@@ -92,10 +96,11 @@ reloader:
     labels:
       provider: stakater
       group: com.stakater.platform
-      version: v1.0.121
+      version: v1.2.0
     image:
       name: ghcr.io/stakater/reloader
-      tag: v1.0.121
+      base: stakater/reloader
+      tag: v1.2.0
       pullPolicy: IfNotPresent
     # Support for extra environment variables.
     env:
@@ -153,6 +158,7 @@ reloader:
     gomemlimitOverride: ""
 
   service: {}
+
     # labels: {}
     # annotations: {}
     # port: 9090

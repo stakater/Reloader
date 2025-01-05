@@ -1,9 +1,10 @@
-name: Pull Request
+name: Pull Request Workflow for Code changes
 
 on:
   pull_request:
     branches:
       - master
+      - 'v**'
     paths:
       - '**'
       - '!.markdownlint.yaml'
@@ -13,17 +14,18 @@ on:
       - '!docs/**'
       - '!theme_common'
       - '!theme_override'
+      - '!deployments/kubernetes/chart/reloader/**'
 
 env:
   DOCKER_FILE_PATH: Dockerfile
   DOCKER_UBI_FILE_PATH: Dockerfile.ubi
-  KUBERNETES_VERSION: "1.19.0"
-  KIND_VERSION: "0.17.0"
+  KUBERNETES_VERSION: "1.30.0"
+  KIND_VERSION: "0.23.0"
   REGISTRY: ghcr.io
 
 jobs:
   qa:
-    uses: stakater/.github/.github/workflows/pull_request_doc_qa.yaml@v0.0.93
+    uses: stakater/.github/.github/workflows/pull_request_doc_qa.yaml@v0.0.106
     with:
       MD_CONFIG: .github/md_config.json
       DOC_SRC: README.md
@@ -46,6 +48,8 @@ jobs:
     # Setting up helm binary
     - name: Set up Helm
       uses: azure/setup-helm@v4
+      with:
+        version: v3.11.3
 
     - name: Helm chart unit tests
       uses: d3adb5/helm-unittest-action@v2
@@ -86,8 +90,7 @@ jobs:
       run: |
         curl -LO "https://storage.googleapis.com/kubernetes-release/release/v${KUBERNETES_VERSION}/bin/linux/amd64/kubectl"
         sudo install ./kubectl /usr/local/bin/ && rm kubectl
-        kubectl version --short --client
-        kubectl version --short --client | grep -q ${KUBERNETES_VERSION}
+        kubectl version --client=true
 
     - name: Install Kind
       run: |
