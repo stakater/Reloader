@@ -17,7 +17,7 @@ spec:
         app: reloader-reloader
     spec:
       containers:
-        - image: "ghcr.io/stakater/reloader:latest"
+        - image: "ghcr.io/stakater/reloader:v1.1.0"
           imagePullPolicy: IfNotPresent
           name: reloader-reloader
           env:
@@ -53,6 +53,13 @@ spec:
             successThreshold: 1
             initialDelaySeconds: 10
           securityContext: {}
+          resources:
+            limits:
+              cpu: "1"
+              memory: 512Mi
+            requests:
+              cpu: 10m
+              memory: 512Mi
       securityContext:
         runAsNonRoot: true
         runAsUser: 65534

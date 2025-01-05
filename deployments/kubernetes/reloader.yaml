@@ -1,127 +1,81 @@
----
-# Source: reloader/templates/serviceaccount.yaml
 apiVersion: v1
 kind: ServiceAccount
 metadata:
-  annotations:
-    meta.helm.sh/release-namespace: "default"
-    meta.helm.sh/release-name: "reloader"
-  labels:
-    app: reloader-reloader
-    chart: "reloader-1.0.121"
-    release: "reloader"
-    heritage: "Helm"
-    app.kubernetes.io/managed-by: "Helm"
   name: reloader-reloader
   namespace: default
 ---
-# Source: reloader/templates/clusterrole.yaml
 apiVersion: rbac.authorization.k8s.io/v1
-
 kind: ClusterRole
 metadata:
-  annotations:
-    meta.helm.sh/release-namespace: "default"
-    meta.helm.sh/release-name: "reloader"
-  labels:
-    app: reloader-reloader
-    chart: "reloader-1.0.121"
-    release: "reloader"
-    heritage: "Helm"
-    app.kubernetes.io/managed-by: "Helm"
   name: reloader-reloader-role
 rules:
-  - apiGroups:
-      - ""
-    resources:
-      - secrets
-      - configmaps
-    verbs:
-      - list
-      - get
-      - watch
-  - apiGroups:
-      - "apps"
-    resources:
-      - deployments
-      - daemonsets
-      - statefulsets
-    verbs:
-      - list
-      - get
-      - update
-      - patch
-  - apiGroups:
-      - "extensions"
-    resources:
-      - deployments
-      - daemonsets
-    verbs:
-      - list
-      - get
-      - update
-      - patch
-  - apiGroups:
-      - "batch"
-    resources:
-      - cronjobs
-    verbs:
-      - list
-      - get
-  - apiGroups:
-      - "batch"
-    resources:
-      - jobs
-    verbs:
-      - create
-  - apiGroups:
-      - ""
-    resources:
-      - events
-    verbs:
-      - create
-      - patch
+- apiGroups:
+  - ""
+  resources:
+  - secrets
+  - configmaps
+  verbs:
+  - list
+  - get
+  - watch
+- apiGroups:
+  - apps
+  resources:
+  - deployments
+  - daemonsets
+  - statefulsets
+  verbs:
+  - list
+  - get
+  - update
+  - patch
+- apiGroups:
+  - extensions
+  resources:
+  - deployments
+  - daemonsets
+  verbs:
+  - list
+  - get
+  - update
+  - patch
+- apiGroups:
+  - batch
+  resources:
+  - cronjobs
+  verbs:
+  - list
+  - get
+- apiGroups:
+  - batch
+  resources:
+  - jobs
+  verbs:
+  - create
+- apiGroups:
+  - ""
+  resources:
+  - events
+  verbs:
+  - create
+  - patch
 ---
-# Source: reloader/templates/clusterrolebinding.yaml
 apiVersion: rbac.authorization.k8s.io/v1
-
 kind: ClusterRoleBinding
 metadata:
-  annotations:
-    meta.helm.sh/release-namespace: "default"
-    meta.helm.sh/release-name: "reloader"
-  labels:
-    app: reloader-reloader
-    chart: "reloader-1.0.121"
-    release: "reloader"
-    heritage: "Helm"
-    app.kubernetes.io/managed-by: "Helm"
   name: reloader-reloader-role-binding
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
   name: reloader-reloader-role
 subjects:
-  - kind: ServiceAccount
-    name: reloader-reloader
-    namespace: default
+- kind: ServiceAccount
+  name: reloader-reloader
+  namespace: default
 ---
-# Source: reloader/templates/deployment.yaml
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  annotations:
-    meta.helm.sh/release-namespace: "default"
-    meta.helm.sh/release-name: "reloader"
-  labels:
-    app: reloader-reloader
-    chart: "reloader-1.0.121"
-    release: "reloader"
-    heritage: "Helm"
-    app.kubernetes.io/managed-by: "Helm"
-    group: com.stakater.platform
-    provider: stakater
-    version: latest
   name: reloader-reloader
   namespace: default
 spec:
@@ -130,56 +84,47 @@ spec:
   selector:
     matchLabels:
       app: reloader-reloader
-      release: "reloader"
   template:
     metadata:
       labels:
         app: reloader-reloader
-        chart: "reloader-1.0.121"
-        release: "reloader"
-        heritage: "Helm"
-        app.kubernetes.io/managed-by: "Helm"
-        group: com.stakater.platform
-        provider: stakater
-        version: latest
     spec:
       containers:
-      - image: "ghcr.io/stakater/reloader:latest"
-        imagePullPolicy: IfNotPresent
-        name: reloader-reloader
-        env:
+      - env:
         - name: GOMAXPROCS
           valueFrom:
             resourceFieldRef:
+              divisor: "1"
               resource: limits.cpu
         - name: GOMEMLIMIT
           valueFrom:
             resourceFieldRef:
+              divisor: "1"
               resource: limits.memory
-        ports:
-        - name: http
-          containerPort: 9090
+        image: "ghcr.io/stakater/reloader:latest"
+        imagePullPolicy: IfNotPresent
         livenessProbe:
+          failureThreshold: 5
           httpGet:
             path: /live
             port: http
-          timeoutSeconds: 5
-          failureThreshold: 5
+          initialDelaySeconds: 10
           periodSeconds: 10
           successThreshold: 1
-          initialDelaySeconds: 10
+          timeoutSeconds: 5
+        name: reloader-reloader
+        ports:
+        - containerPort: 9090
+          name: http
         readinessProbe:
+          failureThreshold: 5
           httpGet:
             path: /metrics
             port: http
-          timeoutSeconds: 5
-          failureThreshold: 5
+          initialDelaySeconds: 10
           periodSeconds: 10
           successThreshold: 1
-          initialDelaySeconds: 10
-
-        securityContext:
-          {}
+          timeoutSeconds: 5
         resources:
           limits:
             cpu: "1"
@@ -187,7 +132,8 @@ spec:
           requests:
             cpu: 10m
             memory: 512Mi
-      securityContext: 
+        securityContext: {}
+      securityContext:
         runAsNonRoot: true
         runAsUser: 65534
         seccompProfile:

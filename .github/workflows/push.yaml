@@ -6,12 +6,13 @@ on:
       - closed
     branches:
       - master
+      - 'v**'
 
 env:
   DOCKER_FILE_PATH: Dockerfile
   DOCKER_UBI_FILE_PATH: Dockerfile.ubi
-  KUBERNETES_VERSION: "1.19.0"
-  KIND_VERSION: "0.17.0"
+  KUBERNETES_VERSION: "1.30.0"
+  KIND_VERSION: "0.23.0"
   HELM_REGISTRY_URL: "https://stakater.github.io/stakater-charts"
   REGISTRY: ghcr.io
 
@@ -62,8 +63,7 @@ jobs:
         run: |
           curl -LO "https://storage.googleapis.com/kubernetes-release/release/v${KUBERNETES_VERSION}/bin/linux/amd64/kubectl"
           sudo install ./kubectl /usr/local/bin/ && rm kubectl
-          kubectl version --short --client
-          kubectl version --short --client | grep -q ${KUBERNETES_VERSION}
+          kubectl version --client=true
 
       - name: Install Kind
         run: |
@@ -110,7 +110,6 @@ jobs:
             ${{ env.DOCKER_IMAGE_REPOSITORY }}:merge-${{ github.event.number }}
           labels: |
             org.opencontainers.image.source=${{ github.event.repository.clone_url }}
-            org.opencontainers.image.created=${{ steps.prep.outputs.created }}
             org.opencontainers.image.revision=${{ github.sha }}
 
       - name: Build and Push Docker UBI Image to Docker registry
@@ -129,7 +128,6 @@ jobs:
             ${{ env.DOCKER_IMAGE_REPOSITORY }}:merge-${{ github.event.number }}-ubi
           labels: |
             org.opencontainers.image.source=${{ github.event.repository.clone_url }}
-            org.opencontainers.image.created=${{ steps.prep.outputs.created }}
             org.opencontainers.image.revision=${{ github.sha }}
 
       - name: Login to ghcr registry
@@ -157,7 +155,6 @@ jobs:
             ${{ env.GHCR_IMAGE_REPOSITORY }}:merge-${{ github.event.number }}
           labels: |
             org.opencontainers.image.source=${{ github.event.repository.clone_url }}
-            org.opencontainers.image.created=${{ steps.prep.outputs.created }}
             org.opencontainers.image.revision=${{ github.sha }}
 
       - name: Build and Push Docker UBI Image to ghcr registry
@@ -176,7 +173,6 @@ jobs:
             ${{ env.GHCR_IMAGE_REPOSITORY }}:merge-${{ github.event.number }}-ubi
           labels: |
             org.opencontainers.image.source=${{ github.event.repository.clone_url }}
-            org.opencontainers.image.created=${{ steps.prep.outputs.created }}
             org.opencontainers.image.revision=${{ github.sha }}
 
       - uses: dorny/paths-filter@v3
@@ -209,85 +205,14 @@ jobs:
             ${{ env.GHCR_IMAGE_REPOSITORY }}/docs:merge-${{ github.event.number }}
           labels: |
             org.opencontainers.image.source=${{ github.event.repository.clone_url }}
-            org.opencontainers.image.created=${{ steps.prep.outputs.created }}
             org.opencontainers.image.revision=${{ github.sha }}
 
-      ##############################
-      ## Add steps to generate required artifacts for a release here(helm chart, operator manifest etc.)
-      ##############################
-
-      # Skip pushing plain manifests till we decide what to do with them
-
-      # - name: Helm Template
-      #   run: |
-      #     helm template reloader deployments/kubernetes/chart/reloader/ \
-      #       --set reloader.deployment.resources.limits.cpu=150m \
-      #       --set reloader.deployment.resources.limits.memory=512Mi \
-      #       --set reloader.deployment.resources.requests.cpu=10m \
-      #       --set reloader.deployment.resources.requests.memory=128Mi > deployments/kubernetes/reloader.yaml
-
-      #     helm template reloader deployments/kubernetes/chart/reloader/ --output-dir deployments/kubernetes/manifests && mv deployments/kubernetes/manifests/reloader/templates/* deployments/kubernetes/manifests/ && rm -r deployments/kubernetes/manifests/reloader
-
-      # - name: Remove labels and annotations from manifests
-      #   run: make remove-labels-annotations
-
-      # Charts are to be pushed to a separate repo with a separate release cycle
-
-      # # Publish helm chart
-      # - name: Login to ghcr via helm
-      #   run: |
-      #     echo ${{secrets.GITHUB_TOKEN}} | helm registry login ghcr.io/stakater --username stakater-user --password-stdin
-
-      # - name: Publish Helm chart to ghcr.io
-      #   run: |
-      #     helm package ./deployments/kubernetes/chart/reloader --destination ./packaged-chart
-      #     helm push ./packaged-chart/*.tgz oci://ghcr.io/stakater/charts
-      #     rm -rf ./packaged-chart
-
-      # - name: Publish Helm chart to gh-pages
-      #   uses: stefanprodan/helm-gh-pages@master
-      #   with:
-      #     branch: master
-      #     repository: stakater-charts
-      #     target_dir: docs
-      #     token: ${{ secrets.STAKATER_GITHUB_TOKEN }}
-      #     charts_dir: deployments/kubernetes/chart/
-      #     charts_url: ${{ env.HELM_REGISTRY_URL }}
-      #     owner: stakater
-      #     linting: on
-      #     commit_username: stakater-user
-      #     commit_email: stakater@gmail.com
-
-      # # Commit back changes
-      # - name: Log info about `.git` directory permissions
-      #   run: |
-      #     # Debug logging
-      #     echo "Disk usage: "
-      #     df -H
-
-      #     echo ".git files not owned by current user or current group:"
-      #     find .git ! -user $(id -u) -o ! -group $(id -g) | xargs ls -lah
-
-      # - name: Commit files
-      #   run: |
-      #     git config --local user.email "stakater@gmail.com"
-      #     git config --local user.name "stakater-user"
-      #     git status
-      #     git add .
-      #     git commit -m "[skip-ci] Update artifacts" -a
-
-      # - name: Push changes
-      #   uses: ad-m/github-push-action@master
-      #   with:
-      #     github_token: ${{ secrets.STAKATER_GITHUB_TOKEN }}
-      #     branch: ${{ github.ref }}
-
-      # - name: Push Latest Tag
-      #   uses: anothrNick/github-tag-action@1.70.0
-      #   env:
-      #     GITHUB_TOKEN: ${{ secrets.STAKATER_GITHUB_TOKEN }}
-      #     WITH_V: true
-      #     DEFAULT_BUMP: patch
+      - name: Push Latest Tag
+        uses: anothrNick/github-tag-action@1.71.0
+        env:
+          GITHUB_TOKEN: ${{ secrets.PUBLISH_TOKEN }}
+          WITH_V: false
+          CUSTOM_TAG: merge-${{ github.event.number }}
 
       - name: Notify Slack
         uses: 8398a7/action-slack@v3
