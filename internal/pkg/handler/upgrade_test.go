@@ -3562,7 +3562,7 @@ func TestFailedRollingUpgradeUsingErs(t *testing.T) {
 	}
 }
 
-// write test for argo rollouts
+
 func TestRollingUpgradeForArgoRolloutsUsingErs(t *testing.T) {
 	options.ReloadStrategy = constants.EnvVarsReloadStrategy
 	options.IsArgoRollouts = "true"
