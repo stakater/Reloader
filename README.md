@@ -173,7 +173,7 @@ spec:
 - you may want to prevent watching certain resources with the `--resources-to-ignore` flag
 - you can configure logging in JSON format with the `--log-format=json` option
 - you can configure the "reload strategy" with the `--reload-strategy=<strategy-name>` option (details below)
-- you can add `reloader.stakater.com/triggerRollout="true"` to the rollout annotation, which will trigger a rollout 
+- you can add `reloader.stakater.com/triggerRollout="true"` to the rollout annotation, which will trigger a rollout.
 strategy on changes to configmap/secret. Default (`false`) will just restart the pod.
 
 ## Reload Strategies
