@@ -18,7 +18,7 @@ metadata:
   namespace: {{ .Values.namespace | default .Release.Namespace }}
 spec:
 {{- if not (.Values.reloader.enableHA) }}
-  replicas: 1
+  replicas: {{ min .Values.reloader.deployment.replicas 1 }}
 {{- else }}
   replicas: {{ .Values.reloader.deployment.replicas }}
 {{- end}}
