@@ -2,6 +2,7 @@ package handler
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -23,6 +24,7 @@ import (
 	"github.com/stakater/Reloader/pkg/kube"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/tools/record"
 )
@@ -209,6 +211,10 @@ func rollingUpgrade(clients kube.Clients, config util.Config, upgradeFuncs callb
 // PerformAction invokes the deployment if there is any change in configmap or secret data
 func PerformAction(clients kube.Clients, config util.Config, upgradeFuncs callbacks.RollingUpgradeFuncs, collectors metrics.Collectors, recorder record.EventRecorder, strategy invokeStrategy) error {
 	items := upgradeFuncs.ItemsFunc(clients, config.Namespace)
+
+	if config.Type == constants.SecretProviderClassEnvVarPostfix {
+		populateAnnotationsFromSecretProviderClass(clients, &config)
+	}
 
 	for _, i := range items {
 		// find correct annotation and update the resource
@@ -581,4 +587,15 @@ func secretProviderClassEnvReloaded(containers []v1.Container, envVar string, sh
 		}
 	}
 	return false
+}
+
+func populateAnnotationsFromSecretProviderClass(clients kube.Clients, config *util.Config) {
+	obj, err := clients.CSIClient.SecretsstoreV1().SecretProviderClasses(config.Namespace).Get(context.TODO(), config.ResourceName, metav1.GetOptions{})
+	annotations := make(map[string]string)
+	if err != nil {
+		logrus.Infof("Couldn't find secretproviderclass '%s' in '%s' namespace for typed annotation", config.ResourceName, config.Namespace)
+	} else if obj.Annotations != nil {
+		annotations = obj.Annotations
+	}
+	config.ResourceAnnotations = annotations
 }

@@ -45,10 +45,13 @@ func GetSecretConfig(secret *v1.Secret) Config {
 }
 
 func GetSecretProviderClassPodStatusConfig(podStatus *csiv1.SecretProviderClassPodStatus) Config {
+	// As csi injects SecretProviderClass, we will create config for it instead of SecretProviderClassPodStatus
+	// ResourceAnnotations will be retrieved during PerformAction call
 	return Config{
 		Namespace:           podStatus.Namespace,
 		ResourceName:        podStatus.Status.SecretProviderClassName,
-		ResourceAnnotations: podStatus.Annotations,
+		Annotation:          options.SecretProviderClassUpdateOnChangeAnnotation,
+		TypedAutoAnnotation: options.SecretProviderClassReloaderAutoAnnotation,
 		SHAValue:            GetSHAfromSecretProviderClassPodStatus(podStatus.Status),
 		Type:                constants.SecretProviderClassEnvVarPostfix,
 	}
