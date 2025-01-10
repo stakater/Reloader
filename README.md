@@ -462,6 +462,8 @@ _Helm chart versioning_: The Reloader Helm chart is maintained in [this reposito
 
 Helm chart will be released to the chart registry whenever files in `deployments/kubernetes/chart/reloader/**` change on the main branch.
 
+Helm Chart will be released by the maintainers, on labelling a PR with `release/helm-chart` and pre-maturely updating the `version` field in `Chart.yaml` file.
+
 ## Changelog
 
 View the [releases page](https://github.com/stakater/Reloader/releases) to see what has changed in each release.
