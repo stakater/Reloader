@@ -50,7 +50,7 @@ jobs:
 
     runs-on: ubuntu-latest
     name: Helm Chart Validation
-    if: ${{ contains(github.event.pull_request.labels.*.name, 'release/helm-chart' }}
+    if: ${{ contains(github.event.pull_request.labels.*.name, 'release/helm-chart') }}
 
     steps:
 
