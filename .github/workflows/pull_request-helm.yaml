@@ -49,7 +49,7 @@ jobs:
       contents: read
 
     runs-on: ubuntu-latest
-    name: Helm Chart Validation
+    name: Helm Version Validation
     if: ${{ contains(github.event.pull_request.labels.*.name, 'release/helm-chart') }}
 
     steps:
