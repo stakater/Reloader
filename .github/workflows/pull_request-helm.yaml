@@ -16,7 +16,7 @@ env:
 
 jobs:
 
-  helm-validation:
+  helm-chart-validation:
     permissions:
       contents: read
 
@@ -41,6 +41,22 @@ jobs:
       uses: d3adb5/helm-unittest-action@v2
       with:
         charts: deployments/kubernetes/chart/reloader
+
+  helm-version-validation:
+    needs: helm-chart-validation
+
+    permissions:
+      contents: read
+
+    runs-on: ubuntu-latest
+    name: Helm Chart Validation
+    if: ${{ contains(github.event.pull_request.labels.*.name, 'release/helm-chart' }}
+
+    - name: Check out code
+      uses: actions/checkout@v4
+      with:
+        ref: ${{github.event.pull_request.head.sha}}
+        fetch-depth: 0
 
     - name: Add Stakater Helm Repo
       run: |
