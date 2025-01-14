@@ -15,14 +15,14 @@ env:
   REGISTRY: ghcr.io
 
 jobs:
-  build:
+  verify-and-push-helm-chart:
 
     permissions:
       contents: read
       packages: write # to push artifacts to `ghcr.io`
 
-    name: Build
-    if: github.event.pull_request.merged == true
+    name: Verify and Push Helm Chart
+    if: ${{ (github.event.pull_request.merged == true) && (contains(github.event.pull_request.labels.*.name, 'release/helm-chart')) }}
     runs-on: ubuntu-latest
 
     steps:
