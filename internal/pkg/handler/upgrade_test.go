@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	testclientargorollout "github.com/argoproj/argo-rollouts/pkg/client/clientset/versioned/fake"
 	"github.com/prometheus/client_golang/prometheus"
 	promtestutil "github.com/prometheus/client_golang/prometheus/testutil"
 	"github.com/sirupsen/logrus"
@@ -24,7 +25,7 @@ import (
 )
 
 var (
-	clients = kube.Clients{KubernetesClient: testclient.NewSimpleClientset()}
+	clients = kube.Clients{KubernetesClient: testclient.NewSimpleClientset(), ArgoRolloutClient: testclientargorollout.NewSimpleClientset()}
 
 	arsNamespace                               = "test-handler-" + testutil.RandSeq(5)
 	arsConfigmapName                           = "testconfigmap-handler-" + testutil.RandSeq(5)
@@ -1053,6 +1054,12 @@ func setupErs() {
 	if err != nil {
 		logrus.Errorf("Error in Deployment with both annotations: %v", err)
 	}
+
+	// Creating Rollout
+	_, err = testutil.CreateRollout(clients.ArgoRolloutClient, ersConfigmapName, ersNamespace, true, true)
+	if err != nil {
+		logrus.Errorf("Error in Rollout: %v", err)
+	}
 }
 
 func teardownErs() {
@@ -1252,6 +1259,12 @@ func teardownErs() {
 	statefulSetError = testutil.DeleteStatefulSet(clients.KubernetesClient, ersNamespace, ersSecretWithEnvName)
 	if statefulSetError != nil {
 		logrus.Errorf("Error while deleting statefulSet with secret as env var source %v", statefulSetError)
+	}
+
+	// Deleting Rollout with configmap
+	rolloutError := testutil.DeleteRollout(clients.ArgoRolloutClient, ersNamespace, ersConfigmapName)
+	if rolloutError != nil {
+		logrus.Errorf("Error while deleting rollout with configmap %v", rolloutError)
 	}
 
 	// Deleting Configmap
@@ -3545,6 +3558,38 @@ func TestFailedRollingUpgradeUsingErs(t *testing.T) {
 	}
 
 	if promtestutil.ToFloat64(collectors.ReloadedByNamespace.With(prometheus.Labels{"success": "false", "namespace": ersNamespace})) != 1 {
+		t.Errorf("Counter by namespace was not increased")
+	}
+}
+
+
+func TestRollingUpgradeForArgoRolloutsUsingErs(t *testing.T) {
+	options.ReloadStrategy = constants.EnvVarsReloadStrategy
+	options.IsArgoRollouts = "true"
+	envVarPostfix := constants.ConfigmapEnvVarPostfix
+
+	shaData := testutil.ConvertResourceToSHA(testutil.ConfigmapResourceType, ersNamespace, ersConfigmapName, "www.stakater.com")
+	config := getConfigWithAnnotations(envVarPostfix, ersConfigmapName, shaData, options.ConfigmapUpdateOnChangeAnnotation, options.ConfigmapReloaderAutoAnnotation)
+	argoRolloutFuncs := GetArgoRolloutRollingUpgradeFuncs()
+	collectors := getCollectors()
+
+	err := PerformAction(clients, config, argoRolloutFuncs, collectors, nil, invokeReloadStrategy)
+	time.Sleep(5 * time.Second)
+	if err != nil {
+		t.Errorf("Rolling upgrade failed for Argo Rollouts")
+	}
+
+	logrus.Infof("Verifying argo rollout update")
+	updated := testutil.VerifyResourceEnvVarUpdate(clients, config, envVarPostfix, argoRolloutFuncs)
+	if !updated {
+		t.Errorf("Argo Rollout was not updated")
+	}
+
+	if promtestutil.ToFloat64(collectors.Reloaded.With(labelSucceeded)) != 1 {
+		t.Errorf("Counter was not increased")
+	}
+
+	if promtestutil.ToFloat64(collectors.ReloadedByNamespace.With(prometheus.Labels{"success": "true", "namespace": ersNamespace})) != 1 {
 		t.Errorf("Counter by namespace was not increased")
 	}
 }
