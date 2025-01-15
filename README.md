@@ -406,7 +406,7 @@ helm uninstall {{RELEASE_NAME}} -n {{NAMESPACE}}
 
 ### Documentation
 
-You can find more documentation [here](docs)
+The Reloader documentation can be viewed from [the doc site](https://docs.stakater.com/reloader/). The doc source is in the [docs](./docs/) folder.
 
 ### Have a question?
 
@@ -414,7 +414,7 @@ File a GitHub [issue](https://github.com/stakater/Reloader/issues).
 
 ### Talk to us on Slack
 
-Join and talk to us on Slack for discussing Reloader
+Join and talk to us on Slack for discussing Reloader:
 
 [![Join Slack](https://stakater.github.io/README/stakater-join-slack-btn.png)](https://slack.stakater.com/)
 [![Chat](https://stakater.github.io/README/stakater-chat-btn.png)](https://stakater-community.slack.com/messages/CC5S05S12)
@@ -427,12 +427,12 @@ Please use the [issue tracker](https://github.com/stakater/Reloader/issues) to r
 
 ### Developing
 
-1. Deploy Reloader.
-1. Run `okteto up` to activate your development container.
+1. Deploy Reloader
+1. Run `okteto up` to activate your development container
 1. `make build`
 1. `./Reloader`
 
-PRs are welcome. In general, we follow the "fork-and-pull" Git workflow.
+PRs are welcome. In general, we follow the "fork-and-pull" Git workflow:
 
 1. **Fork** the repo on GitHub
 1. **Clone** the project to your own machine
@@ -444,15 +444,29 @@ PRs are welcome. In general, we follow the "fork-and-pull" Git workflow.
 
 ## Release Processes
 
-_Repository GitHub releases_: As requested by the community in [issue 685](https://github.com/stakater/Reloader/issues/685), Reloader is now based on a manual release process. Releases are no longer done on every merged PR to the main branch, but manually on request. When a GitHub release is made, the corresponding image is built and pushed to the registry.
+_Repository GitHub releases_: As requested by the community in [issue 685](https://github.com/stakater/Reloader/issues/685), Reloader is now based on a manual release process. Releases are no longer done on every merged PR to the main branch, but manually on request.
 
-_Repository git tagging_: The Reloader repository is tagged on every push to main. The creation of a tag does not trigger anything else, it just acts as a pointer to a commit on main.
+To make a GitHub release:
 
-_Helm chart versioning_: The Reloader Helm chart release process is still [work in progress](https://github.com/stakater/Reloader/issues/684). This page will be updated when the process is settled. As a heads-up, to address the issues that are inherent in the current process the chart will most probably be relocated to the [Stakater charts repository](https://github.com/stakater/charts/). This setup is common in open-source repositories. When a GitHub release has been manually created in this repository, an image will be built, and Renovate in the charts repository will update the Helm chart to use it.
+1. Code owners create a release branch `release-vX.Y.Z`
+1. Code owners run a dispatch mode workflow to automatically generate version and manifests on the release branch
+1. A PR is created to bump the image version on the release branch, example: [PR-798](https://github.com/stakater/Reloader/pull/798)
+1. Code owners create a GitHub release with tag `vX.Y.Z` and target branch `release-vX.Y.Z`, which triggers creation of images
+
+_Repository git tagging_: Push to the main branch will create a merge-image and merge-tag named `merge-${{ github.event.number }}`, for example `merge-800` when pull request number 800 is merged.
+
+_Helm chart versioning_: The Reloader Helm chart is maintained in [this repository](./deployments/kubernetes/chart/reloader). The Helm chart has its own semantic versioning. Helm charts and code releases are separate artifacts and separately versioned. Manifest making strategy relies on Kustomize. The Reloader Helm chart manages the two artifacts with these two fields:
+
+- [`appVersion`](./deployments/kubernetes/chart/reloader/Chart.yaml) points to released Reloader application image version listed on the [releases page](https://github.com/stakater/Reloader/releases)
+- [`version`](./deployments/kubernetes/chart/reloader/Chart.yaml) sets the Reloader Helm chart version
+
+Helm chart will be released to the chart registry whenever files in `deployments/kubernetes/chart/reloader/**` change on the main branch.
+
+Helm Chart will be released by the maintainers, on labelling a PR with `release/helm-chart` and pre-maturely updating the `version` field in `Chart.yaml` file.
 
 ## Changelog
 
-View our closed [Pull Requests](https://github.com/stakater/Reloader/pulls?q=is%3Apr+is%3Aclosed).
+View the [releases page](https://github.com/stakater/Reloader/releases) to see what has changed in each release.
 
 ## License
 

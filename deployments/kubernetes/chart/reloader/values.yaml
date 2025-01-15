@@ -5,6 +5,8 @@ global:
   ##
   imageRegistry: ""
   imagePullSecrets: []
+  #imagePullSecrets:
+  #  - name: my-pull-secret
 
 kubernetes:
   host: https://kubernetes.default
@@ -94,11 +96,11 @@ reloader:
     labels:
       provider: stakater
       group: com.stakater.platform
-      version: v1.2.0
+      version: v1.2.1
     image:
       name: ghcr.io/stakater/reloader
       base: stakater/reloader
-      tag: v1.2.0
+      tag: v1.2.1
       # digest: sha256:1234567
       pullPolicy: IfNotPresent
     # Support for extra environment variables.
