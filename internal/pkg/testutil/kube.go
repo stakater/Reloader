@@ -855,16 +855,6 @@ func CreateSecretProviderClassPodStatus(client csiclient.Interface, namespace st
 	return secretProviderClassPodStatusClient, err
 }
 
-// CreateSecretProviderClassAndPodStatus creates a SecretProviderClass and SecretProviderClassPodStatus in given namespace
-func CreateSecretProviderClassAndPodStatus(client csiclient.Interface, namespace string, name string, data string) error {
-	_, err := CreateSecretProviderClass(client, namespace, name, data)
-	if err != nil {
-		return err
-	}
-	_, err = CreateSecretProviderClassPodStatus(client, namespace, name, data)
-	return err
-}
-
 // CreateSecret creates a secret in given namespace and returns the SecretInterface
 func CreateSecret(client kubernetes.Interface, namespace string, secretName string, data string) (core_v1.SecretInterface, error) {
 	logrus.Infof("Creating secret")
@@ -1091,6 +1081,27 @@ func UpdateSecret(secretClient core_v1.SecretInterface, namespace string, secret
 	return updateErr
 }
 
+// UpdateSecretProviderClassPodStatus updates a secretproviderclasspodstatus in given namespace and returns the error if any
+func UpdateSecretProviderClassPodStatus(spcpsClient csiclient_v1.SecretProviderClassPodStatusInterface, namespace string, spcpsName string, label string, data string) error {
+	logrus.Infof("Updating secretproviderclasspodstatus %q.\n", spcpsName)
+	updatedStatus := GetSecretProviderClassPodStatus(namespace, spcpsName, data).Status
+	secretproviderclasspodstatus, err := spcpsClient.Get(context.TODO(), spcpsName, metav1.GetOptions{})
+	if err != nil {
+		return err
+	}
+	secretproviderclasspodstatus.Status = updatedStatus
+	if label != "" {
+		labels := secretproviderclasspodstatus.Labels
+		if labels == nil {
+			labels = make(map[string]string)
+		}
+		labels["firstLabel"] = label
+	}
+	_, updateErr := spcpsClient.Update(context.TODO(), secretproviderclasspodstatus, metav1.UpdateOptions{})
+	time.Sleep(3 * time.Second)
+	return updateErr
+}
+
 // DeleteConfigMap deletes a configmap in given namespace and returns the error if any
 func DeleteConfigMap(client kubernetes.Interface, namespace string, configmapName string) error {
 	logrus.Infof("Deleting configmap %q.\n", configmapName)
@@ -1111,6 +1122,14 @@ func DeleteSecret(client kubernetes.Interface, namespace string, secretName stri
 func DeleteSecretProviderClass(client csiclient.Interface, namespace string, secretProviderClassName string) error {
 	logrus.Infof("Deleting secretproviderclass %q.\n", secretProviderClassName)
 	err := client.SecretsstoreV1().SecretProviderClasses(namespace).Delete(context.TODO(), secretProviderClassName, metav1.DeleteOptions{})
+	time.Sleep(3 * time.Second)
+	return err
+}
+
+// DeleteSecretProviderClassPodStatus deletes a secretproviderclasspodstatus in given namespace and returns the error if any
+func DeleteSecretProviderClassPodStatus(client csiclient.Interface, namespace string, secretProviderClassPodStatusName string) error {
+	logrus.Infof("Deleting secretproviderclasspodstatus %q.\n", secretProviderClassPodStatusName)
+	err := client.SecretsstoreV1().SecretProviderClassPodStatuses(namespace).Delete(context.TODO(), secretProviderClassPodStatusName, metav1.DeleteOptions{})
 	time.Sleep(3 * time.Second)
 	return err
 }
