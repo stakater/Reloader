@@ -57,7 +57,7 @@ jobs:
           git diff
 
       - name: Create pull request
-        uses: peter-evans/create-pull-request@v7.0.5
+        uses: peter-evans/create-pull-request@v7.0.6
         with:
           commit-message: "Bump version to ${{ inputs.TARGET_VERSION }}"
           title: "Bump version to ${{ inputs.TARGET_VERSION }} on ${{ inputs.TARGET_BRANCH }} branch"
