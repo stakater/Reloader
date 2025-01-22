@@ -25,7 +25,7 @@ env:
 
 jobs:
   qa:
-    uses: stakater/.github/.github/workflows/pull_request_doc_qa.yaml@v0.0.106
+    uses: stakater/.github/.github/workflows/pull_request_doc_qa.yaml@v0.0.108
     with:
       MD_CONFIG: .github/md_config.json
       DOC_SRC: README.md
