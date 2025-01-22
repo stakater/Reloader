@@ -95,7 +95,7 @@ We can also specify a specific configmap or secret which would trigger rolling u
 To do this either set the auto annotation to `"false"` (`reloader.stakater.com/auto: "false"`) or remove it altogether, and use annotations for [Configmap](.#Configmap) or [Secret](.#Secret).
 
 It's also possible to enable auto reloading for all resources, by setting the `--auto-reload-all` flag.
-In this case, all resources that do not have the auto annotation (or its typed version) set to `"false"`, will be reloaded automatically when their ConfigMaps or Secrets are updated.
+In this case, all resources that do not have the auto annotation (or its typed version) set to `"false"`, will be reloaded automatically when their Configmaps or Secrets are updated.
 Notice that setting the auto annotation to an undefined value counts as false as-well.
 
 ### Configmap
@@ -209,8 +209,8 @@ Reloader can be configured to ignore the resources `secrets` and `configmaps` by
 
 | Argument                         | Description          |
 |----------------------------------|----------------------|
-| --resources-to-ignore=configMaps | To ignore configMaps |
-| --resources-to-ignore=secrets    | To ignore secrets    |
+| `--resources-to-ignore=configMaps` | To ignore configmaps |
+| `--resources-to-ignore=secrets`    | To ignore secrets    |
 
 **Note:** At one time only one of these resource can be ignored, trying to do it will cause error in Reloader. Workaround for ignoring both resources is by scaling down the Reloader pods to `0`.
 
@@ -328,7 +328,7 @@ helm uninstall {{RELEASE_NAME}} -n {{NAMESPACE}}
 | `reloader.isArgoRollouts`         | Enable Argo `Rollouts`. Valid value are either `true` or `false`                                                                                    | boolean     | `false`   |
 | `reloader.isOpenshift`            | Enable OpenShift DeploymentConfigs. Valid value are either `true` or `false`                                                                        | boolean     | `false`   |
 | `reloader.ignoreSecrets`          | To ignore secrets. Valid value are either `true` or `false`. Either `ignoreSecrets` or `ignoreConfigMaps` can be ignored, not both at the same time | boolean     | `false`   |
-| `reloader.ignoreConfigMaps`       | To ignore configMaps. Valid value are either `true` or `false`                                                                                      | boolean     | `false`   |
+| `reloader.ignoreConfigMaps`       | To ignore configmaps. Valid value are either `true` or `false`                                                                                      | boolean     | `false`   |
 | `reloader.reloadOnCreate`         | Enable reload on create events. Valid value are either `true` or `false`                                                                            | boolean     | `false`   |
 | `reloader.reloadOnDelete`         | Enable reload on delete events. Valid value are either `true` or `false`                                                                            | boolean     | `false`   |
 | `reloader.syncAfterRestart`       | Enable sync after Reloader restarts for **Add** events, works only when reloadOnCreate is `true`. Valid value are either `true` or `false`          | boolean     | `false`   |
@@ -384,7 +384,7 @@ helm uninstall {{RELEASE_NAME}} -n {{NAMESPACE}}
 
 #### Additional Remarks
 
-- Both `namespaceSelector` & `resourceLabelSelector` can be used together. If they are then both conditions must be met for the configmap or secret to be eligible to trigger reload events. (e.g. If a configMap matches `resourceLabelSelector` but `namespaceSelector` does not match the namespace the configmap is in, it will be ignored).
+- Both `namespaceSelector` & `resourceLabelSelector` can be used together. If they are then both conditions must be met for the configmap or secret to be eligible to trigger reload events. (e.g. If a configmap matches `resourceLabelSelector` but `namespaceSelector` does not match the namespace the configmap is in, it will be ignored).
 - At one time only one of the resources `ignoreConfigMaps` or `ignoreSecrets` can be ignored, trying to do both will cause error in helm template compilation
 - Reloading of OpenShift (DeploymentConfig) and/or Argo `Rollouts` has to be enabled explicitly because it might not be always possible to use it on a cluster with restricted permissions
 - `isOpenShift` Recent versions of OpenShift (tested on 4.13.3) require the specified user to be in an `uid` range which is dynamically assigned by the namespace. The solution is to unset the runAsUser variable via ``deployment.securityContext.runAsUser=null`` and let OpenShift assign it at install
