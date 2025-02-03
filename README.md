@@ -50,13 +50,13 @@ spec:
     metadata:
 ```
 
-This will discover deploymentconfigs/deployments/daemonsets/statefulset/rollouts automatically where `foo-configmap` or `foo-secret` is being used either via environment variable or from volume mount. And it will perform rolling upgrade on related pods when `foo-configmap` or `foo-secret`are updated.
+This will discover deploymentconfigs/deployments/daemonsets/statefulset/rollouts/cronjobs/jobs automatically where `foo-configmap` or `foo-secret` is being used either via environment variable or from volume mount. And it will perform rolling upgrade on related pods when `foo-configmap` or `foo-secret`are updated.
 
 You can filter it by the type of monitored resource and use typed versions of `auto` annotation. If you want to discover changes only in mounted `Secret`s and ignore changes in `ConfigMap`s, add `secret.reloader.stakater.com/auto` annotation instead. Analogously, you can use `configmap.reloader.stakater.com/auto` annotation to look for changes in mounted `ConfigMap`, changes in any of mounted `Secret`s will not trigger a rolling upgrade on related pods.
 
 You can also restrict this discovery to only `ConfigMap` or `Secret` objects that
 are tagged with a special annotation. To take advantage of that, annotate
-your deploymentconfigs/deployments/daemonsets/statefulset/rollouts like this:
+your deploymentconfigs/deployments/daemonsets/statefulset/rollouts/cronjobs/jobs like this:
 
 ```yaml
 kind: Deployment
@@ -91,7 +91,7 @@ not.
 
 Similarly, `reloader.stakater.com/auto` and its typed version (`secret.reloader.stakater.com/auto` or `configmap.reloader.stakater.com/auto`) do not work together. If you have both annotations in your deployment, then only one of them needs to be true to trigger the restart. For example, having both `reloader.stakater.com/auto: "true"` and `secret.reloader.stakater.com/auto: "false"` or both `reloader.stakater.com/auto: "false"` and `secret.reloader.stakater.com/auto: "true"` will restart upon a change in a secret it uses.
 
-We can also specify a specific configmap or secret which would trigger rolling upgrade only upon change in our specified configmap or secret, this way, it will not trigger rolling upgrade upon changes in all configmaps or secrets used in a `deploymentconfig`, `deployment`, `daemonset`, `statefulset` or `rollout`.
+We can also specify a specific configmap or secret which would trigger rolling upgrade only upon change in our specified configmap or secret, this way, it will not trigger rolling upgrade upon changes in all configmaps or secrets used in a `deploymentconfig`, `deployment`, `daemonset`, `statefulset`, `rollout`, `cronJob` or `job`.
 To do this either set the auto annotation to `"false"` (`reloader.stakater.com/auto: "false"`) or remove it altogether, and use annotations for [Configmap](.#Configmap) or [Secret](.#Secret).
 
 It's also possible to enable auto reloading for all resources, by setting the `--auto-reload-all` flag.
@@ -158,7 +158,7 @@ spec:
 
 - Reloader also supports [sealed-secrets](https://github.com/bitnami-labs/sealed-secrets). [Here](docs/Reloader-with-Sealed-Secrets.md) are the steps to use sealed-secrets with Reloader.
 - For [`rollouts`](https://github.com/argoproj/argo-rollouts/) Reloader simply triggers a change is up to you how you configure the `rollout` strategy.
-- `reloader.stakater.com/auto: "true"` will only reload the pod, if the configmap or secret is used (as a volume mount or as an env) in `DeploymentConfigs/Deployment/Daemonsets/Statefulsets`
+- `reloader.stakater.com/auto: "true"` will only reload the pod, if the configmap or secret is used (as a volume mount or as an env) in `DeploymentConfigs/Deployment/Daemonsets/Statefulsets/CronJobs/Jobs`
 - `secret.reloader.stakater.com/reload` or `configmap.reloader.stakater.com/reload` annotation will reload the pod upon changes in specified configmap or secret, irrespective of the usage of configmap or secret.
 - you may override the auto annotation with the `--auto-annotation` flag
 - you may override the secret typed auto annotation with the `--secret-auto-annotation` flag
