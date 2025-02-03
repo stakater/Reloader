@@ -96,11 +96,12 @@ reloader:
     labels:
       provider: stakater
       group: com.stakater.platform
-      version: v1.2.0
+      version: v1.2.1
     image:
       name: ghcr.io/stakater/reloader
       base: stakater/reloader
-      tag: v1.2.0
+      tag: v1.2.1
+      # digest: sha256:1234567
       pullPolicy: IfNotPresent
     # Support for extra environment variables.
     env:
@@ -288,6 +289,9 @@ reloader:
     enabled: false
     # Set the minimum available replicas
     # minAvailable: 1
+    # OR Set the maximum unavailable replicas
+    # maxUnavailable: 1
+    # If both defined only maxUnavailable will be used
 
   netpol:
     enabled: false
