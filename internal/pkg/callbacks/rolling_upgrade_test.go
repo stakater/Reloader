@@ -10,20 +10,23 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	batchv1 "k8s.io/api/batch/v1"
 	v1 "k8s.io/api/core/v1"
+	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	watch "k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/kubernetes/fake"
 
 	argorolloutv1alpha1 "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	fakeargoclientset "github.com/argoproj/argo-rollouts/pkg/client/clientset/versioned/fake"
 
-	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	watch "k8s.io/apimachinery/pkg/watch"
-
 	"github.com/stakater/Reloader/internal/pkg/callbacks"
 	"github.com/stakater/Reloader/internal/pkg/options"
 	"github.com/stakater/Reloader/internal/pkg/testutil"
 	"github.com/stakater/Reloader/pkg/kube"
+)
+
+var (
+	clients = setupTestClients()
 )
 
 type testFixtures struct {
@@ -52,7 +55,7 @@ func setupTestClients() kube.Clients {
 // TestUpdateRollout test update rollout strategy annotation
 func TestUpdateRollout(t *testing.T) {
 	namespace := "test-ns"
-	clients := setupTestClients()
+
 	cases := map[string]struct {
 		name      string
 		strategy  string
@@ -108,35 +111,8 @@ func TestUpdateRollout(t *testing.T) {
 	}
 }
 
-func isRestartStrategy(rollout *argorolloutv1alpha1.Rollout) bool {
-	return rollout.Spec.RestartAt == nil
-}
-
-func watchRollout(name, namespace string) chan interface{} {
-	clients := setupTestClients()
-	timeOut := int64(1)
-	modifiedChan := make(chan interface{})
-	watcher, _ := clients.ArgoRolloutClient.ArgoprojV1alpha1().Rollouts(namespace).Watch(context.Background(), meta_v1.ListOptions{TimeoutSeconds: &timeOut})
-	go watchModified(watcher, name, modifiedChan)
-	return modifiedChan
-}
-
-func watchModified(watcher watch.Interface, name string, modifiedChan chan interface{}) {
-	for event := range watcher.ResultChan() {
-		item := event.Object.(*argorolloutv1alpha1.Rollout)
-		if item.Name == name {
-			switch event.Type {
-			case watch.Modified:
-				modifiedChan <- nil
-			}
-			return
-		}
-	}
-}
-
 func TestResourceItems(t *testing.T) {
 	fixtures := newTestFixtures()
-	clients := setupTestClients()
 
 	tests := []struct {
 		name          string
@@ -281,7 +257,6 @@ func TestGetInitContainers(t *testing.T) {
 
 func TestUpdateResources(t *testing.T) {
 	fixtures := newTestFixtures()
-	clients := setupTestClients()
 
 	tests := []struct {
 		name       string
@@ -306,7 +281,6 @@ func TestUpdateResources(t *testing.T) {
 
 func TestCreateJobFromCronjob(t *testing.T) {
 	fixtures := newTestFixtures()
-	clients := setupTestClients()
 
 	cronJob, err := createTestCronJobWithAnnotations(clients, fixtures.namespace, "1")
 	assert.NoError(t, err)
@@ -317,7 +291,6 @@ func TestCreateJobFromCronjob(t *testing.T) {
 
 func TestReCreateJobFromJob(t *testing.T) {
 	fixtures := newTestFixtures()
-	clients := setupTestClients()
 
 	job, err := createTestJobWithAnnotations(clients, fixtures.namespace, "1")
 	assert.NoError(t, err)
@@ -349,6 +322,32 @@ func TestGetVolumes(t *testing.T) {
 }
 
 // Helper functions
+
+func isRestartStrategy(rollout *argorolloutv1alpha1.Rollout) bool {
+	return rollout.Spec.RestartAt == nil
+}
+
+func watchRollout(name, namespace string) chan interface{} {
+	timeOut := int64(1)
+	modifiedChan := make(chan interface{})
+	watcher, _ := clients.ArgoRolloutClient.ArgoprojV1alpha1().Rollouts(namespace).Watch(context.Background(), meta_v1.ListOptions{TimeoutSeconds: &timeOut})
+	go watchModified(watcher, name, modifiedChan)
+	return modifiedChan
+}
+
+func watchModified(watcher watch.Interface, name string, modifiedChan chan interface{}) {
+	for event := range watcher.ResultChan() {
+		item := event.Object.(*argorolloutv1alpha1.Rollout)
+		if item.Name == name {
+			switch event.Type {
+			case watch.Modified:
+				modifiedChan <- nil
+			}
+			return
+		}
+	}
+}
+
 func createTestDeployments(clients kube.Clients, namespace string) error {
 	for i := 1; i <= 2; i++ {
 		_, err := testutil.CreateDeployment(clients.KubernetesClient, fmt.Sprintf("test-deployment-%d", i), namespace, false)
