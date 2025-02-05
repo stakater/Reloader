@@ -80,6 +80,9 @@ rules:
       - jobs
     verbs:
       - create
+      - delete
+      - list
+      - get
 {{- if .Values.reloader.enableHA }}
   - apiGroups:
       - "coordination.k8s.io"

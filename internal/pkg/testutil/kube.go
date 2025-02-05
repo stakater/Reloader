@@ -23,6 +23,7 @@ import (
 	"github.com/stakater/Reloader/internal/pkg/util"
 	"github.com/stakater/Reloader/pkg/kube"
 	appsv1 "k8s.io/api/apps/v1"
+	batchv1 "k8s.io/api/batch/v1"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -177,7 +178,7 @@ func getVolumes(name string) []v1.Volume {
 	}
 }
 
-func getVolumeMounts(name string) []v1.VolumeMount {
+func getVolumeMounts() []v1.VolumeMount {
 	return []v1.VolumeMount{
 		{
 			MountPath: "etc/config",
@@ -275,7 +276,7 @@ func getPodTemplateSpecWithVolumes(name string) v1.PodTemplateSpec {
 							Value: "test",
 						},
 					},
-					VolumeMounts: getVolumeMounts(name),
+					VolumeMounts: getVolumeMounts(),
 				},
 			},
 			Volumes: getVolumes(name),
@@ -293,7 +294,7 @@ func getPodTemplateSpecWithInitContainer(name string) v1.PodTemplateSpec {
 				{
 					Image:        "busybox",
 					Name:         "busyBox",
-					VolumeMounts: getVolumeMounts(name),
+					VolumeMounts: getVolumeMounts(),
 				},
 			},
 			Containers: []v1.Container{
@@ -637,6 +638,64 @@ func GetSecret(namespace string, secretName string, data string) *v1.Secret {
 	}
 }
 
+func GetCronJob(namespace string, cronJobName string) *batchv1.CronJob {
+	return &batchv1.CronJob{
+		ObjectMeta: getObjectMeta(namespace, cronJobName, false, false, false, map[string]string{}),
+		Spec: batchv1.CronJobSpec{
+			Schedule: "*/5 * * * *", // Run every 5 minutes
+			JobTemplate: batchv1.JobTemplateSpec{
+				Spec: batchv1.JobSpec{
+					Selector: &metav1.LabelSelector{
+						MatchLabels: map[string]string{"secondLabel": "temp"},
+					},
+					Template: getPodTemplateSpecWithVolumes(cronJobName),
+				},
+			},
+		},
+	}
+}
+
+func GetJob(namespace string, jobName string) *batchv1.Job {
+	return &batchv1.Job{
+		ObjectMeta: getObjectMeta(namespace, jobName, false, false, false, map[string]string{}),
+		Spec: batchv1.JobSpec{
+			Selector: &metav1.LabelSelector{
+				MatchLabels: map[string]string{"secondLabel": "temp"},
+			},
+			Template: getPodTemplateSpecWithVolumes(jobName),
+		},
+	}
+}
+
+func GetCronJobWithEnvVar(namespace string, cronJobName string) *batchv1.CronJob {
+	return &batchv1.CronJob{
+		ObjectMeta: getObjectMeta(namespace, cronJobName, true, false, false, map[string]string{}),
+		Spec: batchv1.CronJobSpec{
+			Schedule: "*/5 * * * *", // Run every 5 minutes
+			JobTemplate: batchv1.JobTemplateSpec{
+				Spec: batchv1.JobSpec{
+					Selector: &metav1.LabelSelector{
+						MatchLabels: map[string]string{"secondLabel": "temp"},
+					},
+					Template: getPodTemplateSpecWithEnvVars(cronJobName),
+				},
+			},
+		},
+	}
+}
+
+func GetJobWithEnvVar(namespace string, jobName string) *batchv1.Job {
+	return &batchv1.Job{
+		ObjectMeta: getObjectMeta(namespace, jobName, true, false, false, map[string]string{}),
+		Spec: batchv1.JobSpec{
+			Selector: &metav1.LabelSelector{
+				MatchLabels: map[string]string{"secondLabel": "temp"},
+			},
+			Template: getPodTemplateSpecWithEnvVars(jobName),
+		},
+	}
+}
+
 // GetSecretWithUpdatedLabel provides secret for testing
 func GetSecretWithUpdatedLabel(namespace string, secretName string, label string, data string) *v1.Secret {
 	return &v1.Secret{
@@ -845,6 +904,36 @@ func CreateStatefulSet(client kubernetes.Interface, statefulsetName string, name
 	statefulset, err := statefulsetClient.Create(context.TODO(), statefulsetObj, metav1.CreateOptions{})
 	time.Sleep(3 * time.Second)
 	return statefulset, err
+}
+
+// CreateCronJob creates a cronjob in given namespace and returns the CronJob
+func CreateCronJob(client kubernetes.Interface, cronJobName string, namespace string, volumeMount bool) (*batchv1.CronJob, error) {
+	logrus.Infof("Creating CronJob")
+	cronJobClient := client.BatchV1().CronJobs(namespace)
+	var cronJobObj *batchv1.CronJob
+	if volumeMount {
+		cronJobObj = GetCronJob(namespace, cronJobName)
+	} else {
+		cronJobObj = GetCronJobWithEnvVar(namespace, cronJobName)
+	}
+	cronJob, err := cronJobClient.Create(context.TODO(), cronJobObj, metav1.CreateOptions{})
+	time.Sleep(3 * time.Second)
+	return cronJob, err
+}
+
+// CreateJob creates a job in given namespace and returns the Job
+func CreateJob(client kubernetes.Interface, jobName string, namespace string, volumeMount bool) (*batchv1.Job, error) {
+	logrus.Infof("Creating Job")
+	jobClient := client.BatchV1().Jobs(namespace)
+	var jobObj *batchv1.Job
+	if volumeMount {
+		jobObj = GetJob(namespace, jobName)
+	} else {
+		jobObj = GetJobWithEnvVar(namespace, jobName)
+	}
+	job, err := jobClient.Create(context.TODO(), jobObj, metav1.CreateOptions{})
+	time.Sleep(3 * time.Second)
+	return job, err
 }
 
 // DeleteDeployment creates a deployment in given namespace and returns the error if any
