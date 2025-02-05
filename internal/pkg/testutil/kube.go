@@ -97,11 +97,14 @@ func getAnnotations(name string, autoReload bool, secretAutoReload bool, configm
 	if configmapAutoReload {
 		annotations[options.ConfigmapReloaderAutoAnnotation] = "true"
 	}
+	if secretproviderclass {
+		annotations[options.SecretProviderClassReloaderAutoAnnotation] = "true"
+	}
 
 	if !(len(annotations) > 0) {
 		annotations = map[string]string{
-			options.ConfigmapUpdateOnChangeAnnotation: name,
-			options.SecretUpdateOnChangeAnnotation:    name,
+			options.ConfigmapUpdateOnChangeAnnotation:           name,
+			options.SecretUpdateOnChangeAnnotation:              name,
 			options.SecretProviderClassUpdateOnChangeAnnotation: name,
 		}
 	}
@@ -700,7 +703,7 @@ func GetSecret(namespace string, secretName string, data string) *v1.Secret {
 
 func GetCronJob(namespace string, cronJobName string) *batchv1.CronJob {
 	return &batchv1.CronJob{
-		ObjectMeta: getObjectMeta(namespace, cronJobName, false, false, false, map[string]string{}),
+		ObjectMeta: getObjectMeta(namespace, cronJobName, false, false, false, false, map[string]string{}),
 		Spec: batchv1.CronJobSpec{
 			Schedule: "*/5 * * * *", // Run every 5 minutes
 			JobTemplate: batchv1.JobTemplateSpec{
@@ -717,7 +720,7 @@ func GetCronJob(namespace string, cronJobName string) *batchv1.CronJob {
 
 func GetJob(namespace string, jobName string) *batchv1.Job {
 	return &batchv1.Job{
-		ObjectMeta: getObjectMeta(namespace, jobName, false, false, false, map[string]string{}),
+		ObjectMeta: getObjectMeta(namespace, jobName, false, false, false, false, map[string]string{}),
 		Spec: batchv1.JobSpec{
 			Selector: &metav1.LabelSelector{
 				MatchLabels: map[string]string{"secondLabel": "temp"},
@@ -729,7 +732,7 @@ func GetJob(namespace string, jobName string) *batchv1.Job {
 
 func GetCronJobWithEnvVar(namespace string, cronJobName string) *batchv1.CronJob {
 	return &batchv1.CronJob{
-		ObjectMeta: getObjectMeta(namespace, cronJobName, true, false, false, map[string]string{}),
+		ObjectMeta: getObjectMeta(namespace, cronJobName, true, false, false, false, map[string]string{}),
 		Spec: batchv1.CronJobSpec{
 			Schedule: "*/5 * * * *", // Run every 5 minutes
 			JobTemplate: batchv1.JobTemplateSpec{
@@ -746,7 +749,7 @@ func GetCronJobWithEnvVar(namespace string, cronJobName string) *batchv1.CronJob
 
 func GetJobWithEnvVar(namespace string, jobName string) *batchv1.Job {
 	return &batchv1.Job{
-		ObjectMeta: getObjectMeta(namespace, jobName, true, false, false, map[string]string{}),
+		ObjectMeta: getObjectMeta(namespace, jobName, true, false, false, false, map[string]string{}),
 		Spec: batchv1.JobSpec{
 			Selector: &metav1.LabelSelector{
 				MatchLabels: map[string]string{"secondLabel": "temp"},
@@ -1291,7 +1294,7 @@ func GetSHAfromEmptyData() string {
 func GetRollout(namespace string, rolloutName string, annotations map[string]string) *argorolloutv1alpha1.Rollout {
 	replicaset := int32(1)
 	return &argorolloutv1alpha1.Rollout{
-		ObjectMeta: getObjectMeta(namespace, rolloutName, false, false, false, annotations),
+		ObjectMeta: getObjectMeta(namespace, rolloutName, false, false, false, false, annotations),
 		Spec: argorolloutv1alpha1.RolloutSpec{
 			Selector: &metav1.LabelSelector{
 				MatchLabels: map[string]string{"secondLabel": "temp"},
