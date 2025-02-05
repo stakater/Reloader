@@ -4,7 +4,7 @@ go 1.23.1
 
 require (
 	github.com/argoproj/argo-rollouts v1.7.2
-	github.com/openshift/api v0.0.0-20240131175612-92fe66c75e8f
+	github.com/openshift/api 56ca5bb59cc1
 	github.com/openshift/client-go v0.0.0-20231110140829-a6ca51f6d5ba
 	github.com/parnurzeal/gorequest v0.3.0
 	github.com/prometheus/client_golang v1.20.5
