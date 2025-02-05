@@ -22,6 +22,7 @@ import (
 	"k8s.io/client-go/util/workqueue"
 	"k8s.io/kubectl/pkg/scheme"
 	"k8s.io/utils/strings/slices"
+	csiv1 "sigs.k8s.io/secrets-store-csi-driver/apis/v1"
 )
 
 // Controller for checking events
@@ -117,6 +118,8 @@ func (c *Controller) Add(obj interface{}) {
 	case *v1.Namespace:
 		c.addSelectedNamespaceToCache(*object)
 		return
+	case *csiv1.SecretProviderClassPodStatus:
+		return
 	}
 
 	if options.ReloadOnCreate == "true" {
@@ -136,6 +139,8 @@ func (c *Controller) resourceInIgnoredNamespace(raw interface{}) bool {
 		return c.ignoredNamespaces.Contains(object.ObjectMeta.Namespace)
 	case *v1.Secret:
 		return c.ignoredNamespaces.Contains(object.ObjectMeta.Namespace)
+	case *csiv1.SecretProviderClassPodStatus:
+		return c.ignoredNamespaces.Contains(object.ObjectMeta.Namespace)
 	}
 	return false
 }
@@ -151,6 +156,10 @@ func (c *Controller) resourceInSelectedNamespaces(raw interface{}) bool {
 			return true
 		}
 	case *v1.Secret:
+		if slices.Contains(selectedNamespacesCache, object.GetNamespace()) {
+			return true
+		}
+	case *csiv1.SecretProviderClassPodStatus:
 		if slices.Contains(selectedNamespacesCache, object.GetNamespace()) {
 			return true
 		}
@@ -192,6 +201,13 @@ func (c *Controller) Update(old interface{}, new interface{}) {
 
 // Delete function to add an object to the queue in case of deleting a resource
 func (c *Controller) Delete(old interface{}) {
+	switch object := old.(type) {
+	case *v1.Namespace:
+		c.removeSelectedNamespaceFromCache(*object)
+		return
+	case *csiv1.SecretProviderClassPodStatus:
+		return
+	}
 
 	if options.ReloadOnDelete == "true" {
 		if !c.resourceInIgnoredNamespace(old) && c.resourceInSelectedNamespaces(old) && secretControllerInitialized && configmapControllerInitialized {
@@ -201,12 +217,6 @@ func (c *Controller) Delete(old interface{}) {
 				Recorder:   c.recorder,
 			})
 		}
-	}
-
-	switch object := old.(type) {
-	case *v1.Namespace:
-		c.removeSelectedNamespaceFromCache(*object)
-		return
 	}
 }
 

@@ -8,7 +8,7 @@ const (
 	ConfigmapEnvVarPostfix = "CONFIGMAP"
 	// SecretEnvVarPostfix is a postfix for secret envVar
 	SecretEnvVarPostfix = "SECRET"
-	// SecretEnvVarSecretProviderClassPodStatus is a postfix for secretproviderclasspodstatus envVar
+	// SecretProviderClassEnvVarPostfix is a postfix for secretproviderclasspodstatus envVar
 	SecretProviderClassEnvVarPostfix = "SECRETPROVIDERCLASS"
 	// EnvVarPrefix is a Prefix for environment variable
 	EnvVarPrefix = "STAKATER_"

@@ -649,11 +649,11 @@ func TestControllerUpdatingSecretProviderClassPodStatusShouldCreatePodAnnotation
 		return
 	}
 
-	// Creating secretclassprovider
+	// Creating secretproviderclass
 	secretproviderclasspodstatusName := secretProviderClassPodStatusPrefix + "-update-" + testutil.RandSeq(5)
 	_, err := testutil.CreateSecretProviderClass(clients.CSIClient, namespace, secretproviderclasspodstatusName, data)
 	if err != nil {
-		t.Errorf("Error while creating the secretclassprovider %v", err)
+		t.Errorf("Error while creating the secretproviderclass %v", err)
 	}
 
 	// Creating secretproviderclasspodstatus
@@ -718,11 +718,11 @@ func TestControllerUpdatingSecretProviderClassPodStatusShouldUpdatePodAnnotation
 		return
 	}
 
-	// Creating secretclassprovider
+	// Creating secretproviderclass
 	secretproviderclasspodstatusName := secretProviderClassPodStatusPrefix + "-update-" + testutil.RandSeq(5)
 	_, err := testutil.CreateSecretProviderClass(clients.CSIClient, namespace, secretproviderclasspodstatusName, data)
 	if err != nil {
-		t.Errorf("Error while creating the secretclassprovider %v", err)
+		t.Errorf("Error while creating the secretproviderclass %v", err)
 	}
 
 	// Creating secretproviderclasspodstatus
@@ -793,11 +793,11 @@ func TestControllerUpdatingSecretProviderClassPodStatusWithSameDataShouldNotCrea
 		return
 	}
 
-	// Creating secretclassprovider
+	// Creating secretproviderclass
 	secretproviderclasspodstatusName := secretProviderClassPodStatusPrefix + "-update-" + testutil.RandSeq(5)
 	_, err := testutil.CreateSecretProviderClass(clients.CSIClient, namespace, secretproviderclasspodstatusName, data)
 	if err != nil {
-		t.Errorf("Error while creating the secretclassprovider %v", err)
+		t.Errorf("Error while creating the secretproviderclass %v", err)
 	}
 
 	// Creating secretproviderclasspodstatus
@@ -829,7 +829,7 @@ func TestControllerUpdatingSecretProviderClassPodStatusWithSameDataShouldNotCrea
 	deploymentFuncs := handler.GetDeploymentRollingUpgradeFuncs()
 	updated := testutil.VerifyResourceAnnotationUpdate(clients, config, deploymentFuncs)
 	if updated {
-		t.Errorf("Deployment should not be updated by changing in secret")
+		t.Errorf("Deployment should not be updated by changing in secretproviderclasspodstatus")
 	}
 
 	// Deleting Deployment
@@ -1870,11 +1870,11 @@ func TestControllerUpdatingSecretProviderClassPodStatusShouldCreateEnvInDeployme
 		return
 	}
 
-	// Creating secretclassprovider
+	// Creating secretproviderclass
 	secretproviderclasspodstatusName := secretProviderClassPodStatusPrefix + "-update-" + testutil.RandSeq(5)
 	_, err := testutil.CreateSecretProviderClass(clients.CSIClient, namespace, secretproviderclasspodstatusName, data)
 	if err != nil {
-		t.Errorf("Error while creating the secretclassprovider %v", err)
+		t.Errorf("Error while creating the secretproviderclass %v", err)
 	}
 
 	// Creating secretproviderclasspodstatus
@@ -1938,11 +1938,11 @@ func TestControllerUpdatingSecretProviderClassPodStatusShouldUpdateEnvInDeployme
 		return
 	}
 
-	// Creating secretclassprovider
+	// Creating secretproviderclass
 	secretproviderclasspodstatusName := secretProviderClassPodStatusPrefix + "-update-" + testutil.RandSeq(5)
 	_, err := testutil.CreateSecretProviderClass(clients.CSIClient, namespace, secretproviderclasspodstatusName, data)
 	if err != nil {
-		t.Errorf("Error while creating the secretclassprovider %v", err)
+		t.Errorf("Error while creating the secretproviderclass %v", err)
 	}
 
 	// Creating secretproviderclasspodstatus
@@ -2012,11 +2012,11 @@ func TestControllerUpdatingSecretProviderClassPodStatusLabelsShouldNotCreateOrUp
 		return
 	}
 
-	// Creating secretclassprovider
+	// Creating secretproviderclass
 	secretproviderclasspodstatusName := secretProviderClassPodStatusPrefix + "-update-" + testutil.RandSeq(5)
 	_, err := testutil.CreateSecretProviderClass(clients.CSIClient, namespace, secretproviderclasspodstatusName, data)
 	if err != nil {
-		t.Errorf("Error while creating the secretclassprovider %v", err)
+		t.Errorf("Error while creating the secretproviderclass %v", err)
 	}
 
 	// Creating secretproviderclasspodstatus
@@ -2033,7 +2033,7 @@ func TestControllerUpdatingSecretProviderClassPodStatusLabelsShouldNotCreateOrUp
 
 	err = testutil.UpdateSecretProviderClassPodStatus(spcpsClient, namespace, secretproviderclasspodstatusName, "test", data)
 	if err != nil {
-		t.Errorf("Error while updating secret %v", err)
+		t.Errorf("Error while updating secretproviderclasspodstatus %v", err)
 	}
 
 	// Verifying Upgrade
@@ -2048,7 +2048,7 @@ func TestControllerUpdatingSecretProviderClassPodStatusLabelsShouldNotCreateOrUp
 	deploymentFuncs := handler.GetDeploymentRollingUpgradeFuncs()
 	updated := testutil.VerifyResourceEnvVarUpdate(clients, config, constants.SecretProviderClassEnvVarPostfix, deploymentFuncs)
 	if updated {
-		t.Errorf("Deployment should not be updated by changing label in secret")
+		t.Errorf("Deployment should not be updated by changing label in secretproviderclasspodstatus")
 	}
 
 	// Deleting Deployment

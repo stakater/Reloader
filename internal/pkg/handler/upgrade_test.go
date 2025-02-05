@@ -2809,7 +2809,7 @@ func TestRollingUpgradeForDaemonSetWithSecretProviderClassUsingArs(t *testing.T)
 	envVarPostfix := constants.SecretProviderClassEnvVarPostfix
 
 	shaData := testutil.ConvertResourceToSHA(testutil.SecretProviderClassPodStatusResourceType, arsNamespace, arsSecretProviderClassName, "testing1")
-	config := getConfigWithAnnotations(envVarPostfix, arsSecretProviderClassName, shaData, options.SecretUpdateOnChangeAnnotation, options.SecretReloaderAutoAnnotation)
+	config := getConfigWithAnnotations(envVarPostfix, arsSecretProviderClassName, shaData, options.SecretProviderClassUpdateOnChangeAnnotation, options.SecretProviderClassReloaderAutoAnnotation)
 	daemonSetFuncs := GetDaemonSetRollingUpgradeFuncs()
 	collectors := getCollectors()
 
@@ -2969,7 +2969,7 @@ func TestRollingUpgradeForStatefulSetWithSecretProviderClassUsingArs(t *testing.
 	envVarPostfix := constants.SecretProviderClassEnvVarPostfix
 
 	shaData := testutil.ConvertResourceToSHA(testutil.SecretProviderClassPodStatusResourceType, arsNamespace, arsSecretProviderClassName, "testing1")
-	config := getConfigWithAnnotations(envVarPostfix, arsSecretProviderClassName, shaData, options.SecretUpdateOnChangeAnnotation, options.SecretReloaderAutoAnnotation)
+	config := getConfigWithAnnotations(envVarPostfix, arsSecretProviderClassName, shaData, options.SecretProviderClassUpdateOnChangeAnnotation, options.SecretProviderClassReloaderAutoAnnotation)
 	statefulSetFuncs := GetStatefulSetRollingUpgradeFuncs()
 	collectors := getCollectors()
 
@@ -3776,7 +3776,7 @@ func TestRollingUpgradeForDeploymentWithSecretProviderClassExcludeAnnotationUsin
 	err := PerformAction(clients, config, deploymentFuncs, collectors, nil, invokeReloadStrategy)
 	time.Sleep(5 * time.Second)
 	if err != nil {
-		t.Errorf("Rolling upgrade failed for Deployment with exclude Secret")
+		t.Errorf("Rolling upgrade failed for Deployment with exclude SecretProviderClass")
 	}
 
 	logrus.Infof("Verifying deployment did not update")

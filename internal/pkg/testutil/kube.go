@@ -845,7 +845,7 @@ func CreateSecretProviderClass(client csiclient.Interface, namespace string, sec
 	return secretProviderClassClient, err
 }
 
-// CreateSecretProviderClass creates a SecretProviderClassPodStatus in given namespace and returns the SecretProviderClassInterface
+// CreateSecretProviderClassPodStatus creates a SecretProviderClassPodStatus in given namespace and returns the SecretProviderClassPodStatusInterface
 func CreateSecretProviderClassPodStatus(client csiclient.Interface, namespace string, secretProviderClassPodStatusName string, data string) (csiclient_v1.SecretProviderClassPodStatusInterface, error) {
 	logrus.Infof("Creating SecretProviderClassPodStatus")
 	secretProviderClassPodStatusClient := client.SecretsstoreV1().SecretProviderClassPodStatuses(namespace)

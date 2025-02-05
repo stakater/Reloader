@@ -62,7 +62,7 @@ var (
 	EnableHA = false
 	// Url to send a request to instead of triggering a reload
 	WebhookUrl = ""
-	// EnableCsiIntegration Adds support to watch SecretProviderClassPodStatus and restart deployment based on it
+	// EnableCSIIntegration Adds support to watch SecretProviderClassPodStatus and restart deployment based on it
 	EnableCSIIntegration = false
 )
 
