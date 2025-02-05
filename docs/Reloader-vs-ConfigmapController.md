@@ -1,7 +1,6 @@
-
 # Reloader vs ConfigmapController
 
-Reloader is inspired from [Configmapcontroller](https://github.com/fabric8io/configmapcontroller) but there are many ways in which it differs from configmapController. Below is the small comparison between these two controllers.
+Reloader is inspired from [`Configmapcontroller`](https://github.com/fabric8io/configmapcontroller) but there are many ways in which it differs from `configmapController`. Below is the small comparison between these two controllers.
 
 | Reloader                                                                                                                                                                                                                                                                                                                 | Configmap                                                                                                                                                                                                                                                          |
 |--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|

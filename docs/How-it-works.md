@@ -54,7 +54,7 @@ When Reloader detects changes in configmap. It gets two objects of configmap. Fi
 
 After that, Reloader gets the list of all `deployments`, `daemonsets` and `statefulset` and looks for above mentioned annotation for configmap. If the annotation value contains the configmap name, it then looks for an environment variable which can contain the configmap or secret data change hash.
 
-### Environment Variable for ConfigMap
+### Environment Variable for Configmap
 
 If configmap name is foo then
 
