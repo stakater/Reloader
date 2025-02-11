@@ -2,6 +2,7 @@ package handler
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -10,6 +11,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/parnurzeal/gorequest"
 	"github.com/prometheus/client_golang/prometheus"
@@ -21,8 +23,10 @@ import (
 	"github.com/stakater/Reloader/internal/pkg/options"
 	"github.com/stakater/Reloader/internal/pkg/util"
 	"github.com/stakater/Reloader/pkg/kube"
+	app "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/tools/record"
 )
@@ -211,6 +215,7 @@ func PerformAction(clients kube.Clients, config util.Config, upgradeFuncs callba
 	items := upgradeFuncs.ItemsFunc(clients, config.Namespace)
 
 	for _, i := range items {
+
 		// find correct annotation and update the resource
 		annotations := upgradeFuncs.AnnotationsFunc(i)
 		annotationValue, found := annotations[config.Annotation]
@@ -274,6 +279,51 @@ func PerformAction(clients kube.Clients, config util.Config, upgradeFuncs callba
 		}
 
 		if result == constants.Updated {
+
+			if _, ok := i.(*app.Deployment); ok {
+				logrus.Infof("Resource '%s' is of type 'Deployment'", config.ResourceName)
+				annotations := upgradeFuncs.AnnotationsFunc(i)
+				pauseValue := annotations["pause"]
+				if pauseValue != "" {
+					logrus.Infof("Pause value is %s", pauseValue)
+					pauseDuration, err := time.ParseDuration(pauseValue)
+					if err != nil {
+						logrus.Errorf("Failed to parse pause value '%s' for resource '%s': %v", pauseValue, config.ResourceName, err)
+					} else {
+						logrus.Infof("Parsed pause value for resource '%s' is %d seconds", config.ResourceName, int(pauseDuration.Seconds()))
+						deployment, ok := i.(*app.Deployment)
+						if !ok {
+							logrus.Errorf("Failed to cast resource '%s' to Deployment", config.ResourceName)
+							return errors.New("failed to cast resource to Deployment")
+						}
+
+						if !deployment.Spec.Paused {
+							deployment.Spec.Paused = true
+							logrus.Infof("Pausing Deployment '%s' in namespace '%s'", config.ResourceName, config.Namespace)
+							deployment.Annotations["paused-by-reloader-at"] = time.Now().Format(time.RFC3339)
+
+							time.AfterFunc(pauseDuration, func() {
+								deployment, err := clients.KubernetesClient.AppsV1().Deployments(config.Namespace).Get(context.TODO(), config.ResourceName, metav1.GetOptions{})
+								if err != nil {
+									logrus.Errorf("Failed to get Deployment '%s' in namespace '%s': %v", config.ResourceName, config.Namespace, err)
+									return
+								}
+
+								deployment.Spec.Paused = false
+								deployment.Annotations["paused-by-reloader-at"] = ""
+
+								_, err = clients.KubernetesClient.AppsV1().Deployments(config.Namespace).Update(context.TODO(), deployment, metav1.UpdateOptions{})
+								if err != nil {
+									logrus.Errorf("Failed to update Deployment '%s' in namespace '%s': %v", config.ResourceName, config.Namespace, err)
+								}
+							})
+						} else {
+							logrus.Infof("Deployment '%s' in namespace '%s' is already paused", config.ResourceName, config.Namespace)
+						}
+					}
+				}
+			}
+
 			accessor, err := meta.Accessor(i)
 			if err != nil {
 				return err
