@@ -281,51 +281,51 @@ func PerformAction(clients kube.Clients, config util.Config, upgradeFuncs callba
 		if result == constants.Updated {
 
 			if _, ok := i.(*app.Deployment); ok {
+
 				accessor, err := meta.Accessor(i)
 				if err != nil {
-					logrus.Errorf("Failed to get accessor for resource '%s': %v", i, err)
 					return err
 				}
-				deploymentName := accessor.GetName()
-				deploymentNamespace := accessor.GetNamespace()
-				logrus.Infof("Resource name: %s, namespace: %s is of type Deployment", deploymentName, deploymentNamespace)
-				annotations := upgradeFuncs.AnnotationsFunc(i)
-				pauseValue := annotations["pause"]
-				if pauseValue != "" {
-					logrus.Infof("Pause value is %s", pauseValue)
-					pauseDuration, err := time.ParseDuration(pauseValue)
-					if err != nil {
-						logrus.Errorf("Failed to parse pause value '%s' for resource '%s': %v", pauseValue, deploymentName, err)
+
+				itemName := accessor.GetName()
+				itemNamespace := accessor.GetNamespace()
+
+				pauseIntervalValue := annotations["deployment.reloader.stakater.com/pause-interval"]
+				if pauseIntervalValue != "" {
+
+					deployment, ok := i.(*app.Deployment)
+					if !ok {
+						logrus.Warnf("Annotation 'deployment.reloader.stakater.com/pause-interval' only applicable for Deployments")
 					} else {
-						logrus.Infof("Parsed pause value for resource '%s' is %d seconds", deploymentName, int(pauseDuration.Seconds()))
-						deployment, ok := i.(*app.Deployment)
-						if !ok {
-							logrus.Errorf("Failed to cast resource '%s' to Deployment", deploymentName)
-							return errors.New("failed to cast resource to Deployment")
-						}
 
-						if !deployment.Spec.Paused {
-							deployment.Spec.Paused = true
-							logrus.Infof("Pausing Deployment '%s' in namespace '%s'", deploymentName, deploymentNamespace)
-							deployment.Annotations["paused-by-reloader-at"] = time.Now().Format(time.RFC3339)
-
-							time.AfterFunc(pauseDuration, func() {
-								deployment, err := clients.KubernetesClient.AppsV1().Deployments(deploymentNamespace).Get(context.TODO(), deploymentName, metav1.GetOptions{})
-								if err != nil {
-									logrus.Errorf("Failed to get Deployment '%s' in namespace '%s': %v", deploymentName, deploymentNamespace, err)
-									return
-								}
-
-								deployment.Spec.Paused = false
-								deployment.Annotations["paused-by-reloader-at"] = ""
-
-								_, err = clients.KubernetesClient.AppsV1().Deployments(deploymentNamespace).Update(context.TODO(), deployment, metav1.UpdateOptions{})
-								if err != nil {
-									logrus.Errorf("Failed to update Deployment '%s' in namespace '%s': %v", deploymentName, deploymentNamespace, err)
-								}
-							})
+						pauseDuration, err := time.ParseDuration(pauseIntervalValue)
+						if err != nil {
+							logrus.Errorf("Failed to parse pause interval value '%s' for deployment '%s': %v", pauseIntervalValue, itemName, err)
 						} else {
-							logrus.Infof("Deployment '%s' in namespace '%s' is already paused", deploymentName, deploymentNamespace)
+							if !deployment.Spec.Paused {
+								deployment.Spec.Paused = true
+								logrus.Infof("Pausing Deployment '%s' in namespace '%s' for %s seconds", itemName, itemNamespace, pauseDuration)
+								deployment.Annotations["deployment.reloader.stakater.com/paused-at"] = time.Now().Format(time.RFC3339)
+
+								time.AfterFunc(pauseDuration, func() {
+									deployment, err := clients.KubernetesClient.AppsV1().Deployments(itemNamespace).Get(context.TODO(), itemName, metav1.GetOptions{})
+									if err != nil {
+										logrus.Errorf("Failed to get Deployment '%s' in namespace '%s': %v", itemName, itemNamespace, err)
+										return
+									}
+
+									// TODO: Add check whether deployment has been paused by reloader and only unpause if so
+									deployment.Spec.Paused = false
+									delete(deployment.Annotations, "deployment.reloader.stakater.com/paused-at")
+
+									_, err = clients.KubernetesClient.AppsV1().Deployments(itemNamespace).Update(context.TODO(), deployment, metav1.UpdateOptions{})
+									if err != nil {
+										logrus.Errorf("Failed to update Deployment '%s' in namespace '%s': %v", itemName, itemNamespace, err)
+									}
+								})
+							} else {
+								logrus.Infof("Deployment '%s' in namespace '%s' is already paused", itemName, itemNamespace)
+							}
 						}
 					}
 				}
