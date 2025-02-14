@@ -200,7 +200,6 @@ jobs:
           push: true
           build-args: BUILD_PARAMETERS=${{ env.BUILD_PARAMETERS }}
           cache-to: type=inline
-          platforms: linux/amd64,linux/arm,linux/arm64
           tags: |
             ${{ env.GHCR_IMAGE_REPOSITORY }}/docs:merge-${{ github.event.number }}
           labels: |
