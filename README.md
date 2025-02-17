@@ -358,7 +358,7 @@ helm uninstall {{RELEASE_NAME}} -n {{NAMESPACE}}
 | `reloader.deployment.tolerations`               | A list of `tolerations` to be applied to the deployment                                                                                                     | array  | `[]`              |
 | `reloader.deployment.topologySpreadConstraints` | Topology spread constraints for pod assignment                                                                                                              | array  | `[]`              |
 | `reloader.deployment.annotations`               | Set deployment annotations                                                                                                                                  | map    | `{}`              |
-| `reloader.deployment.labels`                    | Set deployment labels, default to stakater settings                                                                                                         | array  | `see values.yaml` |
+| `reloader.deployment.labels`                    | Set deployment labels, default to Stakater settings                                                                                                         | array  | `see values.yaml` |
 | `reloader.deployment.image`                     | Set container image name, tag and policy                                                                                                                    | array  | `see values.yaml` |
 | `reloader.deployment.env`                       | Support for extra environment variables                                                                                                                     | array  | `[]`              |
 | `reloader.deployment.livenessProbe`             | Set liveness probe timeout values                                                                                                                           | map    | `{}`              |
@@ -476,10 +476,10 @@ Apache2 © [Stakater][website]
 
 ## About
 
-`Reloader` is maintained by [Stakater][website]. Like it? Please let us know at <hello@stakater.com>
+`Reloader` is maintained by [Stakater][website]. Like it? Please let us know at [hello@stakater.com](hello@stakater.com)
 
 See [our other projects](https://github.com/stakater)
-or contact us in case of professional services and queries on <hello@stakater.com>
+or contact us in case of professional services and queries on [hello@stakater.com](hello@stakater.com)
 
 [website]: https://stakater.com
 
