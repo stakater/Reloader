@@ -291,7 +291,11 @@ func PerformAction(clients kube.Clients, config util.Config, upgradeFuncs callba
 				if !ok {
 					logrus.Warnf("Annotation '%s' only applicable for deployments", options.PauseDeploymentAnnotation)
 				} else {
-					PauseDeployment(deployment, clients, itemName, itemNamespace, pauseInterval)
+					err = PauseDeployment(deployment, clients, itemName, itemNamespace, pauseInterval)
+					if err != nil {
+						logrus.Errorf("Failed to pause deployment '%s' in namespace '%s': %v", itemName, itemNamespace, err)
+						return err
+					}
 				}
 			}
 

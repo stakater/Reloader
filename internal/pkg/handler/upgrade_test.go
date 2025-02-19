@@ -3633,7 +3633,7 @@ func testPausingDeployment(t *testing.T, reloadStrategy string, testName string,
 	items := deploymentFuncs.ItemsFunc(clients, config.Namespace)
 	deploymentPaused, err := isDeploymentPaused(items, testName)
 	if err != nil {
-		t.Errorf(err.Error())
+		t.Errorf("%s", err.Error())
 	}
 	if !deploymentPaused {
 		t.Errorf("Deployment has not been paused")
