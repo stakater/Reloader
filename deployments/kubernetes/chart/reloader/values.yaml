@@ -14,6 +14,13 @@ kubernetes:
 nameOverride: ""
 fullnameOverride: ""
 
+image:
+  name: stakater/reloader
+  repository: ghcr.io/stakater/reloader
+  tag: v1.3.0
+  # digest: sha256:1234567
+  pullPolicy: IfNotPresent
+
 reloader:
   autoReloadAll: false
   isArgoRollouts: false
@@ -65,7 +72,8 @@ reloader:
       seccompProfile:
         type: RuntimeDefault
 
-    containerSecurityContext: {}
+    containerSecurityContext:
+      {}
       # capabilities:
       #   drop:
       #     - ALL
@@ -97,12 +105,6 @@ reloader:
       provider: stakater
       group: com.stakater.platform
       version: v1.3.0
-    image:
-      name: ghcr.io/stakater/reloader
-      base: stakater/reloader
-      tag: v1.3.0
-      # digest: sha256:1234567
-      pullPolicy: IfNotPresent
     # Support for extra environment variables.
     env:
       # Open supports Key value pair as environment variables.
@@ -158,7 +160,8 @@ reloader:
     gomaxprocsOverride: ""
     gomemlimitOverride: ""
 
-  service: {}
+  service:
+    {}
 
     # labels: {}
     # annotations: {}
