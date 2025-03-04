@@ -18,8 +18,9 @@ jobs:
   verify-and-push-helm-chart:
 
     permissions:
-      contents: read
-      packages: write # to push artifacts to `ghcr.io`
+      contents: write # needed to pull git repo and create "chart-release"
+      id-token: write # needed for signing the images with GitHub OIDC Token
+      packages: write # for pushing and signing container images
 
     name: Verify and Push Helm Chart
     if: ${{ (github.event.pull_request.merged == true) && (contains(github.event.pull_request.labels.*.name, 'release/helm-chart')) }}
