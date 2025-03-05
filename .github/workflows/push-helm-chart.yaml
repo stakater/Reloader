@@ -1,5 +1,7 @@
 name: Push Helm Chart
 
+# TODO: fix: workflows have a problem where only code owners' PRs get the actions running 
+
 on:
   pull_request:
     types:
