@@ -20,11 +20,20 @@ We truncate at 63 chars because some Kubernetes name fields are limited to this 
 {{- end -}}
 {{- end -}}
 
+{{/*
+Create chart name and version as used by the chart label.
+*/}}
+{{- define "reloader-chart" -}}
+{{- printf "%s-%s" .Chart.Name .Chart.Version | replace "+" "_" | trunc 63 | trimSuffix "-" }}
+{{- end }}
+
 {{- define "reloader-labels.chart" -}}
-app: {{ template "reloader-fullname" . }}
-chart: "{{ .Chart.Name }}-{{ .Chart.Version | replace "+" "_" }}"
-release: {{ .Release.Name | quote }}
-heritage: {{ .Release.Service | quote }}
+app.kubernetes.io/name: {{ include "reloader-name" . }}
+helm.sh/chart: {{ include "reloader-chart" . }}
+{{- if .Chart.AppVersion }}
+app.kubernetes.io/version: {{ .Chart.AppVersion | quote }}
+{{- end}}
+app.kubernetes.io/instance: {{ .Release.Name | quote }}
 app.kubernetes.io/managed-by: {{ .Release.Service | quote }}
 {{- end -}}
 
