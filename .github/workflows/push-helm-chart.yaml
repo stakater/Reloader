@@ -18,7 +18,7 @@ jobs:
   verify-and-push-helm-chart:
 
     permissions:
-      contents: write # needed to pull git repo and create "chart-release"
+      contents: read
       id-token: write # needed for signing the images with GitHub OIDC Token
       packages: write # for pushing and signing container images
 
