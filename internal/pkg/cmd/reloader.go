@@ -36,9 +36,11 @@ func NewReloaderCommand() *cobra.Command {
 	cmd.PersistentFlags().BoolVar(&options.AutoReloadAll, "auto-reload-all", false, "Auto reload all resources")
 	cmd.PersistentFlags().StringVar(&options.ConfigmapUpdateOnChangeAnnotation, "configmap-annotation", "configmap.reloader.stakater.com/reload", "annotation to detect changes in configmaps, specified by name")
 	cmd.PersistentFlags().StringVar(&options.SecretUpdateOnChangeAnnotation, "secret-annotation", "secret.reloader.stakater.com/reload", "annotation to detect changes in secrets, specified by name")
+	cmd.PersistentFlags().StringVar(&options.SecretProviderClassUpdateOnChangeAnnotation, "secretproviderclass-annotation", "secretproviderclass.reloader.stakater.com/reload", "annotation to detect changes in secretproviderclasses, specified by name")
 	cmd.PersistentFlags().StringVar(&options.ReloaderAutoAnnotation, "auto-annotation", "reloader.stakater.com/auto", "annotation to detect changes in secrets/configmaps")
 	cmd.PersistentFlags().StringVar(&options.ConfigmapReloaderAutoAnnotation, "configmap-auto-annotation", "configmap.reloader.stakater.com/auto", "annotation to detect changes in configmaps")
 	cmd.PersistentFlags().StringVar(&options.SecretReloaderAutoAnnotation, "secret-auto-annotation", "secret.reloader.stakater.com/auto", "annotation to detect changes in secrets")
+	cmd.PersistentFlags().StringVar(&options.SecretProviderClassReloaderAutoAnnotation, "secretproviderclass-auto-annotation", "secretproviderclass.reloader.stakater.com/auto", "annotation to detect changes in secretproviderclasses")
 	cmd.PersistentFlags().StringVar(&options.AutoSearchAnnotation, "auto-search-annotation", "reloader.stakater.com/search", "annotation to detect changes in configmaps or secrets tagged with special match annotation")
 	cmd.PersistentFlags().StringVar(&options.SearchMatchAnnotation, "search-match-annotation", "reloader.stakater.com/match", "annotation to mark secrets or configmaps to match the search")
 	cmd.PersistentFlags().StringVar(&options.LogFormat, "log-format", "", "Log format to use (empty string for text, or JSON)")
@@ -54,6 +56,7 @@ func NewReloaderCommand() *cobra.Command {
 	cmd.PersistentFlags().StringVar(&options.ReloadOnDelete, "reload-on-delete", "false", "Add support to watch delete events")
 	cmd.PersistentFlags().BoolVar(&options.EnableHA, "enable-ha", false, "Adds support for running multiple replicas via leadership election")
 	cmd.PersistentFlags().BoolVar(&options.SyncAfterRestart, "sync-after-restart", false, "Sync add events after reloader restarts")
+	cmd.PersistentFlags().BoolVar(&options.EnableCSIIntegration, "enable-csi-integration", false, "Watch SecretProviderClassPodStatus for changes")
 
 	return cmd
 }
@@ -176,6 +179,16 @@ func startReloader(cmd *cobra.Command, args []string) {
 
 	var controllers []*controller.Controller
 	for k := range kube.ResourceMap {
+		if k == "secretproviderclasspodstatuses" {
+			if !options.EnableCSIIntegration {
+				continue
+			}
+			if !kube.IsCSIInstalled {
+				logrus.Infof("Can't run secretproviderclasspodstatuses controller as CSI CRDs are not installed")
+				continue
+			}
+		}
+
 		if ignoredResourcesList.Contains(k) || (len(namespaceLabelSelector) == 0 && k == "namespaces") {
 			continue
 		}

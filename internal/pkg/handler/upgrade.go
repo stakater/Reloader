@@ -2,6 +2,7 @@ package handler
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -23,6 +24,7 @@ import (
 	"github.com/stakater/Reloader/pkg/kube"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/tools/record"
 )
@@ -210,6 +212,10 @@ func rollingUpgrade(clients kube.Clients, config util.Config, upgradeFuncs callb
 func PerformAction(clients kube.Clients, config util.Config, upgradeFuncs callbacks.RollingUpgradeFuncs, collectors metrics.Collectors, recorder record.EventRecorder, strategy invokeStrategy) error {
 	items := upgradeFuncs.ItemsFunc(clients, config.Namespace)
 
+	if config.Type == constants.SecretProviderClassEnvVarPostfix {
+		populateAnnotationsFromSecretProviderClass(clients, &config)
+	}
+
 	for _, i := range items {
 		// find correct annotation and update the resource
 		annotations := upgradeFuncs.AnnotationsFunc(i)
@@ -219,6 +225,7 @@ func PerformAction(clients kube.Clients, config util.Config, upgradeFuncs callba
 		typedAutoAnnotationEnabledValue, foundTypedAuto := annotations[config.TypedAutoAnnotation]
 		excludeConfigmapAnnotationValue, foundExcludeConfigmap := annotations[options.ConfigmapExcludeReloaderAnnotation]
 		excludeSecretAnnotationValue, foundExcludeSecret := annotations[options.SecretExcludeReloaderAnnotation]
+		excludeSecretProviderClassProviderAnnotationValue, foundExcludeSecretProviderClass := annotations[options.SecretProviderClassExcludeReloaderAnnotation]
 
 		if !found && !foundAuto && !foundTypedAuto && !foundSearchAnn {
 			annotations = upgradeFuncs.PodAnnotationsFunc(i)
@@ -238,6 +245,10 @@ func PerformAction(clients kube.Clients, config util.Config, upgradeFuncs callba
 		case constants.SecretEnvVarPostfix:
 			if foundExcludeSecret {
 				isResourceExcluded = checkIfResourceIsExcluded(config.ResourceName, excludeSecretAnnotationValue)
+			}
+		case constants.SecretProviderClassEnvVarPostfix:
+			if foundExcludeSecretProviderClass {
+				isResourceExcluded = checkIfResourceIsExcluded(config.ResourceName, excludeSecretProviderClassProviderAnnotationValue)
 			}
 		}
 
@@ -355,6 +366,10 @@ func getVolumeMountName(volumes []v1.Volume, mountType string, volumeName string
 					}
 				}
 			}
+		} else if mountType == constants.SecretProviderClassEnvVarPostfix {
+			if volumes[i].CSI != nil && volumes[i].CSI.VolumeAttributes["secretProviderClass"] == volumeName {
+				return volumes[i].Name
+			}
 		}
 	}
 
@@ -470,6 +485,10 @@ func updatePodAnnotations(upgradeFuncs callbacks.RollingUpgradeFuncs, item runti
 		return constants.NotUpdated
 	}
 
+	if config.Type == constants.SecretProviderClassEnvVarPostfix && secretProviderClassAnnotationReloaded(pa, config) {
+		return constants.NotUpdated
+	}
+
 	for k, v := range annotations {
 		pa[k] = v
 	}
@@ -482,6 +501,11 @@ func getReloaderAnnotationKey() string {
 		constants.ReloaderAnnotationPrefix,
 		constants.LastReloadedFromAnnotation,
 	)
+}
+
+func secretProviderClassAnnotationReloaded(oldAnnotations map[string]string, newConfig util.Config) bool {
+	annotaion := oldAnnotations[getReloaderAnnotationKey()]
+	return strings.Contains(annotaion, newConfig.ResourceName) && strings.Contains(annotaion, newConfig.SHAValue)
 }
 
 func createReloadedAnnotations(target *util.ReloadSource) (map[string]string, error) {
@@ -518,6 +542,10 @@ func updateContainerEnvVars(upgradeFuncs callbacks.RollingUpgradeFuncs, item run
 		return constants.NoContainerFound
 	}
 
+	if config.Type == constants.SecretProviderClassEnvVarPostfix && secretProviderClassEnvReloaded(upgradeFuncs.ContainersFunc(item), envVar, config.SHAValue) {
+		return constants.NotUpdated
+	}
+
 	//update if env var exists
 	result = updateEnvVar(upgradeFuncs.ContainersFunc(item), envVar, config.SHAValue)
 
@@ -547,4 +575,27 @@ func updateEnvVar(containers []v1.Container, envVar string, shaData string) cons
 		}
 	}
 	return constants.NoEnvVarFound
+}
+
+func secretProviderClassEnvReloaded(containers []v1.Container, envVar string, shaData string) bool {
+	for i := range containers {
+		envs := containers[i].Env
+		for j := range envs {
+			if envs[j].Name == envVar {
+				return envs[j].Value == shaData
+			}
+		}
+	}
+	return false
+}
+
+func populateAnnotationsFromSecretProviderClass(clients kube.Clients, config *util.Config) {
+	obj, err := clients.CSIClient.SecretsstoreV1().SecretProviderClasses(config.Namespace).Get(context.TODO(), config.ResourceName, metav1.GetOptions{})
+	annotations := make(map[string]string)
+	if err != nil {
+		logrus.Infof("Couldn't find secretproviderclass '%s' in '%s' namespace for typed annotation", config.ResourceName, config.Namespace)
+	} else if obj.Annotations != nil {
+		annotations = obj.Annotations
+	}
+	config.ResourceAnnotations = annotations
 }
