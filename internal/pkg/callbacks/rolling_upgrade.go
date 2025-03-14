@@ -444,10 +444,15 @@ func PatchDeployment(clients kube.Clients, namespace string, resource runtime.Ob
 func CreateJobFromCronjob(clients kube.Clients, namespace string, resource runtime.Object) error {
 	cronJob := resource.(*batchv1.CronJob)
 	job := &batchv1.Job{
-		ObjectMeta: cronJob.Spec.JobTemplate.ObjectMeta,
-		Spec:       cronJob.Spec.JobTemplate.Spec,
+		ObjectMeta: meta_v1.ObjectMeta{
+			GenerateName:    cronJob.Name + "-",
+			Namespace:       cronJob.Namespace,
+			Annotations:     cronJob.Spec.JobTemplate.Annotations,
+			Labels:          cronJob.Spec.JobTemplate.Labels,
+			OwnerReferences: []meta_v1.OwnerReference{*meta_v1.NewControllerRef(cronJob, batchv1.SchemeGroupVersion.WithKind("CronJob"))},
+		},
+		Spec: cronJob.Spec.JobTemplate.Spec,
 	}
-	job.GenerateName = cronJob.Name + "-"
 	_, err := clients.KubernetesClient.BatchV1().Jobs(namespace).Create(context.TODO(), job, meta_v1.CreateOptions{FieldManager: "Reloader"})
 	return err
 }
