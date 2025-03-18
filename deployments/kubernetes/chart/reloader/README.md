@@ -101,10 +101,10 @@ helm uninstall {{RELEASE_NAME}} -n {{NAMESPACE}}
 
 ## Release Process
 
-_Helm chart versioning_: The Reloader Helm chart is maintained in [this repository](./deployments/kubernetes/chart/reloader). The Helm chart has its own semantic versioning. Helm charts and code releases are separate artifacts and separately versioned. Manifest making strategy relies on Kustomize. The Reloader Helm chart manages the two artifacts with these two fields:
+_Helm chart versioning_: The Reloader Helm chart is maintained in this repository. The Helm chart has its own semantic versioning. Helm charts and code releases are separate artifacts and separately versioned. Manifest making strategy relies on Kustomize. The Reloader Helm chart manages the two artifacts with these two fields:
 
-- [`appVersion`](./deployments/kubernetes/chart/reloader/Chart.yaml) points to released Reloader application image version listed on the [releases page](https://github.com/stakater/Reloader/releases)
-- [`version`](./deployments/kubernetes/chart/reloader/Chart.yaml) sets the Reloader Helm chart version
+- [`appVersion`](Chart.yaml) points to released Reloader application image version listed on the [releases page](https://github.com/stakater/Reloader/releases)
+- [`version`](Chart.yaml) sets the Reloader Helm chart version
 
 Helm chart will be released to the chart registry whenever files in `deployments/kubernetes/chart/reloader/**` change on the main branch.
 
