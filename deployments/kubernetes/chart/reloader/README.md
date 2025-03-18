@@ -1,6 +1,6 @@
 # Reloader Helm Chart
 
-If you have configured helm on your cluster, you can add Reloader to helm from our public chart repository and deploy it via helm using below-mentioned commands. Follow [this](docs/Helm2-to-Helm3.md) guide, in case you have trouble migrating Reloader from Helm2 to Helm3.
+If you have configured helm on your cluster, you can add Reloader to helm from our public chart repository and deploy it via helm using below-mentioned commands. Follow the [Helm2 to Helm3 guide](../../../../docs/Helm2-to-Helm3.md), in case you have trouble migrating Reloader from Helm2 to Helm3.
 
 ## Installation
 
