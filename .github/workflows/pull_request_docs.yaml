@@ -12,6 +12,7 @@ on:
       - 'docs/**'
       - 'theme_common'
       - 'theme_override'
+      - 'deployments/kubernetes/chart/reloader/README.md'
 
 jobs:
   qa:
