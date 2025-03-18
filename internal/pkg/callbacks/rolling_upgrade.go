@@ -15,6 +15,8 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	patchtypes "k8s.io/apimachinery/pkg/types"
 
+	"maps"
+
 	argorolloutv1alpha1 "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	openshiftv1 "github.com/openshift/api/apps/v1"
 )
@@ -338,11 +340,16 @@ func UpdateDeployment(clients kube.Clients, namespace string, resource runtime.O
 // CreateJobFromCronjob performs rolling upgrade on cronjob
 func CreateJobFromCronjob(clients kube.Clients, namespace string, resource runtime.Object) error {
 	cronJob := resource.(*batchv1.CronJob)
+
+	annotations := make(map[string]string)
+	annotations["cronjob.kubernetes.io/instantiate"] = "manual"
+	maps.Copy(annotations, cronJob.Spec.JobTemplate.Annotations)
+
 	job := &batchv1.Job{
 		ObjectMeta: meta_v1.ObjectMeta{
 			GenerateName:    cronJob.Name + "-",
 			Namespace:       cronJob.Namespace,
-			Annotations:     cronJob.Spec.JobTemplate.Annotations,
+			Annotations:     annotations,
 			Labels:          cronJob.Spec.JobTemplate.Labels,
 			OwnerReferences: []meta_v1.OwnerReference{*meta_v1.NewControllerRef(cronJob, batchv1.SchemeGroupVersion.WithKind("CronJob"))},
 		},
