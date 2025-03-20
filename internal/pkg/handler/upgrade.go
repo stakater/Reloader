@@ -21,6 +21,7 @@ import (
 	"github.com/stakater/Reloader/internal/pkg/options"
 	"github.com/stakater/Reloader/internal/pkg/util"
 	"github.com/stakater/Reloader/pkg/kube"
+	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -36,6 +37,7 @@ func GetDeploymentRollingUpgradeFuncs() callbacks.RollingUpgradeFuncs {
 		ContainersFunc:     callbacks.GetDeploymentContainers,
 		InitContainersFunc: callbacks.GetDeploymentInitContainers,
 		UpdateFunc:         callbacks.UpdateDeployment,
+		PatchFunc:          callbacks.PatchDeployment,
 		VolumesFunc:        callbacks.GetDeploymentVolumes,
 		ResourceType:       "Deployment",
 	}
@@ -245,11 +247,12 @@ func PerformAction(clients kube.Clients, config util.Config, upgradeFuncs callba
 			continue
 		}
 
+		patch := []byte{}
 		result := constants.NotUpdated
 		reloaderEnabled, _ := strconv.ParseBool(reloaderEnabledValue)
 		typedAutoAnnotationEnabled, _ := strconv.ParseBool(typedAutoAnnotationEnabledValue)
 		if reloaderEnabled || typedAutoAnnotationEnabled || reloaderEnabledValue == "" && typedAutoAnnotationEnabledValue == "" && options.AutoReloadAll {
-			result = strategy(upgradeFuncs, i, config, true)
+			result, patch = strategy(upgradeFuncs, i, config, true)
 		}
 
 		if result != constants.Updated && annotationValue != "" {
@@ -258,7 +261,7 @@ func PerformAction(clients kube.Clients, config util.Config, upgradeFuncs callba
 				value = strings.TrimSpace(value)
 				re := regexp.MustCompile("^" + value + "$")
 				if re.Match([]byte(config.ResourceName)) {
-					result = strategy(upgradeFuncs, i, config, false)
+					result, patch = strategy(upgradeFuncs, i, config, false)
 					if result == constants.Updated {
 						break
 					}
@@ -269,7 +272,7 @@ func PerformAction(clients kube.Clients, config util.Config, upgradeFuncs callba
 		if result != constants.Updated && searchAnnotationValue == "true" {
 			matchAnnotationValue := config.ResourceAnnotations[options.SearchMatchAnnotation]
 			if matchAnnotationValue == "true" {
-				result = strategy(upgradeFuncs, i, config, true)
+				result, patch = strategy(upgradeFuncs, i, config, true)
 			}
 		}
 
@@ -279,7 +282,12 @@ func PerformAction(clients kube.Clients, config util.Config, upgradeFuncs callba
 				return err
 			}
 			resourceName := accessor.GetName()
-			err = upgradeFuncs.UpdateFunc(clients, config.Namespace, i)
+			deployment, isDeployment := i.(*appsv1.Deployment)
+			if isDeployment && upgradeFuncs.PatchFunc != nil {
+				err = upgradeFuncs.PatchFunc(clients, config.Namespace, deployment, patch)
+			} else {
+				err = upgradeFuncs.UpdateFunc(clients, config.Namespace, i)
+			}
 			if err != nil {
 				message := fmt.Sprintf("Update for '%s' of type '%s' in namespace '%s' failed with error %v", resourceName, upgradeFuncs.ResourceType, config.Namespace, err)
 				logrus.Errorf("Update for '%s' of type '%s' in namespace '%s' failed with error %v", resourceName, upgradeFuncs.ResourceType, config.Namespace, err)
@@ -439,42 +447,42 @@ func getContainerUsingResource(upgradeFuncs callbacks.RollingUpgradeFuncs, item 
 	return container
 }
 
-type invokeStrategy func(upgradeFuncs callbacks.RollingUpgradeFuncs, item runtime.Object, config util.Config, autoReload bool) constants.Result
+type invokeStrategy func(upgradeFuncs callbacks.RollingUpgradeFuncs, item runtime.Object, config util.Config, autoReload bool) (constants.Result, []byte)
 
-func invokeReloadStrategy(upgradeFuncs callbacks.RollingUpgradeFuncs, item runtime.Object, config util.Config, autoReload bool) constants.Result {
+func invokeReloadStrategy(upgradeFuncs callbacks.RollingUpgradeFuncs, item runtime.Object, config util.Config, autoReload bool) (constants.Result, []byte) {
 	if options.ReloadStrategy == constants.AnnotationsReloadStrategy {
 		return updatePodAnnotations(upgradeFuncs, item, config, autoReload)
 	}
 
-	return updateContainerEnvVars(upgradeFuncs, item, config, autoReload)
+	return updateContainerEnvVars(upgradeFuncs, item, config, autoReload), nil
 }
 
-func updatePodAnnotations(upgradeFuncs callbacks.RollingUpgradeFuncs, item runtime.Object, config util.Config, autoReload bool) constants.Result {
+func updatePodAnnotations(upgradeFuncs callbacks.RollingUpgradeFuncs, item runtime.Object, config util.Config, autoReload bool) (constants.Result, []byte) {
 	container := getContainerUsingResource(upgradeFuncs, item, config, autoReload)
 	if container == nil {
-		return constants.NoContainerFound
+		return constants.NoContainerFound, nil
 	}
 
 	// Generate reloaded annotations. Attaching this to the item's annotation will trigger a rollout
 	// Note: the data on this struct is purely informational and is not used for future updates
 	reloadSource := util.NewReloadSourceFromConfig(config, []string{container.Name})
-	annotations, err := createReloadedAnnotations(&reloadSource)
+	annotations, err, patch := createReloadedAnnotations(&reloadSource)
 	if err != nil {
 		logrus.Errorf("Failed to create reloaded annotations for %s! error = %v", config.ResourceName, err)
-		return constants.NotUpdated
+		return constants.NotUpdated, nil
 	}
 
 	// Copy the all annotations to the item's annotations
 	pa := upgradeFuncs.PodAnnotationsFunc(item)
 	if pa == nil {
-		return constants.NotUpdated
+		return constants.NotUpdated, nil
 	}
 
 	for k, v := range annotations {
 		pa[k] = v
 	}
 
-	return constants.Updated
+	return constants.Updated, patch
 }
 
 func getReloaderAnnotationKey() string {
@@ -484,9 +492,9 @@ func getReloaderAnnotationKey() string {
 	)
 }
 
-func createReloadedAnnotations(target *util.ReloadSource) (map[string]string, error) {
+func createReloadedAnnotations(target *util.ReloadSource) (map[string]string, error, []byte) {
 	if target == nil {
-		return nil, errors.New("target is required")
+		return nil, errors.New("target is required"), nil
 	}
 
 	// Create a single "last-invokeReloadStrategy-from" annotation that stores metadata about the
@@ -498,11 +506,12 @@ func createReloadedAnnotations(target *util.ReloadSource) (map[string]string, er
 
 	lastReloadedResource, err := json.Marshal(target)
 	if err != nil {
-		return nil, err
+		return nil, err, nil
 	}
 
 	annotations[lastReloadedResourceName] = string(lastReloadedResource)
-	return annotations, nil
+	patch := fmt.Sprintf(`{"metadata": {"annotations": {"%s": "%s"}}}`, lastReloadedResourceName, annotations[lastReloadedResourceName])
+	return annotations, nil, []byte(patch)
 }
 
 func getEnvVarName(resourceName string, typeName string) string {

@@ -49,7 +49,7 @@ func NewReloaderCommand() *cobra.Command {
 	cmd.PersistentFlags().StringSlice("namespace-selector", []string{}, "list of key:value labels to filter on for namespaces")
 	cmd.PersistentFlags().StringSlice("resource-label-selector", []string{}, "list of key:value labels to filter on for configmaps and secrets")
 	cmd.PersistentFlags().StringVar(&options.IsArgoRollouts, "is-Argo-Rollouts", "false", "Add support for argo rollouts")
-	cmd.PersistentFlags().StringVar(&options.ReloadStrategy, constants.ReloadStrategyFlag, constants.EnvVarsReloadStrategy, "Specifies the desired reload strategy")
+	cmd.PersistentFlags().StringVar(&options.ReloadStrategy, constants.ReloadStrategyFlag, constants.AnnotationsReloadStrategy, "Specifies the desired reload strategy")
 	cmd.PersistentFlags().StringVar(&options.ReloadOnCreate, "reload-on-create", "false", "Add support to watch create events")
 	cmd.PersistentFlags().StringVar(&options.ReloadOnDelete, "reload-on-delete", "false", "Add support to watch delete events")
 	cmd.PersistentFlags().BoolVar(&options.EnableHA, "enable-ha", false, "Adds support for running multiple replicas via leadership election")

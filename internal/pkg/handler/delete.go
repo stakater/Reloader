@@ -50,15 +50,15 @@ func (r ResourceDeleteHandler) GetConfig() (util.Config, string) {
 	return config, oldSHAData
 }
 
-func invokeDeleteStrategy(upgradeFuncs callbacks.RollingUpgradeFuncs, item runtime.Object, config util.Config, autoReload bool) constants.Result {
+func invokeDeleteStrategy(upgradeFuncs callbacks.RollingUpgradeFuncs, item runtime.Object, config util.Config, autoReload bool) (constants.Result, []byte) {
 	if options.ReloadStrategy == constants.AnnotationsReloadStrategy {
 		return removePodAnnotations(upgradeFuncs, item, config, autoReload)
 	}
 
-	return removeContainerEnvVars(upgradeFuncs, item, config, autoReload)
+	return removeContainerEnvVars(upgradeFuncs, item, config, autoReload), nil
 }
 
-func removePodAnnotations(upgradeFuncs callbacks.RollingUpgradeFuncs, item runtime.Object, config util.Config, autoReload bool) constants.Result {
+func removePodAnnotations(upgradeFuncs callbacks.RollingUpgradeFuncs, item runtime.Object, config util.Config, autoReload bool) (constants.Result, []byte) {
 	config.SHAValue = testutil.GetSHAfromEmptyData()
 	return updatePodAnnotations(upgradeFuncs, item, config, autoReload)
 }

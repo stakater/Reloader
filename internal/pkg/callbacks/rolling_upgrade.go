@@ -13,7 +13,9 @@ import (
 	v1 "k8s.io/api/core/v1"
 	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
 	patchtypes "k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/util/retry"
 
 	argorolloutv1alpha1 "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	openshiftv1 "github.com/openshift/api/apps/v1"
@@ -34,6 +36,9 @@ type VolumesFunc func(runtime.Object) []v1.Volume
 // UpdateFunc performs the resource update
 type UpdateFunc func(kube.Clients, string, runtime.Object) error
 
+// PatchFunc performs the resource update
+type PatchFunc func(kube.Clients, string, runtime.Object, []byte) error
+
 // AnnotationsFunc is a generic func to return annotations
 type AnnotationsFunc func(runtime.Object) map[string]string
 
@@ -42,14 +47,16 @@ type PodAnnotationsFunc func(runtime.Object) map[string]string
 
 // RollingUpgradeFuncs contains generic functions to perform rolling upgrade
 type RollingUpgradeFuncs struct {
-	ItemsFunc          ItemsFunc
-	AnnotationsFunc    AnnotationsFunc
-	PodAnnotationsFunc PodAnnotationsFunc
-	ContainersFunc     ContainersFunc
-	InitContainersFunc InitContainersFunc
-	UpdateFunc         UpdateFunc
-	VolumesFunc        VolumesFunc
-	ResourceType       string
+	ItemsFunc              ItemsFunc
+	AnnotationsFunc        AnnotationsFunc
+	PodAnnotationsFunc     PodAnnotationsFunc
+	ContainersFunc         ContainersFunc
+	ContainerPatchPathFunc ContainersFunc
+	InitContainersFunc     InitContainersFunc
+	UpdateFunc             UpdateFunc
+	PatchFunc              PatchFunc
+	VolumesFunc            VolumesFunc
+	ResourceType           string
 }
 
 // GetDeploymentItems returns the deployments in given namespace
@@ -333,6 +340,15 @@ func UpdateDeployment(clients kube.Clients, namespace string, resource runtime.O
 	deployment := resource.(*appsv1.Deployment)
 	_, err := clients.KubernetesClient.AppsV1().Deployments(namespace).Update(context.TODO(), deployment, meta_v1.UpdateOptions{FieldManager: "Reloader"})
 	return err
+}
+
+// PatchDeployment performs rolling upgrade on deployment
+func PatchDeployment(clients kube.Clients, namespace string, resource runtime.Object, patch []byte) error {
+	deployment := resource.(*appsv1.Deployment)
+	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		_, err := clients.KubernetesClient.AppsV1().Deployments(namespace).Patch(context.TODO(), deployment.Name, types.StrategicMergePatchType, patch, meta_v1.PatchOptions{FieldManager: "Reloader"})
+		return err
+	})
 }
 
 // CreateJobFromCronjob performs rolling upgrade on cronjob
