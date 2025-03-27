@@ -968,6 +968,22 @@ func DeleteStatefulSet(client kubernetes.Interface, namespace string, statefulse
 	return statefulsetError
 }
 
+// DeleteCronJob deletes a cronJob in given namespace and returns the error if any
+func DeleteCronJob(client kubernetes.Interface, namespace string, cronJobName string) error {
+	logrus.Infof("Deleting CronJob %s", cronJobName)
+	cronJobError := client.BatchV1().CronJobs(namespace).Delete(context.TODO(), cronJobName, metav1.DeleteOptions{})
+	time.Sleep(3 * time.Second)
+	return cronJobError
+}
+
+// Deleteob deletes a job in given namespace and returns the error if any
+func DeleteJob(client kubernetes.Interface, namespace string, jobName string) error {
+	logrus.Infof("Deleting Job %s", jobName)
+	jobError := client.BatchV1().Jobs(namespace).Delete(context.TODO(), jobName, metav1.DeleteOptions{})
+	time.Sleep(3 * time.Second)
+	return jobError
+}
+
 // UpdateConfigMap updates a configmap in given namespace and returns the error if any
 func UpdateConfigMap(configmapClient core_v1.ConfigMapInterface, namespace string, configmapName string, label string, data string) error {
 	logrus.Infof("Updating configmap %q.\n", configmapName)

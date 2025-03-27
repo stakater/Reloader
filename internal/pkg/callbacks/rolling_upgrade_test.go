@@ -3,6 +3,7 @@ package callbacks_test
 import (
 	"context"
 	"fmt"
+	"strings"
 	"testing"
 	"time"
 
@@ -10,7 +11,7 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	batchv1 "k8s.io/api/batch/v1"
 	v1 "k8s.io/api/core/v1"
-	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	watch "k8s.io/apimachinery/pkg/watch"
@@ -18,6 +19,7 @@ import (
 
 	argorolloutv1alpha1 "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	fakeargoclientset "github.com/argoproj/argo-rollouts/pkg/client/clientset/versioned/fake"
+	patchtypes "k8s.io/apimachinery/pkg/types"
 
 	"github.com/stakater/Reloader/internal/pkg/callbacks"
 	"github.com/stakater/Reloader/internal/pkg/options"
@@ -93,7 +95,7 @@ func TestUpdateRollout(t *testing.T) {
 				t.Errorf("updating rollout: %v", err)
 			}
 			rollout, err = clients.ArgoRolloutClient.ArgoprojV1alpha1().Rollouts(
-				namespace).Get(context.TODO(), rollout.Name, meta_v1.GetOptions{})
+				namespace).Get(context.TODO(), rollout.Name, metav1.GetOptions{})
 
 			if err != nil {
 				t.Errorf("getting rollout: %v", err)
@@ -111,6 +113,70 @@ func TestUpdateRollout(t *testing.T) {
 	}
 }
 
+func TestPatchRollout(t *testing.T) {
+	namespace := "test-ns"
+	rollout := testutil.GetRollout(namespace, "test", map[string]string{options.RolloutStrategyAnnotation: ""})
+	err := callbacks.PatchRollout(clients, namespace, rollout, patchtypes.StrategicMergePatchType, []byte(`{"spec": {}}`))
+	assert.EqualError(t, err, "not supported patching: Rollout")
+}
+
+func TestResourceItem(t *testing.T) {
+	fixtures := newTestFixtures()
+
+	tests := []struct {
+		name        string
+		createFunc  func(kube.Clients, string, string) (runtime.Object, error)
+		getItemFunc func(kube.Clients, string, string) (runtime.Object, error)
+		deleteFunc  func(kube.Clients, string, string) error
+	}{
+		{
+			name:        "Deployment",
+			createFunc:  createTestDeploymentWithAnnotations,
+			getItemFunc: callbacks.GetDeploymentItem,
+			deleteFunc:  deleteTestDeployment,
+		},
+		{
+			name:        "CronJob",
+			createFunc:  createTestCronJobWithAnnotations,
+			getItemFunc: callbacks.GetCronJobItem,
+			deleteFunc:  deleteTestCronJob,
+		},
+		{
+			name:        "Job",
+			createFunc:  createTestJobWithAnnotations,
+			getItemFunc: callbacks.GetJobItem,
+			deleteFunc:  deleteTestJob,
+		},
+		{
+			name:        "DaemonSet",
+			createFunc:  createTestDaemonSetWithAnnotations,
+			getItemFunc: callbacks.GetDaemonSetItem,
+			deleteFunc:  deleteTestDaemonSet,
+		},
+		{
+			name:        "StatefulSet",
+			createFunc:  createTestStatefulSetWithAnnotations,
+			getItemFunc: callbacks.GetStatefulSetItem,
+			deleteFunc:  deleteTestStatefulSet,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			resource, err := tt.createFunc(clients, fixtures.namespace, "1")
+			assert.NoError(t, err)
+
+			accessor, err := meta.Accessor(resource)
+			assert.NoError(t, err)
+
+			_, err = tt.getItemFunc(clients, accessor.GetName(), fixtures.namespace)
+			assert.NoError(t, err)
+
+			tt.deleteFunc(clients, fixtures.namespace, accessor.GetName())
+		})
+	}
+}
+
 func TestResourceItems(t *testing.T) {
 	fixtures := newTestFixtures()
 
@@ -118,36 +184,42 @@ func TestResourceItems(t *testing.T) {
 		name          string
 		createFunc    func(kube.Clients, string) error
 		getItemsFunc  func(kube.Clients, string) []runtime.Object
+		deleteFunc    func(kube.Clients, string)
 		expectedCount int
 	}{
 		{
 			name:          "Deployments",
 			createFunc:    createTestDeployments,
 			getItemsFunc:  callbacks.GetDeploymentItems,
+			deleteFunc:    deleteTestDeployments,
 			expectedCount: 2,
 		},
 		{
 			name:          "CronJobs",
 			createFunc:    createTestCronJobs,
 			getItemsFunc:  callbacks.GetCronJobItems,
+			deleteFunc:    deleteTestCronJobs,
 			expectedCount: 2,
 		},
 		{
 			name:          "Jobs",
 			createFunc:    createTestJobs,
 			getItemsFunc:  callbacks.GetJobItems,
+			deleteFunc:    deleteTestJobs,
 			expectedCount: 2,
 		},
 		{
 			name:          "DaemonSets",
 			createFunc:    createTestDaemonSets,
 			getItemsFunc:  callbacks.GetDaemonSetItems,
+			deleteFunc:    deleteTestDaemonSets,
 			expectedCount: 2,
 		},
 		{
 			name:          "StatefulSets",
 			createFunc:    createTestStatefulSets,
 			getItemsFunc:  callbacks.GetStatefulSetItems,
+			deleteFunc:    deleteTestStatefulSets,
 			expectedCount: 2,
 		},
 	}
@@ -262,10 +334,11 @@ func TestUpdateResources(t *testing.T) {
 		name       string
 		createFunc func(kube.Clients, string, string) (runtime.Object, error)
 		updateFunc func(kube.Clients, string, runtime.Object) error
+		deleteFunc func(kube.Clients, string, string) error
 	}{
-		{"Deployment", createTestDeploymentWithAnnotations, callbacks.UpdateDeployment},
-		{"DaemonSet", createTestDaemonSetWithAnnotations, callbacks.UpdateDaemonSet},
-		{"StatefulSet", createTestStatefulSetWithAnnotations, callbacks.UpdateStatefulSet},
+		{"Deployment", createTestDeploymentWithAnnotations, callbacks.UpdateDeployment, deleteTestDeployment},
+		{"DaemonSet", createTestDaemonSetWithAnnotations, callbacks.UpdateDaemonSet, deleteTestDaemonSet},
+		{"StatefulSet", createTestStatefulSetWithAnnotations, callbacks.UpdateStatefulSet, deleteTestStatefulSet},
 	}
 
 	for _, tt := range tests {
@@ -275,6 +348,63 @@ func TestUpdateResources(t *testing.T) {
 
 			err = tt.updateFunc(clients, fixtures.namespace, resource)
 			assert.NoError(t, err)
+
+			accessor, err := meta.Accessor(resource)
+			assert.NoError(t, err)
+
+			tt.deleteFunc(clients, fixtures.namespace, accessor.GetName())
+		})
+	}
+}
+
+func TestPatchResources(t *testing.T) {
+	fixtures := newTestFixtures()
+
+	tests := []struct {
+		name       string
+		createFunc func(kube.Clients, string, string) (runtime.Object, error)
+		patchFunc  func(kube.Clients, string, runtime.Object, patchtypes.PatchType, []byte) error
+		deleteFunc func(kube.Clients, string, string) error
+		assertFunc func(err error)
+	}{
+		{"Deployment", createTestDeploymentWithAnnotations, callbacks.PatchDeployment, deleteTestDeployment, func(err error) {
+			assert.NoError(t, err)
+			patchedResource, err := callbacks.GetDeploymentItem(clients, "test-deployment", fixtures.namespace)
+			assert.NoError(t, err)
+			assert.Equal(t, "test", patchedResource.(*appsv1.Deployment).ObjectMeta.Annotations["test"])
+		}},
+		{"DaemonSet", createTestDaemonSetWithAnnotations, callbacks.PatchDaemonSet, deleteTestDaemonSet, func(err error) {
+			assert.NoError(t, err)
+			patchedResource, err := callbacks.GetDaemonSetItem(clients, "test-daemonset", fixtures.namespace)
+			assert.NoError(t, err)
+			assert.Equal(t, "test", patchedResource.(*appsv1.DaemonSet).ObjectMeta.Annotations["test"])
+		}},
+		{"StatefulSet", createTestStatefulSetWithAnnotations, callbacks.PatchStatefulSet, deleteTestStatefulSet, func(err error) {
+			assert.NoError(t, err)
+			patchedResource, err := callbacks.GetStatefulSetItem(clients, "test-statefulset", fixtures.namespace)
+			assert.NoError(t, err)
+			assert.Equal(t, "test", patchedResource.(*appsv1.StatefulSet).ObjectMeta.Annotations["test"])
+		}},
+		{"CronJob", createTestCronJobWithAnnotations, callbacks.PatchCronJob, deleteTestCronJob, func(err error) {
+			assert.EqualError(t, err, "not supported patching: CronJob")
+		}},
+		{"Job", createTestJobWithAnnotations, callbacks.PatchJob, deleteTestJob, func(err error) {
+			assert.EqualError(t, err, "not supported patching: Job")
+		}},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			resource, err := tt.createFunc(clients, fixtures.namespace, "1")
+			assert.NoError(t, err)
+
+			err = tt.patchFunc(clients, fixtures.namespace, resource, patchtypes.StrategicMergePatchType, []byte(`{"metadata":{"annotations":{"test":"test"}}}`))
+			tt.assertFunc(err)
+
+			accessor, err := meta.Accessor(resource)
+			assert.NoError(t, err)
+
+			tt.deleteFunc(clients, fixtures.namespace, accessor.GetName())
 		})
 	}
 }
@@ -287,6 +417,8 @@ func TestCreateJobFromCronjob(t *testing.T) {
 
 	err = callbacks.CreateJobFromCronjob(clients, fixtures.namespace, cronJob.(*batchv1.CronJob))
 	assert.NoError(t, err)
+
+	deleteTestCronJob(clients, fixtures.namespace, "test-cronjob")
 }
 
 func TestReCreateJobFromJob(t *testing.T) {
@@ -297,6 +429,8 @@ func TestReCreateJobFromJob(t *testing.T) {
 
 	err = callbacks.ReCreateJobFromjob(clients, fixtures.namespace, job.(*batchv1.Job))
 	assert.NoError(t, err)
+
+	deleteTestJob(clients, fixtures.namespace, "test-cronjob")
 }
 
 func TestGetVolumes(t *testing.T) {
@@ -321,6 +455,24 @@ func TestGetVolumes(t *testing.T) {
 	}
 }
 
+func TesGetPatchTemplateAnnotation(t *testing.T) {
+	templates := callbacks.GetPatchTemplates()
+	assert.NotEmpty(t, templates.AnnotationTemplate)
+	assert.Equal(t, 2, strings.Count(templates.AnnotationTemplate, "%s"))
+}
+
+func TestGetPatchTemplateEnvVar(t *testing.T) {
+	templates := callbacks.GetPatchTemplates()
+	assert.NotEmpty(t, templates.EnvVarTemplate)
+	assert.Equal(t, 3, strings.Count(templates.EnvVarTemplate, "%s"))
+}
+
+func TestGetPatchDeleteTemplateEnvVar(t *testing.T) {
+	templates := callbacks.GetPatchTemplates()
+	assert.NotEmpty(t, templates.DeleteEnvVarTemplate)
+	assert.Equal(t, 2, strings.Count(templates.DeleteEnvVarTemplate, "%d"))
+}
+
 // Helper functions
 
 func isRestartStrategy(rollout *argorolloutv1alpha1.Rollout) bool {
@@ -330,7 +482,7 @@ func isRestartStrategy(rollout *argorolloutv1alpha1.Rollout) bool {
 func watchRollout(name, namespace string) chan interface{} {
 	timeOut := int64(1)
 	modifiedChan := make(chan interface{})
-	watcher, _ := clients.ArgoRolloutClient.ArgoprojV1alpha1().Rollouts(namespace).Watch(context.Background(), meta_v1.ListOptions{TimeoutSeconds: &timeOut})
+	watcher, _ := clients.ArgoRolloutClient.ArgoprojV1alpha1().Rollouts(namespace).Watch(context.Background(), metav1.ListOptions{TimeoutSeconds: &timeOut})
 	go watchModified(watcher, name, modifiedChan)
 	return modifiedChan
 }
@@ -358,6 +510,12 @@ func createTestDeployments(clients kube.Clients, namespace string) error {
 	return nil
 }
 
+func deleteTestDeployments(clients kube.Clients, namespace string) {
+	for i := 1; i <= 2; i++ {
+		testutil.DeleteDeployment(clients.KubernetesClient, namespace, fmt.Sprintf("test-deployment-%d", i))
+	}
+}
+
 func createTestCronJobs(clients kube.Clients, namespace string) error {
 	for i := 1; i <= 2; i++ {
 		_, err := testutil.CreateCronJob(clients.KubernetesClient, fmt.Sprintf("test-cron-%d", i), namespace, false)
@@ -366,6 +524,12 @@ func createTestCronJobs(clients kube.Clients, namespace string) error {
 		}
 	}
 	return nil
+}
+
+func deleteTestCronJobs(clients kube.Clients, namespace string) {
+	for i := 1; i <= 2; i++ {
+		testutil.DeleteCronJob(clients.KubernetesClient, namespace, fmt.Sprintf("test-cron-%d", i))
+	}
 }
 
 func createTestJobs(clients kube.Clients, namespace string) error {
@@ -378,6 +542,12 @@ func createTestJobs(clients kube.Clients, namespace string) error {
 	return nil
 }
 
+func deleteTestJobs(clients kube.Clients, namespace string) {
+	for i := 1; i <= 2; i++ {
+		testutil.DeleteJob(clients.KubernetesClient, namespace, fmt.Sprintf("test-job-%d", i))
+	}
+}
+
 func createTestDaemonSets(clients kube.Clients, namespace string) error {
 	for i := 1; i <= 2; i++ {
 		_, err := testutil.CreateDaemonSet(clients.KubernetesClient, fmt.Sprintf("test-daemonset-%d", i), namespace, false)
@@ -388,6 +558,12 @@ func createTestDaemonSets(clients kube.Clients, namespace string) error {
 	return nil
 }
 
+func deleteTestDaemonSets(clients kube.Clients, namespace string) {
+	for i := 1; i <= 2; i++ {
+		testutil.DeleteDaemonSet(clients.KubernetesClient, namespace, fmt.Sprintf("test-daemonset-%d", i))
+	}
+}
+
 func createTestStatefulSets(clients kube.Clients, namespace string) error {
 	for i := 1; i <= 2; i++ {
 		_, err := testutil.CreateStatefulSet(clients.KubernetesClient, fmt.Sprintf("test-statefulset-%d", i), namespace, false)
@@ -396,6 +572,12 @@ func createTestStatefulSets(clients kube.Clients, namespace string) error {
 		}
 	}
 	return nil
+}
+
+func deleteTestStatefulSets(clients kube.Clients, namespace string) {
+	for i := 1; i <= 2; i++ {
+		testutil.DeleteStatefulSet(clients.KubernetesClient, namespace, fmt.Sprintf("test-statefulset-%d", i))
+	}
 }
 
 func createResourceWithPodAnnotations(obj runtime.Object, annotations map[string]string) runtime.Object {
@@ -479,6 +661,10 @@ func createTestDeploymentWithAnnotations(clients kube.Clients, namespace, versio
 	return clients.KubernetesClient.AppsV1().Deployments(namespace).Create(context.TODO(), deployment, metav1.CreateOptions{})
 }
 
+func deleteTestDeployment(clients kube.Clients, namespace, name string) error {
+	return clients.KubernetesClient.AppsV1().Deployments(namespace).Delete(context.TODO(), name, metav1.DeleteOptions{})
+}
+
 func createTestDaemonSetWithAnnotations(clients kube.Clients, namespace, version string) (runtime.Object, error) {
 	daemonSet := &appsv1.DaemonSet{
 		ObjectMeta: metav1.ObjectMeta{
@@ -488,6 +674,10 @@ func createTestDaemonSetWithAnnotations(clients kube.Clients, namespace, version
 		},
 	}
 	return clients.KubernetesClient.AppsV1().DaemonSets(namespace).Create(context.TODO(), daemonSet, metav1.CreateOptions{})
+}
+
+func deleteTestDaemonSet(clients kube.Clients, namespace, name string) error {
+	return clients.KubernetesClient.AppsV1().DaemonSets(namespace).Delete(context.TODO(), name, metav1.DeleteOptions{})
 }
 
 func createTestStatefulSetWithAnnotations(clients kube.Clients, namespace, version string) (runtime.Object, error) {
@@ -501,6 +691,10 @@ func createTestStatefulSetWithAnnotations(clients kube.Clients, namespace, versi
 	return clients.KubernetesClient.AppsV1().StatefulSets(namespace).Create(context.TODO(), statefulSet, metav1.CreateOptions{})
 }
 
+func deleteTestStatefulSet(clients kube.Clients, namespace, name string) error {
+	return clients.KubernetesClient.AppsV1().StatefulSets(namespace).Delete(context.TODO(), name, metav1.DeleteOptions{})
+}
+
 func createTestCronJobWithAnnotations(clients kube.Clients, namespace, version string) (runtime.Object, error) {
 	cronJob := &batchv1.CronJob{
 		ObjectMeta: metav1.ObjectMeta{
@@ -512,6 +706,10 @@ func createTestCronJobWithAnnotations(clients kube.Clients, namespace, version s
 	return clients.KubernetesClient.BatchV1().CronJobs(namespace).Create(context.TODO(), cronJob, metav1.CreateOptions{})
 }
 
+func deleteTestCronJob(clients kube.Clients, namespace, name string) error {
+	return clients.KubernetesClient.BatchV1().CronJobs(namespace).Delete(context.TODO(), name, metav1.DeleteOptions{})
+}
+
 func createTestJobWithAnnotations(clients kube.Clients, namespace, version string) (runtime.Object, error) {
 	job := &batchv1.Job{
 		ObjectMeta: metav1.ObjectMeta{
@@ -521,4 +719,8 @@ func createTestJobWithAnnotations(clients kube.Clients, namespace, version strin
 		},
 	}
 	return clients.KubernetesClient.BatchV1().Jobs(namespace).Create(context.TODO(), job, metav1.CreateOptions{})
+}
+
+func deleteTestJob(clients kube.Clients, namespace, name string) error {
+	return clients.KubernetesClient.BatchV1().Jobs(namespace).Delete(context.TODO(), name, metav1.DeleteOptions{})
 }
