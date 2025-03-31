@@ -44,6 +44,10 @@ var (
 	LogLevel = ""
 	// IsArgoRollouts Adds support for argo rollouts
 	IsArgoRollouts = "false"
+	// IsCronJobs Adds support for cron jobs
+	IsCronJobs = "true"
+	// IsJobs Adds support for jobs
+	IsJobs = "true"
 	// ReloadStrategy Specify the update strategy
 	ReloadStrategy = constants.EnvVarsReloadStrategy
 	// ReloadOnCreate Adds support to watch create events

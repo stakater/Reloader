@@ -212,6 +212,13 @@ spec:
           {{- if .Values.reloader.ignoreConfigMaps }}
           - "--resources-to-ignore=configMaps"
           {{- end }}
+          {{- if eq .Values.reloader.ignoreJobs true }}
+          - "--is-jobs={{ .Values.reloader.ignoreJobs }}"
+          {{- end }}
+          {{- if eq .Values.reloader.ignoreCronJobs true }}
+          - "--is-cron-jobs={{ .Values.reloader.ignoreCronJobs }}"
+          {{- end }}
+          {{- end }}
           {{- if .Values.reloader.ignoreNamespaces }}
           - "--namespaces-to-ignore={{ .Values.reloader.ignoreNamespaces }}"
           {{- end }}
