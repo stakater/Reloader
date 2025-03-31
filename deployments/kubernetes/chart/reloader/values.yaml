@@ -27,6 +27,8 @@ reloader:
   isOpenshift: false
   ignoreSecrets: false
   ignoreConfigMaps: false
+  ignoreJobs: true
+  ignoreCronJobs: true
   reloadOnCreate: false
   reloadOnDelete: false
   syncAfterRestart: false

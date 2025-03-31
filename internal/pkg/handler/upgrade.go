@@ -163,13 +163,17 @@ func doRollingUpgrade(config util.Config, collectors metrics.Collectors, recorde
 	if err != nil {
 		return err
 	}
-	err = rollingUpgrade(clients, config, GetCronJobCreateJobFuncs(), collectors, recorder, invoke)
-	if err != nil {
-		return err
+	if options.IsCronJobs == "true" {
+		err = rollingUpgrade(clients, config, GetCronJobCreateJobFuncs(), collectors, recorder, invoke)
+		if err != nil {
+			return err
+		}
 	}
-	err = rollingUpgrade(clients, config, GetJobCreateJobFuncs(), collectors, recorder, invoke)
-	if err != nil {
-		return err
+	if options.IsJobs == "true" {
+		err = rollingUpgrade(clients, config, GetJobCreateJobFuncs(), collectors, recorder, invoke)
+		if err != nil {
+			return err
+		}
 	}
 	err = rollingUpgrade(clients, config, GetDaemonSetRollingUpgradeFuncs(), collectors, recorder, invoke)
 	if err != nil {
