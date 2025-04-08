@@ -46,7 +46,6 @@ GOLANGCI_LINT_VERSION ?= v1.57.2
 YQ_VERSION ?= v4.27.5
 YQ_DOWNLOAD_URL = "https://github.com/mikefarah/yq/releases/download/$(YQ_VERSION)/yq_$(OS)_$(ARCH)"
 
-
 .PHONY: yq
 yq: $(YQ) ## Download YQ locally if needed
 $(YQ):
@@ -57,7 +56,6 @@ $(YQ):
 	}
 	@chmod +x $(YQ)
 	@echo "yq downloaded successfully to $(YQ)."
-
 
 .PHONY: kustomize
 kustomize: $(KUSTOMIZE) ## Download kustomize locally if necessary.
@@ -156,12 +154,6 @@ k8s-manifests: $(KUSTOMIZE) ## Generate k8s manifests using Kustomize from 'mani
 .PHONY: update-manifests-version
 update-manifests-version: ## Generate k8s manifests using Kustomize from 'manifests' folder
 	sed -i 's/image:.*/image: \"ghcr.io\/stakater\/reloader:v$(VERSION)"/g' deployments/kubernetes/manifests/deployment.yaml
-
-# Bump Chart
-bump-chart: 
-	sed -i "s/^appVersion:.*/appVersion: v$(VERSION)/" deployments/kubernetes/chart/reloader/Chart.yaml
-	sed -i "s/tag:.*/tag: v$(VERSION)/" deployments/kubernetes/chart/reloader/values.yaml
-	sed -i "s/version:.*/version: v$(VERSION)/" deployments/kubernetes/chart/reloader/values.yaml
 
 YQ_VERSION = v4.42.1
 YQ_BIN = $(shell pwd)/yq

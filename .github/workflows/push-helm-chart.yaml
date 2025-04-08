@@ -1,6 +1,6 @@
 name: Push Helm Chart
 
-# TODO: fix: workflows have a problem where only code owners' PRs get the actions running 
+# TODO: fix: workflows have a problem where only code owners' PRs get the actions running
 
 on:
   pull_request:
@@ -103,6 +103,13 @@ jobs:
           linting: on
           commit_username: stakater-user
           commit_email: stakater@gmail.com
+
+      - name: Push new chart tag
+        uses: anothrNick/github-tag-action@1.71.0
+        env:
+          GITHUB_TOKEN: ${{ secrets.PUBLISH_TOKEN }}
+          WITH_V: false
+          CUSTOM_TAG: chart-${{ steps.new_chart_version.outputs.result }}
 
       - name: Notify Slack
         uses: 8398a7/action-slack@v3

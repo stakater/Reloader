@@ -18,10 +18,7 @@ snapshot:
 checksum:
   name_template: "{{ .ProjectName }}_{{ .Version }}_checksums.txt"
 changelog:
-  sort: asc
-  filters:
-    exclude:
-    - '^docs:'
-    - '^test:'
+  # It will be generated manually as part of making a new GitHub release
+  disable: true
 env_files:
   github_token: /home/jenkins/.apitoken/hub
