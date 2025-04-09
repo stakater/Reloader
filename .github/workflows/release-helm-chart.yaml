@@ -3,14 +3,15 @@ name: Release Helm chart
 on:
   push:
     tags:
-      - "chart-*"
+      - "chart-v*"
+    tags-ignore:
+      - "v*"
 
 permissions:
   contents: write
 
 jobs:
   release-helm-chart:
-    if: ${{ (github.event.pull_request.merged == true) && (contains(github.event.pull_request.labels.*.name, 'release/helm-chart')) }}
     name: Release Helm chart
     runs-on: ubuntu-latest
 
@@ -27,7 +28,7 @@ jobs:
         run: |
           gh release create "$tag" \
               --repo="$GITHUB_REPOSITORY" \
-              --title="Helm chart v${tag#chart-}" \
+              --title="Helm chart ${tag#chart-}" \
               --generate-notes
 
       - name: Notify Slack

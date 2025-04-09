@@ -109,7 +109,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.PUBLISH_TOKEN }}
           WITH_V: false
-          CUSTOM_TAG: chart-${{ steps.new_chart_version.outputs.result }}
+          CUSTOM_TAG: chart-v${{ steps.new_chart_version.outputs.result }}
 
       - name: Notify Slack
         uses: 8398a7/action-slack@v3
