@@ -23,7 +23,7 @@ Reloader bridges that gap by ensuring your workloads stay in sync with configura
 
 - ✅ Zero manual restarts: No need to manually rollout workloads after config/secret changes.
 - 🔒 Secure by design: Ensure your apps always use the most up-to-date credentials or tokens.
-- 🛠️ Flexible: Works with all major workload types — Deployment, StatefulSet, DaemonSet, ArgoRollout, and more.
+- 🛠️ Flexible: Works with all major workload types — Deployment, StatefulSet, Daemonset, ArgoRollout, and more.
 - ⚡ Fast feedback loop: Ideal for CI/CD pipelines where secrets/configs change frequently.
 - 🔄 Out-of-the-box integration: Just label your workloads and let Reloader do the rest.
 
