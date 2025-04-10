@@ -1,8 +1,8 @@
 <p align="center">
-  <img src="assets/web/reloader.png" alt="Reloader" width="40%"/>
+  <img src="assets/web/reloader.png" alt="Reloader" width="30%"/>
 </p>
 
-<p align="center" style="font-size: 40px; font-weight: bold;">Reloader</p>
+<p align="center" style="font-size: 80px; font-weight: bold;">Reloader</p>
 
 [![Go Report Card](https://goreportcard.com/badge/github.com/stakater/reloader?style=flat-square)](https://goreportcard.com/report/github.com/stakater/reloader)
 [![Go Doc](https://img.shields.io/badge/godoc-reference-blue.svg?style=flat-square)](https://godoc.org/github.com/stakater/reloader)
