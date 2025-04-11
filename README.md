@@ -1,4 +1,6 @@
-# ![Reloader-logo](assets/web/reloader-round-100px.png) Reloader
+<p align="center">
+  <img src="assets/web/reloader.jpg" alt="Reloader" width="40%"/>
+</p>
 
 [![Go Report Card](https://goreportcard.com/badge/github.com/stakater/reloader?style=flat-square)](https://goreportcard.com/report/github.com/stakater/reloader)
 [![Go Doc](https://img.shields.io/badge/godoc-reference-blue.svg?style=flat-square)](https://godoc.org/github.com/stakater/reloader)
@@ -9,13 +11,42 @@
 [![license](https://img.shields.io/github/license/stakater/reloader.svg?style=flat-square)](LICENSE)
 [![Get started with Stakater](https://stakater.github.io/README/stakater-github-banner.png)](https://stakater.com/?utm_source=Reloader&utm_medium=github)
 
-## Problem
+## 🔁 What is Reloader?
 
-We would like to watch if some change happens in `ConfigMap` and/or `Secret`; then perform a rolling upgrade on relevant `DeploymentConfig`, `Deployment`, `Daemonset`, `Statefulset` and `Rollout`
+Reloader is a Kubernetes controller that automatically triggers rollouts of workloads (like Deployments, StatefulSets, and more) whenever referenced `Secrets` or `ConfigMaps` are updated.
 
-## Solution
+In a traditional Kubernetes setup, updating a `Secret` or `ConfigMap` does not automatically restart or redeploy your workloads. This can lead to stale configurations running in production, especially when dealing with dynamic values like credentials, feature flags, or environment configs.
 
-Reloader can watch changes in `ConfigMap` and `Secret` and do rolling upgrades on Pods with their associated `DeploymentConfigs`, `Deployments`, `Daemonsets` `Statefulsets` and `Rollouts`.
+Reloader bridges that gap by ensuring your workloads stay in sync with configuration changes — automatically and safely.
+
+## 🚀 Why Reloader?
+
+- ✅ **Zero manual restarts**: No need to manually rollout workloads after config/secret changes.
+- 🔒 **Secure by design**: Ensure your apps always use the most up-to-date credentials or tokens.
+- 🛠️ **Flexible**: Works with all major workload types — Deployment, StatefulSet, Daemonset, ArgoRollout, and more.
+- ⚡ **Fast feedback loop**: Ideal for CI/CD pipelines where secrets/configs change frequently.
+- 🔄 **Out-of-the-box integration**: Just label your workloads and let Reloader do the rest.
+
+## 🔧 How It Works
+
+```mermaid
+flowchart LR
+  ExternalSecret -->|Creates| Secret
+  SealedSecret -->|Creates| Secret
+  Secret -->|Watched by| Reloader
+  Configmap -->|Watched by| Reloader
+
+  Reloader -->|Triggers Rollout| Deployment
+  Reloader -->|Triggers Rollout| DeploymentConfig
+  Reloader -->|Triggers Rollout| Daemonset
+  Reloader -->|Triggers Rollout| Statefulset
+  Reloader -->|Triggers Rollout| ArgoRollout
+  Reloader -->|Triggers Job| CronJob
+```
+
+- Sources like `ExternalSecret` or `SealedSecret` create or manage your Kubernetes Secrets.
+- `Secrets` and `ConfigMaps` are watched by Reloader.
+- When changes are detected, Reloader automatically triggers a rollout of the associated workloads, ensuring your app always runs with the latest configuration.
 
 ## Enterprise Version
 
