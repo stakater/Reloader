@@ -1,6 +1,5 @@
 <p align="center">
-  <img src="assets/web/reloader.png" alt="Reloader" width="30%"/>
-  <h1 align="center">Reloader</h1>
+  <img src="assets/web/reloader.jpg" alt="Reloader" width="80%"/>
 </p>
 
 [![Go Report Card](https://goreportcard.com/badge/github.com/stakater/reloader?style=flat-square)](https://goreportcard.com/report/github.com/stakater/reloader)
