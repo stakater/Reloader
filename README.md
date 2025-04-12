@@ -111,7 +111,7 @@ Kubernetes does not trigger pod restarts when a referenced `Secret` or `ConfigMa
 - Use **opt-in via tagging** (`search` + `match`)
 - Exclude workloads you don’t want to reload
 
-### 🔁 Automatic Reload (Default)
+### 1. 🔁 Automatic Reload (Default)
 
 Use these annotations to automatically restart the workload when referenced `Secrets` or `ConfigMaps` change.
 
@@ -121,7 +121,7 @@ Use these annotations to automatically restart the workload when referenced `Sec
 | `secret.reloader.stakater.com/auto: "true"`| Reloads only when referenced Secret(s) change                        |
 | `configmap.reloader.stakater.com/auto: "true"`| Reloads only when referenced ConfigMap(s) change                  |
 
-### 📛 Named Resource Reload (Specific Resource Annotations)
+### 2. 📛 Named Resource Reload (Specific Resource Annotations)
 
 These annotations allow you to manually define which ConfigMaps or Secrets should trigger a reload, regardless of whether they're used in the pod spec.
 
@@ -135,7 +135,7 @@ These annotations allow you to manually define which ConfigMaps or Secrets shoul
 1. ✅ This is useful in tightly scoped scenarios where config is shared but reloads are only relevant in certain cases.
 1. ✅ Use this when you know exactly which resource(s) matter and want to avoid auto-discovery or searching altogether.
 
-### 🎯 Targeted Reload (Match + Search Annotations)
+### 3. 🎯 Targeted Reload (Match + Search Annotations)
 
 This pattern allows fine-grained reload control — workloads only restart if the Secret/ConfigMap is both:
 
@@ -158,7 +158,7 @@ This pattern allows fine-grained reload control — workloads only restart if th
 1. ✅ You want to reload a workload only if it references a ConfigMap or Secret that has been explicitly tagged with `reloader.stakater.com/match: "true"`.
 1. ✅ Use this when you want full control over which shared or system-wide resources trigger reloads. Great in multi-tenant clusters or shared configs.
 
-### ⚙️ Workload-Specific Rollout Strategy
+### 4. ⚙️ Workload-Specific Rollout Strategy
 
 By default, Reloader uses the **rollout** strategy — it updates the pod template to trigger a new rollout. This works well in most cases, but it can cause problems if you're using GitOps tools like ArgoCD, which detect this as configuration drift.
 
@@ -181,7 +181,7 @@ metadata:
 1. You want a quick restart without changing the workload spec
 1. Your platform restricts metadata changes
 
-### ❗ Annotation Behavior Rules & Compatibility
+### 5. ❗ Annotation Behavior Rules & Compatibility
 
 - `reloader.stakater.com/auto` and `reloader.stakater.com/search` **cannot be used together** — the `auto` annotation takes precedence.
 - If both `auto` and its typed versions (`secret.reloader.stakater.com/auto`, `configmap.reloader.stakater.com/auto`) are used, **only one needs to be true** to trigger a reload.
