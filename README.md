@@ -145,7 +145,7 @@ This pattern allows fine-grained reload control — workloads only restart if th
 
 1. The workload must have: `reloader.stakater.com/search: "true"`
 1. The Configmap or Secret must have: `reloader.stakater.com/match: "true"`
-1. The resource (Configmap or Secret) must also be referenced in the workload (via env, volumeMount, etc.)
+1. The resource (Configmap or Secret) must also be referenced in the workload (via env, `volumeMount`, etc.)
 
 #### Use when
 
