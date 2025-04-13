@@ -99,6 +99,56 @@ helm uninstall {{RELEASE_NAME}} -n {{NAMESPACE}}
 | `reloader.volumes`                     | Add volume to a pod                                             | array   | `[]`    |
 | `reloader.webhookUrl`                  | Add webhook to Reloader                                         | string  | `""`    |
 
+## ⚙️ Helm Chart Configuration Notes
+
+### Selector Behavior
+- Both `namespaceSelector` & `resourceLabelSelector` can be used together
+- **Both conditions must be met** for a ConfigMap/Secret to trigger reloads
+  - Example: If a ConfigMap matches `resourceLabelSelector` but not `namespaceSelector`, it will be ignored
+
+### Important Limitations
+- Only one of these resources can be ignored at a time:
+  - `ignoreConfigMaps` **or** `ignoreSecrets`
+  - Trying to ignore both will cause Helm template compilation errors
+
+### Special Integrations
+- OpenShift (`DeploymentConfig`) and Argo Rollouts support must be **explicitly enabled**
+  - Required due to potential permission restrictions on clusters
+
+### OpenShift Considerations
+- Recent OpenShift versions (tested on 4.13.3) require:
+  - Users to be in a dynamically assigned UID range
+  - **Solution**: Unset `runAsUser` via `deployment.securityContext.runAsUser=null`
+  - Let OpenShift assign UID automatically during installation
+
+### Core Functionality Flags
+
+#### 🔄 `reloadOnCreate` Behavior
+**When true:**
+✅ New ConfigMaps/Secrets trigger rolling updates  
+✅ New deployments referencing existing resources reload  
+✅ In HA mode, new leader reloads all tracked workloads  
+
+**When false:**
+❌ Updates during leader downtime are missed  
+⏳ Potential 15s delay window (default `LeaseDuration`)  
+
+#### 🗑️ `reloadOnDelete` Behavior
+**When true:**
+✅ Deleted resources trigger rolling updates of referencing workloads  
+
+**When false:**
+❌ Deletions have no effect on referencing pods  
+
+#### Default Settings
+⚠️ All flags default to `false` (must be enabled explicitly):
+- `reloadOnCreate`
+- `reloadOnDelete` 
+- `syncAfterRestart`
+
+### Deprecation Notice
+- `serviceMonitor` will be removed in future releases in favor of `PodMonitor`
+
 ## Release Process
 
 _Helm chart versioning_: The Reloader Helm chart is maintained in this repository. The Helm chart has its own semantic versioning. Helm charts and code releases are separate artifacts and separately versioned. Manifest making strategy relies on Kustomize. The Reloader Helm chart manages the two artifacts with these two fields:
