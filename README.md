@@ -50,15 +50,9 @@ flowchart LR
 
 ## ⚡ Quick Start
 
-### 1. Install Reloader (via Helm)
+### 1. Install Reloader
 
-```bash
-helm repo add stakater https://stakater.github.io/stakater-charts
-helm repo update
-helm install reloader stakater/reloader
-```
-
-You can also deploy via Kustomize or YAML manifests — see the [docs](docs) for all options.
+Follow any of this [installation options](#-installation-options).
 
 ### 2. Annotate Your Workload
 
@@ -192,7 +186,7 @@ metadata:
 
 ## 🚀 Installation Options
 
-### 📦 1. Helm (Recommended for Production)
+### 📦 1. Helm
 
 Reloader can be installed in multiple ways depending on your Kubernetes setup and preference. Below are the supported methods:
 
@@ -252,20 +246,7 @@ resources:
 
 These flags let you customize Reloader's behavior globally, at the Reloader controller level.
 
-- In the `args:` section of your controller Deployment:
-  ```yaml
-  args:
-    - --auto-reload-all=true
-    - --reload-on-create=true
-  ```
-- Or in Helm's `values.yaml`:
-  ```yaml
-  extraArgs:
-    - --auto-reload-all=true
-    - --reload-strategy=annotations  
-  ```  
-
-#### 🔁 1. Reload Behavior
+#### 1. 🔁 Reload Behavior
 
 | Flag | Description |
 |------|-------------|
@@ -275,7 +256,7 @@ These flags let you customize Reloader's behavior globally, at the Reloader cont
 | `--reload-strategy=env-vars` | Strategy to use for triggering reload (`env-vars` or `annotations`) |
 | `--log-format=json` | Enable JSON-formatted logs for better machine readability |
 
-#### 🚫 2. Resource Filtering
+#### 2. 🚫 Resource Filtering
 
 | Flag | Description |
 |------|-------------|
@@ -289,14 +270,14 @@ These flags let you customize Reloader's behavior globally, at the Reloader cont
 >  
 > ✅ **Workaround:** Scale the Reloader deployment to `0` replicas if you want to disable it completely.
 
-#### 🧩 3. Namespace Filtering
+#### 3. 🧩 Namespace Filtering
 
 | Flag | Description |
 |------|-------------|
 | `--namespace-selector=key=value` | Watch only namespaces with matching labels |
 | `--namespaces-to-ignore=ns1,ns2` | Skip specific namespaces from being watched |
 
-#### 📝 4. Annotation Key Overrides
+#### 4. 📝 Annotation Key Overrides
 
 These flags allow you to redefine annotation keys used in your workloads or resources:
 
@@ -309,6 +290,23 @@ These flags allow you to redefine annotation keys used in your workloads or reso
 | `--search-match-annotation` | Overrides `reloader.stakater.com/match` |
 | `--secret-annotation` | Overrides `secret.reloader.stakater.com/reload` |
 | `--configmap-annotation` | Overrides `configmap.reloader.stakater.com/reload` |
+
+#### 5. 🔁 Reload Strategies
+
+Reloader supports multiple strategies for triggering rolling updates when a watched `ConfigMap` or `Secret` changes. You can configure the strategy using the `--reload-strategy` flag.
+
+##### 🧩 Available Strategies
+
+| Strategy     | Description |
+|--------------|-------------|
+| `env-vars` (default) | Adds a dummy environment variable to any container referencing the changed resource (e.g., `Deployment`, `StatefulSet`, etc.). This forces Kubernetes to perform a rolling update. |
+| `annotations` | Adds a `reloader.stakater.com/last-reloaded-from` annotation to the pod template metadata. Ideal for GitOps tools like ArgoCD, as it avoids triggering unwanted sync diffs. |
+
+##### 🔍 Strategy Notes
+
+- The `env-vars` strategy is the default and works in most setups.
+- The `annotations` strategy is preferred in **GitOps environments** to prevent config drift in tools like ArgoCD or Flux.
+- In `annotations` mode, a `ConfigMap` or `Secret` that is deleted and re-created will still trigger a reload (since previous state is not tracked).
 
 ## Compatibility
 
