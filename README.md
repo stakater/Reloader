@@ -93,7 +93,7 @@ Stakater offers an enterprise-grade version of Reloader with:
 
 Contact [`sales@stakater.com`](mailto:sales@stakater.com) for info about Reloader Enterprise.
 
-## 🧩 Using Reloader in Your Workloads
+## 🧩 Usage
 
 Reloader supports multiple annotation-based controls to let you **customize when and how your Kubernetes workloads are reloaded** upon changes in `Secrets` or `Configmaps`.
 
@@ -183,6 +183,24 @@ metadata:
 - If `--auto-reload-all` is enabled on the controller:
     - All workloads are treated as if they have `auto: "true"` unless they explicitly set it to `"false"`.
     - Missing or unrecognized annotation values are treated as `"false"`.
+
+### 6. 🔔 Alerting on Reload
+
+Reloader can optionally **send alerts** whenever it triggers a rolling upgrade for a workload (e.g., `Deployment`, `StatefulSet`, etc.).
+
+These alerts are sent to a configured **webhook endpoint**, which can be a generic receiver or services like Slack or Microsoft Teams.
+
+To enable this feature, update the `reloader.env.secret` section in your `values.yaml` (when installing via Helm):
+
+```yaml
+reloader:
+  env:
+    secret:
+      ALERT_ON_RELOAD: "true"                    # Enable alerting (default: false)
+      ALERT_SINK: "slack"                        # Options: slack, teams, webhook (default: webhook)
+      ALERT_WEBHOOK_URL: "<your-webhook-url>"    # Required if ALERT_ON_RELOAD is true
+      ALERT_ADDITIONAL_INFO: "Triggered by Reloader in staging environment"
+```
 
 ## 🚀 Installation
 
