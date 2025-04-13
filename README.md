@@ -52,7 +52,7 @@ flowchart LR
 
 ### 1. Install Reloader
 
-Follow any of this [installation options](#-installation-options).
+Follow any of this [installation options](#-installation).
 
 ### 2. Annotate Your Workload
 
@@ -184,7 +184,7 @@ metadata:
   - All workloads are treated as if they have `auto: "true"` unless they explicitly set it to `"false"`.
   - Missing or unrecognized annotation values are treated as `"false"`.
 
-## 🚀 Installation Options
+## 🚀 Installation
 
 ### 1. 📦 Helm
 
