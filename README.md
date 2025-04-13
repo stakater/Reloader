@@ -36,7 +36,7 @@ flowchart LR
   Configmap -->|Watched by| Reloader
 
   Reloader -->|Triggers Rollout| Deployment
-  Reloader -->|Triggers Rollout| OpenShift DeploymentConfig
+  Reloader -->|Triggers Rollout| DeploymentConfig
   Reloader -->|Triggers Rollout| Daemonset
   Reloader -->|Triggers Rollout| Statefulset
   Reloader -->|Triggers Rollout| ArgoRollout
