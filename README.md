@@ -124,7 +124,7 @@ These annotations allow you to manually define which ConfigMaps or Secrets shoul
 | `secret.reloader.stakater.com/reload: "my-secret"`  | Reloads when specific Secret(s) change, regardless of how they're used              |
 | `configmap.reloader.stakater.com/reload: "my-config"`| Reloads when specific ConfigMap(s) change, regardless of how they're used         |
 
-#### Use when:
+#### Use when
 
 1. ✅ This is useful in tightly scoped scenarios where config is shared but reloads are only relevant in certain cases.
 1. ✅ Use this when you know exactly which resource(s) matter and want to avoid auto-discovery or searching altogether.
@@ -141,13 +141,13 @@ This pattern allows fine-grained reload control — workloads only restart if th
 | `reloader.stakater.com/search: "true"`    | Workload     | Enables search mode (only reloads if matching secrets/configmaps are found) |
 | `reloader.stakater.com/match: "true"`     | ConfigMap/Secret | Marks the config/secret as eligible for reload in search mode              |
 
-#### How it works:
+#### How it works
 
 1. The workload must have: `reloader.stakater.com/search: "true"`
 1. The ConfigMap or Secret must have: `reloader.stakater.com/match: "true"`
 1. The resource (ConfigMap or Secret) must also be referenced in the workload (via env, volumeMount, etc.)
 
-#### Use when:
+#### Use when
 
 1. ✅ You want to reload a workload only if it references a ConfigMap or Secret that has been explicitly tagged with `reloader.stakater.com/match: "true"`.
 1. ✅ Use this when you want full control over which shared or system-wide resources trigger reloads. Great in multi-tenant clusters or shared configs.
@@ -181,8 +181,8 @@ metadata:
 - If both `auto` and its typed versions (`secret.reloader.stakater.com/auto`, `configmap.reloader.stakater.com/auto`) are used, **only one needs to be true** to trigger a reload.
 - Setting `reloader.stakater.com/auto: "false"` explicitly disables reload for that workload.
 - If `--auto-reload-all` is enabled on the controller:
-  - All workloads are treated as if they have `auto: "true"` unless they explicitly set it to `"false"`.
-  - Missing or unrecognized annotation values are treated as `"false"`.
+    - All workloads are treated as if they have `auto: "true"` unless they explicitly set it to `"false"`.
+    - Missing or unrecognized annotation values are treated as `"false"`.
 
 ## 🚀 Installation
 
@@ -267,7 +267,6 @@ These flags let you customize Reloader's behavior globally, at the Reloader cont
 > **⚠️ Note:**  
 > Only **one** resource type can be ignored at a time.  
 > Trying to ignore **both `configMaps` and `secrets`** will cause an error in Reloader.  
->  
 > ✅ **Workaround:** Scale the Reloader deployment to `0` replicas if you want to disable it completely.
 
 #### 3. 🧩 Namespace Filtering
