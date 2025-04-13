@@ -186,7 +186,7 @@ metadata:
 
 ## 🚀 Installation Options
 
-### 📦 1. Helm
+### 1. 📦 Helm
 
 Reloader can be installed in multiple ways depending on your Kubernetes setup and preference. Below are the supported methods:
 
@@ -198,7 +198,7 @@ helm install reloader stakater/reloader
 
 ➡️ See full Helm configuration in the [chart README](./deployments/kubernetes/chart/reloader/README.md).
 
-### 📄 2. Vanilla Manifests
+### 2. 📄 Vanilla Manifests
 
 Apply raw Kubernetes manifests directly:
 
@@ -206,7 +206,7 @@ Apply raw Kubernetes manifests directly:
 kubectl apply -f https://raw.githubusercontent.com/stakater/Reloader/master/deployments/kubernetes/reloader.yaml
 ```
 
-### 🧱 3. Vanilla Kustomize
+### 3. 🧱 Vanilla Kustomize
 
 Use the built-in Kustomize support:
 
@@ -214,7 +214,7 @@ Use the built-in Kustomize support:
 kubectl apply -k https://github.com/stakater/Reloader/deployments/kubernetes
 ```
 
-### 🛠️ 4. Custom Kustomize Setup
+### 4. 🛠️ Custom Kustomize Setup
 
 You can create your own kustomization.yaml and use Reloader’s as a base:
 
@@ -228,7 +228,7 @@ resources:
 namespace: reloader
 ```
 
-### ⚖️ 5. Default Resource Requests and Limits
+### 5. ⚖️ Default Resource Requests and Limits
 
 By default, Reloader is deployed with the following resource requests and limits:
 
@@ -242,7 +242,7 @@ resources:
     memory: 128Mi
 ```
 
-### ⚙️ 6. Optional Runtime Configurations
+### 6. ⚙️ Optional Runtime Configurations
 
 These flags let you customize Reloader's behavior globally, at the Reloader controller level.
 
