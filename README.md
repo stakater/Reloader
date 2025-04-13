@@ -12,7 +12,7 @@
 
 ## 🔁 What is Reloader?
 
-Reloader is a Kubernetes controller that automatically triggers rollouts of workloads (like Deployments, StatefulSets, and more) whenever referenced `Secrets` or `ConfigMaps` are updated.
+Reloader is a Kubernetes controller that automatically triggers rollouts of workloads (like Deployments, StatefulSets, and more) whenever referenced `Secrets` or `Configmaps` are updated.
 
 In a traditional Kubernetes setup, updating a `Secret` or `ConfigMap` does not automatically restart or redeploy your workloads. This can lead to stale configurations running in production, especially when dealing with dynamic values like credentials, feature flags, or environment configs.
 
@@ -45,7 +45,7 @@ flowchart LR
 ```
 
 - Sources like `ExternalSecret` or `SealedSecret` create or manage your Kubernetes Secrets.
-- `Secrets` and `ConfigMaps` are watched by Reloader.
+- `Secrets` and `Configmaps` are watched by Reloader.
 - When changes are detected, Reloader automatically triggers a rollout of the associated workloads, ensuring your app always runs with the latest configuration.
 
 ## ⚡ Quick Start
@@ -95,19 +95,19 @@ Contact [`sales@stakater.com`](mailto:sales@stakater.com) for info about Reloade
 
 ## 🧩 Using Reloader in Your Workloads
 
-Reloader supports multiple annotation-based controls to let you **customize when and how your Kubernetes workloads are reloaded** upon changes in `Secrets` or `ConfigMaps`.
+Reloader supports multiple annotation-based controls to let you **customize when and how your Kubernetes workloads are reloaded** upon changes in `Secrets` or `Configmaps`.
 
 Kubernetes does not trigger pod restarts when a referenced `Secret` or `ConfigMap` is updated. Reloader bridges this gap by watching for changes and automatically performing rollouts — but it gives you full control via annotations, so you can:
 
 - Reload **all** resources by default
-- Restrict reloads to only **Secrets** or only **ConfigMaps**
+- Restrict reloads to only **Secrets** or only **Configmaps**
 - Watch only **specific resources**
 - Use **opt-in via tagging** (`search` + `match`)
 - Exclude workloads you don’t want to reload
 
 ### 1. 🔁 Automatic Reload (Default)
 
-Use these annotations to automatically restart the workload when referenced `Secrets` or `ConfigMaps` change.
+Use these annotations to automatically restart the workload when referenced `Secrets` or `Configmaps` change.
 
 | Annotation                                 | Description                                                          |
 |--------------------------------------------|----------------------------------------------------------------------|
@@ -117,7 +117,7 @@ Use these annotations to automatically restart the workload when referenced `Sec
 
 ### 2. 📛 Named Resource Reload (Specific Resource Annotations)
 
-These annotations allow you to manually define which ConfigMaps or Secrets should trigger a reload, regardless of whether they're used in the pod spec.
+These annotations allow you to manually define which Configmaps or Secrets should trigger a reload, regardless of whether they're used in the pod spec.
 
 | Annotation                                          | Description                                                                          |
 |-----------------------------------------------------|--------------------------------------------------------------------------------------|
@@ -216,7 +216,7 @@ kubectl apply -k https://github.com/stakater/Reloader/deployments/kubernetes
 
 ### 4. 🛠️ Custom Kustomize Setup
 
-You can create your own kustomization.yaml and use Reloader’s as a base:
+You can create your own `kustomization.yaml` and use Reloader’s as a base:
 
 ```yaml
 apiVersion: kustomize.config.k8s.io/v1beta1
@@ -242,7 +242,7 @@ resources:
     memory: 128Mi
 ```
 
-### 6. ⚙️ Optional Runtime Configurations
+### 6. ⚙️ Optional runtime configurations
 
 These flags let you customize Reloader's behavior globally, at the Reloader controller level.
 
@@ -260,13 +260,13 @@ These flags let you customize Reloader's behavior globally, at the Reloader cont
 
 | Flag | Description |
 |------|-------------|
-| `--resources-to-ignore=configMaps` | Ignore ConfigMaps (only one type can be ignored at a time) |
-| `--resources-to-ignore=secrets` | Ignore Secrets (cannot combine with configMaps) |
-| `--resource-label-selector=key=value` | Only watch ConfigMaps/Secrets with matching labels |
+| `--resources-to-ignore=configmaps` | Ignore Configmaps (only one type can be ignored at a time) |
+| `--resources-to-ignore=secrets` | Ignore Secrets (cannot combine with configmaps) |
+| `--resource-label-selector=key=value` | Only watch Configmaps/Secrets with matching labels |
 
 > **⚠️ Note:**  
 > Only **one** resource type can be ignored at a time.  
-> Trying to ignore **both `configMaps` and `secrets`** will cause an error in Reloader.  
+> Trying to ignore **both `configmaps` and `secrets`** will cause an error in Reloader.  
 > ✅ **Workaround:** Scale the Reloader deployment to `0` replicas if you want to disable it completely.
 
 #### 3. 🧩 Namespace Filtering
