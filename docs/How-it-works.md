@@ -15,18 +15,18 @@ flowchart LR
 
 ## How Does Change Detection Work?
 
-Reloader watches changes in `configmaps` and `secrets` data. As soon as it detects a change in these. It forwards these objects to an update handler which decides if and how to perform the rolling upgrade.
+Reloader watches changes in `ConfigMaps` and `Secrets` data. As soon as it detects a change in these. It forwards these objects to an update handler which decides if and how to perform the rolling upgrade.
 
 ## Requirements for Rolling Upgrade
 
 To perform rolling upgrade a `deployment`, `daemonset` or `statefulset` must have
 
 - support for rolling upgrade strategy
-- specific annotation for `configmaps` or `secrets`
+- specific annotation for `ConfigMaps` or `Secrets`
 
-The annotation value is comma separated list of `configmaps` or `secrets`. If a change is detected in data of these `configmaps` or `secrets`, Reloader will perform rolling upgrades on their associated `deployments`, `daemonsets` or `statefulsets`.
+The annotation value is comma separated list of `ConfigMaps` or `Secrets`. If a change is detected in data of these `ConfigMaps` or `Secrets`, Reloader will perform rolling upgrades on their associated `deployments`, `daemonsets` or `statefulsets`.
 
-### Annotation for Configmap
+### Annotation for ConfigMap
 
 For a `Deployment` called `foo` have a `ConfigMap` called `foo`. Then add this annotation* to your `Deployment`, where the default annotation can be changed with the `--configmap-annotation` flag:
 
@@ -50,13 +50,13 @@ Above mentioned annotation are also work for `Daemonsets` `Statefulsets` and `Ro
 
 ## How Does Rolling Upgrade Work?
 
-When Reloader detects changes in configmap. It gets two objects of configmap. First object is an old configmap object which has a state before the latest change. Second object is new configmap object which contains latest changes. Reloader compares both objects and see whether any change in data occurred or not. If Reloader finds any change in new configmap object, only then, it moves forward with rolling upgrade.
+When Reloader detects changes in `ConfigMap`. It gets two objects of `ConfigMap`. First object is an old `ConfigMap` object which has a state before the latest change. Second object is new `ConfigMap` object which contains latest changes. Reloader compares both objects and see whether any change in data occurred or not. If Reloader finds any change in new `ConfigMap` object, only then, it moves forward with rolling upgrade.
 
-After that, Reloader gets the list of all `deployments`, `daemonsets` and `statefulset` and looks for above mentioned annotation for configmap. If the annotation value contains the configmap name, it then looks for an environment variable which can contain the configmap or secret data change hash.
+After that, Reloader gets the list of all `deployments`, `daemonsets` and `statefulset` and looks for above mentioned annotation for `ConfigMap`. If the annotation value contains the `ConfigMap` name, it then looks for an environment variable which can contain the `ConfigMap` or secret data change hash.
 
-### Environment Variable for Configmap
+### Environment Variable for ConfigMap
 
-If configmap name is foo then
+If `ConfigMap` name is foo then
 
 ```yaml
 STAKATER_FOO_CONFIGMAP
@@ -70,7 +70,7 @@ If Secret name is foo then
 STAKATER_FOO_SECRET
 ```
 
-If the environment variable is found then it gets its value and compares it with new configmap hash value. If old value in environment variable is different from new hash value then Reloader updates the environment variable. If the environment variable does not exist then it creates a new environment variable with latest hash value from configmap and updates the relevant `deployment`, `daemonset` or `statefulset`
+If the environment variable is found then it gets its value and compares it with new `ConfigMap` hash value. If old value in environment variable is different from new hash value then Reloader updates the environment variable. If the environment variable does not exist then it creates a new environment variable with latest hash value from `ConfigMap` and updates the relevant `deployment`, `daemonset` or `statefulset`
 
 Note: Rolling upgrade also works in the same way for secrets.
 
@@ -90,4 +90,4 @@ The output file can then be used to deploy Reloader in specific namespace.
 
 ## Compatibility With Helm Install and Upgrade
 
-Reloader has no impact on helm deployment cycle. Reloader only injects an environment variable in  `deployment`, `daemonset` or `statefulset`. The environment variable contains the SHA1 value of configmap's or secret's data. So  if a deployment is created using Helm and Reloader updates the deployment, then next time you upgrade the helm release, Reloader will do nothing except changing that environment variable value in `deployment` , `daemonset` or `statefulset`.
+Reloader has no impact on helm deployment cycle. Reloader only injects an environment variable in  `deployment`, `daemonset` or `statefulset`. The environment variable contains the SHA1 value of `ConfigMaps` or `Secrets` data. So  if a deployment is created using Helm and Reloader updates the deployment, then next time you upgrade the helm release, Reloader will do nothing except changing that environment variable value in `deployment` , `daemonset` or `statefulset`.
