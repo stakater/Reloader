@@ -1,6 +1,9 @@
 package handler
 
 import (
+	"fmt"
+	"slices"
+
 	"github.com/sirupsen/logrus"
 	"github.com/stakater/Reloader/internal/pkg/callbacks"
 	"github.com/stakater/Reloader/internal/pkg/constants"
@@ -8,8 +11,10 @@ import (
 	"github.com/stakater/Reloader/internal/pkg/options"
 	"github.com/stakater/Reloader/internal/pkg/testutil"
 	"github.com/stakater/Reloader/internal/pkg/util"
+
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	patchtypes "k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/tools/record"
 )
 
@@ -50,7 +55,7 @@ func (r ResourceDeleteHandler) GetConfig() (util.Config, string) {
 	return config, oldSHAData
 }
 
-func invokeDeleteStrategy(upgradeFuncs callbacks.RollingUpgradeFuncs, item runtime.Object, config util.Config, autoReload bool) constants.Result {
+func invokeDeleteStrategy(upgradeFuncs callbacks.RollingUpgradeFuncs, item runtime.Object, config util.Config, autoReload bool) InvokeStrategyResult {
 	if options.ReloadStrategy == constants.AnnotationsReloadStrategy {
 		return removePodAnnotations(upgradeFuncs, item, config, autoReload)
 	}
@@ -58,35 +63,38 @@ func invokeDeleteStrategy(upgradeFuncs callbacks.RollingUpgradeFuncs, item runti
 	return removeContainerEnvVars(upgradeFuncs, item, config, autoReload)
 }
 
-func removePodAnnotations(upgradeFuncs callbacks.RollingUpgradeFuncs, item runtime.Object, config util.Config, autoReload bool) constants.Result {
+func removePodAnnotations(upgradeFuncs callbacks.RollingUpgradeFuncs, item runtime.Object, config util.Config, autoReload bool) InvokeStrategyResult {
 	config.SHAValue = testutil.GetSHAfromEmptyData()
 	return updatePodAnnotations(upgradeFuncs, item, config, autoReload)
 }
 
-func removeContainerEnvVars(upgradeFuncs callbacks.RollingUpgradeFuncs, item runtime.Object, config util.Config, autoReload bool) constants.Result {
+func removeContainerEnvVars(upgradeFuncs callbacks.RollingUpgradeFuncs, item runtime.Object, config util.Config, autoReload bool) InvokeStrategyResult {
 	envVar := getEnvVarName(config.ResourceName, config.Type)
 	container := getContainerUsingResource(upgradeFuncs, item, config, autoReload)
 
 	if container == nil {
-		return constants.NoContainerFound
+		return InvokeStrategyResult{constants.NoContainerFound, nil}
 	}
 
 	//remove if env var exists
-	containers := upgradeFuncs.ContainersFunc(item)
-	for i := range containers {
-		envs := containers[i].Env
-		index := -1
-		for j := range envs {
-			if envs[j].Name == envVar {
-				index = j
-				break
-			}
-		}
+	if len(container.Env) > 0 {
+		index := slices.IndexFunc(container.Env, func(envVariable v1.EnvVar) bool {
+			return envVariable.Name == envVar
+		})
 		if index != -1 {
-			containers[i].Env = append(containers[i].Env[:index], containers[i].Env[index+1:]...)
-			return constants.Updated
+			var patch []byte
+			if upgradeFuncs.SupportsPatch {
+				containers := upgradeFuncs.ContainersFunc(item)
+				containerIndex := slices.IndexFunc(containers, func(c v1.Container) bool {
+					return c.Name == container.Name
+				})
+				patch = fmt.Appendf(nil, upgradeFuncs.PatchTemplatesFunc().DeleteEnvVarTemplate, containerIndex, index)
+			}
+
+			container.Env = append(container.Env[:index], container.Env[index+1:]...)
+			return InvokeStrategyResult{constants.Updated, &Patch{Type: patchtypes.JSONPatchType, Bytes: patch}}
 		}
 	}
 
-	return constants.NotUpdated
+	return InvokeStrategyResult{constants.NotUpdated, nil}
 }
