@@ -274,6 +274,19 @@ These flags let you customize Reloader's behavior globally, at the Reloader cont
 | `--reload-strategy=env-vars` | Strategy to use for triggering reload (`env-vars` or `annotations`) |
 | `--log-format=json` | Enable JSON-formatted logs for better machine readability |
 
+##### Reload Strategies
+
+Reloader supports multiple strategies for triggering rolling updates when a watched `ConfigMap` or `Secret` changes. You can configure the strategy using the `--reload-strategy` flag.
+
+| Strategy     | Description |
+|--------------|-------------|
+| `env-vars` (default) | Adds a dummy environment variable to any container referencing the changed resource (e.g., `Deployment`, `StatefulSet`, etc.). This forces Kubernetes to perform a rolling update. |
+| `annotations` | Adds a `reloader.stakater.com/last-reloaded-from` annotation to the pod template metadata. Ideal for GitOps tools like ArgoCD, as it avoids triggering unwanted sync diffs. |
+
+- The `env-vars` strategy is the default and works in most setups.
+- The `annotations` strategy is preferred in **GitOps environments** to prevent config drift in tools like ArgoCD or Flux.
+- In `annotations` mode, a `ConfigMap` or `Secret` that is deleted and re-created will still trigger a reload (since previous state is not tracked).
+
 #### 2. 🚫 Resource Filtering
 
 | Flag | Description |
@@ -307,23 +320,6 @@ These flags allow you to redefine annotation keys used in your workloads or reso
 | `--search-match-annotation` | Overrides `reloader.stakater.com/match` |
 | `--secret-annotation` | Overrides `secret.reloader.stakater.com/reload` |
 | `--configmap-annotation` | Overrides `configmap.reloader.stakater.com/reload` |
-
-#### 5. 🔁 Reload Strategies
-
-Reloader supports multiple strategies for triggering rolling updates when a watched `ConfigMap` or `Secret` changes. You can configure the strategy using the `--reload-strategy` flag.
-
-##### 🧩 Available Strategies
-
-| Strategy     | Description |
-|--------------|-------------|
-| `env-vars` (default) | Adds a dummy environment variable to any container referencing the changed resource (e.g., `Deployment`, `StatefulSet`, etc.). This forces Kubernetes to perform a rolling update. |
-| `annotations` | Adds a `reloader.stakater.com/last-reloaded-from` annotation to the pod template metadata. Ideal for GitOps tools like ArgoCD, as it avoids triggering unwanted sync diffs. |
-
-##### 🔍 Strategy Notes
-
-- The `env-vars` strategy is the default and works in most setups.
-- The `annotations` strategy is preferred in **GitOps environments** to prevent config drift in tools like ArgoCD or Flux.
-- In `annotations` mode, a `ConfigMap` or `Secret` that is deleted and re-created will still trigger a reload (since previous state is not tracked).
 
 ## Compatibility
 
