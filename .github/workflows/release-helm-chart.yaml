@@ -4,8 +4,6 @@ on:
   push:
     tags:
       - "chart-v*"
-    tags-ignore:
-      - "v*"
 
 permissions:
   contents: write

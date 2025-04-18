@@ -4,8 +4,6 @@ on:
   push:
     tags:
       - "v*"
-    tags-ignore:
-      - "chart-v*"
 
 env:
   DOCKER_FILE_PATH: Dockerfile
