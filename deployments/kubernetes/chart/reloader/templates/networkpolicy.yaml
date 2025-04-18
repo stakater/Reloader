@@ -14,7 +14,7 @@ metadata:
 spec:
   podSelector:
     matchLabels:
-      app.kubernetes.io/name: {{ template "reloader-fullname" . }}
+      app.kubernetes.io/name: {{ template "reloader-name" . }}
       app.kubernetes.io/instance: {{ .Release.Name | quote }}
 {{- if .Values.reloader.matchLabels }}
 {{ toYaml .Values.reloader.matchLabels | indent 6 }}
