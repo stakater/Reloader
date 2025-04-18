@@ -11,6 +11,7 @@ on:
     paths:
       - 'deployments/kubernetes/chart/reloader/**'
       - '.github/workflows/push-helm-chart.yaml'
+      - '.github/workflows/release-helm-chart.yaml'
 
 env:
   HELM_REGISTRY_URL: "https://stakater.github.io/stakater-charts"
