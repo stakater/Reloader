@@ -158,4 +158,8 @@ _Helm chart versioning_: The Reloader Helm chart is maintained in this repositor
 
 Helm chart will be released to the chart registry whenever files in `deployments/kubernetes/chart/reloader/**` change on the main branch.
 
-Helm Chart will be released by the maintainers, on labelling a PR with `release/helm-chart` and pre-maturely updating the `version` field in `Chart.yaml` file.
+### To release the Helm chart
+
+1. Create a new branch and update the Helm chart `appVersion` and `version`, example pull-request: [PR-846](https://github.com/stakater/Reloader/pull/846)
+1. Label the PR with `release/helm-chart`
+1. After approval and just before squash, make sure the squash commit message represents all changes, because it will be used to autogenerate the changelog message
