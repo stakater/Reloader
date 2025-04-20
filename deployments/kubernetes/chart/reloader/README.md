@@ -125,25 +125,25 @@ helm uninstall {{RELEASE_NAME}} -n {{NAMESPACE}}
 
 #### 🔄 `reloadOnCreate` Behavior
 **When true:**
-✅ New ConfigMaps/Secrets trigger rolling updates  
-✅ New deployments referencing existing resources reload  
-✅ In HA mode, new leader reloads all tracked workloads  
+✅ New ConfigMaps/Secrets trigger rolling updates
+✅ New deployments referencing existing resources reload
+✅ In HA mode, new leader reloads all tracked workloads
 
 **When false:**
-❌ Updates during leader downtime are missed  
-⏳ Potential 15s delay window (default `LeaseDuration`)  
+❌ Updates during leader downtime are missed
+⏳ Potential 15s delay window (default `LeaseDuration`)
 
 #### 🗑️ `reloadOnDelete` Behavior
 **When true:**
-✅ Deleted resources trigger rolling updates of referencing workloads  
+✅ Deleted resources trigger rolling updates of referencing workloads
 
 **When false:**
-❌ Deletions have no effect on referencing pods  
+❌ Deletions have no effect on referencing pods
 
 #### Default Settings
 ⚠️ All flags default to `false` (must be enabled explicitly):
 - `reloadOnCreate`
-- `reloadOnDelete` 
+- `reloadOnDelete`
 - `syncAfterRestart`
 
 ### Deprecation Notice
