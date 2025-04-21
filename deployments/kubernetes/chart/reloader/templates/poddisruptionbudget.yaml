@@ -13,5 +13,5 @@ spec:
 {{- end }}
   selector:
     matchLabels:
-      app.kubernetes.io/name: {{ template "reloader-fullname" . }}
+      app: {{ template "reloader-fullname" . }}
 {{- end }}
