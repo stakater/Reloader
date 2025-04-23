@@ -52,6 +52,7 @@ var (
 	arsConfigmapWithConfigMapAutoAnnotation    = "testconfigmapwithconfigmapautoannotationdeployment-handler-" + testutil.RandSeq(5)
 	arsSecretWithExcludeSecretAnnotation       = "testsecretwithsecretexcludeannotationdeployment-handler-" + testutil.RandSeq(5)
 	arsConfigmapWithExcludeConfigMapAnnotation = "testconfigmapwithconfigmapexcludeannotationdeployment-handler-" + testutil.RandSeq(5)
+	arsConfigmapWithPausedDeployment           = "testconfigmapWithPausedDeployment-handler-" + testutil.RandSeq(5)
 
 	ersNamespace                               = "test-handler-" + testutil.RandSeq(5)
 	ersConfigmapName                           = "testconfigmap-handler-" + testutil.RandSeq(5)
@@ -75,6 +76,7 @@ var (
 	ersConfigmapWithConfigMapAutoAnnotation    = "testconfigmapwithconfigmapautoannotationdeployment-handler-" + testutil.RandSeq(5)
 	ersSecretWithSecretExcludeAnnotation       = "testsecretwithsecretexcludeannotationdeployment-handler-" + testutil.RandSeq(5)
 	ersConfigmapWithConfigMapExcludeAnnotation = "testconfigmapwithconfigmapexcludeannotationdeployment-handler-" + testutil.RandSeq(5)
+	ersConfigmapWithPausedDeployment           = "testconfigmapWithPausedDeployment-handler-" + testutil.RandSeq(5)
 )
 
 func TestMain(m *testing.M) {
@@ -199,6 +201,12 @@ func setupArs() {
 
 	// Creating configmap used with configmap auto annotation
 	_, err = testutil.CreateConfigMap(clients.KubernetesClient, arsNamespace, arsConfigmapWithConfigMapAutoAnnotation, "www.google.com")
+	if err != nil {
+		logrus.Errorf("Error in configmap creation: %v", err)
+	}
+
+	// Creating configmap for testing pausing deployments
+	_, err = testutil.CreateConfigMap(clients.KubernetesClient, arsNamespace, arsConfigmapWithPausedDeployment, "www.google.com")
 	if err != nil {
 		logrus.Errorf("Error in configmap creation: %v", err)
 	}
@@ -424,6 +432,12 @@ func setupArs() {
 	if err != nil {
 		logrus.Errorf("Error in Deployment with both annotations: %v", err)
 	}
+
+	// Creating Deployment with pause annotation
+	_, err = testutil.CreateDeploymentWithAnnotations(clients.KubernetesClient, arsConfigmapWithPausedDeployment, arsNamespace, map[string]string{options.PauseDeploymentAnnotation: "10s"}, false)
+	if err != nil {
+		logrus.Errorf("Error in Deployment with configmap creation: %v", err)
+	}
 }
 
 func teardownArs() {
@@ -625,6 +639,12 @@ func teardownArs() {
 		logrus.Errorf("Error while deleting statefulSet with secret as env var source %v", statefulSetError)
 	}
 
+	// Deleting Deployment with pasuse annotation
+	deploymentError = testutil.DeleteDeployment(clients.KubernetesClient, arsNamespace, arsConfigmapWithPausedDeployment)
+	if deploymentError != nil {
+		logrus.Errorf("Error while deleting deployment with configmap %v", deploymentError)
+	}
+
 	// Deleting Configmap
 	err := testutil.DeleteConfigMap(clients.KubernetesClient, arsNamespace, arsConfigmapName)
 	if err != nil {
@@ -738,6 +758,12 @@ func teardownArs() {
 		logrus.Errorf("Error while deleting the configmap used with configmap auto annotations: %v", err)
 	}
 
+	// Deleting configmap for testing pausing deployments
+	err = testutil.DeleteConfigMap(clients.KubernetesClient, arsNamespace, arsConfigmapWithPausedDeployment)
+	if err != nil {
+		logrus.Errorf("Error while deleting the configmap: %v", err)
+	}
+
 	// Deleting namespace
 	testutil.DeleteNamespace(arsNamespace, clients.KubernetesClient)
 
@@ -793,6 +819,12 @@ func setupErs() {
 	}
 
 	_, err = testutil.CreateConfigMap(clients.KubernetesClient, ersNamespace, ersConfigmapWithEnvFromName, "www.google.com")
+	if err != nil {
+		logrus.Errorf("Error in configmap creation: %v", err)
+	}
+
+	// Creating configmap for testing pausing deployments
+	_, err = testutil.CreateConfigMap(clients.KubernetesClient, ersNamespace, ersConfigmapWithPausedDeployment, "www.google.com")
 	if err != nil {
 		logrus.Errorf("Error in configmap creation: %v", err)
 	}
@@ -971,6 +1003,12 @@ func setupErs() {
 	_, err = testutil.CreateDeploymentWithExcludeAnnotation(clients.KubernetesClient, ersConfigmapWithConfigMapExcludeAnnotation, ersNamespace, testutil.ConfigmapResourceType)
 	if err != nil {
 		logrus.Errorf("Error in Deployment with configmap and with configmap exclude annotation: %v", err)
+	}
+
+	// Creating Deployment with pause annotation
+	_, err = testutil.CreateDeploymentWithAnnotations(clients.KubernetesClient, ersConfigmapWithPausedDeployment, ersNamespace, map[string]string{options.PauseDeploymentAnnotation: "10s"}, false)
+	if err != nil {
+		logrus.Errorf("Error in Deployment with configmap creation: %v", err)
 	}
 
 	// Creating DaemonSet with configmap
@@ -1257,6 +1295,12 @@ func teardownErs() {
 		logrus.Errorf("Error while deleting statefulSet with secret as env var source %v", statefulSetError)
 	}
 
+	// Deleting Deployment for testing pausing deployments
+	deploymentError = testutil.DeleteDeployment(clients.KubernetesClient, ersNamespace, ersConfigmapWithPausedDeployment)
+	if deploymentError != nil {
+		logrus.Errorf("Error while deleting deployment with configmap %v", deploymentError)
+	}
+
 	// Deleting Configmap
 	err := testutil.DeleteConfigMap(clients.KubernetesClient, ersNamespace, ersConfigmapName)
 	if err != nil {
@@ -1368,6 +1412,12 @@ func teardownErs() {
 	err = testutil.DeleteConfigMap(clients.KubernetesClient, ersNamespace, ersConfigmapWithConfigMapExcludeAnnotation)
 	if err != nil {
 		logrus.Errorf("Error while deleting the configmap used with configmap exclude annotation: %v", err)
+	}
+
+	// Deleting ConfigMap for testins pausing deployments
+	err = testutil.DeleteConfigMap(clients.KubernetesClient, ersNamespace, ersConfigmapWithPausedDeployment)
+	if err != nil {
+		logrus.Errorf("Error while deleting the configmap: %v", err)
 	}
 
 	// Deleting namespace
@@ -3844,4 +3894,86 @@ func TestFailedRollingUpgradeUsingErs(t *testing.T) {
 	if promtestutil.ToFloat64(collectors.ReloadedByNamespace.With(prometheus.Labels{"success": "false", "namespace": ersNamespace})) != 1 {
 		t.Errorf("Counter by namespace was not increased")
 	}
+}
+
+func TestPausingDeploymentUsingErs(t *testing.T) {
+	options.ReloadStrategy = constants.EnvVarsReloadStrategy
+	testPausingDeployment(t, options.ReloadStrategy, ersConfigmapWithPausedDeployment, ersNamespace)
+}
+
+func TestPausingDeploymentUsingArs(t *testing.T) {
+	options.ReloadStrategy = constants.AnnotationsReloadStrategy
+	testPausingDeployment(t, options.ReloadStrategy, arsConfigmapWithPausedDeployment, arsNamespace)
+}
+
+func testPausingDeployment(t *testing.T, reloadStrategy string, testName string, namespace string) {
+	options.ReloadStrategy = reloadStrategy
+	envVarPostfix := constants.ConfigmapEnvVarPostfix
+
+	shaData := testutil.ConvertResourceToSHA(testutil.ConfigmapResourceType, namespace, testName, "pause.stakater.com")
+	config := getConfigWithAnnotations(envVarPostfix, testName, shaData, options.ConfigmapUpdateOnChangeAnnotation, options.ConfigmapReloaderAutoAnnotation)
+	deploymentFuncs := GetDeploymentRollingUpgradeFuncs()
+	collectors := getCollectors()
+
+	_ = PerformAction(clients, config, deploymentFuncs, collectors, nil, invokeReloadStrategy)
+
+	if promtestutil.ToFloat64(collectors.Reloaded.With(labelSucceeded)) != 1 {
+		t.Errorf("Counter was not increased")
+	}
+
+	if promtestutil.ToFloat64(collectors.ReloadedByNamespace.With(prometheus.Labels{"success": "true", "namespace": namespace})) != 1 {
+		t.Errorf("Counter by namespace was not increased")
+	}
+
+	logrus.Infof("Verifying deployment has been paused")
+	items := deploymentFuncs.ItemsFunc(clients, config.Namespace)
+	deploymentPaused, err := isDeploymentPaused(items, testName)
+	if err != nil {
+		t.Errorf("%s", err.Error())
+	}
+	if !deploymentPaused {
+		t.Errorf("Deployment has not been paused")
+	}
+
+	shaData = testutil.ConvertResourceToSHA(testutil.ConfigmapResourceType, namespace, testName, "pause-changed.stakater.com")
+	config = getConfigWithAnnotations(envVarPostfix, testName, shaData, options.ConfigmapUpdateOnChangeAnnotation, options.ConfigmapReloaderAutoAnnotation)
+
+	_ = PerformAction(clients, config, deploymentFuncs, collectors, nil, invokeReloadStrategy)
+
+	if promtestutil.ToFloat64(collectors.Reloaded.With(labelSucceeded)) != 2 {
+		t.Errorf("Counter was not increased")
+	}
+
+	if promtestutil.ToFloat64(collectors.ReloadedByNamespace.With(prometheus.Labels{"success": "true", "namespace": namespace})) != 2 {
+		t.Errorf("Counter by namespace was not increased")
+	}
+
+	logrus.Infof("Verifying deployment is still paused")
+	items = deploymentFuncs.ItemsFunc(clients, config.Namespace)
+	deploymentPaused, err = isDeploymentPaused(items, testName)
+	if err != nil {
+		t.Errorf("%s", err.Error())
+	}
+	if !deploymentPaused {
+		t.Errorf("Deployment should still be paused")
+	}
+
+	logrus.Infof("Verifying deployment has been resumed after pause interval")
+	time.Sleep(11 * time.Second)
+	items = deploymentFuncs.ItemsFunc(clients, config.Namespace)
+	deploymentPaused, err = isDeploymentPaused(items, testName)
+	if err != nil {
+		t.Errorf("%s", err.Error())
+	}
+	if deploymentPaused {
+		t.Errorf("Deployment should have been resumed after pause interval")
+	}
+}
+
+func isDeploymentPaused(deployments []runtime.Object, deploymentName string) (bool, error) {
+	deployment, err := FindDeploymentByName(deployments, deploymentName)
+	if err != nil {
+		return false, err
+	}
+	return IsPaused(deployment), nil
 }
