@@ -17,7 +17,6 @@ import (
 	"github.com/stakater/Reloader/internal/pkg/testutil"
 	"github.com/stakater/Reloader/internal/pkg/util"
 	"github.com/stakater/Reloader/pkg/kube"
-	appsv1 "k8s.io/api/apps/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -3675,18 +3674,9 @@ func testPausingDeployment(t *testing.T, reloadStrategy string, testName string,
 }
 
 func isDeploymentPaused(deployments []runtime.Object, deploymentName string) (bool, error) {
-	for _, deployment := range deployments {
-		accessor, err := meta.Accessor(deployment)
-		if err != nil {
-			return false, fmt.Errorf("Error getting accessor for item: %v", err)
-		}
-		if accessor.GetName() == deploymentName {
-			deploymentObj, ok := deployment.(*appsv1.Deployment)
-			if !ok {
-				return false, fmt.Errorf("Failed to cast to Deployment")
-			}
-			return deploymentObj.Spec.Paused, nil
-		}
+	deployment, err := FindDeploymentByName(deployments, deploymentName)
+	if err != nil {
+		return false, err
 	}
-	return false, nil
+	return IsPaused(deployment), nil
 }
