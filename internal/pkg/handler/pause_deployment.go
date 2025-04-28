@@ -9,45 +9,32 @@ import (
 	"github.com/stakater/Reloader/internal/pkg/options"
 	"github.com/stakater/Reloader/pkg/kube"
 	app "k8s.io/api/apps/v1"
-	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
 )
 
-// IsPaused checks if a deployment is currently paused
+// Keeps track of currently active timers
+var activeTimers = make(map[string]*time.Timer)
+
+// Returns unique key for the activeTimers map
+func getTimerKey(namespace, deploymentName string) string {
+	return fmt.Sprintf("%s/%s", namespace, deploymentName)
+}
+
+// Checks if a deployment is currently paused
 func IsPaused(deployment *app.Deployment) bool {
 	return deployment.Spec.Paused
 }
 
-// IsPausedByReloader checks if a deployment was paused by reloader
+// Deployment paused by reloader ?
 func IsPausedByReloader(deployment *app.Deployment) bool {
-	if !deployment.Spec.Paused {
-		return false
+	if IsPaused(deployment) {
+		pausedAtAnnotationValue := deployment.Annotations[options.PauseDeploymentTimeAnnotation]
+		return pausedAtAnnotationValue != ""
 	}
-
-	pausedAtAnnotationValue := deployment.Annotations[options.PauseDeploymentTimeAnnotation]
-	return pausedAtAnnotationValue != ""
+	return false
 }
 
-// FindDeploymentByName locates a deployment by name from a list of api objects
-func FindDeploymentByName(deployments []runtime.Object, deploymentName string) (*app.Deployment, error) {
-	for _, deployment := range deployments {
-		accessor, err := meta.Accessor(deployment)
-		if err != nil {
-			return nil, fmt.Errorf("error getting accessor for item: %v", err)
-		}
-		if accessor.GetName() == deploymentName {
-			deploymentObj, ok := deployment.(*app.Deployment)
-			if !ok {
-				return nil, fmt.Errorf("failed to cast to Deployment")
-			}
-			return deploymentObj, nil
-		}
-	}
-	return nil, fmt.Errorf("deployment '%s' not found", deploymentName)
-}
-
-// GetPauseStartTime returns when the deployment was paused by reloader, nil otherwise
+// Returns the time, the deployment was paused by reloader, nil otherwise
 func GetPauseStartTime(deployment *app.Deployment) (*time.Time, error) {
 	if !IsPausedByReloader(deployment) {
 		return nil, nil
@@ -62,12 +49,22 @@ func GetPauseStartTime(deployment *app.Deployment) (*time.Time, error) {
 	return &parsedTime, nil
 }
 
-// PauseDeployment pauses a deployment for a specified duration and creates a timer to resume it
+// ParsePauseDuration parses the pause interval value and returns a time.Duration
+func ParsePauseDuration(pauseIntervalValue string) (time.Duration, error) {
+	pauseDuration, err := time.ParseDuration(pauseIntervalValue)
+	if err != nil {
+		logrus.Warnf("Failed to parse pause interval value '%s': %v", pauseIntervalValue, err)
+		return 0, err
+	}
+	return pauseDuration, nil
+}
+
+// Pauses a deployment for a specified duration and creates a timer to resume it
 // after the specified duration
-func PauseDeployment(deployment *app.Deployment, clients kube.Clients, deploymentName, namespace, pauseIntervalValue string) error {
+func PauseDeployment(deployment *app.Deployment, clients kube.Clients, deploymentName, namespace, pauseIntervalValue string) (*app.Deployment, error) {
 	pauseDuration, err := ParsePauseDuration(pauseIntervalValue)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	if !IsPaused(deployment) {
@@ -78,19 +75,82 @@ func PauseDeployment(deployment *app.Deployment, clients kube.Clients, deploymen
 			deployment.Annotations = make(map[string]string)
 		}
 		deployment.Annotations[options.PauseDeploymentTimeAnnotation] = time.Now().Format(time.RFC3339)
+		deployment.Annotations[options.PauseDeploymentAnnotation] = pauseIntervalValue
 
 		CreateResumeTimer(deployment, clients, deploymentName, namespace, pauseDuration)
-	} else {
-		logrus.Infof("Deployment '%s' in namespace '%s' is already paused", deploymentName, namespace)
+		return deployment, nil
 	}
-	return nil
+
+	if !IsPausedByReloader(deployment) {
+		logrus.Infof("Deployment '%s' in namespace '%s' already paused", deploymentName, namespace)
+		return deployment, nil
+	}
+
+	// Deployment has already been paused by reloader, check for timer
+	logrus.Debugf("Deployment '%s' in namespace '%s' is already paused by reloader", deploymentName, namespace)
+
+	timerKey := getTimerKey(namespace, deploymentName)
+	_, timerExists := activeTimers[timerKey]
+
+	if !timerExists {
+		logrus.Warnf("Timer does not exist for already paused deployment '%s' in namespace '%s', creating new one",
+			deploymentName, namespace)
+		HandleMissingTimer(deployment, pauseDuration, clients, deploymentName, namespace)
+	}
+	return deployment, nil
+}
+
+// Handles the case where missing timers for deployments that have been paused by reloader.
+// Could occur after new leader election or reloader restart
+func HandleMissingTimer(deployment *app.Deployment, pauseDuration time.Duration, clients kube.Clients, deploymentName, namespace string) {
+	pauseStartTime, err := GetPauseStartTime(deployment)
+	if err != nil {
+		logrus.Errorf("Error parsing pause start time for deployment '%s' in namespace '%s': %v. Resuming deployment immediately",
+			deploymentName, namespace, err)
+		ResumeDeployment(deploymentName, namespace, clients)
+		return
+	}
+
+	if pauseStartTime == nil {
+		return
+	}
+
+	elapsedPauseTime := time.Since(*pauseStartTime)
+	remainingPauseTime := pauseDuration - elapsedPauseTime
+
+	if remainingPauseTime <= 0 {
+		logrus.Infof("Pause period for deployment '%s' in namespace '%s' has expired. Resuming immediately",
+			deploymentName, namespace)
+		ResumeDeployment(deploymentName, namespace, clients)
+		return
+	}
+
+	logrus.Infof("Creating missing timer for already paused deployment '%s' in namespace '%s' with remaining time %s",
+		deploymentName, namespace, remainingPauseTime)
+	CreateResumeTimer(deployment, clients, deploymentName, namespace, remainingPauseTime)
 }
 
 // CreateResumeTimer creates a timer to resume the deployment after the specified duration
 func CreateResumeTimer(deployment *app.Deployment, clients kube.Clients, deploymentName, namespace string, pauseDuration time.Duration) {
-	time.AfterFunc(pauseDuration, func() {
+	timerKey := getTimerKey(namespace, deploymentName)
+
+	// Check if there's an existing timer for this deployment
+	if _, exists := activeTimers[timerKey]; exists {
+		logrus.Debugf("Timer already exists for deployment '%s' in namespace '%s', Skipping creation",
+			deploymentName, namespace)
+		return
+	}
+
+	// Create and store the new timer
+	timer := time.AfterFunc(pauseDuration, func() {
 		ResumeDeployment(deploymentName, namespace, clients)
 	})
+
+	// Add the new timer to the map
+	activeTimers[timerKey] = timer
+
+	logrus.Debugf("Created pause timer for deployment '%s' in namespace '%s' with duration %s",
+		deploymentName, namespace, pauseDuration)
 }
 
 // ResumeDeployment resumes a deployment that has been paused by reloader
@@ -106,6 +166,14 @@ func ResumeDeployment(deploymentName, namespace string, clients kube.Clients) {
 		return
 	}
 
+	// Remove the timer
+	timerKey := getTimerKey(namespace, deploymentName)
+	if timer, exists := activeTimers[timerKey]; exists {
+		timer.Stop()
+		delete(activeTimers, timerKey)
+		logrus.Debugf("Removed pause timer for deployment '%s' in namespace '%s'", deploymentName, namespace)
+	}
+
 	deployment.Spec.Paused = false
 	delete(deployment.Annotations, options.PauseDeploymentTimeAnnotation)
 
@@ -116,14 +184,4 @@ func ResumeDeployment(deploymentName, namespace string, clients kube.Clients) {
 	}
 
 	logrus.Infof("Successfully resumed deployment '%s' in namespace '%s'", deploymentName, namespace)
-}
-
-// ParsePauseDuration parses the pause interval value and returns a time.Duration
-func ParsePauseDuration(pauseIntervalValue string) (time.Duration, error) {
-	pauseDuration, err := time.ParseDuration(pauseIntervalValue)
-	if err != nil {
-		logrus.Warnf("Failed to parse pause interval value '%s': %v", pauseIntervalValue, err)
-		return 0, err
-	}
-	return pauseDuration, nil
 }
