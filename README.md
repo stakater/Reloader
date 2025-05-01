@@ -32,6 +32,7 @@ Reloader bridges that gap by ensuring your workloads stay in sync with configura
 flowchart LR
   ExternalSecret -->|Creates| Secret
   SealedSecret -->|Creates| Secret
+  Certificate -->|Creates| Secret
   Secret -->|Watched by| Reloader
   ConfigMap -->|Watched by| Reloader
 
@@ -44,7 +45,7 @@ flowchart LR
   Reloader -->|Sends Notification| Slack,Teams,Webhook
 ```
 
-- Sources like `ExternalSecret` or `SealedSecret` create or manage your Kubernetes Secrets.
+- Sources like `ExternalSecret`, `SealedSecret`, or `Certificate` from `cert-manager` can create or manage Kubernetes `Secrets` — but they can also be created manually or delivered through GitOps workflows.
 - `Secrets` and `ConfigMaps` are watched by Reloader.
 - When changes are detected, Reloader automatically triggers a rollout of the associated workloads, ensuring your app always runs with the latest configuration.
 
