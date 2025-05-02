@@ -21,6 +21,7 @@ import (
 	"github.com/stakater/Reloader/internal/pkg/options"
 	"github.com/stakater/Reloader/internal/pkg/util"
 	"github.com/stakater/Reloader/pkg/kube"
+	app "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -219,6 +220,7 @@ func PerformAction(clients kube.Clients, config util.Config, upgradeFuncs callba
 		typedAutoAnnotationEnabledValue, foundTypedAuto := annotations[config.TypedAutoAnnotation]
 		excludeConfigmapAnnotationValue, foundExcludeConfigmap := annotations[options.ConfigmapExcludeReloaderAnnotation]
 		excludeSecretAnnotationValue, foundExcludeSecret := annotations[options.SecretExcludeReloaderAnnotation]
+		pauseInterval, foundPauseInterval := annotations[options.PauseDeploymentAnnotation]
 
 		if !found && !foundAuto && !foundTypedAuto && !foundSearchAnn {
 			annotations = upgradeFuncs.PodAnnotationsFunc(i)
@@ -274,6 +276,29 @@ func PerformAction(clients kube.Clients, config util.Config, upgradeFuncs callba
 		}
 
 		if result == constants.Updated {
+
+			if foundPauseInterval {
+
+				accessor, err := meta.Accessor(i)
+				if err != nil {
+					return err
+				}
+
+				itemName := accessor.GetName()
+				itemNamespace := accessor.GetNamespace()
+
+				deployment, ok := i.(*app.Deployment)
+				if !ok {
+					logrus.Warnf("Annotation '%s' only applicable for deployments", options.PauseDeploymentAnnotation)
+				} else {
+					_, err = PauseDeployment(deployment, clients, itemName, itemNamespace, pauseInterval)
+					if err != nil {
+						logrus.Errorf("Failed to pause deployment '%s' in namespace '%s': %v", itemName, itemNamespace, err)
+						return err
+					}
+				}
+			}
+
 			accessor, err := meta.Accessor(i)
 			if err != nil {
 				return err
