@@ -172,7 +172,8 @@ func TestResourceItem(t *testing.T) {
 			_, err = tt.getItemFunc(clients, accessor.GetName(), fixtures.namespace)
 			assert.NoError(t, err)
 
-			tt.deleteFunc(clients, fixtures.namespace, accessor.GetName())
+			err = tt.deleteFunc(clients, fixtures.namespace, accessor.GetName())
+			assert.NoError(t, err)
 		})
 	}
 }
@@ -184,7 +185,7 @@ func TestResourceItems(t *testing.T) {
 		name          string
 		createFunc    func(kube.Clients, string) error
 		getItemsFunc  func(kube.Clients, string) []runtime.Object
-		deleteFunc    func(kube.Clients, string)
+		deleteFunc    func(kube.Clients, string) error
 		expectedCount int
 	}{
 		{
@@ -352,7 +353,8 @@ func TestUpdateResources(t *testing.T) {
 			accessor, err := meta.Accessor(resource)
 			assert.NoError(t, err)
 
-			tt.deleteFunc(clients, fixtures.namespace, accessor.GetName())
+			err = tt.deleteFunc(clients, fixtures.namespace, accessor.GetName())
+			assert.NoError(t, err)
 		})
 	}
 }
@@ -404,7 +406,8 @@ func TestPatchResources(t *testing.T) {
 			accessor, err := meta.Accessor(resource)
 			assert.NoError(t, err)
 
-			tt.deleteFunc(clients, fixtures.namespace, accessor.GetName())
+			err = tt.deleteFunc(clients, fixtures.namespace, accessor.GetName())
+			assert.NoError(t, err)
 		})
 	}
 }
@@ -510,10 +513,14 @@ func createTestDeployments(clients kube.Clients, namespace string) error {
 	return nil
 }
 
-func deleteTestDeployments(clients kube.Clients, namespace string) {
+func deleteTestDeployments(clients kube.Clients, namespace string) error {
 	for i := 1; i <= 2; i++ {
-		testutil.DeleteDeployment(clients.KubernetesClient, namespace, fmt.Sprintf("test-deployment-%d", i))
+		err := testutil.DeleteDeployment(clients.KubernetesClient, namespace, fmt.Sprintf("test-deployment-%d", i))
+		if err != nil {
+			return err
+		}
 	}
+	return nil
 }
 
 func createTestCronJobs(clients kube.Clients, namespace string) error {
@@ -526,10 +533,14 @@ func createTestCronJobs(clients kube.Clients, namespace string) error {
 	return nil
 }
 
-func deleteTestCronJobs(clients kube.Clients, namespace string) {
+func deleteTestCronJobs(clients kube.Clients, namespace string) error {
 	for i := 1; i <= 2; i++ {
-		testutil.DeleteCronJob(clients.KubernetesClient, namespace, fmt.Sprintf("test-cron-%d", i))
+		err := testutil.DeleteCronJob(clients.KubernetesClient, namespace, fmt.Sprintf("test-cron-%d", i))
+		if err != nil {
+			return err
+		}
 	}
+	return nil
 }
 
 func createTestJobs(clients kube.Clients, namespace string) error {
@@ -542,10 +553,14 @@ func createTestJobs(clients kube.Clients, namespace string) error {
 	return nil
 }
 
-func deleteTestJobs(clients kube.Clients, namespace string) {
+func deleteTestJobs(clients kube.Clients, namespace string) error {
 	for i := 1; i <= 2; i++ {
-		testutil.DeleteJob(clients.KubernetesClient, namespace, fmt.Sprintf("test-job-%d", i))
+		err := testutil.DeleteJob(clients.KubernetesClient, namespace, fmt.Sprintf("test-job-%d", i))
+		if err != nil {
+			return err
+		}
 	}
+	return nil
 }
 
 func createTestDaemonSets(clients kube.Clients, namespace string) error {
@@ -558,10 +573,14 @@ func createTestDaemonSets(clients kube.Clients, namespace string) error {
 	return nil
 }
 
-func deleteTestDaemonSets(clients kube.Clients, namespace string) {
+func deleteTestDaemonSets(clients kube.Clients, namespace string) error {
 	for i := 1; i <= 2; i++ {
-		testutil.DeleteDaemonSet(clients.KubernetesClient, namespace, fmt.Sprintf("test-daemonset-%d", i))
+		err := testutil.DeleteDaemonSet(clients.KubernetesClient, namespace, fmt.Sprintf("test-daemonset-%d", i))
+		if err != nil {
+			return err
+		}
 	}
+	return nil
 }
 
 func createTestStatefulSets(clients kube.Clients, namespace string) error {
@@ -574,10 +593,14 @@ func createTestStatefulSets(clients kube.Clients, namespace string) error {
 	return nil
 }
 
-func deleteTestStatefulSets(clients kube.Clients, namespace string) {
+func deleteTestStatefulSets(clients kube.Clients, namespace string) error {
 	for i := 1; i <= 2; i++ {
-		testutil.DeleteStatefulSet(clients.KubernetesClient, namespace, fmt.Sprintf("test-statefulset-%d", i))
+		err := testutil.DeleteStatefulSet(clients.KubernetesClient, namespace, fmt.Sprintf("test-statefulset-%d", i))
+		if err != nil {
+			return err
+		}
 	}
+	return nil
 }
 
 func createResourceWithPodAnnotations(obj runtime.Object, annotations map[string]string) runtime.Object {
