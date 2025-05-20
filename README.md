@@ -294,7 +294,7 @@ Reloader supports multiple strategies for triggering rolling updates when a watc
 |------|-------------|
 | `--resources-to-ignore=configmaps` | Ignore ConfigMaps (only one type can be ignored at a time) |
 | `--resources-to-ignore=secrets` | Ignore Secrets (cannot combine with configMaps) |
-| `--resource-label-selector=key=value` | Only watch ConfigMaps/Secrets with matching labels |
+| `--resource-label-selector=key=value` | Only watch ConfigMaps/Secrets whose labels match this selector |
 
 > **⚠️ Note:**  
 > Only **one** resource type can be ignored at a time.  
