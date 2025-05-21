@@ -265,6 +265,11 @@ func upgradeResource(clients kube.Clients, config util.Config, upgradeFuncs call
 		return err
 	}
 
+	ignoreResourceAnnotatonValue := config.ResourceAnnotations[options.IgnoreResourceAnnotation]
+	if ignoreResourceAnnotatonValue == "true" {
+		return nil
+	}
+
 	// find correct annotation and update the resource
 	annotations := upgradeFuncs.AnnotationsFunc(resource)
 	annotationValue, found := annotations[config.Annotation]
