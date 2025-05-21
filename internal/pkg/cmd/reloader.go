@@ -161,11 +161,11 @@ func startReloader(cmd *cobra.Command, args []string) {
 	}
 
 	if len(namespaceLabelSelector) > 0 {
-		logrus.Warnf("namespace-selector is set, will only detect changes in namespaces with these labels: %s.", namespaceLabelSelector)
+		logrus.Warnf("namespace-selector is set, will only detect changes in namespaces whose labels match this selector: %s.", namespaceLabelSelector)
 	}
 
 	if len(resourceLabelSelector) > 0 {
-		logrus.Warnf("resource-label-selector is set, will only detect changes on resources with these labels: %s.", resourceLabelSelector)
+		logrus.Warnf("resource-label-selector is set, will only detect changes on resources whose labels match this selector: %s.", resourceLabelSelector)
 	}
 
 	if options.WebhookUrl != "" {
