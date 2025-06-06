@@ -99,14 +99,13 @@ reloader:
     #     whenUnsatisfiable: DoNotSchedule
     #     labelSelector:
     #       matchLabels:
-    #         app: my-app
+    #         app.kubernetes.io/instance: my-app
     topologySpreadConstraints: []
 
     annotations: {}
     labels:
       provider: stakater
       group: com.stakater.platform
-      version: v1.4.2
     # Support for extra environment variables.
     env:
       # Open supports Key value pair as environment variables.
