@@ -27,12 +27,16 @@ Create chart name and version as used by the chart label.
 {{- printf "%s-%s" .Chart.Name .Chart.Version | replace "+" "_" | trunc 63 | trimSuffix "-" }}
 {{- end }}
 
+{{- define "reloader-match-labels.chart" -}}
+app.kubernetes.io/name: {{ template "reloader-name" . }}
+app.kubernetes.io/instance: {{ .Release.Name | quote }}
+{{- end -}}
+
 {{- define "reloader-labels.chart" -}}
-app: {{ template "reloader-fullname" . }}
-chart: "{{ .Chart.Name }}-{{ .Chart.Version | replace "+" "_" }}"
-release: {{ .Release.Name | quote }}
-heritage: {{ .Release.Service | quote }}
+{{ include "reloader-match-labels.chart" . }}
+helm.sh/chart: "{{ .Chart.Name }}-{{ .Chart.Version | replace "+" "_" }}"
 app.kubernetes.io/managed-by: {{ .Release.Service | quote }}
+app.kubernetes.io/version: {{ .Chart.AppVersion | quote }}
 {{- end -}}
 
 {{/*
@@ -45,10 +49,10 @@ podAntiAffinity:
     podAffinityTerm:
       labelSelector:
         matchExpressions:
-        - key: app
+        - key: app.kubernetes.io/instance
           operator: In
           values:
-          - {{ template "reloader-fullname" . }}
+          - {{ .Release.Name | quote }}
       topologyKey: "kubernetes.io/hostname"
 {{- end -}}
 

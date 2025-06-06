@@ -16,9 +16,7 @@ metadata:
   namespace: {{ .Values.namespace | default .Release.Namespace }}
 spec:
   selector:
-{{- if .Values.reloader.deployment.labels }}
-{{ toYaml .Values.reloader.deployment.labels | indent 4 }}
-{{- end }}
+{{ include "reloader-match-labels.chart" . | indent 4 }}
 {{- if .Values.reloader.matchLabels }}
 {{ toYaml .Values.reloader.matchLabels | indent 4 }}
 {{- end }}
