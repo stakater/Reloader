@@ -25,8 +25,7 @@ spec:
   revisionHistoryLimit: {{ .Values.reloader.deployment.revisionHistoryLimit }}
   selector:
     matchLabels:
-      app: {{ template "reloader-fullname" . }}
-      release: {{ .Release.Name | quote }}
+{{ include "reloader-match-labels.chart" . | indent 6 }}
 {{- if .Values.reloader.matchLabels }}
 {{ tpl (toYaml .Values.reloader.matchLabels) . | indent 6 }}
 {{- end }}
