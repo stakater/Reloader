@@ -128,9 +128,11 @@ func startReloader(cmd *cobra.Command, args []string) {
 	}
 
 	logrus.Info("Starting Reloader")
+	isGlobal := false
 	currentNamespace := os.Getenv("KUBERNETES_NAMESPACE")
 	if len(currentNamespace) == 0 {
 		currentNamespace = v1.NamespaceAll
+		isGlobal = true
 		logrus.Warnf("KUBERNETES_NAMESPACE is unset, will detect changes in all namespaces.")
 	}
 
@@ -150,7 +152,7 @@ func startReloader(cmd *cobra.Command, args []string) {
 		logrus.Fatal(err)
 	}
 
-	namespaceLabelSelector, err := getNamespaceLabelSelector(cmd)
+	namespaceLabelSelector, err := getNamespaceLabelSelector(cmd, isGlobal)
 	if err != nil {
 		logrus.Fatal(err)
 	}
@@ -215,7 +217,7 @@ func getIgnoredNamespacesList(cmd *cobra.Command) (util.List, error) {
 	return getStringSliceFromFlags(cmd, "namespaces-to-ignore")
 }
 
-func getNamespaceLabelSelector(cmd *cobra.Command) (string, error) {
+func getNamespaceLabelSelector(cmd *cobra.Command, isGlobal bool) (string, error) {
 	slice, err := getStringSliceFromFlags(cmd, "namespace-selector")
 	if err != nil {
 		logrus.Fatal(err)
@@ -244,6 +246,11 @@ func getNamespaceLabelSelector(cmd *cobra.Command) (string, error) {
 	_, err = labels.Parse(namespaceLabelSelector)
 	if err != nil {
 		logrus.Fatal(err)
+	}
+
+	if !isGlobal && len(namespaceLabelSelector) > 0 {
+		logrus.Warnf("KUBERNETES_NAMESPACE is set but also namespace-selector is set, will ignore the filter and detect changes in the specific namespace.")
+		return "", nil
 	}
 
 	return namespaceLabelSelector, nil
