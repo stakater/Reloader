@@ -35,6 +35,8 @@ func SendWebhookAlert(msg string) {
 		sendSlackAlert(webhook_url, webhook_proxy, msg)
 	} else if alert_sink == "teams" {
 		sendTeamsAlert(webhook_url, webhook_proxy, msg)
+	} else if alert_sink == "gchat" {
+		sendGoogleChatAlert(webhook_url, webhook_proxy, msg)
 	} else {
 		msg = strings.Replace(msg, "*", "", -1)
 		sendRawWebhookAlert(webhook_url, webhook_proxy, msg)
@@ -86,6 +88,29 @@ func sendTeamsAlert(webhookUrl string, proxy string, msg string) []error {
 		Post(webhookUrl).
 		RedirectPolicy(redirectPolicy).
 		Send(attachment).
+		End()
+
+	if err != nil {
+		return err
+	}
+	if resp.StatusCode != 200 {
+		return []error{fmt.Errorf("error sending msg. status: %v", resp.Status)}
+	}
+
+	return nil
+}
+
+// function to send alert to Google Chat webhook
+func sendGoogleChatAlert(webhookUrl string, proxy string, msg string) []error {
+	payload := map[string]interface{}{
+		"text": msg,
+	}
+
+	request := gorequest.New().Proxy(proxy)
+	resp, _, err := request.
+		Post(webhookUrl).
+		RedirectPolicy(redirectPolicy).
+		Send(payload).
 		End()
 
 	if err != nil {
