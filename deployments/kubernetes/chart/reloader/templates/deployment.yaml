@@ -10,7 +10,6 @@ metadata:
 {{ include "reloader-labels.chart" . | indent 4 }}
 {{- if .Values.reloader.deployment.labels }}
 {{ tpl (toYaml .Values.reloader.deployment.labels) . | indent 4 }}
-    dupa3: {{ .Chart.Name }}
 {{- end }}
 {{- if .Values.reloader.matchLabels }}
 {{ tpl (toYaml .Values.reloader.matchLabels) . | indent 4 }}
