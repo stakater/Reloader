@@ -4,15 +4,16 @@ metadata:
   annotations:
 {{ include "reloader-helm3.annotations" . | indent 4 }}
 {{- if .Values.reloader.deployment.annotations }}
-{{ toYaml .Values.reloader.deployment.annotations | indent 4 }}
+{{ tpl (toYaml .Values.reloader.deployment.annotations) . | indent 4 }}
 {{- end }}
   labels:
 {{ include "reloader-labels.chart" . | indent 4 }}
 {{- if .Values.reloader.deployment.labels }}
-{{ toYaml .Values.reloader.deployment.labels | indent 4 }}
+{{ tpl (toYaml .Values.reloader.deployment.labels) . | indent 4 }}
+    dupa3: {{ .Chart.Name }}
 {{- end }}
 {{- if .Values.reloader.matchLabels }}
-{{ toYaml .Values.reloader.matchLabels | indent 4 }}
+{{ tpl (toYaml .Values.reloader.matchLabels) . | indent 4 }}
 {{- end }}
   name: {{ template "reloader-fullname" . }}
   namespace: {{ .Values.namespace | default .Release.Namespace }}
@@ -28,21 +29,21 @@ spec:
       app: {{ template "reloader-fullname" . }}
       release: {{ .Release.Name | quote }}
 {{- if .Values.reloader.matchLabels }}
-{{ toYaml .Values.reloader.matchLabels | indent 6 }}
+{{ tpl (toYaml .Values.reloader.matchLabels) . | indent 6 }}
 {{- end }}
   template:
     metadata:
 {{- if .Values.reloader.deployment.pod.annotations }}
       annotations:
-{{ toYaml .Values.reloader.deployment.pod.annotations | indent 8 }}
+{{ tpl (toYaml .Values.reloader.deployment.pod.annotations) . | indent 8 }}
 {{- end }}
       labels:
 {{ include "reloader-labels.chart" . | indent 8 }}
 {{- if .Values.reloader.deployment.labels }}
-{{ toYaml .Values.reloader.deployment.labels | indent 8 }}
+{{ tpl (toYaml .Values.reloader.deployment.labels) . | indent 8 }}
 {{- end }}
 {{- if .Values.reloader.matchLabels }}
-{{ toYaml .Values.reloader.matchLabels | indent 8 }}
+{{ tpl (toYaml .Values.reloader.matchLabels) . | indent 8 }}
 {{- end }}
     spec:
       {{- with .Values.global.imagePullSecrets }}
