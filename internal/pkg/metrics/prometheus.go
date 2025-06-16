@@ -11,6 +11,10 @@ import (
 type Collectors struct {
 	Reloaded            *prometheus.CounterVec
 	ReloadedByNamespace *prometheus.CounterVec
+	QueueSize           *prometheus.GaugeVec
+	Errors              *prometheus.CounterVec
+	Requeues            *prometheus.CounterVec
+	Dropped             *prometheus.CounterVec
 }
 
 func NewCollectors() Collectors {
@@ -40,9 +44,57 @@ func NewCollectors() Collectors {
 			"namespace",
 		},
 	)
+
+	queueSize := prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Namespace: "reloader",
+			Name:      "queue_size",
+			Help:      "Gauge for the size of the work queue.",
+		},
+		[]string{
+			"resource",
+		},
+	)
+
+	errors := prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Namespace: "reloader",
+			Name:      "errors_total",
+			Help:      "Counter of errors encountered by Reloader.",
+		},
+		[]string{
+			"error_type",
+		},
+	)
+	requeues := prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Namespace: "reloader",
+			Name:      "requeues_total",
+			Help:      "Counter of requeues encountered by Reloader.",
+		},
+		[]string{
+			"resource",
+		},
+	)
+
+	dropped := prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Namespace: "reloader",
+			Name:      "dropped_total",
+			Help:      "Counter of dropped events by Reloader.",
+		},
+		[]string{
+			"resource",
+		},
+	)
+
 	return Collectors{
 		Reloaded:            reloaded,
 		ReloadedByNamespace: reloaded_by_namespace,
+		QueueSize:           queueSize,
+		Errors:              errors,
+		Requeues:            requeues,
+		Dropped:             dropped,
 	}
 }
 
@@ -53,6 +105,11 @@ func SetupPrometheusEndpoint() Collectors {
 	if os.Getenv("METRICS_COUNT_BY_NAMESPACE") == "enabled" {
 		prometheus.MustRegister(collectors.ReloadedByNamespace)
 	}
+
+	prometheus.MustRegister(collectors.QueueSize)
+	prometheus.MustRegister(collectors.Errors)
+	prometheus.MustRegister(collectors.Requeues)
+	prometheus.MustRegister(collectors.Dropped)
 
 	http.Handle("/metrics", promhttp.Handler())
 
