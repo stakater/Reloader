@@ -21,6 +21,8 @@ import (
 	"github.com/stakater/Reloader/internal/pkg/options"
 	"github.com/stakater/Reloader/internal/pkg/util"
 	"github.com/stakater/Reloader/pkg/kube"
+
+	_ "net/http/pprof"
 )
 
 // NewReloaderCommand starts the reloader controller

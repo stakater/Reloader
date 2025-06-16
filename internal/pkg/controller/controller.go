@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/prometheus/client_golang/prometheus"
 	"github.com/sirupsen/logrus"
 	"github.com/stakater/Reloader/internal/pkg/handler"
 	"github.com/stakater/Reloader/internal/pkg/metrics"
@@ -103,7 +104,12 @@ func NewController(
 
 // Add function to add a new object to the queue in case of creating a resource
 func (c *Controller) Add(obj interface{}) {
-
+	if cm, ok := obj.(*v1.ConfigMap); ok {
+		logrus.Infof("add: %s/%s", cm.GetNamespace(), cm.GetName())
+	} else if secret, ok := obj.(*v1.Secret); ok {
+		logrus.Infof("add: %s/%s", secret.GetNamespace(), secret.GetName())
+	}
+	c.collectors.QueueSize.With(prometheus.Labels{"resource": c.resource}).Set(float64(c.queue.Len()))
 	switch object := obj.(type) {
 	case *v1.Namespace:
 		c.addSelectedNamespaceToCache(*object)
@@ -166,6 +172,12 @@ func (c *Controller) removeSelectedNamespaceFromCache(namespace v1.Namespace) {
 
 // Update function to add an old object and a new object to the queue in case of updating a resource
 func (c *Controller) Update(old interface{}, new interface{}) {
+	if cm, ok := new.(*v1.ConfigMap); ok {
+		logrus.Infof("update: %s/%s", cm.GetNamespace(), cm.GetName())
+	} else if secret, ok := new.(*v1.Secret); ok {
+		logrus.Infof("update: %s/%s", secret.GetNamespace(), secret.GetName())
+	}
+	c.collectors.QueueSize.With(prometheus.Labels{"resource": c.resource}).Set(float64(c.queue.Len()))
 	switch new.(type) {
 	case *v1.Namespace:
 		return
@@ -183,7 +195,12 @@ func (c *Controller) Update(old interface{}, new interface{}) {
 
 // Delete function to add an object to the queue in case of deleting a resource
 func (c *Controller) Delete(old interface{}) {
-
+	if cm, ok := old.(*v1.ConfigMap); ok {
+		logrus.Infof("delete: %s/%s", cm.GetNamespace(), cm.GetName())
+	} else if secret, ok := old.(*v1.Secret); ok {
+		logrus.Infof("delete: %s/%s", secret.GetNamespace(), secret.GetName())
+	}
+	c.collectors.QueueSize.With(prometheus.Labels{"resource": c.resource}).Set(float64(c.queue.Len()))
 	if options.ReloadOnDelete == "true" {
 		if !c.resourceInIgnoredNamespace(old) && c.resourceInSelectedNamespaces(old) && secretControllerInitialized && configmapControllerInitialized {
 			c.queue.Add(handler.ResourceDeleteHandler{
@@ -239,6 +256,7 @@ func (c *Controller) runWorker() {
 func (c *Controller) processNextItem() bool {
 	// Wait until there is a new item in the working queue
 	resourceHandler, quit := c.queue.Get()
+	c.collectors.QueueSize.With(prometheus.Labels{"resource": c.resource}).Set(float64(c.queue.Len()))
 	if quit {
 		return false
 	}
@@ -264,6 +282,8 @@ func (c *Controller) handleErr(err error, key interface{}) {
 		return
 	}
 
+	c.collectors.Errors.With(prometheus.Labels{"error_type": "general"}).Inc()
+
 	// This controller retries 5 times if something goes wrong. After that, it stops trying.
 	if c.queue.NumRequeues(key) < 5 {
 		logrus.Errorf("Error syncing events: %v", err)
@@ -271,10 +291,12 @@ func (c *Controller) handleErr(err error, key interface{}) {
 		// Re-enqueue the key rate limited. Based on the rate limiter on the
 		// queue and the re-enqueue history, the key will be processed later again.
 		c.queue.AddRateLimited(key)
+		c.collectors.Requeues.With(prometheus.Labels{"resource": c.resource}).Inc()
 		return
 	}
 
 	c.queue.Forget(key)
+	c.collectors.Dropped.With(prometheus.Labels{"resource": c.resource}).Inc()
 	// Report to an external entity that, even after several retries, we could not successfully process this key
 	runtime.HandleError(err)
 	logrus.Errorf("Dropping key out of the queue: %v", err)
