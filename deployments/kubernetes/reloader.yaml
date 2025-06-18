@@ -104,7 +104,7 @@ spec:
             resourceFieldRef:
               divisor: "1"
               resource: limits.memory
-        image: "ghcr.io/stakater/reloader:latest"
+        image: ghcr.io/stakater/reloader:v1.4.4
         imagePullPolicy: IfNotPresent
         livenessProbe:
           failureThreshold: 5
