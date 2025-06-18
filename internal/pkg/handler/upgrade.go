@@ -119,24 +119,6 @@ func GetStatefulSetRollingUpgradeFuncs() callbacks.RollingUpgradeFuncs {
 	}
 }
 
-// GetDeploymentConfigRollingUpgradeFuncs returns all callback funcs for a deploymentConfig
-func GetDeploymentConfigRollingUpgradeFuncs() callbacks.RollingUpgradeFuncs {
-	return callbacks.RollingUpgradeFuncs{
-		ItemFunc:           callbacks.GetDeploymentConfigItem,
-		ItemsFunc:          callbacks.GetDeploymentConfigItems,
-		AnnotationsFunc:    callbacks.GetDeploymentConfigAnnotations,
-		PodAnnotationsFunc: callbacks.GetDeploymentConfigPodAnnotations,
-		ContainersFunc:     callbacks.GetDeploymentConfigContainers,
-		InitContainersFunc: callbacks.GetDeploymentConfigInitContainers,
-		UpdateFunc:         callbacks.UpdateDeploymentConfig,
-		PatchFunc:          callbacks.PatchDeploymentConfig,
-		PatchTemplatesFunc: callbacks.GetPatchTemplates,
-		VolumesFunc:        callbacks.GetDeploymentConfigVolumes,
-		ResourceType:       "DeploymentConfig",
-		SupportsPatch:      true,
-	}
-}
-
 // GetArgoRolloutRollingUpgradeFuncs returns all callback funcs for a rollout
 func GetArgoRolloutRollingUpgradeFuncs() callbacks.RollingUpgradeFuncs {
 	return callbacks.RollingUpgradeFuncs{
@@ -208,13 +190,6 @@ func doRollingUpgrade(config util.Config, collectors metrics.Collectors, recorde
 	err = rollingUpgrade(clients, config, GetStatefulSetRollingUpgradeFuncs(), collectors, recorder, invoke)
 	if err != nil {
 		return err
-	}
-
-	if kube.IsOpenshift {
-		err = rollingUpgrade(clients, config, GetDeploymentConfigRollingUpgradeFuncs(), collectors, recorder, invoke)
-		if err != nil {
-			return err
-		}
 	}
 
 	if options.IsArgoRollouts == "true" {
