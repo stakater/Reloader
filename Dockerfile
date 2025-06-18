@@ -2,7 +2,7 @@ ARG BUILDER_IMAGE
 ARG BASE_IMAGE
 
 # Build the manager binary
-FROM --platform=${BUILDPLATFORM} ${BUILDER_IMAGE:-golang:1.24.2} AS builder
+FROM --platform=${BUILDPLATFORM} ${BUILDER_IMAGE:-golang:1.24} AS builder
 
 ARG TARGETOS
 ARG TARGETARCH
