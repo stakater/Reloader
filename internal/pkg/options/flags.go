@@ -22,6 +22,8 @@ var (
 	SecretUpdateOnChangeAnnotation = "secret.reloader.stakater.com/reload"
 	// ReloaderAutoAnnotation is an annotation to detect changes in secrets/configmaps
 	ReloaderAutoAnnotation = "reloader.stakater.com/auto"
+	// IgnoreResourceAnnotation is an annotation to ignore changes in secrets/configmaps
+	IgnoreResourceAnnotation = "reloader.stakater.com/ignore"
 	// ConfigmapReloaderAutoAnnotation is an annotation to detect changes in configmaps
 	ConfigmapReloaderAutoAnnotation = "configmap.reloader.stakater.com/auto"
 	// SecretReloaderAutoAnnotation is an annotation to detect changes in secrets
