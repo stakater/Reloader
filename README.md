@@ -189,7 +189,7 @@ metadata:
 
 Reloader can optionally **send alerts** whenever it triggers a rolling upgrade for a workload (e.g., `Deployment`, `StatefulSet`, etc.).
 
-These alerts are sent to a configured **webhook endpoint**, which can be a generic receiver or services like Slack or Microsoft Teams.
+These alerts are sent to a configured **webhook endpoint**, which can be a generic receiver or services like Slack, Microsoft Teams or Google Chat.
 
 To enable this feature, update the `reloader.env.secret` section in your `values.yaml` (when installing via Helm):
 
@@ -198,7 +198,7 @@ reloader:
   env:
     secret:
       ALERT_ON_RELOAD: "true"                    # Enable alerting (default: false)
-      ALERT_SINK: "slack"                        # Options: slack, teams, webhook (default: webhook)
+      ALERT_SINK: "slack"                        # Options: slack, teams, gchat or webhook (default: webhook)
       ALERT_WEBHOOK_URL: "<your-webhook-url>"    # Required if ALERT_ON_RELOAD is true
       ALERT_ADDITIONAL_INFO: "Triggered by Reloader in staging environment"
 ```
