@@ -70,3 +70,12 @@ Create the annotations to support helm3
 meta.helm.sh/release-namespace: {{ .Release.Namespace | quote }}
 meta.helm.sh/release-name: {{ .Release.Name | quote }}
 {{- end -}}
+
+{{/*
+Create the namespace selector if it does not watch globally
+*/}}
+{{- define "reloader-namespaceSelector" -}}
+{{- if and .Values.reloader.watchGlobally .Values.reloader.namespaceSelector -}}
+    {{ .Values.reloader.namespaceSelector }}
+{{- end -}}
+{{- end -}}
