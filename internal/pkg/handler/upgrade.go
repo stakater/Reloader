@@ -218,8 +218,8 @@ func PerformAction(clients kube.Clients, config util.Config, upgradeFuncs callba
 	items := upgradeFuncs.ItemsFunc(clients, config.Namespace)
 
 	for _, item := range items {
-		err := retryOnConflict(retry.DefaultRetry, func(shouldRefresh bool) error {
-			return upgradeResource(clients, config, upgradeFuncs, collectors, recorder, strategy, item, shouldRefresh)
+		err := retryOnConflict(retry.DefaultRetry, func(fetchResource bool) error {
+			return upgradeResource(clients, config, upgradeFuncs, collectors, recorder, strategy, item, fetchResource)
 		})
 		if err != nil {
 			return err
