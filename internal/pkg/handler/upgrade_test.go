@@ -1441,6 +1441,20 @@ func TestRollingUpgradeForDeploymentWithConfigmapUsingArs(t *testing.T) {
 	deploymentFuncs := GetDeploymentRollingUpgradeFuncs()
 	collectors := getCollectors()
 
+	orgItemFunc := deploymentFuncs.ItemFunc
+	orgItemsFunc := deploymentFuncs.ItemsFunc
+	itemCalled := 0
+	itemsCalled := 0
+
+	deploymentFuncs.ItemFunc = func(client kube.Clients, namespace string, name string) (runtime.Object, error) {
+		itemCalled++
+		return orgItemFunc(client, namespace, name)
+	}
+	deploymentFuncs.ItemsFunc = func(client kube.Clients, namespace string) []runtime.Object {
+		itemsCalled++
+		return orgItemsFunc(client, namespace)
+	}
+
 	err := PerformAction(clients, config, deploymentFuncs, collectors, nil, invokeReloadStrategy)
 	time.Sleep(5 * time.Second)
 	if err != nil {
@@ -1460,6 +1474,10 @@ func TestRollingUpgradeForDeploymentWithConfigmapUsingArs(t *testing.T) {
 	if promtestutil.ToFloat64(collectors.ReloadedByNamespace.With(prometheus.Labels{"success": "true", "namespace": arsNamespace})) != 1 {
 		t.Errorf("Counter by namespace was not increased")
 	}
+
+	assert.Equal(t, 0, itemCalled, "ItemFunc should not be called")
+	assert.Equal(t, 2, itemsCalled, "ItemsFunc should be called twice")
+
 	testRollingUpgradeInvokeDeleteStrategyArs(t, clients, config, deploymentFuncs, collectors, envVarPostfix)
 }
 
@@ -1473,6 +1491,20 @@ func TestRollingUpgradeForDeploymentWithPatchAndRetryUsingArs(t *testing.T) {
 
 	assert.True(t, deploymentFuncs.SupportsPatch)
 	assert.NotEmpty(t, deploymentFuncs.PatchTemplatesFunc().AnnotationTemplate)
+
+	orgItemFunc := deploymentFuncs.ItemFunc
+	orgItemsFunc := deploymentFuncs.ItemsFunc
+	itemCalled := 0
+	itemsCalled := 0
+
+	deploymentFuncs.ItemFunc = func(client kube.Clients, namespace string, name string) (runtime.Object, error) {
+		itemCalled++
+		return orgItemFunc(client, namespace, name)
+	}
+	deploymentFuncs.ItemsFunc = func(client kube.Clients, namespace string) []runtime.Object {
+		itemsCalled++
+		return orgItemsFunc(client, namespace)
+	}
 
 	patchCalled := 0
 	deploymentFuncs.PatchFunc = func(client kube.Clients, namespace string, resource runtime.Object, patchType patchtypes.PatchType, bytes []byte) error {
@@ -1498,7 +1530,9 @@ func TestRollingUpgradeForDeploymentWithPatchAndRetryUsingArs(t *testing.T) {
 		t.Errorf("Rolling upgrade failed for Deployment with Configmap")
 	}
 
-	assert.Equal(t, 2, patchCalled)
+	assert.Equal(t, 1, itemCalled, "ItemFunc should be called once")
+	assert.Equal(t, 1, itemsCalled, "ItemsFunc should be called once")
+	assert.Equal(t, 2, patchCalled, "PatchFunc should be called twice")
 
 	deploymentFuncs = GetDeploymentRollingUpgradeFuncs()
 	testRollingUpgradeWithPatchAndInvokeDeleteStrategyArs(t, clients, config, deploymentFuncs, collectors, envVarPostfix)
@@ -2204,6 +2238,20 @@ func TestRollingUpgradeForDaemonSetWithConfigmapUsingArs(t *testing.T) {
 	daemonSetFuncs := GetDaemonSetRollingUpgradeFuncs()
 	collectors := getCollectors()
 
+	orgItemFunc := daemonSetFuncs.ItemFunc
+	orgItemsFunc := daemonSetFuncs.ItemsFunc
+	itemCalled := 0
+	itemsCalled := 0
+
+	daemonSetFuncs.ItemFunc = func(client kube.Clients, namespace string, name string) (runtime.Object, error) {
+		itemCalled++
+		return orgItemFunc(client, namespace, name)
+	}
+	daemonSetFuncs.ItemsFunc = func(client kube.Clients, namespace string) []runtime.Object {
+		itemsCalled++
+		return orgItemsFunc(client, namespace)
+	}
+
 	err := PerformAction(clients, config, daemonSetFuncs, collectors, nil, invokeReloadStrategy)
 	time.Sleep(5 * time.Second)
 	if err != nil {
@@ -2224,6 +2272,9 @@ func TestRollingUpgradeForDaemonSetWithConfigmapUsingArs(t *testing.T) {
 		t.Errorf("Counter by namespace was not increased")
 	}
 
+	assert.Equal(t, 0, itemCalled, "ItemFunc should not be called")
+	assert.Equal(t, 2, itemsCalled, "ItemsFunc should be called twice")
+
 	testRollingUpgradeInvokeDeleteStrategyArs(t, clients, config, daemonSetFuncs, collectors, envVarPostfix)
 }
 
@@ -2234,6 +2285,20 @@ func TestRollingUpgradeForDaemonSetWithPatchAndRetryUsingArs(t *testing.T) {
 	shaData := testutil.ConvertResourceToSHA(testutil.ConfigmapResourceType, arsNamespace, arsConfigmapName, "www.facebook.com")
 	config := getConfigWithAnnotations(envVarPostfix, arsConfigmapName, shaData, options.ConfigmapUpdateOnChangeAnnotation, options.ConfigmapReloaderAutoAnnotation)
 	daemonSetFuncs := GetDaemonSetRollingUpgradeFuncs()
+
+	orgItemFunc := daemonSetFuncs.ItemFunc
+	orgItemsFunc := daemonSetFuncs.ItemsFunc
+	itemCalled := 0
+	itemsCalled := 0
+
+	daemonSetFuncs.ItemFunc = func(client kube.Clients, namespace string, name string) (runtime.Object, error) {
+		itemCalled++
+		return orgItemFunc(client, namespace, name)
+	}
+	daemonSetFuncs.ItemsFunc = func(client kube.Clients, namespace string) []runtime.Object {
+		itemsCalled++
+		return orgItemsFunc(client, namespace)
+	}
 
 	assert.True(t, daemonSetFuncs.SupportsPatch)
 	assert.NotEmpty(t, daemonSetFuncs.PatchTemplatesFunc().AnnotationTemplate)
@@ -2263,7 +2328,9 @@ func TestRollingUpgradeForDaemonSetWithPatchAndRetryUsingArs(t *testing.T) {
 		t.Errorf("Rolling upgrade failed for DaemonSet with configmap")
 	}
 
-	assert.Equal(t, 2, patchCalled)
+	assert.Equal(t, 1, itemCalled, "ItemFunc should be called once")
+	assert.Equal(t, 1, itemsCalled, "ItemsFunc should be called once")
+	assert.Equal(t, 2, patchCalled, "PatchFunc should be called twice")
 
 	daemonSetFuncs = GetDeploymentRollingUpgradeFuncs()
 	testRollingUpgradeWithPatchAndInvokeDeleteStrategyArs(t, clients, config, daemonSetFuncs, collectors, envVarPostfix)
@@ -2406,6 +2473,20 @@ func TestRollingUpgradeForStatefulSetWithConfigmapUsingArs(t *testing.T) {
 	statefulSetFuncs := GetStatefulSetRollingUpgradeFuncs()
 	collectors := getCollectors()
 
+	orgItemFunc := statefulSetFuncs.ItemFunc
+	orgItemsFunc := statefulSetFuncs.ItemsFunc
+	itemCalled := 0
+	itemsCalled := 0
+
+	statefulSetFuncs.ItemFunc = func(client kube.Clients, namespace string, name string) (runtime.Object, error) {
+		itemCalled++
+		return orgItemFunc(client, namespace, name)
+	}
+	statefulSetFuncs.ItemsFunc = func(client kube.Clients, namespace string) []runtime.Object {
+		itemsCalled++
+		return orgItemsFunc(client, namespace)
+	}
+
 	err := PerformAction(clients, config, statefulSetFuncs, collectors, nil, invokeReloadStrategy)
 	time.Sleep(5 * time.Second)
 	if err != nil {
@@ -2426,6 +2507,9 @@ func TestRollingUpgradeForStatefulSetWithConfigmapUsingArs(t *testing.T) {
 		t.Errorf("Counter by namespace was not increased")
 	}
 
+	assert.Equal(t, 0, itemCalled, "ItemFunc should not be called")
+	assert.Equal(t, 2, itemsCalled, "ItemsFunc should be called twice")
+
 	testRollingUpgradeInvokeDeleteStrategyArs(t, clients, config, statefulSetFuncs, collectors, envVarPostfix)
 }
 
@@ -2436,6 +2520,20 @@ func TestRollingUpgradeForStatefulSetWithPatchAndRetryUsingArs(t *testing.T) {
 	shaData := testutil.ConvertResourceToSHA(testutil.ConfigmapResourceType, arsNamespace, arsConfigmapName, "www.twitter.com")
 	config := getConfigWithAnnotations(envVarPostfix, arsConfigmapName, shaData, options.ConfigmapUpdateOnChangeAnnotation, options.ConfigmapReloaderAutoAnnotation)
 	statefulSetFuncs := GetStatefulSetRollingUpgradeFuncs()
+
+	orgItemFunc := statefulSetFuncs.ItemFunc
+	orgItemsFunc := statefulSetFuncs.ItemsFunc
+	itemCalled := 0
+	itemsCalled := 0
+
+	statefulSetFuncs.ItemFunc = func(client kube.Clients, namespace string, name string) (runtime.Object, error) {
+		itemCalled++
+		return orgItemFunc(client, namespace, name)
+	}
+	statefulSetFuncs.ItemsFunc = func(client kube.Clients, namespace string) []runtime.Object {
+		itemsCalled++
+		return orgItemsFunc(client, namespace)
+	}
 
 	assert.True(t, statefulSetFuncs.SupportsPatch)
 	assert.NotEmpty(t, statefulSetFuncs.PatchTemplatesFunc().AnnotationTemplate)
@@ -2465,7 +2563,9 @@ func TestRollingUpgradeForStatefulSetWithPatchAndRetryUsingArs(t *testing.T) {
 		t.Errorf("Rolling upgrade failed for StatefulSet with configmap")
 	}
 
-	assert.Equal(t, 2, patchCalled)
+	assert.Equal(t, 1, itemCalled, "ItemFunc should be called once")
+	assert.Equal(t, 1, itemsCalled, "ItemsFunc should be called once")
+	assert.Equal(t, 2, patchCalled, "PatchFunc should be called twice")
 
 	statefulSetFuncs = GetDeploymentRollingUpgradeFuncs()
 	testRollingUpgradeWithPatchAndInvokeDeleteStrategyArs(t, clients, config, statefulSetFuncs, collectors, envVarPostfix)

@@ -22,9 +22,11 @@ import (
 	"github.com/stakater/Reloader/internal/pkg/util"
 	"github.com/stakater/Reloader/pkg/kube"
 	v1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/runtime"
 	patchtypes "k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/client-go/util/retry"
 )
@@ -216,10 +218,9 @@ func PerformAction(clients kube.Clients, config util.Config, upgradeFuncs callba
 	items := upgradeFuncs.ItemsFunc(clients, config.Namespace)
 
 	for _, item := range items {
-		err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
-			return upgradeResource(clients, config, upgradeFuncs, collectors, recorder, strategy, item)
+		err := retryOnConflict(retry.DefaultRetry, func(shouldRefresh bool) error {
+			return upgradeResource(clients, config, upgradeFuncs, collectors, recorder, strategy, item, shouldRefresh)
 		})
-
 		if err != nil {
 			return err
 		}
@@ -228,16 +229,40 @@ func PerformAction(clients kube.Clients, config util.Config, upgradeFuncs callba
 	return nil
 }
 
-func upgradeResource(clients kube.Clients, config util.Config, upgradeFuncs callbacks.RollingUpgradeFuncs, collectors metrics.Collectors, recorder record.EventRecorder, strategy invokeStrategy, resource runtime.Object) error {
+func retryOnConflict(backoff wait.Backoff, fn func(_ bool) error) error {
+	var lastError error
+	fetchResource := false // do not fetch resource on first attempt, already done by ItemsFunc
+	err := wait.ExponentialBackoff(backoff, func() (bool, error) {
+		err := fn(fetchResource)
+		fetchResource = true
+		switch {
+		case err == nil:
+			return true, nil
+		case apierrors.IsConflict(err):
+			lastError = err
+			return false, nil
+		default:
+			return false, err
+		}
+	})
+	if wait.Interrupted(err) {
+		err = lastError
+	}
+	return err
+}
+
+func upgradeResource(clients kube.Clients, config util.Config, upgradeFuncs callbacks.RollingUpgradeFuncs, collectors metrics.Collectors, recorder record.EventRecorder, strategy invokeStrategy, resource runtime.Object, fetchResource bool) error {
 	accessor, err := meta.Accessor(resource)
 	if err != nil {
 		return err
 	}
 
 	resourceName := accessor.GetName()
-	resource, err = upgradeFuncs.ItemFunc(clients, resourceName, config.Namespace)
-	if err != nil {
-		return err
+	if fetchResource {
+		resource, err = upgradeFuncs.ItemFunc(clients, resourceName, config.Namespace)
+		if err != nil {
+			return err
+		}
 	}
 
 	// find correct annotation and update the resource
