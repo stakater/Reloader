@@ -205,7 +205,6 @@ func doRollingUpgrade(config util.Config, collectors metrics.Collectors, recorde
 }
 
 func rollingUpgrade(clients kube.Clients, config util.Config, upgradeFuncs callbacks.RollingUpgradeFuncs, collectors metrics.Collectors, recorder record.EventRecorder, strategy invokeStrategy) error {
-
 	err := PerformAction(clients, config, upgradeFuncs, collectors, recorder, strategy)
 	if err != nil {
 		logrus.Errorf("Rolling upgrade for '%s' failed with error = %v", config.ResourceName, err)
