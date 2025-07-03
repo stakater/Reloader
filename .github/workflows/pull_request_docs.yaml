@@ -16,13 +16,13 @@ on:
 
 jobs:
   qa:
-    uses: stakater/.github/.github/workflows/pull_request_doc_qa.yaml@v0.0.133
+    uses: stakater/.github/.github/workflows/pull_request_doc_qa.yaml@v0.0.134
     with:
       MD_CONFIG: .github/md_config.json
       DOC_SRC: docs
       MD_LINT_CONFIG: .markdownlint.yaml
   build:
-    uses: stakater/.github/.github/workflows/pull_request_container_build.yaml@msafwankarim-patch-1
+    uses: stakater/.github/.github/workflows/pull_request_container_build.yaml@v0.0.134
     with:
       DOCKER_FILE_PATH: Dockerfile-docs
       CONTAINER_REGISTRY_URL: ghcr.io/stakater
@@ -30,3 +30,4 @@ jobs:
     secrets:
       CONTAINER_REGISTRY_USERNAME: ${{ github.actor }}
       CONTAINER_REGISTRY_PASSWORD: ${{ secrets.GHCR_TOKEN }}
+      SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
