@@ -305,7 +305,7 @@ Reloader supports multiple strategies for triggering rolling updates when a watc
 
 | Flag | Description |
 |------|-------------|
-| `--namespace-selector=key=value` | Watch only namespaces with matching labels |
+| `--namespace-selector='key=value'` <br /> <br />`--namespace-selector='key1=value1,key2=value2'` <br /> <br />`--namespace-selector='key in (value1,value2)'`| Watch only namespaces with matching labels. See [LIST and WATCH filtering](https://kubernetes.io/docs/concepts/overview/working-with-objects/labels/#list-and-watch-filtering) for more details on label selectors |
 | `--namespaces-to-ignore=ns1,ns2` | Skip specific namespaces from being watched |
 
 #### 4. 📝 Annotation Key Overrides
