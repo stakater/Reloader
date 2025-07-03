@@ -794,6 +794,26 @@ func CreateDeployment(client kubernetes.Interface, deploymentName string, namesp
 	return deployment, err
 }
 
+// CreateDeployment creates a deployment in given namespace and returns the Deployment
+func CreateDeploymentWithAnnotations(client kubernetes.Interface, deploymentName string, namespace string, additionalAnnotations map[string]string, volumeMount bool) (*appsv1.Deployment, error) {
+	logrus.Infof("Creating Deployment")
+	deploymentClient := client.AppsV1().Deployments(namespace)
+	var deploymentObj *appsv1.Deployment
+	if volumeMount {
+		deploymentObj = GetDeployment(namespace, deploymentName)
+	} else {
+		deploymentObj = GetDeploymentWithEnvVars(namespace, deploymentName)
+	}
+
+	for annotationKey, annotationValue := range additionalAnnotations {
+		deploymentObj.Annotations[annotationKey] = annotationValue
+	}
+
+	deployment, err := deploymentClient.Create(context.TODO(), deploymentObj, metav1.CreateOptions{})
+	time.Sleep(3 * time.Second)
+	return deployment, err
+}
+
 // CreateDeploymentConfig creates a deploymentConfig in given namespace and returns the DeploymentConfig
 func CreateDeploymentConfig(client appsclient.Interface, deploymentName string, namespace string, volumeMount bool) (*openshiftv1.DeploymentConfig, error) {
 	logrus.Infof("Creating DeploymentConfig")
