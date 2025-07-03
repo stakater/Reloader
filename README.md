@@ -153,6 +153,21 @@ This pattern allows fine-grained reload control — workloads only restart if th
 1. ✅ You want to reload a workload only if it references a ConfigMap or Secret that has been explicitly tagged with `reloader.stakater.com/match: "true"`.
 1. ✅ Use this when you want full control over which shared or system-wide resources trigger reloads. Great in multi-tenant clusters or shared configs.
 
+### ⛔ Resource-Level Ignore Annotation
+
+When you need to prevent specific ConfigMaps or Secrets from triggering any reloads, use the ignore annotation on the resource itself:
+
+```yaml
+apiVersion: v1
+kind: ConfigMap  # or Secret
+metadata:
+  name: my-config
+  annotations:
+    reloader.stakater.com/ignore: "true"
+```
+
+This instructs Reloader to skip all reload logic for that resource across all workloads.
+
 ### 4. ⚙️ Workload-Specific Rollout Strategy
 
 By default, Reloader uses the **rollout** strategy — it updates the pod template to trigger a new rollout. This works well in most cases, but it can cause problems if you're using GitOps tools like ArgoCD, which detect this as configuration drift.

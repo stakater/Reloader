@@ -52,6 +52,8 @@ var (
 	arsConfigmapWithConfigMapAutoAnnotation    = "testconfigmapwithconfigmapautoannotationdeployment-handler-" + testutil.RandSeq(5)
 	arsSecretWithExcludeSecretAnnotation       = "testsecretwithsecretexcludeannotationdeployment-handler-" + testutil.RandSeq(5)
 	arsConfigmapWithExcludeConfigMapAnnotation = "testconfigmapwithconfigmapexcludeannotationdeployment-handler-" + testutil.RandSeq(5)
+	arsConfigmapWithIgnoreAnnotation           = "testconfigmapWithIgnoreAnnotation-handler-" + testutil.RandSeq(5)
+	arsSecretWithIgnoreAnnotation              = "testsecretWithIgnoreAnnotation-handler-" + testutil.RandSeq(5)
 
 	ersNamespace                               = "test-handler-" + testutil.RandSeq(5)
 	ersConfigmapName                           = "testconfigmap-handler-" + testutil.RandSeq(5)
@@ -75,6 +77,8 @@ var (
 	ersConfigmapWithConfigMapAutoAnnotation    = "testconfigmapwithconfigmapautoannotationdeployment-handler-" + testutil.RandSeq(5)
 	ersSecretWithSecretExcludeAnnotation       = "testsecretwithsecretexcludeannotationdeployment-handler-" + testutil.RandSeq(5)
 	ersConfigmapWithConfigMapExcludeAnnotation = "testconfigmapwithconfigmapexcludeannotationdeployment-handler-" + testutil.RandSeq(5)
+	ersConfigmapWithIgnoreAnnotation           = "testconfigmapWithIgnoreAnnotation-handler-" + testutil.RandSeq(5)
+	ersSecretWithIgnoreAnnotation              = "testsecretWithIgnoreAnnotation-handler-" + testutil.RandSeq(5)
 )
 
 func TestMain(m *testing.M) {
@@ -213,6 +217,35 @@ func setupArs() {
 	_, err = testutil.CreateConfigMap(clients.KubernetesClient, arsNamespace, arsConfigmapWithExcludeConfigMapAnnotation, "www.google.com")
 	if err != nil {
 		logrus.Errorf("Error in configmap creation: %v", err)
+	}
+
+	// Creating configmap with ignore annotation
+	_, err = testutil.CreateConfigMap(clients.KubernetesClient, arsNamespace, arsConfigmapWithIgnoreAnnotation, "www.google.com")
+	if err != nil {
+		logrus.Errorf("Error in configmap creation: %v", err)
+	}
+	// Patch with ignore annotation
+	cmClient := clients.KubernetesClient.CoreV1().ConfigMaps(arsNamespace)
+	patch := []byte(`{"metadata":{"annotations":{"reloader.stakater.com/ignore":"true"}}}`)
+	_, _ = cmClient.Patch(context.TODO(), arsConfigmapWithIgnoreAnnotation, patchtypes.MergePatchType, patch, metav1.PatchOptions{})
+
+	// Creating secret with ignore annotation
+	_, err = testutil.CreateSecret(clients.KubernetesClient, arsNamespace, arsSecretWithIgnoreAnnotation, data)
+	if err != nil {
+		logrus.Errorf("Error in secret creation: %v", err)
+	}
+	secretClient := clients.KubernetesClient.CoreV1().Secrets(arsNamespace)
+	_, _ = secretClient.Patch(context.TODO(), arsSecretWithIgnoreAnnotation, patchtypes.MergePatchType, patch, metav1.PatchOptions{})
+
+	// Creating Deployment referencing configmap with ignore annotation
+	_, err = testutil.CreateDeployment(clients.KubernetesClient, arsConfigmapWithIgnoreAnnotation, arsNamespace, true)
+	if err != nil {
+		logrus.Errorf("Error in Deployment with configmap ignore annotation creation: %v", err)
+	}
+	// Creating Deployment referencing secret with ignore annotation
+	_, err = testutil.CreateDeployment(clients.KubernetesClient, arsSecretWithIgnoreAnnotation, arsNamespace, true)
+	if err != nil {
+		logrus.Errorf("Error in Deployment with secret ignore annotation creation: %v", err)
 	}
 
 	// Creating Deployment with configmap
@@ -852,6 +885,34 @@ func setupErs() {
 	_, err = testutil.CreateConfigMap(clients.KubernetesClient, ersNamespace, ersConfigmapWithConfigMapExcludeAnnotation, "www.google.com")
 	if err != nil {
 		logrus.Errorf("Error in configmap creation: %v", err)
+	}
+
+	// Creating configmap with ignore annotation
+	_, err = testutil.CreateConfigMap(clients.KubernetesClient, ersNamespace, ersConfigmapWithIgnoreAnnotation, "www.google.com")
+	if err != nil {
+		logrus.Errorf("Error in configmap creation: %v", err)
+	}
+	cmClient := clients.KubernetesClient.CoreV1().ConfigMaps(ersNamespace)
+	patch := []byte(`{"metadata":{"annotations":{"reloader.stakater.com/ignore":"true"}}}`)
+	_, _ = cmClient.Patch(context.TODO(), ersConfigmapWithIgnoreAnnotation, patchtypes.MergePatchType, patch, metav1.PatchOptions{})
+
+	// Creating secret with ignore annotation
+	_, err = testutil.CreateSecret(clients.KubernetesClient, ersNamespace, ersSecretWithIgnoreAnnotation, data)
+	if err != nil {
+		logrus.Errorf("Error in secret creation: %v", err)
+	}
+	secretClient := clients.KubernetesClient.CoreV1().Secrets(ersNamespace)
+	_, _ = secretClient.Patch(context.TODO(), ersSecretWithIgnoreAnnotation, patchtypes.MergePatchType, patch, metav1.PatchOptions{})
+
+	// Creating Deployment referencing configmap with ignore annotation
+	_, err = testutil.CreateDeployment(clients.KubernetesClient, ersConfigmapWithIgnoreAnnotation, ersNamespace, true)
+	if err != nil {
+		logrus.Errorf("Error in Deployment with configmap ignore annotation creation: %v", err)
+	}
+	// Creating Deployment referencing secret with ignore annotation
+	_, err = testutil.CreateDeployment(clients.KubernetesClient, ersSecretWithIgnoreAnnotation, ersNamespace, true)
+	if err != nil {
+		logrus.Errorf("Error in Deployment with secret ignore annotation creation: %v", err)
 	}
 
 	// Creating Deployment with configmap
@@ -2734,6 +2795,65 @@ func TestFailedRollingUpgradeUsingArs(t *testing.T) {
 
 	if promtestutil.ToFloat64(collectors.ReloadedByNamespace.With(prometheus.Labels{"success": "false", "namespace": arsNamespace})) != 1 {
 		t.Errorf("Counter by namespace was not increased")
+	}
+}
+
+func TestIgnoreAnnotationNoReloadUsingArs(t *testing.T) {
+	options.ReloadStrategy = constants.AnnotationsReloadStrategy
+	envVarPostfix := constants.ConfigmapEnvVarPostfix
+
+	shaData := testutil.ConvertResourceToSHA(testutil.ConfigmapResourceType, arsNamespace, arsConfigmapWithIgnoreAnnotation, "www.stakater.com")
+	config := getConfigWithAnnotations(envVarPostfix, arsConfigmapWithIgnoreAnnotation, shaData, options.ConfigmapUpdateOnChangeAnnotation, options.ConfigmapReloaderAutoAnnotation)
+	config.ResourceAnnotations = map[string]string{"reloader.stakater.com/ignore": "true"}
+	deploymentFuncs := GetDeploymentRollingUpgradeFuncs()
+	collectors := getCollectors()
+
+	err := PerformAction(clients, config, deploymentFuncs, collectors, nil, invokeReloadStrategy)
+	if err != nil {
+		t.Errorf("Rolling upgrade failed for Deployment with Configmap and ignore annotation using ARS")
+	}
+
+	// Ensure deployment is NOT updated
+	updated := testutil.VerifyResourceAnnotationUpdate(clients, config, deploymentFuncs)
+	if updated {
+		t.Errorf("Deployment was updated but should not have been")
+	}
+
+	// Ensure counters remain zero
+	if promtestutil.ToFloat64(collectors.Reloaded.With(labelSucceeded)) != 0 {
+		t.Errorf("Reload counter should not have increased")
+	}
+	if promtestutil.ToFloat64(collectors.ReloadedByNamespace.With(prometheus.Labels{"success": "true", "namespace": arsNamespace})) != 0 {
+		t.Errorf("Reload counter by namespace should not have increased")
+	}
+}
+func TestIgnoreAnnotationNoReloadUsingErs(t *testing.T) {
+	options.ReloadStrategy = constants.EnvVarsReloadStrategy
+	envVarPostfix := constants.ConfigmapEnvVarPostfix
+
+	shaData := testutil.ConvertResourceToSHA(testutil.ConfigmapResourceType, ersNamespace, ersConfigmapWithIgnoreAnnotation, "www.stakater.com")
+	config := getConfigWithAnnotations(envVarPostfix, ersConfigmapWithIgnoreAnnotation, shaData, options.ConfigmapUpdateOnChangeAnnotation, options.ConfigmapReloaderAutoAnnotation)
+	config.ResourceAnnotations = map[string]string{"reloader.stakater.com/ignore": "true"}
+	deploymentFuncs := GetDeploymentRollingUpgradeFuncs()
+	collectors := getCollectors()
+
+	err := PerformAction(clients, config, deploymentFuncs, collectors, nil, invokeReloadStrategy)
+	if err != nil {
+		t.Errorf("Rolling upgrade failed for Deployment with Configmap and ignore annotation using ERS")
+	}
+
+	// Ensure deployment is NOT updated
+	updated := testutil.VerifyResourceEnvVarUpdate(clients, config, envVarPostfix, deploymentFuncs)
+	if updated {
+		t.Errorf("Deployment was updated but should not have been (ERS)")
+	}
+
+	// Ensure counters remain zero
+	if promtestutil.ToFloat64(collectors.Reloaded.With(labelSucceeded)) != 0 {
+		t.Errorf("Reload counter should not have increased (ERS)")
+	}
+	if promtestutil.ToFloat64(collectors.ReloadedByNamespace.With(prometheus.Labels{"success": "true", "namespace": ersNamespace})) != 0 {
+		t.Errorf("Reload counter by namespace should not have increased (ERS)")
 	}
 }
 
