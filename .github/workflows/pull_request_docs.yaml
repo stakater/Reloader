@@ -22,7 +22,7 @@ jobs:
       DOC_SRC: docs
       MD_LINT_CONFIG: .markdownlint.yaml
   build:
-    uses: stakater/.github/.github/workflows/pull_request_container_build.yaml@v0.0.131
+    uses: stakater/.github/.github/workflows/pull_request_container_build.yaml@msafwankarim-patch-1
     with:
       DOCKER_FILE_PATH: Dockerfile-docs
       CONTAINER_REGISTRY_URL: ghcr.io/stakater
