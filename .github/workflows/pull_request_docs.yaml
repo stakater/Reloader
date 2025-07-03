@@ -26,8 +26,8 @@ jobs:
     with:
       DOCKER_FILE_PATH: Dockerfile-docs
       CONTAINER_REGISTRY_URL: ghcr.io/stakater
+      PUSH_IMAGE: false
     secrets:
       CONTAINER_REGISTRY_USERNAME: ${{ github.actor }}
       CONTAINER_REGISTRY_PASSWORD: ${{ secrets.GHCR_TOKEN }}
       SLACK_WEBHOOK_URL: ${{ secrets.STAKATER_DELIVERY_SLACK_WEBHOOK }}
-      PUSH_IMAGE: false
