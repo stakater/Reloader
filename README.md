@@ -153,7 +153,6 @@ This pattern allows fine-grained reload control — workloads only restart if th
 1. ✅ You want to reload a workload only if it references a ConfigMap or Secret that has been explicitly tagged with `reloader.stakater.com/match: "true"`.
 1. ✅ Use this when you want full control over which shared or system-wide resources trigger reloads. Great in multi-tenant clusters or shared configs.
 
-
 ### ⛔ Resource-Level Ignore Annotation
 
 When you need to prevent specific ConfigMaps or Secrets from triggering any reloads, use the ignore annotation on the resource itself:
