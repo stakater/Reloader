@@ -105,7 +105,7 @@ spec:
               divisor: "1"
               resource: limits.memory
         image: "ghcr.io/stakater/reloader:latest"
-        imagePullPolicy: IfNotPresent
+        imagePullPolicy: Always
         livenessProbe:
           failureThreshold: 5
           httpGet:
