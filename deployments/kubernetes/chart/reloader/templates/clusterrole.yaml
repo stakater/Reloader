@@ -31,7 +31,7 @@ rules:
       - list
       - get
       - watch
-{{- if .Values.reloader.namespaceSelector }}
+{{- if (include "reloader-namespaceSelector" .) }}
   - apiGroups:
       - ""
     resources:
