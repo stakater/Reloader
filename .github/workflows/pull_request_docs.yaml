@@ -26,7 +26,7 @@ jobs:
     with:
       DOCKER_FILE_PATH: Dockerfile-docs
       CONTAINER_REGISTRY_URL: ghcr.io/stakater
-      PUSH_IMAGE: false
+      PUSH_IMAGE: true
     secrets:
       CONTAINER_REGISTRY_USERNAME: ${{ github.actor }}
       CONTAINER_REGISTRY_PASSWORD: ${{ secrets.GHCR_TOKEN }}
