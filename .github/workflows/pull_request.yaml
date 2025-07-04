@@ -134,7 +134,7 @@ jobs:
         context: .
         file: ${{ env.DOCKER_FILE_PATH  }}
         pull: true
-        push: false
+        push: true
         build-args: BUILD_PARAMETERS=${{ env.BUILD_PARAMETERS }}
         cache-to: type=inline
         platforms: linux/amd64,linux/arm,linux/arm64
