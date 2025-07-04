@@ -634,7 +634,7 @@ func TestPerformUpdate(t *testing.T) {
 	}
 }
 
-// Simple helper function for test cases
+// Simple helper function for the test cases
 func FindDeploymentByName(deployments []runtime.Object, deploymentName string) (*app.Deployment, error) {
 	for _, deployment := range deployments {
 		accessor, err := meta.Accessor(deployment)
