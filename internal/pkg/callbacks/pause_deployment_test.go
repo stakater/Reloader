@@ -9,6 +9,7 @@ import (
 	"github.com/stakater/Reloader/internal/pkg/options"
 	"github.com/stakater/Reloader/pkg/kube"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	app "k8s.io/api/apps/v1"
 	appsv1 "k8s.io/api/apps/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
@@ -143,12 +144,12 @@ func TestGetPauseStartTime(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			actualStartTime, err := GetPauseStartTime(test.deployment)
 
-			assert.NoError(t, err)
+			require.NoError(t, err)
 
 			if !test.pausedByReloader {
 				assert.Nil(t, actualStartTime)
 			} else {
-				assert.NotNil(t, actualStartTime)
+				require.NotNil(t, actualStartTime)
 				assert.WithinDuration(t, test.expectedStartTime, *actualStartTime, time.Second)
 			}
 		})
@@ -189,7 +190,7 @@ func TestParsePauseDuration(t *testing.T) {
 			if test.invalidDuration {
 				assert.Error(t, err)
 			} else {
-				assert.NoError(t, err)
+				require.NoError(t, err)
 				assert.Equal(t, test.expectedDuration, actualDuration)
 			}
 		})
@@ -257,7 +258,7 @@ func TestHandleMissingTimerSimple(t *testing.T) {
 				context.TODO(),
 				test.deployment,
 				metav1.CreateOptions{})
-			assert.NoError(t, err, "Expected no error when creating deployment")
+			require.NoError(t, err, "Expected no error when creating deployment")
 
 			pauseDuration, _ := ParsePauseDuration(test.deployment.Annotations[options.PauseDeploymentAnnotation])
 			HandleMissingTimer(test.deployment, pauseDuration, clients)
@@ -352,7 +353,7 @@ func TestPauseDeployment(t *testing.T) {
 
 			hasBeenPaused := PauseDeployment(test.deployment, clients, false)
 
-			assert.Equal(t, test.shouldBePaused, hasBeenPaused,
+			require.Equal(t, test.shouldBePaused, hasBeenPaused,
 				"PauseDeployment should have returned correct paused state")
 
 			assert.Equal(t, test.expectedPaused, test.deployment.Spec.Paused,
@@ -440,12 +441,12 @@ func TestPauseWithPatch(t *testing.T) {
 				context.TODO(),
 				test.deployment,
 				metav1.CreateOptions{})
-			assert.NoError(t, err, "Expected no error when creating deployment")
+			require.NoError(t, err, "Expected no error when creating deployment")
 
 			result := PauseWithPatch(test.deployment, clients, test.pauseDurationString, test.pauseDuration)
 
-			assert.Equal(t, test.expectedResult, result,
-				"PauseWithPatch should return correct success/failure state")
+			require.Equal(t, test.expectedResult, result,
+				"PauseWithPatch should return correct state")
 
 			// Check if timer was created
 			timerKey := getTimerKey(test.deployment.Namespace, test.deployment.Name)
@@ -459,7 +460,7 @@ func TestPauseWithPatch(t *testing.T) {
 					test.deployment.Name,
 					metav1.GetOptions{})
 
-				assert.NoError(t, err, "Should be able to get updated deployment")
+				require.NoError(t, err, "Should be able to get updated deployment")
 				assert.True(t, updatedDeployment.Spec.Paused, "Deployment should be paused after patch")
 
 				pauseTimeAnnotation := updatedDeployment.Annotations[options.PauseDeploymentTimeAnnotation]
@@ -520,11 +521,11 @@ func TestApplyPauseToDeployment(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			ApplyPauseToDeployment(test.deployment, test.pauseDurationString, test.pauseDuration)
 
-			assert.Equal(t, test.expectPaused, test.deployment.Spec.Paused,
+			require.Equal(t, test.expectPaused, test.deployment.Spec.Paused,
 				"Deployment should be paused after applying pause")
 
 			if test.expectAnnotations {
-				assert.NotNil(t, test.deployment.Annotations,
+				require.NotNil(t, test.deployment.Annotations,
 					"Annotations map should be created if it didn't exist")
 
 				pauseTimeAnnotation := test.deployment.Annotations[options.PauseDeploymentTimeAnnotation]
@@ -534,29 +535,19 @@ func TestApplyPauseToDeployment(t *testing.T) {
 				pauseIntervalAnnotation := test.deployment.Annotations[options.PauseDeploymentAnnotation]
 				assert.Equal(t, test.pauseDurationString, pauseIntervalAnnotation,
 					"Pause interval annotation should match the input")
-
-				// If there were existing annotations, make sure they are preserved
-				if test.deployment.Annotations != nil {
-					for key, value := range test.deployment.Annotations {
-						if key != options.PauseDeploymentTimeAnnotation && key != options.PauseDeploymentAnnotation {
-							assert.Equal(t, value, test.deployment.Annotations[key],
-								"Existing annotations should be preserved")
-						}
-					}
-				}
 			}
 		})
 	}
 }
 
-func TestUpdateDeployment(t *testing.T) {
+func TestPerformUpdate(t *testing.T) {
 	tests := []struct {
 		name                string
 		deployment          *appsv1.Deployment
 		pauseDurationString string
 		pauseDuration       time.Duration
 		doPatch             bool
-		expectedResult      bool
+		updateSucceeded     bool
 	}{
 		{
 			name: "update deployment with patch",
@@ -572,7 +563,7 @@ func TestUpdateDeployment(t *testing.T) {
 			pauseDurationString: "5m",
 			pauseDuration:       5 * time.Minute,
 			doPatch:             true,
-			expectedResult:      true,
+			updateSucceeded:     true,
 		},
 		{
 			name: "update deployment without patch",
@@ -588,7 +579,7 @@ func TestUpdateDeployment(t *testing.T) {
 			pauseDurationString: "10m",
 			pauseDuration:       10 * time.Minute,
 			doPatch:             false,
-			expectedResult:      true,
+			updateSucceeded:     true,
 		},
 	}
 
@@ -610,21 +601,21 @@ func TestUpdateDeployment(t *testing.T) {
 				context.TODO(),
 				test.deployment,
 				metav1.CreateOptions{})
-			assert.NoError(t, err, "Expected no error when creating deployment")
+			require.Equal(t, err, "Expected no error when creating deployment")
 
 			result := PerformUpdate(test.deployment, clients, test.pauseDurationString, test.pauseDuration, test.doPatch)
 
-			assert.Equal(t, test.expectedResult, result,
-				"updateDeployment should return correct result")
+			require.Equal(t, test.updateSucceeded, result,
+				"PerformUpdate should return correct result")
 
 			if test.doPatch {
-				// For patch, get deployment again
+				// For patch, get deployment
 				updatedDeployment, err := fakeClient.AppsV1().Deployments(test.deployment.Namespace).Get(
 					context.TODO(),
 					test.deployment.Name,
 					metav1.GetOptions{})
 
-				assert.NoError(t, err, "Should be able to get updated deployment")
+				require.NoError(t, err, "Should be able to get updated deployment")
 				assert.True(t, updatedDeployment.Spec.Paused, "Deployment should be paused")
 
 				assert.NotEmpty(t, updatedDeployment.Annotations[options.PauseDeploymentTimeAnnotation],
