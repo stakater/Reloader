@@ -429,6 +429,9 @@ func GetPatchTemplates() PatchTemplates {
 // UpdateDeployment performs rolling upgrade on deployment
 func UpdateDeployment(clients kube.Clients, namespace string, resource runtime.Object) error {
 	deployment := resource.(*appsv1.Deployment)
+
+	PauseDeployment(deployment, clients, false)
+
 	_, err := clients.KubernetesClient.AppsV1().Deployments(namespace).Update(context.TODO(), deployment, meta_v1.UpdateOptions{FieldManager: "Reloader"})
 	return err
 }
@@ -436,6 +439,9 @@ func UpdateDeployment(clients kube.Clients, namespace string, resource runtime.O
 // PatchDeployment performs rolling upgrade on deployment
 func PatchDeployment(clients kube.Clients, namespace string, resource runtime.Object, patchType patchtypes.PatchType, bytes []byte) error {
 	deployment := resource.(*appsv1.Deployment)
+
+	PauseDeployment(deployment, clients, true)
+
 	_, err := clients.KubernetesClient.AppsV1().Deployments(namespace).Patch(context.TODO(), deployment.Name, patchType, bytes, meta_v1.PatchOptions{FieldManager: "Reloader"})
 	return err
 }
