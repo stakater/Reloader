@@ -21,108 +21,137 @@ import (
 	"github.com/stakater/Reloader/internal/pkg/options"
 	"github.com/stakater/Reloader/internal/pkg/util"
 	"github.com/stakater/Reloader/pkg/kube"
-	app "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/runtime"
+	patchtypes "k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/tools/record"
+	"k8s.io/client-go/util/retry"
 )
 
 // GetDeploymentRollingUpgradeFuncs returns all callback funcs for a deployment
 func GetDeploymentRollingUpgradeFuncs() callbacks.RollingUpgradeFuncs {
 	return callbacks.RollingUpgradeFuncs{
+		ItemFunc:           callbacks.GetDeploymentItem,
 		ItemsFunc:          callbacks.GetDeploymentItems,
 		AnnotationsFunc:    callbacks.GetDeploymentAnnotations,
 		PodAnnotationsFunc: callbacks.GetDeploymentPodAnnotations,
 		ContainersFunc:     callbacks.GetDeploymentContainers,
 		InitContainersFunc: callbacks.GetDeploymentInitContainers,
 		UpdateFunc:         callbacks.UpdateDeployment,
+		PatchFunc:          callbacks.PatchDeployment,
+		PatchTemplatesFunc: callbacks.GetPatchTemplates,
 		VolumesFunc:        callbacks.GetDeploymentVolumes,
 		ResourceType:       "Deployment",
+		SupportsPatch:      true,
 	}
 }
 
 // GetDeploymentRollingUpgradeFuncs returns all callback funcs for a cronjob
 func GetCronJobCreateJobFuncs() callbacks.RollingUpgradeFuncs {
 	return callbacks.RollingUpgradeFuncs{
+		ItemFunc:           callbacks.GetCronJobItem,
 		ItemsFunc:          callbacks.GetCronJobItems,
 		AnnotationsFunc:    callbacks.GetCronJobAnnotations,
 		PodAnnotationsFunc: callbacks.GetCronJobPodAnnotations,
 		ContainersFunc:     callbacks.GetCronJobContainers,
 		InitContainersFunc: callbacks.GetCronJobInitContainers,
 		UpdateFunc:         callbacks.CreateJobFromCronjob,
+		PatchFunc:          callbacks.PatchCronJob,
+		PatchTemplatesFunc: func() callbacks.PatchTemplates { return callbacks.PatchTemplates{} },
 		VolumesFunc:        callbacks.GetCronJobVolumes,
 		ResourceType:       "CronJob",
+		SupportsPatch:      false,
 	}
 }
 
 // GetDeploymentRollingUpgradeFuncs returns all callback funcs for a cronjob
 func GetJobCreateJobFuncs() callbacks.RollingUpgradeFuncs {
 	return callbacks.RollingUpgradeFuncs{
+		ItemFunc:           callbacks.GetJobItem,
 		ItemsFunc:          callbacks.GetJobItems,
 		AnnotationsFunc:    callbacks.GetJobAnnotations,
 		PodAnnotationsFunc: callbacks.GetJobPodAnnotations,
 		ContainersFunc:     callbacks.GetJobContainers,
 		InitContainersFunc: callbacks.GetJobInitContainers,
 		UpdateFunc:         callbacks.ReCreateJobFromjob,
+		PatchFunc:          callbacks.PatchJob,
+		PatchTemplatesFunc: func() callbacks.PatchTemplates { return callbacks.PatchTemplates{} },
 		VolumesFunc:        callbacks.GetJobVolumes,
 		ResourceType:       "Job",
+		SupportsPatch:      false,
 	}
 }
 
 // GetDaemonSetRollingUpgradeFuncs returns all callback funcs for a daemonset
 func GetDaemonSetRollingUpgradeFuncs() callbacks.RollingUpgradeFuncs {
 	return callbacks.RollingUpgradeFuncs{
+		ItemFunc:           callbacks.GetDaemonSetItem,
 		ItemsFunc:          callbacks.GetDaemonSetItems,
 		AnnotationsFunc:    callbacks.GetDaemonSetAnnotations,
 		PodAnnotationsFunc: callbacks.GetDaemonSetPodAnnotations,
 		ContainersFunc:     callbacks.GetDaemonSetContainers,
 		InitContainersFunc: callbacks.GetDaemonSetInitContainers,
 		UpdateFunc:         callbacks.UpdateDaemonSet,
+		PatchFunc:          callbacks.PatchDaemonSet,
+		PatchTemplatesFunc: callbacks.GetPatchTemplates,
 		VolumesFunc:        callbacks.GetDaemonSetVolumes,
 		ResourceType:       "DaemonSet",
+		SupportsPatch:      true,
 	}
 }
 
 // GetStatefulSetRollingUpgradeFuncs returns all callback funcs for a statefulSet
 func GetStatefulSetRollingUpgradeFuncs() callbacks.RollingUpgradeFuncs {
 	return callbacks.RollingUpgradeFuncs{
+		ItemFunc:           callbacks.GetStatefulSetItem,
 		ItemsFunc:          callbacks.GetStatefulSetItems,
 		AnnotationsFunc:    callbacks.GetStatefulSetAnnotations,
 		PodAnnotationsFunc: callbacks.GetStatefulSetPodAnnotations,
 		ContainersFunc:     callbacks.GetStatefulSetContainers,
 		InitContainersFunc: callbacks.GetStatefulSetInitContainers,
 		UpdateFunc:         callbacks.UpdateStatefulSet,
+		PatchFunc:          callbacks.PatchStatefulSet,
+		PatchTemplatesFunc: callbacks.GetPatchTemplates,
 		VolumesFunc:        callbacks.GetStatefulSetVolumes,
 		ResourceType:       "StatefulSet",
+		SupportsPatch:      true,
 	}
 }
 
 // GetDeploymentConfigRollingUpgradeFuncs returns all callback funcs for a deploymentConfig
 func GetDeploymentConfigRollingUpgradeFuncs() callbacks.RollingUpgradeFuncs {
 	return callbacks.RollingUpgradeFuncs{
+		ItemFunc:           callbacks.GetDeploymentConfigItem,
 		ItemsFunc:          callbacks.GetDeploymentConfigItems,
 		AnnotationsFunc:    callbacks.GetDeploymentConfigAnnotations,
 		PodAnnotationsFunc: callbacks.GetDeploymentConfigPodAnnotations,
 		ContainersFunc:     callbacks.GetDeploymentConfigContainers,
 		InitContainersFunc: callbacks.GetDeploymentConfigInitContainers,
 		UpdateFunc:         callbacks.UpdateDeploymentConfig,
+		PatchFunc:          callbacks.PatchDeploymentConfig,
+		PatchTemplatesFunc: callbacks.GetPatchTemplates,
 		VolumesFunc:        callbacks.GetDeploymentConfigVolumes,
 		ResourceType:       "DeploymentConfig",
+		SupportsPatch:      true,
 	}
 }
 
 // GetArgoRolloutRollingUpgradeFuncs returns all callback funcs for a rollout
 func GetArgoRolloutRollingUpgradeFuncs() callbacks.RollingUpgradeFuncs {
 	return callbacks.RollingUpgradeFuncs{
+		ItemFunc:           callbacks.GetRolloutItem,
 		ItemsFunc:          callbacks.GetRolloutItems,
 		AnnotationsFunc:    callbacks.GetRolloutAnnotations,
 		PodAnnotationsFunc: callbacks.GetRolloutPodAnnotations,
 		ContainersFunc:     callbacks.GetRolloutContainers,
 		InitContainersFunc: callbacks.GetRolloutInitContainers,
 		UpdateFunc:         callbacks.UpdateRollout,
+		PatchFunc:          callbacks.PatchRollout,
+		PatchTemplatesFunc: func() callbacks.PatchTemplates { return callbacks.PatchTemplates{} },
 		VolumesFunc:        callbacks.GetRolloutVolumes,
 		ResourceType:       "Rollout",
+		SupportsPatch:      false,
 	}
 }
 
@@ -211,131 +240,132 @@ func rollingUpgrade(clients kube.Clients, config util.Config, upgradeFuncs callb
 func PerformAction(clients kube.Clients, config util.Config, upgradeFuncs callbacks.RollingUpgradeFuncs, collectors metrics.Collectors, recorder record.EventRecorder, strategy invokeStrategy) error {
 	items := upgradeFuncs.ItemsFunc(clients, config.Namespace)
 
-	for _, i := range items {
-		// find correct annotation and update the resource
-		annotations := upgradeFuncs.AnnotationsFunc(i)
-		annotationValue, found := annotations[config.Annotation]
-		searchAnnotationValue, foundSearchAnn := annotations[options.AutoSearchAnnotation]
-		reloaderEnabledValue, foundAuto := annotations[options.ReloaderAutoAnnotation]
-		typedAutoAnnotationEnabledValue, foundTypedAuto := annotations[config.TypedAutoAnnotation]
-		excludeConfigmapAnnotationValue, foundExcludeConfigmap := annotations[options.ConfigmapExcludeReloaderAnnotation]
-		excludeSecretAnnotationValue, foundExcludeSecret := annotations[options.SecretExcludeReloaderAnnotation]
-		pauseInterval, foundPauseInterval := annotations[options.PauseDeploymentAnnotation]
+	for _, item := range items {
+		err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+			return upgradeResource(clients, config, upgradeFuncs, collectors, recorder, strategy, item)
+		})
 
-		if !found && !foundAuto && !foundTypedAuto && !foundSearchAnn {
-			annotations = upgradeFuncs.PodAnnotationsFunc(i)
-			annotationValue = annotations[config.Annotation]
-			searchAnnotationValue = annotations[options.AutoSearchAnnotation]
-			reloaderEnabledValue = annotations[options.ReloaderAutoAnnotation]
-			typedAutoAnnotationEnabledValue = annotations[config.TypedAutoAnnotation]
+		if err != nil {
+			return err
 		}
+	}
 
-		isResourceExcluded := false
+	return nil
+}
 
-		switch config.Type {
-		case constants.ConfigmapEnvVarPostfix:
-			if foundExcludeConfigmap {
-				isResourceExcluded = checkIfResourceIsExcluded(config.ResourceName, excludeConfigmapAnnotationValue)
-			}
-		case constants.SecretEnvVarPostfix:
-			if foundExcludeSecret {
-				isResourceExcluded = checkIfResourceIsExcluded(config.ResourceName, excludeSecretAnnotationValue)
-			}
+func upgradeResource(clients kube.Clients, config util.Config, upgradeFuncs callbacks.RollingUpgradeFuncs, collectors metrics.Collectors, recorder record.EventRecorder, strategy invokeStrategy, resource runtime.Object) error {
+	accessor, err := meta.Accessor(resource)
+	if err != nil {
+		return err
+	}
+
+	resourceName := accessor.GetName()
+	resource, err = upgradeFuncs.ItemFunc(clients, resourceName, config.Namespace)
+	if err != nil {
+		return err
+	}
+
+	// find correct annotation and update the resource
+	annotations := upgradeFuncs.AnnotationsFunc(resource)
+	annotationValue, found := annotations[config.Annotation]
+	searchAnnotationValue, foundSearchAnn := annotations[options.AutoSearchAnnotation]
+	reloaderEnabledValue, foundAuto := annotations[options.ReloaderAutoAnnotation]
+	typedAutoAnnotationEnabledValue, foundTypedAuto := annotations[config.TypedAutoAnnotation]
+	excludeConfigmapAnnotationValue, foundExcludeConfigmap := annotations[options.ConfigmapExcludeReloaderAnnotation]
+	excludeSecretAnnotationValue, foundExcludeSecret := annotations[options.SecretExcludeReloaderAnnotation]
+
+	if !found && !foundAuto && !foundTypedAuto && !foundSearchAnn {
+		annotations = upgradeFuncs.PodAnnotationsFunc(resource)
+		annotationValue = annotations[config.Annotation]
+		searchAnnotationValue = annotations[options.AutoSearchAnnotation]
+		reloaderEnabledValue = annotations[options.ReloaderAutoAnnotation]
+		typedAutoAnnotationEnabledValue = annotations[config.TypedAutoAnnotation]
+	}
+
+	isResourceExcluded := false
+
+	switch config.Type {
+	case constants.ConfigmapEnvVarPostfix:
+		if foundExcludeConfigmap {
+			isResourceExcluded = checkIfResourceIsExcluded(config.ResourceName, excludeConfigmapAnnotationValue)
 		}
-
-		if isResourceExcluded {
-			continue
+	case constants.SecretEnvVarPostfix:
+		if foundExcludeSecret {
+			isResourceExcluded = checkIfResourceIsExcluded(config.ResourceName, excludeSecretAnnotationValue)
 		}
+	}
 
-		result := constants.NotUpdated
-		reloaderEnabled, _ := strconv.ParseBool(reloaderEnabledValue)
-		typedAutoAnnotationEnabled, _ := strconv.ParseBool(typedAutoAnnotationEnabledValue)
-		if reloaderEnabled || typedAutoAnnotationEnabled || reloaderEnabledValue == "" && typedAutoAnnotationEnabledValue == "" && options.AutoReloadAll {
-			result = strategy(upgradeFuncs, i, config, true)
-		}
+	if isResourceExcluded {
+		return nil
+	}
 
-		if result != constants.Updated && annotationValue != "" {
-			values := strings.Split(annotationValue, ",")
-			for _, value := range values {
-				value = strings.TrimSpace(value)
-				re := regexp.MustCompile("^" + value + "$")
-				if re.Match([]byte(config.ResourceName)) {
-					result = strategy(upgradeFuncs, i, config, false)
-					if result == constants.Updated {
-						break
-					}
-				}
-			}
-		}
+	strategyResult := InvokeStrategyResult{constants.NotUpdated, nil}
+	reloaderEnabled, _ := strconv.ParseBool(reloaderEnabledValue)
+	typedAutoAnnotationEnabled, _ := strconv.ParseBool(typedAutoAnnotationEnabledValue)
+	if reloaderEnabled || typedAutoAnnotationEnabled || reloaderEnabledValue == "" && typedAutoAnnotationEnabledValue == "" && options.AutoReloadAll {
+		strategyResult = strategy(upgradeFuncs, resource, config, true)
+	}
 
-		if result != constants.Updated && searchAnnotationValue == "true" {
-			matchAnnotationValue := config.ResourceAnnotations[options.SearchMatchAnnotation]
-			if matchAnnotationValue == "true" {
-				result = strategy(upgradeFuncs, i, config, true)
-			}
-		}
-
-		if result == constants.Updated {
-
-			if foundPauseInterval {
-
-				accessor, err := meta.Accessor(i)
-				if err != nil {
-					return err
-				}
-
-				itemName := accessor.GetName()
-				itemNamespace := accessor.GetNamespace()
-
-				deployment, ok := i.(*app.Deployment)
-				if !ok {
-					logrus.Warnf("Annotation '%s' only applicable for deployments", options.PauseDeploymentAnnotation)
-				} else {
-					_, err = PauseDeployment(deployment, clients, itemName, itemNamespace, pauseInterval)
-					if err != nil {
-						logrus.Errorf("Failed to pause deployment '%s' in namespace '%s': %v", itemName, itemNamespace, err)
-						return err
-					}
-				}
-			}
-
-			accessor, err := meta.Accessor(i)
-			if err != nil {
-				return err
-			}
-			resourceName := accessor.GetName()
-			err = upgradeFuncs.UpdateFunc(clients, config.Namespace, i)
-			if err != nil {
-				message := fmt.Sprintf("Update for '%s' of type '%s' in namespace '%s' failed with error %v", resourceName, upgradeFuncs.ResourceType, config.Namespace, err)
-				logrus.Errorf("Update for '%s' of type '%s' in namespace '%s' failed with error %v", resourceName, upgradeFuncs.ResourceType, config.Namespace, err)
-
-				collectors.Reloaded.With(prometheus.Labels{"success": "false"}).Inc()
-				collectors.ReloadedByNamespace.With(prometheus.Labels{"success": "false", "namespace": config.Namespace}).Inc()
-				if recorder != nil {
-					recorder.Event(i, v1.EventTypeWarning, "ReloadFail", message)
-				}
-				return err
-			} else {
-				message := fmt.Sprintf("Changes detected in '%s' of type '%s' in namespace '%s'", config.ResourceName, config.Type, config.Namespace)
-				message += fmt.Sprintf(", Updated '%s' of type '%s' in namespace '%s'", resourceName, upgradeFuncs.ResourceType, config.Namespace)
-
-				logrus.Infof("Changes detected in '%s' of type '%s' in namespace '%s'; updated '%s' of type '%s' in namespace '%s'", config.ResourceName, config.Type, config.Namespace, resourceName, upgradeFuncs.ResourceType, config.Namespace)
-
-				collectors.Reloaded.With(prometheus.Labels{"success": "true"}).Inc()
-				collectors.ReloadedByNamespace.With(prometheus.Labels{"success": "true", "namespace": config.Namespace}).Inc()
-				alert_on_reload, ok := os.LookupEnv("ALERT_ON_RELOAD")
-				if recorder != nil {
-					recorder.Event(i, v1.EventTypeNormal, "Reloaded", message)
-				}
-				if ok && alert_on_reload == "true" {
-					msg := fmt.Sprintf(
-						"Reloader detected changes in *%s* of type *%s* in namespace *%s*. Hence reloaded *%s* of type *%s* in namespace *%s*",
-						config.ResourceName, config.Type, config.Namespace, resourceName, upgradeFuncs.ResourceType, config.Namespace)
-					alert.SendWebhookAlert(msg)
+	if strategyResult.Result != constants.Updated && annotationValue != "" {
+		values := strings.Split(annotationValue, ",")
+		for _, value := range values {
+			value = strings.TrimSpace(value)
+			re := regexp.MustCompile("^" + value + "$")
+			if re.Match([]byte(config.ResourceName)) {
+				strategyResult = strategy(upgradeFuncs, resource, config, false)
+				if strategyResult.Result == constants.Updated {
+					break
 				}
 			}
 		}
 	}
+
+	if strategyResult.Result != constants.Updated && searchAnnotationValue == "true" {
+		matchAnnotationValue := config.ResourceAnnotations[options.SearchMatchAnnotation]
+		if matchAnnotationValue == "true" {
+			strategyResult = strategy(upgradeFuncs, resource, config, true)
+		}
+	}
+	if strategyResult.Result == constants.Updated {
+		var err error
+
+		if upgradeFuncs.SupportsPatch && strategyResult.Patch != nil {
+			err = upgradeFuncs.PatchFunc(clients, config.Namespace, resource, strategyResult.Patch.Type, strategyResult.Patch.Bytes)
+		} else {
+			err = upgradeFuncs.UpdateFunc(clients, config.Namespace, resource)
+		}
+
+		if err != nil {
+			message := fmt.Sprintf("Update for '%s' of type '%s' in namespace '%s' failed with error %v", resourceName, upgradeFuncs.ResourceType, config.Namespace, err)
+			logrus.Errorf("Update for '%s' of type '%s' in namespace '%s' failed with error %v", resourceName, upgradeFuncs.ResourceType, config.Namespace, err)
+
+			collectors.Reloaded.With(prometheus.Labels{"success": "false"}).Inc()
+			collectors.ReloadedByNamespace.With(prometheus.Labels{"success": "false", "namespace": config.Namespace}).Inc()
+			if recorder != nil {
+				recorder.Event(resource, v1.EventTypeWarning, "ReloadFail", message)
+			}
+			return err
+		} else {
+			message := fmt.Sprintf("Changes detected in '%s' of type '%s' in namespace '%s'", config.ResourceName, config.Type, config.Namespace)
+			message += fmt.Sprintf(", Updated '%s' of type '%s' in namespace '%s'", resourceName, upgradeFuncs.ResourceType, config.Namespace)
+
+			logrus.Infof("Changes detected in '%s' of type '%s' in namespace '%s'; updated '%s' of type '%s' in namespace '%s'", config.ResourceName, config.Type, config.Namespace, resourceName, upgradeFuncs.ResourceType, config.Namespace)
+
+			collectors.Reloaded.With(prometheus.Labels{"success": "true"}).Inc()
+			collectors.ReloadedByNamespace.With(prometheus.Labels{"success": "true", "namespace": config.Namespace}).Inc()
+			alert_on_reload, ok := os.LookupEnv("ALERT_ON_RELOAD")
+			if recorder != nil {
+				recorder.Event(resource, v1.EventTypeNormal, "Reloaded", message)
+			}
+			if ok && alert_on_reload == "true" {
+				msg := fmt.Sprintf(
+					"Reloader detected changes in *%s* of type *%s* in namespace *%s*. Hence reloaded *%s* of type *%s* in namespace *%s*",
+					config.ResourceName, config.Type, config.Namespace, resourceName, upgradeFuncs.ResourceType, config.Namespace)
+				alert.SendWebhookAlert(msg)
+			}
+		}
+	}
+
 	return nil
 }
 
@@ -464,42 +494,51 @@ func getContainerUsingResource(upgradeFuncs callbacks.RollingUpgradeFuncs, item 
 	return container
 }
 
-type invokeStrategy func(upgradeFuncs callbacks.RollingUpgradeFuncs, item runtime.Object, config util.Config, autoReload bool) constants.Result
+type Patch struct {
+	Type  patchtypes.PatchType
+	Bytes []byte
+}
 
-func invokeReloadStrategy(upgradeFuncs callbacks.RollingUpgradeFuncs, item runtime.Object, config util.Config, autoReload bool) constants.Result {
+type InvokeStrategyResult struct {
+	Result constants.Result
+	Patch  *Patch
+}
+
+type invokeStrategy func(upgradeFuncs callbacks.RollingUpgradeFuncs, item runtime.Object, config util.Config, autoReload bool) InvokeStrategyResult
+
+func invokeReloadStrategy(upgradeFuncs callbacks.RollingUpgradeFuncs, item runtime.Object, config util.Config, autoReload bool) InvokeStrategyResult {
 	if options.ReloadStrategy == constants.AnnotationsReloadStrategy {
 		return updatePodAnnotations(upgradeFuncs, item, config, autoReload)
 	}
-
 	return updateContainerEnvVars(upgradeFuncs, item, config, autoReload)
 }
 
-func updatePodAnnotations(upgradeFuncs callbacks.RollingUpgradeFuncs, item runtime.Object, config util.Config, autoReload bool) constants.Result {
+func updatePodAnnotations(upgradeFuncs callbacks.RollingUpgradeFuncs, item runtime.Object, config util.Config, autoReload bool) InvokeStrategyResult {
 	container := getContainerUsingResource(upgradeFuncs, item, config, autoReload)
 	if container == nil {
-		return constants.NoContainerFound
+		return InvokeStrategyResult{constants.NoContainerFound, nil}
 	}
 
 	// Generate reloaded annotations. Attaching this to the item's annotation will trigger a rollout
 	// Note: the data on this struct is purely informational and is not used for future updates
 	reloadSource := util.NewReloadSourceFromConfig(config, []string{container.Name})
-	annotations, err := createReloadedAnnotations(&reloadSource)
+	annotations, patch, err := createReloadedAnnotations(&reloadSource, upgradeFuncs)
 	if err != nil {
 		logrus.Errorf("Failed to create reloaded annotations for %s! error = %v", config.ResourceName, err)
-		return constants.NotUpdated
+		return InvokeStrategyResult{constants.NotUpdated, nil}
 	}
 
 	// Copy the all annotations to the item's annotations
 	pa := upgradeFuncs.PodAnnotationsFunc(item)
 	if pa == nil {
-		return constants.NotUpdated
+		return InvokeStrategyResult{constants.NotUpdated, nil}
 	}
 
 	for k, v := range annotations {
 		pa[k] = v
 	}
 
-	return constants.Updated
+	return InvokeStrategyResult{constants.Updated, &Patch{Type: patchtypes.StrategicMergePatchType, Bytes: patch}}
 }
 
 func getReloaderAnnotationKey() string {
@@ -509,9 +548,9 @@ func getReloaderAnnotationKey() string {
 	)
 }
 
-func createReloadedAnnotations(target *util.ReloadSource) (map[string]string, error) {
+func createReloadedAnnotations(target *util.ReloadSource, upgradeFuncs callbacks.RollingUpgradeFuncs) (map[string]string, []byte, error) {
 	if target == nil {
-		return nil, errors.New("target is required")
+		return nil, nil, errors.New("target is required")
 	}
 
 	// Create a single "last-invokeReloadStrategy-from" annotation that stores metadata about the
@@ -523,53 +562,76 @@ func createReloadedAnnotations(target *util.ReloadSource) (map[string]string, er
 
 	lastReloadedResource, err := json.Marshal(target)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	annotations[lastReloadedResourceName] = string(lastReloadedResource)
-	return annotations, nil
+
+	var patch []byte
+	if upgradeFuncs.SupportsPatch {
+		escapedValue, err := jsonEscape(annotations[lastReloadedResourceName])
+		if err != nil {
+			return nil, nil, err
+		}
+		patch = fmt.Appendf(nil, upgradeFuncs.PatchTemplatesFunc().AnnotationTemplate, lastReloadedResourceName, escapedValue)
+	}
+
+	return annotations, patch, nil
 }
 
 func getEnvVarName(resourceName string, typeName string) string {
 	return constants.EnvVarPrefix + util.ConvertToEnvVarName(resourceName) + "_" + typeName
 }
 
-func updateContainerEnvVars(upgradeFuncs callbacks.RollingUpgradeFuncs, item runtime.Object, config util.Config, autoReload bool) constants.Result {
-	var result constants.Result
+func updateContainerEnvVars(upgradeFuncs callbacks.RollingUpgradeFuncs, item runtime.Object, config util.Config, autoReload bool) InvokeStrategyResult {
 	envVar := getEnvVarName(config.ResourceName, config.Type)
 	container := getContainerUsingResource(upgradeFuncs, item, config, autoReload)
 
 	if container == nil {
-		return constants.NoContainerFound
+		return InvokeStrategyResult{constants.NoContainerFound, nil}
 	}
 
 	//update if env var exists
-	result = updateEnvVar(upgradeFuncs.ContainersFunc(item), envVar, config.SHAValue)
+	updateResult := updateEnvVar(container, envVar, config.SHAValue)
 
 	// if no existing env var exists lets create one
-	if result == constants.NoEnvVarFound {
+	if updateResult == constants.NoEnvVarFound {
 		e := v1.EnvVar{
 			Name:  envVar,
 			Value: config.SHAValue,
 		}
 		container.Env = append(container.Env, e)
-		result = constants.Updated
+		updateResult = constants.Updated
 	}
-	return result
+
+	var patch []byte
+	if upgradeFuncs.SupportsPatch {
+		patch = fmt.Appendf(nil, upgradeFuncs.PatchTemplatesFunc().EnvVarTemplate, container.Name, envVar, config.SHAValue)
+	}
+
+	return InvokeStrategyResult{updateResult, &Patch{Type: patchtypes.StrategicMergePatchType, Bytes: patch}}
 }
 
-func updateEnvVar(containers []v1.Container, envVar string, shaData string) constants.Result {
-	for i := range containers {
-		envs := containers[i].Env
-		for j := range envs {
-			if envs[j].Name == envVar {
-				if envs[j].Value != shaData {
-					envs[j].Value = shaData
-					return constants.Updated
-				}
-				return constants.NotUpdated
+func updateEnvVar(container *v1.Container, envVar string, shaData string) constants.Result {
+	envs := container.Env
+	for j := range envs {
+		if envs[j].Name == envVar {
+			if envs[j].Value != shaData {
+				envs[j].Value = shaData
+				return constants.Updated
 			}
+			return constants.NotUpdated
 		}
 	}
+
 	return constants.NoEnvVarFound
+}
+
+func jsonEscape(toEscape string) (string, error) {
+	bytes, err := json.Marshal(toEscape)
+	if err != nil {
+		return "", err
+	}
+	escaped := string(bytes)
+	return escaped[1 : len(escaped)-1], nil
 }

@@ -1,4 +1,4 @@
-package handler
+package callbacks
 
 import (
 	"context"
@@ -66,6 +66,7 @@ func TestIsPausedByReloader(t *testing.T) {
 				ObjectMeta: metav1.ObjectMeta{
 					Annotations: map[string]string{
 						options.PauseDeploymentTimeAnnotation: time.Now().Format(time.RFC3339),
+						options.PauseDeploymentAnnotation:     "10s",
 					},
 				},
 			},
@@ -205,7 +206,8 @@ func TestHandleMissingTimerSimple(t *testing.T) {
 			name: "deployment paused by reloader, pause period has expired and no timer",
 			deployment: &appsv1.Deployment{
 				ObjectMeta: metav1.ObjectMeta{
-					Name: "test-deployment-1",
+					Name:      "test-deployment-1",
+					Namespace: "default",
 					Annotations: map[string]string{
 						options.PauseDeploymentTimeAnnotation: time.Now().Add(-6 * time.Minute).Format(time.RFC3339),
 						options.PauseDeploymentAnnotation:     "5m",
@@ -221,7 +223,8 @@ func TestHandleMissingTimerSimple(t *testing.T) {
 			name: "deployment paused by reloader, pause period expires in the future and no timer",
 			deployment: &appsv1.Deployment{
 				ObjectMeta: metav1.ObjectMeta{
-					Name: "test-deployment-2",
+					Name:      "test-deployment-2",
+					Namespace: "default",
 					Annotations: map[string]string{
 						options.PauseDeploymentTimeAnnotation: time.Now().Add(1 * time.Minute).Format(time.RFC3339),
 						options.PauseDeploymentAnnotation:     "5m",
@@ -257,7 +260,7 @@ func TestHandleMissingTimerSimple(t *testing.T) {
 			assert.NoError(t, err, "Expected no error when creating deployment")
 
 			pauseDuration, _ := ParsePauseDuration(test.deployment.Annotations[options.PauseDeploymentAnnotation])
-			HandleMissingTimer(test.deployment, pauseDuration, clients, test.deployment.Name, "default")
+			HandleMissingTimer(test.deployment, pauseDuration, clients)
 
 			updatedDeployment, _ := fakeClient.AppsV1().Deployments("default").Get(context.TODO(), test.deployment.Name, metav1.GetOptions{})
 
@@ -279,6 +282,7 @@ func TestPauseDeployment(t *testing.T) {
 		deployment         *appsv1.Deployment
 		expectedError      bool
 		expectedPaused     bool
+		shouldBePaused     bool // Return value of PauseDeployment
 		expectedAnnotation bool // Should have pause time annotation
 		pauseInterval      string
 	}{
@@ -295,6 +299,7 @@ func TestPauseDeployment(t *testing.T) {
 			},
 			expectedError:      true,
 			expectedPaused:     false,
+			shouldBePaused:     false,
 			expectedAnnotation: false,
 			pauseInterval:      "",
 		},
@@ -313,6 +318,7 @@ func TestPauseDeployment(t *testing.T) {
 			},
 			expectedError:      false,
 			expectedPaused:     true,
+			shouldBePaused:     false,
 			expectedAnnotation: false,
 			pauseInterval:      "5m",
 		},
@@ -331,6 +337,7 @@ func TestPauseDeployment(t *testing.T) {
 			},
 			expectedError:      false,
 			expectedPaused:     true,
+			shouldBePaused:     true,
 			expectedAnnotation: true,
 			pauseInterval:      "5m",
 		},
@@ -343,23 +350,20 @@ func TestPauseDeployment(t *testing.T) {
 				KubernetesClient: fakeClient,
 			}
 
-			updatedDeployment, err := PauseDeployment(test.deployment, clients, test.deployment.Name, "default", test.pauseInterval)
-			if test.expectedError {
-				assert.Error(t, err, "Expected an error pausing the deployment")
-				return
-			} else {
-				assert.NoError(t, err, "Expected no error pausing the deployment")
-			}
+			hasBeenPaused := PauseDeployment(test.deployment, clients, false)
 
-			assert.Equal(t, test.expectedPaused, updatedDeployment.Spec.Paused,
+			assert.Equal(t, test.shouldBePaused, hasBeenPaused,
+				"PauseDeployment should have returned correct paused state")
+
+			assert.Equal(t, test.expectedPaused, test.deployment.Spec.Paused,
 				"Deployment should have correct paused state after pause")
 
 			if test.expectedAnnotation {
-				pausedAtAnnotationValue := updatedDeployment.Annotations[options.PauseDeploymentTimeAnnotation]
+				pausedAtAnnotationValue := test.deployment.Annotations[options.PauseDeploymentTimeAnnotation]
 				assert.NotEmpty(t, pausedAtAnnotationValue,
 					"Pause annotation should be present and contain a value when deployment is paused")
 			} else {
-				pausedAtAnnotationValue := updatedDeployment.Annotations[options.PauseDeploymentTimeAnnotation]
+				pausedAtAnnotationValue := test.deployment.Annotations[options.PauseDeploymentTimeAnnotation]
 				assert.Empty(t, pausedAtAnnotationValue,
 					"Pause annotation should not be present when deployment has not been paused by reloader")
 			}

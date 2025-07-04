@@ -53,7 +53,7 @@ jobs:
           make install
 
       - name: Run golangci-lint
-        uses: golangci/golangci-lint-action@v5
+        uses: golangci/golangci-lint-action@v6
         with:
           version: latest
           only-new-issues: false
@@ -200,7 +200,6 @@ jobs:
           push: true
           build-args: BUILD_PARAMETERS=${{ env.BUILD_PARAMETERS }}
           cache-to: type=inline
-          platforms: linux/amd64,linux/arm,linux/arm64
           tags: |
             ${{ env.GHCR_IMAGE_REPOSITORY }}/docs:merge-${{ github.event.number }}
           labels: |

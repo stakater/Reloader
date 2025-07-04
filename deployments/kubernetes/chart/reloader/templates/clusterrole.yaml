@@ -76,6 +76,7 @@ rules:
       - get
       - update
       - patch
+{{- if .Values.reloader.ignoreCronJobs }}{{- else }}
   - apiGroups:
       - "batch"
     resources:
@@ -83,6 +84,8 @@ rules:
     verbs:
       - list
       - get
+{{- end }}
+{{- if .Values.reloader.ignoreJobs }}{{- else }}
   - apiGroups:
       - "batch"
     resources:
@@ -92,6 +95,7 @@ rules:
       - delete
       - list
       - get
+{{- end}}
 {{- if .Values.reloader.enableHA }}
   - apiGroups:
       - "coordination.k8s.io"

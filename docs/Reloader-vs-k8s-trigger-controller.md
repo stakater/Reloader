@@ -4,7 +4,7 @@ Reloader and k8s-trigger-controller are both built for same purpose. So there ar
 
 ## Similarities
 
-- Both controllers support change detection in configmap and secrets
+- Both controllers support change detection in `ConfigMaps` and `Secrets`
 - Both controllers support deployment `rollout`
 - Both controllers use SHA1 for hashing
 - Both controllers have end to end as well as unit test cases.

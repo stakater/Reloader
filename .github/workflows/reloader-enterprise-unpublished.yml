@@ -14,4 +14,4 @@ jobs:
           -H "Accept: application/vnd.github.v3+json" \
           -H "Authorization: token ${{ secrets.STAKATER_AB_TOKEN_FOR_RLDR }}" \
           https://api.github.com/repos/stakater-ab/reloader-enterprise/dispatches \
-          -d '{"event_type":"release-unpublished "}'
+          -d '{"event_type":"release-unpublished","client_payload":{"tag":"${{ github.event.release.tag_name }}"}}'

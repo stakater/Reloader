@@ -17,9 +17,13 @@ import (
 	"github.com/stakater/Reloader/internal/pkg/testutil"
 	"github.com/stakater/Reloader/internal/pkg/util"
 	"github.com/stakater/Reloader/pkg/kube"
+	"github.com/stretchr/testify/assert"
+	apps "k8s.io/api/apps/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	patchtypes "k8s.io/apimachinery/pkg/types"
 	testclient "k8s.io/client-go/kubernetes/fake"
 )
 
@@ -1463,6 +1467,22 @@ func testRollingUpgradeInvokeDeleteStrategyArs(t *testing.T, clients kube.Client
 	}
 }
 
+func testRollingUpgradeWithPatchAndInvokeDeleteStrategyArs(t *testing.T, clients kube.Clients, config util.Config, upgradeFuncs callbacks.RollingUpgradeFuncs, collectors metrics.Collectors, envVarPostfix string) {
+	err := PerformAction(clients, config, upgradeFuncs, collectors, nil, invokeDeleteStrategy)
+	upgradeFuncs.PatchFunc = func(client kube.Clients, namespace string, resource runtime.Object, patchType patchtypes.PatchType, bytes []byte) error {
+		assert.Equal(t, patchtypes.StrategicMergePatchType, patchType)
+		assert.NotEmpty(t, bytes)
+		return nil
+	}
+	upgradeFuncs.UpdateFunc = func(kube.Clients, string, runtime.Object) error {
+		t.Errorf("Update should not be called")
+		return nil
+	}
+	if err != nil {
+		t.Errorf("Rolling upgrade failed for %s with %s", upgradeFuncs.ResourceType, envVarPostfix)
+	}
+}
+
 func TestRollingUpgradeForDeploymentWithConfigmapUsingArs(t *testing.T) {
 	options.ReloadStrategy = constants.AnnotationsReloadStrategy
 	envVarPostfix := constants.ConfigmapEnvVarPostfix
@@ -1492,6 +1512,47 @@ func TestRollingUpgradeForDeploymentWithConfigmapUsingArs(t *testing.T) {
 		t.Errorf("Counter by namespace was not increased")
 	}
 	testRollingUpgradeInvokeDeleteStrategyArs(t, clients, config, deploymentFuncs, collectors, envVarPostfix)
+}
+
+func TestRollingUpgradeForDeploymentWithPatchAndRetryUsingArs(t *testing.T) {
+	options.ReloadStrategy = constants.AnnotationsReloadStrategy
+	envVarPostfix := constants.ConfigmapEnvVarPostfix
+
+	shaData := testutil.ConvertResourceToSHA(testutil.ConfigmapResourceType, arsNamespace, arsConfigmapName, "www.stakater.com")
+	config := getConfigWithAnnotations(envVarPostfix, arsConfigmapName, shaData, options.ConfigmapUpdateOnChangeAnnotation, options.ConfigmapReloaderAutoAnnotation)
+	deploymentFuncs := GetDeploymentRollingUpgradeFuncs()
+
+	assert.True(t, deploymentFuncs.SupportsPatch)
+	assert.NotEmpty(t, deploymentFuncs.PatchTemplatesFunc().AnnotationTemplate)
+
+	patchCalled := 0
+	deploymentFuncs.PatchFunc = func(client kube.Clients, namespace string, resource runtime.Object, patchType patchtypes.PatchType, bytes []byte) error {
+		patchCalled++
+		if patchCalled < 2 {
+			return &errors.StatusError{ErrStatus: metav1.Status{Reason: metav1.StatusReasonConflict}} // simulate conflict
+		}
+		assert.Equal(t, patchtypes.StrategicMergePatchType, patchType)
+		assert.NotEmpty(t, bytes)
+		assert.Contains(t, string(bytes), `{"spec":{"template":{"metadata":{"annotations":{"reloader.stakater.com/last-reloaded-from":`)
+		assert.Contains(t, string(bytes), `\"hash\":\"3c9a892aeaedc759abc3df9884a37b8be5680382\"`)
+		return nil
+	}
+
+	deploymentFuncs.UpdateFunc = func(kube.Clients, string, runtime.Object) error {
+		t.Errorf("Update should not be called")
+		return nil
+	}
+
+	collectors := getCollectors()
+	err := PerformAction(clients, config, deploymentFuncs, collectors, nil, invokeReloadStrategy)
+	if err != nil {
+		t.Errorf("Rolling upgrade failed for Deployment with Configmap")
+	}
+
+	assert.Equal(t, 2, patchCalled)
+
+	deploymentFuncs = GetDeploymentRollingUpgradeFuncs()
+	testRollingUpgradeWithPatchAndInvokeDeleteStrategyArs(t, clients, config, deploymentFuncs, collectors, envVarPostfix)
 }
 
 func TestRollingUpgradeForDeploymentWithConfigmapWithoutReloadAnnotationAndWithoutAutoReloadAllNoTriggersUsingArs(t *testing.T) {
@@ -1666,7 +1727,7 @@ func TestRollingUpgradeForDeploymentWithConfigmapViaSearchAnnotationNotMappedUsi
 		t.Errorf("Failed to create deployment with search annotation.")
 	}
 	defer func() {
-		_ = clients.KubernetesClient.AppsV1().Deployments(arsNamespace).Delete(context.TODO(), deployment.Name, v1.DeleteOptions{})
+		_ = clients.KubernetesClient.AppsV1().Deployments(arsNamespace).Delete(context.TODO(), deployment.Name, metav1.DeleteOptions{})
 	}()
 	// defer clients.KubernetesClient.AppsV1().Deployments(namespace).Delete(deployment.Name, &v1.DeleteOptions{})
 
@@ -2152,6 +2213,7 @@ func TestRollingUpgradeForDeploymentWithExcludeConfigMapAnnotationUsingArs(t *te
 		t.Errorf("Deployment which had to be excluded was updated")
 	}
 }
+
 func TestRollingUpgradeForDeploymentWithConfigMapAutoAnnotationUsingArs(t *testing.T) {
 	options.ReloadStrategy = constants.AnnotationsReloadStrategy
 	envVarPostfix := constants.ConfigmapEnvVarPostfix
@@ -2214,6 +2276,48 @@ func TestRollingUpgradeForDaemonSetWithConfigmapUsingArs(t *testing.T) {
 	}
 
 	testRollingUpgradeInvokeDeleteStrategyArs(t, clients, config, daemonSetFuncs, collectors, envVarPostfix)
+}
+
+func TestRollingUpgradeForDaemonSetWithPatchAndRetryUsingArs(t *testing.T) {
+	options.ReloadStrategy = constants.AnnotationsReloadStrategy
+	envVarPostfix := constants.ConfigmapEnvVarPostfix
+
+	shaData := testutil.ConvertResourceToSHA(testutil.ConfigmapResourceType, arsNamespace, arsConfigmapName, "www.facebook.com")
+	config := getConfigWithAnnotations(envVarPostfix, arsConfigmapName, shaData, options.ConfigmapUpdateOnChangeAnnotation, options.ConfigmapReloaderAutoAnnotation)
+	daemonSetFuncs := GetDaemonSetRollingUpgradeFuncs()
+
+	assert.True(t, daemonSetFuncs.SupportsPatch)
+	assert.NotEmpty(t, daemonSetFuncs.PatchTemplatesFunc().AnnotationTemplate)
+
+	patchCalled := 0
+	daemonSetFuncs.PatchFunc = func(client kube.Clients, namespace string, resource runtime.Object, patchType patchtypes.PatchType, bytes []byte) error {
+		patchCalled++
+		if patchCalled < 2 {
+			return &errors.StatusError{ErrStatus: metav1.Status{Reason: metav1.StatusReasonConflict}} // simulate conflict
+		}
+		assert.Equal(t, patchtypes.StrategicMergePatchType, patchType)
+		assert.NotEmpty(t, bytes)
+		assert.Contains(t, string(bytes), `{"spec":{"template":{"metadata":{"annotations":{"reloader.stakater.com/last-reloaded-from":`)
+		assert.Contains(t, string(bytes), `\"hash\":\"314a2269170750a974d79f02b5b9ee517de7f280\"`)
+		return nil
+	}
+
+	daemonSetFuncs.UpdateFunc = func(kube.Clients, string, runtime.Object) error {
+		t.Errorf("Update should not be called")
+		return nil
+	}
+
+	collectors := getCollectors()
+
+	err := PerformAction(clients, config, daemonSetFuncs, collectors, nil, invokeReloadStrategy)
+	if err != nil {
+		t.Errorf("Rolling upgrade failed for DaemonSet with configmap")
+	}
+
+	assert.Equal(t, 2, patchCalled)
+
+	daemonSetFuncs = GetDeploymentRollingUpgradeFuncs()
+	testRollingUpgradeWithPatchAndInvokeDeleteStrategyArs(t, clients, config, daemonSetFuncs, collectors, envVarPostfix)
 }
 
 func TestRollingUpgradeForDaemonSetWithConfigmapInProjectedVolumeUsingArs(t *testing.T) {
@@ -2374,6 +2478,48 @@ func TestRollingUpgradeForStatefulSetWithConfigmapUsingArs(t *testing.T) {
 	}
 
 	testRollingUpgradeInvokeDeleteStrategyArs(t, clients, config, statefulSetFuncs, collectors, envVarPostfix)
+}
+
+func TestRollingUpgradeForStatefulSetWithPatchAndRetryUsingArs(t *testing.T) {
+	options.ReloadStrategy = constants.AnnotationsReloadStrategy
+	envVarPostfix := constants.ConfigmapEnvVarPostfix
+
+	shaData := testutil.ConvertResourceToSHA(testutil.ConfigmapResourceType, arsNamespace, arsConfigmapName, "www.twitter.com")
+	config := getConfigWithAnnotations(envVarPostfix, arsConfigmapName, shaData, options.ConfigmapUpdateOnChangeAnnotation, options.ConfigmapReloaderAutoAnnotation)
+	statefulSetFuncs := GetStatefulSetRollingUpgradeFuncs()
+
+	assert.True(t, statefulSetFuncs.SupportsPatch)
+	assert.NotEmpty(t, statefulSetFuncs.PatchTemplatesFunc().AnnotationTemplate)
+
+	patchCalled := 0
+	statefulSetFuncs.PatchFunc = func(client kube.Clients, namespace string, resource runtime.Object, patchType patchtypes.PatchType, bytes []byte) error {
+		patchCalled++
+		if patchCalled < 2 {
+			return &errors.StatusError{ErrStatus: metav1.Status{Reason: metav1.StatusReasonConflict}} // simulate conflict
+		}
+		assert.Equal(t, patchtypes.StrategicMergePatchType, patchType)
+		assert.NotEmpty(t, bytes)
+		assert.Contains(t, string(bytes), `{"spec":{"template":{"metadata":{"annotations":{"reloader.stakater.com/last-reloaded-from":`)
+		assert.Contains(t, string(bytes), `\"hash\":\"f821414d40d8815fb330763f74a4ff7ab651d4fa\"`)
+		return nil
+	}
+
+	statefulSetFuncs.UpdateFunc = func(kube.Clients, string, runtime.Object) error {
+		t.Errorf("Update should not be called")
+		return nil
+	}
+
+	collectors := getCollectors()
+
+	err := PerformAction(clients, config, statefulSetFuncs, collectors, nil, invokeReloadStrategy)
+	if err != nil {
+		t.Errorf("Rolling upgrade failed for StatefulSet with configmap")
+	}
+
+	assert.Equal(t, 2, patchCalled)
+
+	statefulSetFuncs = GetDeploymentRollingUpgradeFuncs()
+	testRollingUpgradeWithPatchAndInvokeDeleteStrategyArs(t, clients, config, statefulSetFuncs, collectors, envVarPostfix)
 }
 
 func TestRollingUpgradeForStatefulSetWithConfigmapInProjectedVolumeUsingArs(t *testing.T) {
@@ -2538,6 +2684,9 @@ func TestFailedRollingUpgradeUsingArs(t *testing.T) {
 	deploymentFuncs.UpdateFunc = func(_ kube.Clients, _ string, _ runtime.Object) error {
 		return fmt.Errorf("error")
 	}
+	deploymentFuncs.PatchFunc = func(kube.Clients, string, runtime.Object, patchtypes.PatchType, []byte) error {
+		return fmt.Errorf("error")
+	}
 	collectors := getCollectors()
 
 	_ = PerformAction(clients, config, deploymentFuncs, collectors, nil, invokeReloadStrategy)
@@ -2565,6 +2714,24 @@ func testRollingUpgradeInvokeDeleteStrategyErs(t *testing.T, clients kube.Client
 
 	if promtestutil.ToFloat64(collectors.Reloaded.With(labelSucceeded)) != 2 {
 		t.Errorf("Counter was not increased")
+	}
+}
+
+func testRollingUpgradeWithPatchAndInvokeDeleteStrategyErs(t *testing.T, clients kube.Clients, config util.Config, upgradeFuncs callbacks.RollingUpgradeFuncs, collectors metrics.Collectors, envVarPostfix string) {
+	assert.NotEmpty(t, upgradeFuncs.PatchTemplatesFunc().DeleteEnvVarTemplate)
+
+	err := PerformAction(clients, config, upgradeFuncs, collectors, nil, invokeDeleteStrategy)
+	upgradeFuncs.PatchFunc = func(client kube.Clients, namespace string, resource runtime.Object, patchType patchtypes.PatchType, bytes []byte) error {
+		assert.Equal(t, patchtypes.JSONPatchType, patchType)
+		assert.NotEmpty(t, bytes)
+		return nil
+	}
+	upgradeFuncs.UpdateFunc = func(kube.Clients, string, runtime.Object) error {
+		t.Errorf("Update should not be called")
+		return nil
+	}
+	if err != nil {
+		t.Errorf("Rolling upgrade failed for %s with %s", upgradeFuncs.ResourceType, envVarPostfix)
 	}
 }
 
@@ -2598,6 +2765,48 @@ func TestRollingUpgradeForDeploymentWithConfigmapUsingErs(t *testing.T) {
 	}
 
 	testRollingUpgradeInvokeDeleteStrategyErs(t, clients, config, deploymentFuncs, collectors, envVarPostfix)
+}
+
+func TestRollingUpgradeForDeploymentWithPatchAndRetryUsingErs(t *testing.T) {
+	options.ReloadStrategy = constants.EnvVarsReloadStrategy
+	envVarPostfix := constants.ConfigmapEnvVarPostfix
+
+	shaData := testutil.ConvertResourceToSHA(testutil.ConfigmapResourceType, ersNamespace, ersConfigmapName, "www.stakater.com")
+	config := getConfigWithAnnotations(envVarPostfix, ersConfigmapName, shaData, options.ConfigmapUpdateOnChangeAnnotation, options.ConfigmapReloaderAutoAnnotation)
+	deploymentFuncs := GetDeploymentRollingUpgradeFuncs()
+
+	assert.True(t, deploymentFuncs.SupportsPatch)
+	assert.NotEmpty(t, deploymentFuncs.PatchTemplatesFunc().EnvVarTemplate)
+
+	patchCalled := 0
+	deploymentFuncs.PatchFunc = func(client kube.Clients, namespace string, resource runtime.Object, patchType patchtypes.PatchType, bytes []byte) error {
+		patchCalled++
+		if patchCalled < 2 {
+			return &errors.StatusError{ErrStatus: metav1.Status{Reason: metav1.StatusReasonConflict}} // simulate conflict
+		}
+		assert.Equal(t, patchtypes.StrategicMergePatchType, patchType)
+		assert.NotEmpty(t, bytes)
+		assert.Contains(t, string(bytes), `{"spec":{"template":{"spec":{"containers":[{"name":`)
+		assert.Contains(t, string(bytes), `"value":"3c9a892aeaedc759abc3df9884a37b8be5680382"`)
+		return nil
+	}
+
+	deploymentFuncs.UpdateFunc = func(kube.Clients, string, runtime.Object) error {
+		t.Errorf("Update should not be called")
+		return nil
+	}
+
+	collectors := getCollectors()
+
+	err := PerformAction(clients, config, deploymentFuncs, collectors, nil, invokeReloadStrategy)
+	if err != nil {
+		t.Errorf("Rolling upgrade failed for %s with %s", deploymentFuncs.ResourceType, envVarPostfix)
+	}
+
+	assert.Equal(t, 2, patchCalled)
+
+	deploymentFuncs = GetDeploymentRollingUpgradeFuncs()
+	testRollingUpgradeWithPatchAndInvokeDeleteStrategyErs(t, clients, config, deploymentFuncs, collectors, envVarPostfix)
 }
 
 func TestRollingUpgradeForDeploymentWithConfigmapInProjectedVolumeUsingErs(t *testing.T) {
@@ -2708,7 +2917,7 @@ func TestRollingUpgradeForDeploymentWithConfigmapViaSearchAnnotationNotMappedUsi
 		t.Errorf("Failed to create deployment with search annotation.")
 	}
 	defer func() {
-		_ = clients.KubernetesClient.AppsV1().Deployments(ersNamespace).Delete(context.TODO(), deployment.Name, v1.DeleteOptions{})
+		_ = clients.KubernetesClient.AppsV1().Deployments(ersNamespace).Delete(context.TODO(), deployment.Name, metav1.DeleteOptions{})
 	}()
 	// defer clients.KubernetesClient.AppsV1().Deployments(namespace).Delete(deployment.Name, &v1.DeleteOptions{})
 
@@ -3262,6 +3471,49 @@ func TestRollingUpgradeForDaemonSetWithConfigmapUsingErs(t *testing.T) {
 	testRollingUpgradeInvokeDeleteStrategyErs(t, clients, config, daemonSetFuncs, collectors, envVarPostfix)
 }
 
+func TestRollingUpgradeForDaemonSetWithPatchAndRetryUsingErs(t *testing.T) {
+	options.ReloadStrategy = constants.EnvVarsReloadStrategy
+	envVarPostfix := constants.ConfigmapEnvVarPostfix
+
+	shaData := testutil.ConvertResourceToSHA(testutil.ConfigmapResourceType, ersNamespace, ersConfigmapName, "www.facebook.com")
+	config := getConfigWithAnnotations(envVarPostfix, ersConfigmapName, shaData, options.ConfigmapUpdateOnChangeAnnotation, options.ConfigmapReloaderAutoAnnotation)
+	daemonSetFuncs := GetDaemonSetRollingUpgradeFuncs()
+
+	assert.True(t, daemonSetFuncs.SupportsPatch)
+	assert.NotEmpty(t, daemonSetFuncs.PatchTemplatesFunc().EnvVarTemplate)
+
+	patchCalled := 0
+	daemonSetFuncs.PatchFunc = func(client kube.Clients, namespace string, resource runtime.Object, patchType patchtypes.PatchType, bytes []byte) error {
+		patchCalled++
+		if patchCalled < 2 {
+			return &errors.StatusError{ErrStatus: metav1.Status{Reason: metav1.StatusReasonConflict}} // simulate conflict
+		}
+		assert.Equal(t, patchtypes.StrategicMergePatchType, patchType)
+		assert.NotEmpty(t, bytes)
+		assert.Contains(t, string(bytes), `{"spec":{"template":{"spec":{"containers":[{"name":`)
+		assert.Contains(t, string(bytes), `"value":"314a2269170750a974d79f02b5b9ee517de7f280"`)
+		return nil
+	}
+
+	daemonSetFuncs.UpdateFunc = func(kube.Clients, string, runtime.Object) error {
+		t.Errorf("Update should not be called")
+		return nil
+	}
+
+	collectors := getCollectors()
+
+	err := PerformAction(clients, config, daemonSetFuncs, collectors, nil, invokeReloadStrategy)
+	time.Sleep(5 * time.Second)
+	if err != nil {
+		t.Errorf("Rolling upgrade failed for DaemonSet with configmap")
+	}
+
+	assert.Equal(t, 2, patchCalled)
+
+	daemonSetFuncs = GetDeploymentRollingUpgradeFuncs()
+	testRollingUpgradeWithPatchAndInvokeDeleteStrategyErs(t, clients, config, daemonSetFuncs, collectors, envVarPostfix)
+}
+
 func TestRollingUpgradeForDaemonSetWithConfigmapInProjectedVolumeUsingErs(t *testing.T) {
 	options.ReloadStrategy = constants.EnvVarsReloadStrategy
 	envVarPostfix := constants.ConfigmapEnvVarPostfix
@@ -3420,6 +3672,49 @@ func TestRollingUpgradeForStatefulSetWithConfigmapUsingErs(t *testing.T) {
 	}
 
 	testRollingUpgradeInvokeDeleteStrategyErs(t, clients, config, statefulSetFuncs, collectors, envVarPostfix)
+}
+
+func TestRollingUpgradeForStatefulSetWithPatchAndRetryUsingErs(t *testing.T) {
+	options.ReloadStrategy = constants.EnvVarsReloadStrategy
+	envVarPostfix := constants.ConfigmapEnvVarPostfix
+
+	shaData := testutil.ConvertResourceToSHA(testutil.ConfigmapResourceType, ersNamespace, ersConfigmapName, "www.twitter.com")
+	config := getConfigWithAnnotations(envVarPostfix, ersConfigmapName, shaData, options.ConfigmapUpdateOnChangeAnnotation, options.ConfigmapReloaderAutoAnnotation)
+	statefulSetFuncs := GetStatefulSetRollingUpgradeFuncs()
+
+	assert.True(t, statefulSetFuncs.SupportsPatch)
+	assert.NotEmpty(t, statefulSetFuncs.PatchTemplatesFunc().EnvVarTemplate)
+
+	patchCalled := 0
+	statefulSetFuncs.PatchFunc = func(client kube.Clients, namespace string, resource runtime.Object, patchType patchtypes.PatchType, bytes []byte) error {
+		patchCalled++
+		if patchCalled < 2 {
+			return &errors.StatusError{ErrStatus: metav1.Status{Reason: metav1.StatusReasonConflict}} // simulate conflict
+		}
+		assert.Equal(t, patchtypes.StrategicMergePatchType, patchType)
+		assert.NotEmpty(t, bytes)
+		assert.Contains(t, string(bytes), `{"spec":{"template":{"spec":{"containers":[{"name":`)
+		assert.Contains(t, string(bytes), `"value":"f821414d40d8815fb330763f74a4ff7ab651d4fa"`)
+		return nil
+	}
+
+	statefulSetFuncs.UpdateFunc = func(kube.Clients, string, runtime.Object) error {
+		t.Errorf("Update should not be called")
+		return nil
+	}
+
+	collectors := getCollectors()
+
+	err := PerformAction(clients, config, statefulSetFuncs, collectors, nil, invokeReloadStrategy)
+	time.Sleep(5 * time.Second)
+	if err != nil {
+		t.Errorf("Rolling upgrade failed for StatefulSet with configmap")
+	}
+
+	assert.Equal(t, 2, patchCalled)
+
+	statefulSetFuncs = GetDeploymentRollingUpgradeFuncs()
+	testRollingUpgradeWithPatchAndInvokeDeleteStrategyErs(t, clients, config, statefulSetFuncs, collectors, envVarPostfix)
 }
 
 func TestRollingUpgradeForStatefulSetWithConfigmapInProjectedVolumeUsingErs(t *testing.T) {
@@ -3586,6 +3881,9 @@ func TestFailedRollingUpgradeUsingErs(t *testing.T) {
 	deploymentFuncs.UpdateFunc = func(_ kube.Clients, _ string, _ runtime.Object) error {
 		return fmt.Errorf("error")
 	}
+	deploymentFuncs.PatchFunc = func(kube.Clients, string, runtime.Object, patchtypes.PatchType, []byte) error {
+		return fmt.Errorf("error")
+	}
 	collectors := getCollectors()
 
 	_ = PerformAction(clients, config, deploymentFuncs, collectors, nil, invokeReloadStrategy)
@@ -3679,4 +3977,27 @@ func isDeploymentPaused(deployments []runtime.Object, deploymentName string) (bo
 		return false, err
 	}
 	return IsPaused(deployment), nil
+}
+
+// Simple helper function for test cases
+func FindDeploymentByName(deployments []runtime.Object, deploymentName string) (*apps.Deployment, error) {
+	for _, deployment := range deployments {
+		accessor, err := meta.Accessor(deployment)
+		if err != nil {
+			return nil, fmt.Errorf("error getting accessor for item: %v", err)
+		}
+		if accessor.GetName() == deploymentName {
+			deploymentObj, ok := deployment.(*apps.Deployment)
+			if !ok {
+				return nil, fmt.Errorf("failed to cast to Deployment")
+			}
+			return deploymentObj, nil
+		}
+	}
+	return nil, fmt.Errorf("deployment '%s' not found", deploymentName)
+}
+
+// Checks if a deployment is currently paused
+func IsPaused(deployment *apps.Deployment) bool {
+	return deployment.Spec.Paused
 }

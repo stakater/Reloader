@@ -1,8 +1,9 @@
 name: Release Go project
 
 on:
-  release:
-    types: [published]
+  push:
+    tags:
+      - "v*"
 
 env:
   DOCKER_FILE_PATH: Dockerfile
@@ -12,7 +13,7 @@ env:
   REGISTRY: ghcr.io
 
 jobs:
-  build:
+  release:
 
     permissions:
       contents: read
@@ -47,7 +48,7 @@ jobs:
           make install
 
       - name: Run golangci-lint
-        uses: golangci/golangci-lint-action@v5
+        uses: golangci/golangci-lint-action@v6
         with:
           version: latest
           only-new-issues: false
@@ -192,22 +193,6 @@ jobs:
       ##############################
       ## Add steps to generate required artifacts for a release here(helm chart, operator manifest etc.)
       ##############################
-
-      # # Generate tag for operator without "v"
-      # - name: Generate Operator Tag
-      #   id: generate_operator_tag
-      #   uses: anothrNick/github-tag-action@1.70.0
-      #   env:
-      #     GITHUB_TOKEN: ${{ secrets.STAKATER_GITHUB_TOKEN }}
-      #     WITH_V: false
-      #     DEFAULT_BUMP: patch
-      #     DRY_RUN: true
-
-      # # Update chart tag to the latest semver tag
-      # - name: Update Chart Version
-      #   env:
-      #     VERSION: ${{ steps.generate_operator_tag.outputs.RELEASE_VERSION }}
-      #   run: make bump-chart
 
       - name: Run GoReleaser
         uses: goreleaser/goreleaser-action@master

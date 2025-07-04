@@ -74,15 +74,15 @@ spec:
       {{- end }}
       containers:
       {{- if .Values.global.imageRegistry }}
-      - image: "{{ .Values.global.imageRegistry }}/{{ .Values.reloader.deployment.image.base }}:{{ .Values.reloader.deployment.image.tag }}"
+      - image: "{{ .Values.global.imageRegistry }}/{{ .Values.image.name }}:{{ .Values.image.tag }}"
       {{- else }}
-      {{- if .Values.reloader.deployment.image.digest }}
-      - image: "{{ .Values.reloader.deployment.image.name }}@{{ .Values.reloader.deployment.image.digest }}"
+      {{- if .Values.image.digest }}
+      - image: "{{ .Values.image.repository }}@{{ .Values.image.digest }}"
       {{- else }}
-      - image: "{{ .Values.reloader.deployment.image.name }}:{{ .Values.reloader.deployment.image.tag }}"
+      - image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
       {{- end }}
       {{- end }}
-        imagePullPolicy: {{ .Values.reloader.deployment.image.pullPolicy }}
+        imagePullPolicy: {{ .Values.image.pullPolicy }}
         name: {{ template "reloader-fullname" . }}
         env:
         - name: GOMAXPROCS

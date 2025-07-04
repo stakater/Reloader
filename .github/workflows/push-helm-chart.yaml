@@ -1,5 +1,7 @@
 name: Push Helm Chart
 
+# TODO: fix: workflows have a problem where only code owners' PRs get the actions running
+
 on:
   pull_request:
     types:
@@ -9,6 +11,7 @@ on:
     paths:
       - 'deployments/kubernetes/chart/reloader/**'
       - '.github/workflows/push-helm-chart.yaml'
+      - '.github/workflows/release-helm-chart.yaml'
 
 env:
   HELM_REGISTRY_URL: "https://stakater.github.io/stakater-charts"
@@ -19,7 +22,8 @@ jobs:
 
     permissions:
       contents: read
-      packages: write # to push artifacts to `ghcr.io`
+      id-token: write # needed for signing the images with GitHub OIDC Token
+      packages: write # for pushing and signing container images
 
     name: Verify and Push Helm Chart
     if: ${{ (github.event.pull_request.merged == true) && (contains(github.event.pull_request.labels.*.name, 'release/helm-chart')) }}
@@ -68,6 +72,9 @@ jobs:
           echo "Helm Chart Version wasnt updated"
           exit 1
 
+      - name: Install Cosign
+        uses: sigstore/cosign-installer@v3.8.2
+
       - name: Login to GHCR Registry
         uses: docker/login-action@v3
         with:
@@ -80,6 +87,9 @@ jobs:
           helm package ./deployments/kubernetes/chart/reloader --destination ./packaged-chart
           helm push ./packaged-chart/*.tgz oci://ghcr.io/stakater/charts
           rm -rf ./packaged-chart
+
+      - name: Sign artifacts with Cosign
+        run: cosign sign --yes ghcr.io/stakater/charts/reloader:${{ steps.new_chart_version.outputs.result }}
 
       - name: Publish Helm chart to gh-pages
         uses: stefanprodan/helm-gh-pages@master
@@ -94,6 +104,13 @@ jobs:
           linting: on
           commit_username: stakater-user
           commit_email: stakater@gmail.com
+
+      - name: Push new chart tag
+        uses: anothrNick/github-tag-action@1.71.0
+        env:
+          GITHUB_TOKEN: ${{ secrets.PUBLISH_TOKEN }}
+          WITH_V: false
+          CUSTOM_TAG: chart-v${{ steps.new_chart_version.outputs.result }}
 
       - name: Notify Slack
         uses: 8398a7/action-slack@v3
