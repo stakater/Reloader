@@ -601,7 +601,7 @@ func TestPerformUpdate(t *testing.T) {
 				context.TODO(),
 				test.deployment,
 				metav1.CreateOptions{})
-			require.Equal(t, err, "Expected no error when creating deployment")
+			require.Nil(t, err, "Expected no error when creating deployment")
 
 			result := PerformUpdate(test.deployment, clients, test.pauseDurationString, test.pauseDuration, test.doPatch)
 
