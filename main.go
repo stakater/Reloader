@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"os"
 
 	"net/http"
@@ -12,7 +13,9 @@ import (
 func main() {
 
 	go func() {
-		http.ListenAndServe("localhost:6060", nil)
+		if err := http.ListenAndServe("localhost:6060", nil); err != nil {
+			fmt.Println("Failed to start pprof server:", err)
+		}
 	}()
 
 	if err := app.Run(); err != nil {
