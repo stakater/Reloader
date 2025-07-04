@@ -328,7 +328,6 @@ func upgradeResource(clients kube.Clients, config util.Config, upgradeFuncs call
 	}
 	if strategyResult.Result == constants.Updated {
 		var err error
-
 		if upgradeFuncs.SupportsPatch && strategyResult.Patch != nil {
 			err = upgradeFuncs.PatchFunc(clients, config.Namespace, resource, strategyResult.Patch.Type, strategyResult.Patch.Bytes)
 		} else {

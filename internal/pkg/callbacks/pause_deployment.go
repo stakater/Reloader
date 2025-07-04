@@ -51,7 +51,7 @@ func GetPauseStartTime(deployment *app.Deployment) (*time.Time, error) {
 	return &parsedTime, nil
 }
 
-// ParsePauseDuration parses the pause interval value and returns a time.Duration
+// Parses the pause interval value and returns a time.Duration
 func ParsePauseDuration(pauseIntervalValue string) (time.Duration, error) {
 	pauseDuration, err := time.ParseDuration(pauseIntervalValue)
 	if err != nil {
@@ -61,7 +61,7 @@ func ParsePauseDuration(pauseIntervalValue string) (time.Duration, error) {
 	return pauseDuration, nil
 }
 
-// GetPauseDuration returns the duration for which the deployment is paused
+// Returns the duration for which the deployment is paused
 func GetPauseDuration(deployment app.Deployment) (string, time.Duration) {
 	pauseDurationStr := deployment.Annotations[options.PauseDeploymentAnnotation]
 	if pauseDurationStr == "" {
@@ -105,30 +105,22 @@ func HandleMissingTimer(deployment *app.Deployment, pauseDuration time.Duration,
 	CreateResumeTimer(deployment, clients, remainingPauseTime)
 }
 
-// CreateResumeTimer creates a timer to resume the deployment after the specified duration
+// Creates a timer to resume the deployment after the specified duration
 func CreateResumeTimer(deployment *app.Deployment, clients kube.Clients, pauseDuration time.Duration) {
 	timerKey := getTimerKey(deployment.Namespace, deployment.Name)
 
-	// Check if there's an existing timer for this deployment
 	if _, exists := activeTimers[timerKey]; exists {
-		logrus.Debugf("Timer already exists for deployment '%s' in namespace '%s', Skipping creation",
-			deployment.Name, deployment.Namespace)
 		return
 	}
 
-	// Create and store the new timer
 	timer := time.AfterFunc(pauseDuration, func() {
 		ResumeDeployment(deployment.Name, deployment.Namespace, clients)
 	})
 
-	// Add the new timer to the map
 	activeTimers[timerKey] = timer
-
-	logrus.Debugf("Created pause timer for deployment '%s' in namespace '%s' with duration %s",
-		deployment.Name, deployment.Namespace, pauseDuration)
 }
 
-// ResumeDeployment resumes a deployment that has been paused by reloader
+// Resumes a deployment that has been paused by reloader
 func ResumeDeployment(deploymentName, namespace string, clients kube.Clients) {
 	deployment, err := clients.KubernetesClient.AppsV1().Deployments(namespace).Get(context.TODO(), deploymentName, metav1.GetOptions{})
 	if err != nil {
@@ -161,6 +153,7 @@ func ResumeDeployment(deploymentName, namespace string, clients kube.Clients) {
 	logrus.Infof("Successfully resumed deployment '%s' in namespace '%s'", deploymentName, namespace)
 }
 
+// Creates a patch to pause the deployment
 func CreatePausePatch(pauseIntervalValue string) string {
 	timeAnnotation := time.Now().Format(time.RFC3339)
 	return fmt.Sprintf(`{
@@ -170,6 +163,7 @@ func CreatePausePatch(pauseIntervalValue string) string {
 		options.PauseDeploymentAnnotation, pauseIntervalValue)
 }
 
+// Applies the pause annotation to the deployment directly
 func ApplyPauseAnnotation(deployment *app.Deployment, pauseIntervalValue string) {
 	if deployment.Annotations == nil {
 		deployment.Annotations = make(map[string]string)
@@ -178,6 +172,7 @@ func ApplyPauseAnnotation(deployment *app.Deployment, pauseIntervalValue string)
 	deployment.Annotations[options.PauseDeploymentAnnotation] = pauseIntervalValue
 }
 
+// Checks if a resume timer exists for the deployment
 func ResumeTimerExists(deployment *app.Deployment) bool {
 	timerKey := getTimerKey(deployment.Namespace, deployment.Name)
 	_, exists := activeTimers[timerKey]
@@ -187,6 +182,7 @@ func ResumeTimerExists(deployment *app.Deployment) bool {
 	return exists
 }
 
+// Main function for pausing a deployment
 func PauseDeployment(deployment *app.Deployment, clients kube.Clients, doPatch bool) bool {
 	pauseDurationString, pauseDuration := GetPauseDuration(*deployment)
 
@@ -197,31 +193,34 @@ func PauseDeployment(deployment *app.Deployment, clients kube.Clients, doPatch b
 	pausedByReloader := IsPausedByReloader(deployment)
 	if pausedByReloader {
 		// In case of leader election or reloader restart, check for missing timers
-		return checkForMissingTimer(deployment, pauseDuration, clients)
+		return CheckForMissingTimer(deployment, pauseDuration, clients)
 	}
 
-	return updateDeployment(deployment, clients, pauseDurationString, pauseDuration, doPatch)
+	return PerformUpdate(deployment, clients, pauseDurationString, pauseDuration, doPatch)
 }
 
-func checkForMissingTimer(deployment *app.Deployment, pauseDuration time.Duration, clients kube.Clients) bool {
+// Checks if a resume timer exists
+func CheckForMissingTimer(deployment *app.Deployment, pauseDuration time.Duration, clients kube.Clients) bool {
 	if !ResumeTimerExists(deployment) {
 		HandleMissingTimer(deployment, pauseDuration, clients)
 	}
 	return true
 }
 
-func updateDeployment(deployment *app.Deployment, clients kube.Clients, pauseDurationString string, pauseDuration time.Duration, doPatch bool) bool {
+// Does the actual update of the deployment (patching or directly)
+func PerformUpdate(deployment *app.Deployment, clients kube.Clients, pauseDurationString string, pauseDuration time.Duration, doPatch bool) bool {
 	logrus.Infof("Pausing Deployment '%s' in namespace '%s' for %s", deployment.Name, deployment.Namespace, pauseDuration)
 
 	if doPatch {
-		return pauseWithPatch(deployment, clients, pauseDurationString, pauseDuration)
+		return PauseWithPatch(deployment, clients, pauseDurationString, pauseDuration)
 	}
 
-	updateDeploymentObject(deployment, pauseDurationString, pauseDuration)
+	ApplyPauseToDeployment(deployment, pauseDurationString, pauseDuration)
 	return true
 }
 
-func pauseWithPatch(deployment *app.Deployment, clients kube.Clients, pauseDurationString string, pauseDuration time.Duration) bool {
+// Pauses the deployment using patch
+func PauseWithPatch(deployment *app.Deployment, clients kube.Clients, pauseDurationString string, pauseDuration time.Duration) bool {
 	pausePatch := CreatePausePatch(pauseDurationString)
 
 	_, err := clients.KubernetesClient.AppsV1().Deployments(deployment.Namespace).Patch(
@@ -241,7 +240,8 @@ func pauseWithPatch(deployment *app.Deployment, clients kube.Clients, pauseDurat
 	return true
 }
 
-func updateDeploymentObject(deployment *app.Deployment, pauseDurationString string, pauseDuration time.Duration) {
+// Applies the pause annotation directly
+func ApplyPauseToDeployment(deployment *app.Deployment, pauseDurationString string, pauseDuration time.Duration) {
 	ApplyPauseAnnotation(deployment, pauseDurationString)
 	deployment.Spec.Paused = true
 }
