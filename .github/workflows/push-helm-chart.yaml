@@ -15,7 +15,7 @@ on:
 
 env:
   HELM_REGISTRY_URL: "https://stakater.github.io/stakater-charts"
-  REGISTRY: ghcr.io
+  REGISTRY: ghcr.io # container registry
 
 jobs:
   verify-and-push-helm-chart:
