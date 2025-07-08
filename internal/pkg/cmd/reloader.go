@@ -44,10 +44,10 @@ func NewReloaderCommand() *cobra.Command {
 	cmd.PersistentFlags().StringVar(&options.LogFormat, "log-format", "", "Log format to use (empty string for text, or JSON)")
 	cmd.PersistentFlags().StringVar(&options.LogLevel, "log-level", "info", "Log level to use (trace, debug, info, warning, error, fatal and panic)")
 	cmd.PersistentFlags().StringVar(&options.WebhookUrl, "webhook-url", "", "webhook to trigger instead of performing a reload")
-	cmd.PersistentFlags().StringSlice("resources-to-ignore", []string{}, "list of resources to ignore (valid options 'configMaps' or 'secrets')")
-	cmd.PersistentFlags().StringSlice("namespaces-to-ignore", []string{}, "list of namespaces to ignore")
-	cmd.PersistentFlags().StringSlice("namespace-selector", []string{}, "list of key:value labels to filter on for namespaces")
-	cmd.PersistentFlags().StringSlice("resource-label-selector", []string{}, "list of key:value labels to filter on for configmaps and secrets")
+	cmd.PersistentFlags().StringSliceVar(&options.ResourcesToIgnore, "resources-to-ignore", options.ResourcesToIgnore, "list of resources to ignore (valid options 'configMaps' or 'secrets')")
+	cmd.PersistentFlags().StringSliceVar(&options.NamespacesToIgnore, "namespaces-to-ignore", options.NamespacesToIgnore, "list of namespaces to ignore")
+	cmd.PersistentFlags().StringSliceVar(&options.NamespaceSelectors, "namespace-selector", options.NamespaceSelectors, "list of key:value labels to filter on for namespaces")
+	cmd.PersistentFlags().StringSliceVar(&options.ResourceSelectors, "resource-label-selector", options.ResourceSelectors, "list of key:value labels to filter on for configmaps and secrets")
 	cmd.PersistentFlags().StringVar(&options.IsArgoRollouts, "is-Argo-Rollouts", "false", "Add support for argo rollouts")
 	cmd.PersistentFlags().StringVar(&options.ReloadStrategy, constants.ReloadStrategyFlag, constants.EnvVarsReloadStrategy, "Specifies the desired reload strategy")
 	cmd.PersistentFlags().StringVar(&options.ReloadOnCreate, "reload-on-create", "false", "Add support to watch create events")
@@ -140,22 +140,19 @@ func startReloader(cmd *cobra.Command, args []string) {
 		logrus.Fatal(err)
 	}
 
-	ignoredResourcesList, err := getIgnoredResourcesList(cmd)
+	ignoredResourcesList, err := getIgnoredResourcesList()
 	if err != nil {
 		logrus.Fatal(err)
 	}
 
-	ignoredNamespacesList, err := getIgnoredNamespacesList(cmd)
+	ignoredNamespacesList := options.NamespacesToIgnore
+
+	namespaceLabelSelector, err := getNamespaceLabelSelector()
 	if err != nil {
 		logrus.Fatal(err)
 	}
 
-	namespaceLabelSelector, err := getNamespaceLabelSelector(cmd)
-	if err != nil {
-		logrus.Fatal(err)
-	}
-
-	resourceLabelSelector, err := getResourceLabelSelector(cmd)
+	resourceLabelSelector, err := getResourceLabelSelector()
 	if err != nil {
 		logrus.Fatal(err)
 	}
@@ -211,15 +208,8 @@ func startReloader(cmd *cobra.Command, args []string) {
 	logrus.Fatal(http.ListenAndServe(constants.DefaultHttpListenAddr, nil))
 }
 
-func getIgnoredNamespacesList(cmd *cobra.Command) (util.List, error) {
-	return getStringSliceFromFlags(cmd, "namespaces-to-ignore")
-}
-
-func getNamespaceLabelSelector(cmd *cobra.Command) (string, error) {
-	slice, err := getStringSliceFromFlags(cmd, "namespace-selector")
-	if err != nil {
-		logrus.Fatal(err)
-	}
+func getNamespaceLabelSelector() (string, error) {
+	slice := options.NamespaceSelectors
 
 	for i, kv := range slice {
 		// Legacy support for ":" as a delimiter and "*" for wildcard.
@@ -241,7 +231,7 @@ func getNamespaceLabelSelector(cmd *cobra.Command) (string, error) {
 	}
 
 	namespaceLabelSelector := strings.Join(slice[:], ",")
-	_, err = labels.Parse(namespaceLabelSelector)
+	_, err := labels.Parse(namespaceLabelSelector)
 	if err != nil {
 		logrus.Fatal(err)
 	}
@@ -249,11 +239,8 @@ func getNamespaceLabelSelector(cmd *cobra.Command) (string, error) {
 	return namespaceLabelSelector, nil
 }
 
-func getResourceLabelSelector(cmd *cobra.Command) (string, error) {
-	slice, err := getStringSliceFromFlags(cmd, "resource-label-selector")
-	if err != nil {
-		logrus.Fatal(err)
-	}
+func getResourceLabelSelector() (string, error) {
+	slice := options.ResourceSelectors
 
 	for i, kv := range slice {
 		// Legacy support for ":" as a delimiter and "*" for wildcard.
@@ -275,7 +262,7 @@ func getResourceLabelSelector(cmd *cobra.Command) (string, error) {
 	}
 
 	resourceLabelSelector := strings.Join(slice[:], ",")
-	_, err = labels.Parse(resourceLabelSelector)
+	_, err := labels.Parse(resourceLabelSelector)
 	if err != nil {
 		logrus.Fatal(err)
 	}
@@ -292,12 +279,9 @@ func getStringSliceFromFlags(cmd *cobra.Command, flag string) ([]string, error) 
 	return slice, nil
 }
 
-func getIgnoredResourcesList(cmd *cobra.Command) (util.List, error) {
+func getIgnoredResourcesList() (util.List, error) {
 
-	ignoredResourcesList, err := getStringSliceFromFlags(cmd, "resources-to-ignore")
-	if err != nil {
-		return nil, err
-	}
+	ignoredResourcesList := options.ResourcesToIgnore // getStringSliceFromFlags(cmd, "resources-to-ignore")
 
 	for _, v := range ignoredResourcesList {
 		if v != "configMaps" && v != "secrets" {

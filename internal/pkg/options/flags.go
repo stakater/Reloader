@@ -55,6 +55,14 @@ var (
 	EnableHA = false
 	// Url to send a request to instead of triggering a reload
 	WebhookUrl = ""
+
+	ResourcesToIgnore = []string{}
+
+	NamespacesToIgnore = []string{}
+
+	NamespaceSelectors = []string{}
+
+	ResourceSelectors = []string{}
 )
 
 func ToArgoRolloutStrategy(s string) ArgoRolloutStrategy {
