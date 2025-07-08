@@ -90,7 +90,7 @@ func ConfigureReloaderFlags(cmd *cobra.Command) {
 	cmd.PersistentFlags().StringSliceVar(&options.NamespacesToIgnore, "namespaces-to-ignore", options.NamespacesToIgnore, "list of namespaces to ignore")
 	cmd.PersistentFlags().StringSliceVar(&options.NamespaceSelectors, "namespace-selector", options.NamespaceSelectors, "list of key:value labels to filter on for namespaces")
 	cmd.PersistentFlags().StringSliceVar(&options.ResourceSelectors, "resource-label-selector", options.ResourceSelectors, "list of key:value labels to filter on for configmaps and secrets")
-	cmd.PersistentFlags().StringVar(&options.IsArgoRollouts, "is-Argo-Rollouts", "false", "Add support for argo rollouts")
+	cmd.PersistentFlags().BoolVar(&options.IsArgoRollouts, "is-Argo-Rollouts", false, "Add support for argo rollouts")
 	cmd.PersistentFlags().StringVar(&options.ReloadStrategy, constants.ReloadStrategyFlag, constants.EnvVarsReloadStrategy, "Specifies the desired reload strategy")
 	cmd.PersistentFlags().StringVar(&options.ReloadOnCreate, "reload-on-create", "false", "Add support to watch create events")
 	cmd.PersistentFlags().StringVar(&options.ReloadOnDelete, "reload-on-delete", "false", "Add support to watch delete events")
@@ -105,7 +105,14 @@ type ReloadCheckResult struct {
 
 func ShouldReload(config Config, resourceType string, annotations Map, podAnnotations Map) ReloadCheckResult {
 
-	if resourceType == "Rollout" && options.IsArgoRollouts == "false" {
+	if resourceType == "Rollout" && !options.IsArgoRollouts {
+		return ReloadCheckResult{
+			ShouldReload: false,
+		}
+	}
+
+	ignoreResourceAnnotatonValue := config.ResourceAnnotations[options.IgnoreResourceAnnotation]
+	if ignoreResourceAnnotatonValue == "true" {
 		return ReloadCheckResult{
 			ShouldReload: false,
 		}

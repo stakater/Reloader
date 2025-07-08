@@ -191,7 +191,7 @@ func doRollingUpgrade(config util.Config, collectors metrics.Collectors, recorde
 		return err
 	}
 
-	if options.IsArgoRollouts == "true" {
+	if options.IsArgoRollouts {
 		err = rollingUpgrade(clients, config, GetArgoRolloutRollingUpgradeFuncs(), collectors, recorder, invoke)
 		if err != nil {
 			return err
