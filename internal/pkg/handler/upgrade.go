@@ -261,7 +261,7 @@ func upgradeResource(clients kube.Clients, config util.Config, upgradeFuncs call
 		}
 	}
 
-	reloadCheckResult := util.ShouldReload(config, upgradeFuncs.AnnotationsFunc(resource), upgradeFuncs.PodAnnotationsFunc(resource))
+	reloadCheckResult := util.ShouldReload(config, upgradeFuncs.ResourceType, upgradeFuncs.AnnotationsFunc(resource), upgradeFuncs.PodAnnotationsFunc(resource))
 	if !reloadCheckResult.ShouldReload {
 		return nil
 	}

@@ -103,7 +103,13 @@ type ReloadCheckResult struct {
 	AutoReload   bool
 }
 
-func ShouldReload(config Config, annotations Map, podAnnotations Map) ReloadCheckResult {
+func ShouldReload(config Config, resourceType string, annotations Map, podAnnotations Map) ReloadCheckResult {
+
+	if resourceType == "Rollout" && options.IsArgoRollouts == "false" {
+		return ReloadCheckResult{
+			ShouldReload: false,
+		}
+	}
 
 	annotationValue, found := annotations[config.Annotation]
 	searchAnnotationValue, foundSearchAnn := annotations[options.AutoSearchAnnotation]
