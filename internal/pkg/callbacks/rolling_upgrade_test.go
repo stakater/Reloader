@@ -415,13 +415,26 @@ func TestPatchResources(t *testing.T) {
 func TestCreateJobFromCronjob(t *testing.T) {
 	fixtures := newTestFixtures()
 
-	cronJob, err := createTestCronJobWithAnnotations(clients, fixtures.namespace, "1")
+	runtimeObj, err := createTestCronJobWithAnnotations(clients, fixtures.namespace, "1")
 	assert.NoError(t, err)
 
-	err = callbacks.CreateJobFromCronjob(clients, fixtures.namespace, cronJob.(*batchv1.CronJob))
+	cronJob := runtimeObj.(*batchv1.CronJob)
+	err = callbacks.CreateJobFromCronjob(clients, fixtures.namespace, cronJob)
 	assert.NoError(t, err)
 
-	err = deleteTestCronJob(clients, fixtures.namespace, "test-cronjob")
+	jobList, err := clients.KubernetesClient.BatchV1().Jobs(fixtures.namespace).List(context.TODO(), metav1.ListOptions{})
+	assert.NoError(t, err)
+
+	ownerFound := false
+	for _, job := range jobList.Items {
+		if isControllerOwner("CronJob", cronJob.Name, job.OwnerReferences) {
+			ownerFound = true
+			break
+		}
+	}
+	assert.Truef(t, ownerFound, "Missing CronJob owner reference")
+
+	err = deleteTestCronJob(clients, fixtures.namespace, cronJob.Name)
 	assert.NoError(t, err)
 }
 
@@ -748,4 +761,13 @@ func createTestJobWithAnnotations(clients kube.Clients, namespace, version strin
 
 func deleteTestJob(clients kube.Clients, namespace, name string) error {
 	return clients.KubernetesClient.BatchV1().Jobs(namespace).Delete(context.TODO(), name, metav1.DeleteOptions{})
+}
+
+func isControllerOwner(kind, name string, ownerRefs []metav1.OwnerReference) bool {
+	for _, ownerRef := range ownerRefs {
+		if *ownerRef.Controller && ownerRef.Kind == kind && ownerRef.Name == name {
+			return true
+		}
+	}
+	return false
 }
