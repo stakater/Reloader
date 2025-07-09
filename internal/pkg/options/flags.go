@@ -45,7 +45,7 @@ var (
 	// LogLevel is the log level to use (trace, debug, info, warning, error, fatal and panic)
 	LogLevel = ""
 	// IsArgoRollouts Adds support for argo rollouts
-	IsArgoRollouts = "false"
+	IsArgoRollouts = false
 	// ReloadStrategy Specify the update strategy
 	ReloadStrategy = constants.EnvVarsReloadStrategy
 	// ReloadOnCreate Adds support to watch create events
@@ -57,6 +57,14 @@ var (
 	EnableHA = false
 	// Url to send a request to instead of triggering a reload
 	WebhookUrl = ""
+
+	ResourcesToIgnore = []string{}
+
+	NamespacesToIgnore = []string{}
+
+	NamespaceSelectors = []string{}
+
+	ResourceSelectors = []string{}
 )
 
 func ToArgoRolloutStrategy(s string) ArgoRolloutStrategy {
