@@ -99,7 +99,7 @@ reloader:
     #     whenUnsatisfiable: DoNotSchedule
     #     labelSelector:
     #       matchLabels:
-    #         app: my-app
+    #         app.kubernetes.io/instance: my-app
     topologySpreadConstraints: []
 
     annotations: {}

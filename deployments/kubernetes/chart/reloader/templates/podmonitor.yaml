@@ -56,5 +56,5 @@ spec:
     - {{ .Release.Namespace }}
   selector:
     matchLabels:
-      {{ include "reloader-labels.chart" . | nindent 6 }}
+      {{ include "reloader-match-labels.chart" . | nindent 6 }}
 {{- end }}
