@@ -8,7 +8,7 @@ In-order to enable this feature, you need to update the `reloader.env.secret` se
 
 ```yaml
       ALERT_ON_RELOAD: [ true/false ] Default: false
-      ALERT_SINK: [ slack/teams/webhook ] Default: webhook
+      ALERT_SINK: [ slack/teams/gchat/webhook ] Default: webhook
       ALERT_WEBHOOK_URL: Required if ALERT_ON_RELOAD is true
       ALERT_ADDITIONAL_INFO: Any additional information to be added to alert
 ```

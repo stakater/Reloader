@@ -68,64 +68,6 @@ func TestMain(m *testing.M) {
 	os.Exit(retCode)
 }
 
-// Perform rolling upgrade on deploymentConfig and create pod annotation var upon updating the configmap
-func TestControllerUpdatingConfigmapShouldCreatePodAnnotationInDeploymentConfig(t *testing.T) {
-	options.ReloadStrategy = constants.AnnotationsReloadStrategy
-
-	// Don't run test on non-openshift environment
-	if !kube.IsOpenshift {
-		return
-	}
-
-	// Creating configmap
-	configmapName := configmapNamePrefix + "-update-" + testutil.RandSeq(5)
-	configmapClient, err := testutil.CreateConfigMap(clients.KubernetesClient, namespace, configmapName, "www.google.com")
-	if err != nil {
-		t.Errorf("Error while creating the configmap %v", err)
-	}
-
-	// Creating deployment
-	_, err = testutil.CreateDeploymentConfig(clients.OpenshiftAppsClient, configmapName, namespace, true)
-	if err != nil {
-		t.Errorf("Error in deploymentConfig creation: %v", err)
-	}
-
-	// Updating configmap for first time
-	updateErr := testutil.UpdateConfigMap(configmapClient, namespace, configmapName, "", "www.stakater.com")
-	if updateErr != nil {
-		t.Errorf("Configmap was not updated")
-	}
-
-	// Verifying deployment update
-	logrus.Infof("Verifying pod annotation has been created")
-	shaData := testutil.ConvertResourceToSHA(testutil.ConfigmapResourceType, namespace, configmapName, "www.stakater.com")
-	config := util.Config{
-		Namespace:    namespace,
-		ResourceName: configmapName,
-		SHAValue:     shaData,
-		Annotation:   options.ConfigmapUpdateOnChangeAnnotation,
-	}
-	deploymentConfigFuncs := handler.GetDeploymentConfigRollingUpgradeFuncs()
-	updated := testutil.VerifyResourceAnnotationUpdate(clients, config, deploymentConfigFuncs)
-	if !updated {
-		t.Errorf("DeploymentConfig was not updated")
-	}
-	time.Sleep(sleepDuration)
-
-	// Deleting deployment
-	err = testutil.DeleteDeploymentConfig(clients.OpenshiftAppsClient, namespace, configmapName)
-	if err != nil {
-		logrus.Errorf("Error while deleting the deploymentConfig %v", err)
-	}
-
-	// Deleting configmap
-	err = testutil.DeleteConfigMap(clients.KubernetesClient, namespace, configmapName)
-	if err != nil {
-		logrus.Errorf("Error while deleting the configmap %v", err)
-	}
-	time.Sleep(sleepDuration)
-}
-
 // Perform rolling upgrade on deployment and create pod annotation var upon updating the configmap
 func TestControllerUpdatingConfigmapShouldCreatePodAnnotationInDeployment(t *testing.T) {
 	options.ReloadStrategy = constants.AnnotationsReloadStrategy
@@ -1074,64 +1016,6 @@ func TestControllerUpdatingSecretShouldCreatePodAnnotationInStatefulSet(t *testi
 	err = testutil.DeleteSecret(clients.KubernetesClient, namespace, secretName)
 	if err != nil {
 		logrus.Errorf("Error while deleting the secret %v", err)
-	}
-	time.Sleep(sleepDuration)
-}
-
-// Perform rolling upgrade on deploymentConfig and create env var upon updating the configmap
-func TestControllerUpdatingConfigmapShouldCreateEnvInDeploymentConfig(t *testing.T) {
-	options.ReloadStrategy = constants.EnvVarsReloadStrategy
-
-	// Don't run test on non-openshift environment
-	if !kube.IsOpenshift {
-		return
-	}
-
-	// Creating configmap
-	configmapName := configmapNamePrefix + "-update-" + testutil.RandSeq(5)
-	configmapClient, err := testutil.CreateConfigMap(clients.KubernetesClient, namespace, configmapName, "www.google.com")
-	if err != nil {
-		t.Errorf("Error while creating the configmap %v", err)
-	}
-
-	// Creating deployment
-	_, err = testutil.CreateDeploymentConfig(clients.OpenshiftAppsClient, configmapName, namespace, true)
-	if err != nil {
-		t.Errorf("Error in deploymentConfig creation: %v", err)
-	}
-
-	// Updating configmap for first time
-	updateErr := testutil.UpdateConfigMap(configmapClient, namespace, configmapName, "", "www.stakater.com")
-	if updateErr != nil {
-		t.Errorf("Configmap was not updated")
-	}
-
-	// Verifying deployment update
-	logrus.Infof("Verifying env var has been created")
-	shaData := testutil.ConvertResourceToSHA(testutil.ConfigmapResourceType, namespace, configmapName, "www.stakater.com")
-	config := util.Config{
-		Namespace:    namespace,
-		ResourceName: configmapName,
-		SHAValue:     shaData,
-		Annotation:   options.ConfigmapUpdateOnChangeAnnotation,
-	}
-	deploymentConfigFuncs := handler.GetDeploymentConfigRollingUpgradeFuncs()
-	updated := testutil.VerifyResourceEnvVarUpdate(clients, config, constants.ConfigmapEnvVarPostfix, deploymentConfigFuncs)
-	if !updated {
-		t.Errorf("DeploymentConfig was not updated")
-	}
-	time.Sleep(sleepDuration)
-
-	// Deleting deployment
-	err = testutil.DeleteDeploymentConfig(clients.OpenshiftAppsClient, namespace, configmapName)
-	if err != nil {
-		logrus.Errorf("Error while deleting the deploymentConfig %v", err)
-	}
-
-	// Deleting configmap
-	err = testutil.DeleteConfigMap(clients.KubernetesClient, namespace, configmapName)
-	if err != nil {
-		logrus.Errorf("Error while deleting the configmap %v", err)
 	}
 	time.Sleep(sleepDuration)
 }

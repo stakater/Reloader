@@ -16,8 +16,9 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	patchtypes "k8s.io/apimachinery/pkg/types"
 
+	"maps"
+
 	argorolloutv1alpha1 "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
-	openshiftv1 "github.com/openshift/api/apps/v1"
 )
 
 // ItemFunc is a generic function to return a specific resource in given namespace
@@ -232,36 +233,6 @@ func GetStatefulSetItems(clients kube.Clients, namespace string) []runtime.Objec
 	return items
 }
 
-// GetDeploymentConfigItem returns the deploymentConfig in given namespace
-func GetDeploymentConfigItem(clients kube.Clients, name string, namespace string) (runtime.Object, error) {
-	deploymentConfig, err := clients.OpenshiftAppsClient.AppsV1().DeploymentConfigs(namespace).Get(context.TODO(), name, meta_v1.GetOptions{})
-	if err != nil {
-		logrus.Errorf("Failed to get deploymentConfig %v", err)
-		return nil, err
-	}
-
-	return deploymentConfig, nil
-}
-
-// GetDeploymentConfigItems returns the deploymentConfigs in given namespace
-func GetDeploymentConfigItems(clients kube.Clients, namespace string) []runtime.Object {
-	deploymentConfigs, err := clients.OpenshiftAppsClient.AppsV1().DeploymentConfigs(namespace).List(context.TODO(), meta_v1.ListOptions{})
-	if err != nil {
-		logrus.Errorf("Failed to list deploymentConfigs %v", err)
-	}
-
-	items := make([]runtime.Object, len(deploymentConfigs.Items))
-	// Ensure we always have pod annotations to add to
-	for i, v := range deploymentConfigs.Items {
-		if v.Spec.Template.ObjectMeta.Annotations == nil {
-			deploymentConfigs.Items[i].Spec.Template.ObjectMeta.Annotations = make(map[string]string)
-		}
-		items[i] = &deploymentConfigs.Items[i]
-	}
-
-	return items
-}
-
 // GetRolloutItem returns the rollout in given namespace
 func GetRolloutItem(clients kube.Clients, name string, namespace string) (runtime.Object, error) {
 	rollout, err := clients.ArgoRolloutClient.ArgoprojV1alpha1().Rollouts(namespace).Get(context.TODO(), name, meta_v1.GetOptions{})
@@ -332,14 +303,6 @@ func GetStatefulSetAnnotations(item runtime.Object) map[string]string {
 	return item.(*appsv1.StatefulSet).ObjectMeta.Annotations
 }
 
-// GetDeploymentConfigAnnotations returns the annotations of given deploymentConfig
-func GetDeploymentConfigAnnotations(item runtime.Object) map[string]string {
-	if item.(*openshiftv1.DeploymentConfig).ObjectMeta.Annotations == nil {
-		item.(*openshiftv1.DeploymentConfig).ObjectMeta.Annotations = make(map[string]string)
-	}
-	return item.(*openshiftv1.DeploymentConfig).ObjectMeta.Annotations
-}
-
 // GetRolloutAnnotations returns the annotations of given rollout
 func GetRolloutAnnotations(item runtime.Object) map[string]string {
 	if item.(*argorolloutv1alpha1.Rollout).ObjectMeta.Annotations == nil {
@@ -388,14 +351,6 @@ func GetStatefulSetPodAnnotations(item runtime.Object) map[string]string {
 	return item.(*appsv1.StatefulSet).Spec.Template.ObjectMeta.Annotations
 }
 
-// GetDeploymentConfigPodAnnotations returns the pod's annotations of given deploymentConfig
-func GetDeploymentConfigPodAnnotations(item runtime.Object) map[string]string {
-	if item.(*openshiftv1.DeploymentConfig).Spec.Template.ObjectMeta.Annotations == nil {
-		item.(*openshiftv1.DeploymentConfig).Spec.Template.ObjectMeta.Annotations = make(map[string]string)
-	}
-	return item.(*openshiftv1.DeploymentConfig).Spec.Template.ObjectMeta.Annotations
-}
-
 // GetRolloutPodAnnotations returns the pod's annotations of given rollout
 func GetRolloutPodAnnotations(item runtime.Object) map[string]string {
 	if item.(*argorolloutv1alpha1.Rollout).Spec.Template.ObjectMeta.Annotations == nil {
@@ -429,11 +384,6 @@ func GetStatefulSetContainers(item runtime.Object) []v1.Container {
 	return item.(*appsv1.StatefulSet).Spec.Template.Spec.Containers
 }
 
-// GetDeploymentConfigContainers returns the containers of given deploymentConfig
-func GetDeploymentConfigContainers(item runtime.Object) []v1.Container {
-	return item.(*openshiftv1.DeploymentConfig).Spec.Template.Spec.Containers
-}
-
 // GetRolloutContainers returns the containers of given rollout
 func GetRolloutContainers(item runtime.Object) []v1.Container {
 	return item.(*argorolloutv1alpha1.Rollout).Spec.Template.Spec.Containers
@@ -462,11 +412,6 @@ func GetDaemonSetInitContainers(item runtime.Object) []v1.Container {
 // GetStatefulSetInitContainers returns the containers of given statefulSet
 func GetStatefulSetInitContainers(item runtime.Object) []v1.Container {
 	return item.(*appsv1.StatefulSet).Spec.Template.Spec.InitContainers
-}
-
-// GetDeploymentConfigInitContainers returns the containers of given deploymentConfig
-func GetDeploymentConfigInitContainers(item runtime.Object) []v1.Container {
-	return item.(*openshiftv1.DeploymentConfig).Spec.Template.Spec.InitContainers
 }
 
 // GetRolloutInitContainers returns the containers of given rollout
@@ -506,11 +451,21 @@ func PatchDeployment(clients kube.Clients, namespace string, resource runtime.Ob
 // CreateJobFromCronjob performs rolling upgrade on cronjob
 func CreateJobFromCronjob(clients kube.Clients, namespace string, resource runtime.Object) error {
 	cronJob := resource.(*batchv1.CronJob)
+
+	annotations := make(map[string]string)
+	annotations["cronjob.kubernetes.io/instantiate"] = "manual"
+	maps.Copy(annotations, cronJob.Spec.JobTemplate.Annotations)
+
 	job := &batchv1.Job{
-		ObjectMeta: cronJob.Spec.JobTemplate.ObjectMeta,
-		Spec:       cronJob.Spec.JobTemplate.Spec,
+		ObjectMeta: meta_v1.ObjectMeta{
+			GenerateName:    cronJob.Name + "-",
+			Namespace:       cronJob.Namespace,
+			Annotations:     annotations,
+			Labels:          cronJob.Spec.JobTemplate.Labels,
+			OwnerReferences: []meta_v1.OwnerReference{*meta_v1.NewControllerRef(cronJob, batchv1.SchemeGroupVersion.WithKind("CronJob"))},
+		},
+		Spec: cronJob.Spec.JobTemplate.Spec,
 	}
-	job.GenerateName = cronJob.Name + "-"
 	_, err := clients.KubernetesClient.BatchV1().Jobs(namespace).Create(context.TODO(), job, meta_v1.CreateOptions{FieldManager: "Reloader"})
 	return err
 }
@@ -581,19 +536,6 @@ func PatchStatefulSet(clients kube.Clients, namespace string, resource runtime.O
 	return err
 }
 
-// UpdateDeploymentConfig performs rolling upgrade on deploymentConfig
-func UpdateDeploymentConfig(clients kube.Clients, namespace string, resource runtime.Object) error {
-	deploymentConfig := resource.(*openshiftv1.DeploymentConfig)
-	_, err := clients.OpenshiftAppsClient.AppsV1().DeploymentConfigs(namespace).Update(context.TODO(), deploymentConfig, meta_v1.UpdateOptions{FieldManager: "Reloader"})
-	return err
-}
-
-func PatchDeploymentConfig(clients kube.Clients, namespace string, resource runtime.Object, patchType patchtypes.PatchType, bytes []byte) error {
-	deploymentConfig := resource.(*openshiftv1.DeploymentConfig)
-	_, err := clients.OpenshiftAppsClient.AppsV1().DeploymentConfigs(namespace).Patch(context.TODO(), deploymentConfig.Name, patchType, bytes, meta_v1.PatchOptions{FieldManager: "Reloader"})
-	return err
-}
-
 // UpdateRollout performs rolling upgrade on rollout
 func UpdateRollout(clients kube.Clients, namespace string, resource runtime.Object) error {
 	rollout := resource.(*argorolloutv1alpha1.Rollout)
@@ -635,11 +577,6 @@ func GetDaemonSetVolumes(item runtime.Object) []v1.Volume {
 // GetStatefulSetVolumes returns the Volumes of given statefulSet
 func GetStatefulSetVolumes(item runtime.Object) []v1.Volume {
 	return item.(*appsv1.StatefulSet).Spec.Template.Spec.Volumes
-}
-
-// GetDeploymentConfigVolumes returns the Volumes of given deploymentConfig
-func GetDeploymentConfigVolumes(item runtime.Object) []v1.Volume {
-	return item.(*openshiftv1.DeploymentConfig).Spec.Template.Spec.Volumes
 }
 
 // GetRolloutVolumes returns the Volumes of given rollout
