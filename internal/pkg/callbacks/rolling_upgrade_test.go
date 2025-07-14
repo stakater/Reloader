@@ -25,6 +25,8 @@ import (
 	"github.com/stakater/Reloader/internal/pkg/options"
 	"github.com/stakater/Reloader/internal/pkg/testutil"
 	"github.com/stakater/Reloader/pkg/kube"
+	knativeservingv1 "knative.dev/serving/pkg/apis/serving/v1"
+	knativeclientfake "knative.dev/serving/pkg/client/clientset/versioned/fake"
 )
 
 var (
@@ -51,6 +53,7 @@ func setupTestClients() kube.Clients {
 	return kube.Clients{
 		KubernetesClient:  fake.NewSimpleClientset(),
 		ArgoRolloutClient: fakeargoclientset.NewSimpleClientset(),
+		KnativeClient:     knativeclientfake.NewSimpleClientset(),
 	}
 }
 
@@ -159,6 +162,12 @@ func TestResourceItem(t *testing.T) {
 			getItemFunc: callbacks.GetStatefulSetItem,
 			deleteFunc:  deleteTestStatefulSet,
 		},
+		{
+			name:        "KnativeService",
+			createFunc:  createTestKnativeServiceWithAnnotations,
+			getItemFunc: callbacks.GetKnativeServiceItem,
+			deleteFunc:  deleteTestKnativeService,
+		},
 	}
 
 	for _, tt := range tests {
@@ -223,6 +232,13 @@ func TestResourceItems(t *testing.T) {
 			deleteFunc:    deleteTestStatefulSets,
 			expectedCount: 2,
 		},
+		{
+			name:          "KnativeServices",
+			createFunc:    createTestKnativeServices,
+			getItemsFunc:  callbacks.GetKnativeServiceItems,
+			deleteFunc:    deleteTestKnativeServices,
+			expectedCount: 2,
+		},
 	}
 
 	for _, tt := range tests {
@@ -250,6 +266,7 @@ func TestGetAnnotations(t *testing.T) {
 		{"DaemonSet", &appsv1.DaemonSet{ObjectMeta: metav1.ObjectMeta{Annotations: testAnnotations}}, callbacks.GetDaemonSetAnnotations},
 		{"StatefulSet", &appsv1.StatefulSet{ObjectMeta: metav1.ObjectMeta{Annotations: testAnnotations}}, callbacks.GetStatefulSetAnnotations},
 		{"Rollout", &argorolloutv1alpha1.Rollout{ObjectMeta: metav1.ObjectMeta{Annotations: testAnnotations}}, callbacks.GetRolloutAnnotations},
+		{"KnativeService", &knativeservingv1.Service{ObjectMeta: metav1.ObjectMeta{Annotations: testAnnotations}}, callbacks.GetKnativeServiceAnnotations},
 	}
 
 	for _, tt := range tests {
@@ -273,6 +290,7 @@ func TestGetPodAnnotations(t *testing.T) {
 		{"DaemonSet", createResourceWithPodAnnotations(&appsv1.DaemonSet{}, testAnnotations), callbacks.GetDaemonSetPodAnnotations},
 		{"StatefulSet", createResourceWithPodAnnotations(&appsv1.StatefulSet{}, testAnnotations), callbacks.GetStatefulSetPodAnnotations},
 		{"Rollout", createResourceWithPodAnnotations(&argorolloutv1alpha1.Rollout{}, testAnnotations), callbacks.GetRolloutPodAnnotations},
+		{"KnativeService", createResourceWithPodAnnotations(&knativeservingv1.Service{}, testAnnotations), callbacks.GetKnativeServicePodAnnotations},
 	}
 
 	for _, tt := range tests {
@@ -296,6 +314,7 @@ func TestGetContainers(t *testing.T) {
 		{"CronJob", createResourceWithContainers(&batchv1.CronJob{}, fixtures.defaultContainers), callbacks.GetCronJobContainers},
 		{"Job", createResourceWithContainers(&batchv1.Job{}, fixtures.defaultContainers), callbacks.GetJobContainers},
 		{"Rollout", createResourceWithContainers(&argorolloutv1alpha1.Rollout{}, fixtures.defaultContainers), callbacks.GetRolloutContainers},
+		{"KnativeService", createResourceWithContainers(&knativeservingv1.Service{}, fixtures.defaultContainers), callbacks.GetKnativeServiceContainers},
 	}
 
 	for _, tt := range tests {
@@ -319,6 +338,7 @@ func TestGetInitContainers(t *testing.T) {
 		{"CronJob", createResourceWithInitContainers(&batchv1.CronJob{}, fixtures.defaultInitContainers), callbacks.GetCronJobInitContainers},
 		{"Job", createResourceWithInitContainers(&batchv1.Job{}, fixtures.defaultInitContainers), callbacks.GetJobInitContainers},
 		{"Rollout", createResourceWithInitContainers(&argorolloutv1alpha1.Rollout{}, fixtures.defaultInitContainers), callbacks.GetRolloutInitContainers},
+		{"KnativeService", createResourceWithInitContainers(&knativeservingv1.Service{}, fixtures.defaultInitContainers), callbacks.GetKnativeServiceInitContainers},
 	}
 
 	for _, tt := range tests {
@@ -340,6 +360,7 @@ func TestUpdateResources(t *testing.T) {
 		{"Deployment", createTestDeploymentWithAnnotations, callbacks.UpdateDeployment, deleteTestDeployment},
 		{"DaemonSet", createTestDaemonSetWithAnnotations, callbacks.UpdateDaemonSet, deleteTestDaemonSet},
 		{"StatefulSet", createTestStatefulSetWithAnnotations, callbacks.UpdateStatefulSet, deleteTestStatefulSet},
+		{"KnativeService", createTestKnativeServiceWithAnnotations, callbacks.UpdateKnativeService, deleteTestKnativeService},
 	}
 
 	for _, tt := range tests {
@@ -386,6 +407,12 @@ func TestPatchResources(t *testing.T) {
 			patchedResource, err := callbacks.GetStatefulSetItem(clients, "test-statefulset", fixtures.namespace)
 			assert.NoError(t, err)
 			assert.Equal(t, "test", patchedResource.(*appsv1.StatefulSet).ObjectMeta.Annotations["test"])
+		}},
+		{"KnativeService", createTestKnativeServiceWithAnnotations, callbacks.PatchKnativeService, deleteTestKnativeService, func(err error) {
+			assert.NoError(t, err)
+			patchedResource, err := callbacks.GetKnativeServiceItem(clients, "test-knative-service", fixtures.namespace)
+			assert.NoError(t, err)
+			assert.Equal(t, "test", patchedResource.(*knativeservingv1.Service).ObjectMeta.Annotations["test"])
 		}},
 		{"CronJob", createTestCronJobWithAnnotations, callbacks.PatchCronJob, deleteTestCronJob, func(err error) {
 			assert.EqualError(t, err, "not supported patching: CronJob")
@@ -464,6 +491,7 @@ func TestGetVolumes(t *testing.T) {
 		{"Job", createResourceWithVolumes(&batchv1.Job{}, fixtures.defaultVolumes), callbacks.GetJobVolumes},
 		{"DaemonSet", createResourceWithVolumes(&appsv1.DaemonSet{}, fixtures.defaultVolumes), callbacks.GetDaemonSetVolumes},
 		{"StatefulSet", createResourceWithVolumes(&appsv1.StatefulSet{}, fixtures.defaultVolumes), callbacks.GetStatefulSetVolumes},
+		{"KnativeService", createResourceWithVolumes(&knativeservingv1.Service{}, fixtures.defaultVolumes), callbacks.GetKnativeServiceVolumes},
 	}
 
 	for _, tt := range tests {
@@ -632,6 +660,8 @@ func createResourceWithPodAnnotations(obj runtime.Object, annotations map[string
 		v.Spec.Template.ObjectMeta.Annotations = annotations
 	case *argorolloutv1alpha1.Rollout:
 		v.Spec.Template.ObjectMeta.Annotations = annotations
+	case *knativeservingv1.Service:
+		v.Spec.Template.ObjectMeta.Annotations = annotations
 	}
 	return obj
 }
@@ -649,6 +679,8 @@ func createResourceWithContainers(obj runtime.Object, containers []v1.Container)
 	case *batchv1.Job:
 		v.Spec.Template.Spec.Containers = containers
 	case *argorolloutv1alpha1.Rollout:
+		v.Spec.Template.Spec.Containers = containers
+	case *knativeservingv1.Service:
 		v.Spec.Template.Spec.Containers = containers
 	}
 	return obj
@@ -668,6 +700,8 @@ func createResourceWithInitContainers(obj runtime.Object, initContainers []v1.Co
 		v.Spec.Template.Spec.InitContainers = initContainers
 	case *argorolloutv1alpha1.Rollout:
 		v.Spec.Template.Spec.InitContainers = initContainers
+	case *knativeservingv1.Service:
+		v.Spec.Template.Spec.InitContainers = initContainers
 	}
 	return obj
 }
@@ -683,6 +717,8 @@ func createResourceWithVolumes(obj runtime.Object, volumes []v1.Volume) runtime.
 	case *appsv1.DaemonSet:
 		v.Spec.Template.Spec.Volumes = volumes
 	case *appsv1.StatefulSet:
+		v.Spec.Template.Spec.Volumes = volumes
+	case *knativeservingv1.Service:
 		v.Spec.Template.Spec.Volumes = volumes
 	}
 	return obj
@@ -770,4 +806,35 @@ func isControllerOwner(kind, name string, ownerRefs []metav1.OwnerReference) boo
 		}
 	}
 	return false
+}
+
+func createTestKnativeServiceWithAnnotations(clients kube.Clients, namespace string, name string) (runtime.Object, error) {
+	annotations := map[string]string{
+		"test": "test",
+	}
+	return testutil.CreateKnativeService(clients.KnativeClient.(*knativeclientfake.Clientset), "test-knative-service", namespace, false, annotations)
+}
+
+func createTestKnativeServices(clients kube.Clients, namespace string) error {
+	for i := 1; i <= 2; i++ {
+		_, err := testutil.CreateKnativeService(clients.KnativeClient.(*knativeclientfake.Clientset), fmt.Sprintf("test-knative-service-%d", i), namespace, false, nil)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func deleteTestKnativeService(clients kube.Clients, namespace string, name string) error {
+	return testutil.DeleteKnativeService(clients.KnativeClient.(*knativeclientfake.Clientset), namespace, name)
+}
+
+func deleteTestKnativeServices(clients kube.Clients, namespace string) error {
+	for i := 1; i <= 2; i++ {
+		err := testutil.DeleteKnativeService(clients.KnativeClient.(*knativeclientfake.Clientset), namespace, fmt.Sprintf("test-knative-service-%d", i))
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }

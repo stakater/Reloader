@@ -19,6 +19,7 @@ import (
 	"maps"
 
 	argorolloutv1alpha1 "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
+	knativeservingv1 "knative.dev/serving/pkg/apis/serving/v1"
 )
 
 // ItemFunc is a generic function to return a specific resource in given namespace
@@ -428,6 +429,15 @@ func GetPatchTemplates() PatchTemplates {
 	}
 }
 
+// GetKnativePatchTemplates returns patch templates for Knative services
+func GetKnativePatchTemplates() PatchTemplates {
+	return PatchTemplates{
+		AnnotationTemplate:   `{"spec":{"template":{"metadata":{"annotations":{"%s":"%s"}}}}}`,                                   // merge patch
+		EnvVarTemplate:       `{"spec":{"template":{"spec":{"containers":[{"name":"%s","env":[{"name":"%s","value":"%s"}]}]}}}}`, // merge patch
+		DeleteEnvVarTemplate: `[{"op":"remove","path":"/spec/template/spec/containers/%d/env/%d"}]`,                              // JSON patch
+	}
+}
+
 // UpdateDeployment performs rolling upgrade on deployment
 func UpdateDeployment(clients kube.Clients, namespace string, resource runtime.Object) error {
 	deployment := resource.(*appsv1.Deployment)
@@ -576,4 +586,91 @@ func GetStatefulSetVolumes(item runtime.Object) []v1.Volume {
 // GetRolloutVolumes returns the Volumes of given rollout
 func GetRolloutVolumes(item runtime.Object) []v1.Volume {
 	return item.(*argorolloutv1alpha1.Rollout).Spec.Template.Spec.Volumes
+}
+
+// GetKnativeServiceItem returns the Knative service in given namespace
+func GetKnativeServiceItem(clients kube.Clients, name string, namespace string) (runtime.Object, error) {
+	knativeService, err := clients.KnativeClient.ServingV1().Services(namespace).Get(context.TODO(), name, meta_v1.GetOptions{})
+	if err != nil {
+		logrus.Errorf("Failed to get Knative service %v", err)
+		return nil, err
+	}
+
+	if knativeService.Spec.Template.ObjectMeta.Annotations == nil {
+		annotations := make(map[string]string)
+		knativeService.Spec.Template.ObjectMeta.Annotations = annotations
+	}
+
+	return knativeService, nil
+}
+
+// GetKnativeServiceItems returns the Knative services in given namespace
+func GetKnativeServiceItems(clients kube.Clients, namespace string) []runtime.Object {
+	knativeServices, err := clients.KnativeClient.ServingV1().Services(namespace).List(context.TODO(), meta_v1.ListOptions{})
+	if err != nil {
+		logrus.Errorf("Failed to list Knative services %v", err)
+	}
+
+	items := make([]runtime.Object, len(knativeServices.Items))
+	// Ensure we always have pod annotations to add to
+	for i, v := range knativeServices.Items {
+		if v.Spec.Template.ObjectMeta.Annotations == nil {
+			annotations := make(map[string]string)
+			knativeServices.Items[i].Spec.Template.ObjectMeta.Annotations = annotations
+		}
+		items[i] = &knativeServices.Items[i]
+	}
+
+	return items
+}
+
+// GetKnativeServiceAnnotations returns the annotations of given Knative service
+func GetKnativeServiceAnnotations(item runtime.Object) map[string]string {
+	if item.(*knativeservingv1.Service).ObjectMeta.Annotations == nil {
+		item.(*knativeservingv1.Service).ObjectMeta.Annotations = make(map[string]string)
+	}
+	return item.(*knativeservingv1.Service).ObjectMeta.Annotations
+}
+
+// GetKnativeServicePodAnnotations returns the pod's annotations of given Knative service
+func GetKnativeServicePodAnnotations(item runtime.Object) map[string]string {
+	if item.(*knativeservingv1.Service).Spec.Template.ObjectMeta.Annotations == nil {
+		item.(*knativeservingv1.Service).Spec.Template.ObjectMeta.Annotations = make(map[string]string)
+	}
+	return item.(*knativeservingv1.Service).Spec.Template.ObjectMeta.Annotations
+}
+
+// GetKnativeServiceContainers returns the containers of given Knative service
+func GetKnativeServiceContainers(item runtime.Object) []v1.Container {
+	return item.(*knativeservingv1.Service).Spec.Template.Spec.Containers
+}
+
+// GetKnativeServiceInitContainers returns the init containers of given Knative service
+func GetKnativeServiceInitContainers(item runtime.Object) []v1.Container {
+	return item.(*knativeservingv1.Service).Spec.Template.Spec.InitContainers
+}
+
+// GetKnativeServiceVolumes returns the Volumes of given Knative service
+func GetKnativeServiceVolumes(item runtime.Object) []v1.Volume {
+	return item.(*knativeservingv1.Service).Spec.Template.Spec.Volumes
+}
+
+// UpdateKnativeService performs rolling upgrade on Knative service
+func UpdateKnativeService(clients kube.Clients, namespace string, resource runtime.Object) error {
+	knativeService := resource.(*knativeservingv1.Service)
+	_, err := clients.KnativeClient.ServingV1().Services(namespace).Update(context.TODO(), knativeService, meta_v1.UpdateOptions{FieldManager: "Reloader"})
+	return err
+}
+
+// PatchKnativeService performs rolling upgrade on Knative service
+func PatchKnativeService(clients kube.Clients, namespace string, resource runtime.Object, patchType patchtypes.PatchType, bytes []byte) error {
+	knativeService := resource.(*knativeservingv1.Service)
+	
+	// Knative services don't support StrategicMergePatchType, so convert to MergePatchType
+	if patchType == patchtypes.StrategicMergePatchType {
+		patchType = patchtypes.MergePatchType
+	}
+	
+	_, err := clients.KnativeClient.ServingV1().Services(namespace).Patch(context.TODO(), knativeService.Name, patchType, bytes, meta_v1.PatchOptions{FieldManager: "Reloader"})
+	return err
 }

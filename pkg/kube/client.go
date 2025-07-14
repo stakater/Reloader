@@ -11,6 +11,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
+	knativeclient "knative.dev/serving/pkg/client/clientset/versioned"
 )
 
 // Clients struct exposes interfaces for kubernetes as well as openshift if available
@@ -18,6 +19,7 @@ type Clients struct {
 	KubernetesClient    kubernetes.Interface
 	OpenshiftAppsClient appsclient.Interface
 	ArgoRolloutClient   argorollout.Interface
+	KnativeClient       knativeclient.Interface
 }
 
 var (
@@ -48,10 +50,18 @@ func GetClients() Clients {
 		logrus.Warnf("Unable to create ArgoRollout client error = %v", err)
 	}
 
+	var knativeClient *knativeclient.Clientset
+
+	knativeClient, err = GetKnativeClient()
+	if err != nil {
+		logrus.Warnf("Unable to create Knative client error = %v", err)
+	}
+
 	return Clients{
 		KubernetesClient:    client,
 		OpenshiftAppsClient: appsClient,
 		ArgoRolloutClient:   rolloutClient,
+		KnativeClient:       knativeClient,
 	}
 }
 
@@ -93,6 +103,14 @@ func GetKubernetesClient() (*kubernetes.Clientset, error) {
 		return nil, err
 	}
 	return kubernetes.NewForConfig(config)
+}
+
+func GetKnativeClient() (*knativeclient.Clientset, error) {
+	config, err := getConfig()
+	if err != nil {
+		return nil, err
+	}
+	return knativeclient.NewForConfig(config)
 }
 
 func getConfig() (*rest.Config, error) {
