@@ -30,7 +30,7 @@ RUN CGO_ENABLED=0 \
     GOPROXY=${GOPROXY} \
     GOPRIVATE=${GOPRIVATE} \
     GO111MODULE=on \
-    go build -mod=mod -a -o manager main.go
+    go build -ldflags="-s -w" -installsuffix 'static' -mod=mod -a -o manager main.go
 
 # Use distroless as minimal base image to package the manager binary
 # Refer to https://github.com/GoogleContainerTools/distroless for more details

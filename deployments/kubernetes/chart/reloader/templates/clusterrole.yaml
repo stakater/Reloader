@@ -31,6 +31,8 @@ rules:
       - list
       - get
       - watch
+      - create
+      - delete
 {{- if .Values.reloader.namespaceSelector }}
   - apiGroups:
       - ""

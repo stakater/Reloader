@@ -32,6 +32,8 @@ rules:
       - list
       - get
       - watch
+      - create
+      - delete
 {{- if and (.Capabilities.APIVersions.Has "apps.openshift.io/v1") (.Values.reloader.isOpenshift) }}
   - apiGroups:
       - "apps.openshift.io"

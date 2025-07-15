@@ -144,6 +144,17 @@ spec:
             fieldRef:
               fieldPath: metadata.namespace
       {{- end }}
+
+        - name: RELOADER_NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
+
+        - name: RELOADER_DEPLOYMENT_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+          
       {{- if .Values.reloader.enableHA }}
         - name: POD_NAME
           valueFrom:
