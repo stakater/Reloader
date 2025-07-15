@@ -1,9 +1,18 @@
-package util
+package metainfo
 
 import (
+	"encoding/json"
 	"runtime/debug"
 
 	"github.com/stakater/Reloader/internal/pkg/options"
+	v1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+)
+
+const (
+	MetaInfoConfigmapName       = "reloader-meta-info"
+	MetaInfoConfigmapLabel      = "reloader.stakater.com/meta-info"
+	MetaInfoConfigmapLabelValue = "reloader-oss"
 )
 
 type ReloaderOptions struct {
@@ -28,6 +37,12 @@ type ReloaderOptions struct {
 	SyncAfterRestart                   bool   `json:"syncAfterRestart"`
 	EnableHA                           bool   `json:"enableHA"`
 	WebhookUrl                         string `json:"webhookUrl"`
+}
+
+type MetaInfo struct {
+	BuildInfo       BuildInfo         `json:"buildInfo"`
+	ReloaderOptions ReloaderOptions   `json:"reloaderOptions"`
+	DeploymentInfo  metav1.ObjectMeta `json:"deploymentInfo"`
 }
 
 func GetReloaderOptions() *ReloaderOptions {
@@ -65,7 +80,7 @@ type BuildInfo struct {
 	VCSTime     string `json:"vcs.time,omitempty"`
 }
 
-func parseBuildInfo(info *debug.BuildInfo) *BuildInfo {
+func NewBuildInfo(info *debug.BuildInfo) *BuildInfo {
 	infoMap := make(map[string]string)
 	infoMap["goversion"] = info.GoVersion
 	infoMap["version"] = info.Main.Version
@@ -86,4 +101,52 @@ func parseBuildInfo(info *debug.BuildInfo) *BuildInfo {
 	}
 
 	return metaInfo
+}
+
+func (m *MetaInfo) ToConfigMap() *v1.ConfigMap {
+	return &v1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      MetaInfoConfigmapName,
+			Namespace: m.DeploymentInfo.Namespace,
+			Labels: map[string]string{
+				MetaInfoConfigmapLabel: MetaInfoConfigmapLabelValue,
+			},
+		},
+		Data: map[string]string{
+			"buildInfo":       toJson(m.BuildInfo),
+			"reloaderOptions": toJson(m.ReloaderOptions),
+			"deploymentInfo":  toJson(m.DeploymentInfo),
+		},
+	}
+}
+
+func NewMetaInfo(configmap *v1.ConfigMap) *MetaInfo {
+	var buildInfo BuildInfo
+	if val, ok := configmap.Data["buildInfo"]; ok {
+		json.Unmarshal([]byte(val), &buildInfo)
+	}
+
+	var reloaderOptions ReloaderOptions
+	if val, ok := configmap.Data["reloaderOptions"]; ok {
+		json.Unmarshal([]byte(val), &reloaderOptions)
+	}
+
+	var deploymentInfo metav1.ObjectMeta
+	if val, ok := configmap.Data["deploymentInfo"]; ok {
+		json.Unmarshal([]byte(val), &deploymentInfo)
+	}
+
+	return &MetaInfo{
+		BuildInfo:       buildInfo,
+		ReloaderOptions: reloaderOptions,
+		DeploymentInfo:  deploymentInfo,
+	}
+}
+
+func toJson(data interface{}) string {
+	jsonData, err := json.Marshal(data)
+	if err != nil {
+		return ""
+	}
+	return string(jsonData)
 }

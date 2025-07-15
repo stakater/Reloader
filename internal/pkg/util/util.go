@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"encoding/base64"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -17,6 +16,7 @@ import (
 	"github.com/stakater/Reloader/internal/pkg/constants"
 	"github.com/stakater/Reloader/internal/pkg/crypto"
 	"github.com/stakater/Reloader/internal/pkg/options"
+	"github.com/stakater/Reloader/pkg/metainfo"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
@@ -78,43 +78,20 @@ func PublishMetaInfoConfigmap(clientset kubernetes.Interface) {
 		return
 	}
 
-	metaInfoMap := &v1.ConfigMap{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "reloader-meta-info",
+	metaInfo := &metainfo.MetaInfo{
+		BuildInfo:       *metainfo.NewBuildInfo(info),
+		ReloaderOptions: *metainfo.GetReloaderOptions(),
+		DeploymentInfo: metav1.ObjectMeta{
+			Name:      os.Getenv("RELOADER_DEPLOYMENT_NAME"),
 			Namespace: namespace,
-			Labels: map[string]string{
-				"reloader.stakater.com/meta-info-for": "reloader-oss",
-			},
 		},
-
-		Data: map[string]string{},
 	}
 
-	buildInfo := parseBuildInfo(info)
-	buildInfoJSON, err := json.Marshal(buildInfo)
+	configMap := metaInfo.ToConfigMap()
 
-	if err == nil {
-		metaInfoMap.Data["buildinfo"] = string(buildInfoJSON)
-	}
-
-	reloaderOptions := GetReloaderOptions()
-	reloaderOptionsJSON, err := json.Marshal(reloaderOptions)
-	if err == nil {
-		metaInfoMap.Data["reloaderOptions"] = string(reloaderOptionsJSON)
-	}
-
-	deploymentInfoJson, err := json.Marshal(metav1.ObjectMeta{
-		Name:      os.Getenv("RELOADER_DEPLOYMENT_NAME"),
-		Namespace: namespace,
-	})
-
-	if err == nil {
-		metaInfoMap.Data["deploymentInfo"] = string(deploymentInfoJson)
-	}
-
-	if _, err := clientset.CoreV1().ConfigMaps(namespace).Get(context.Background(), metaInfoMap.Name, metav1.GetOptions{}); err == nil {
+	if _, err := clientset.CoreV1().ConfigMaps(namespace).Get(context.Background(), configMap.Name, metav1.GetOptions{}); err == nil {
 		logrus.Info("Meta info configmap already exists, deleting it")
-		err = clientset.CoreV1().ConfigMaps(namespace).Delete(context.Background(), metaInfoMap.Name, metav1.DeleteOptions{})
+		err = clientset.CoreV1().ConfigMaps(namespace).Delete(context.Background(), configMap.Name, metav1.DeleteOptions{})
 		if err != nil {
 			logrus.Warn("Failed to delete existing meta info configmap: ", err)
 			return
@@ -122,7 +99,7 @@ func PublishMetaInfoConfigmap(clientset kubernetes.Interface) {
 		logrus.Info("Deleted existing meta info configmap")
 	}
 
-	_, err = clientset.CoreV1().ConfigMaps(namespace).Create(context.Background(), metaInfoMap, metav1.CreateOptions{})
+	_, err := clientset.CoreV1().ConfigMaps(namespace).Create(context.Background(), configMap, metav1.CreateOptions{})
 	if err != nil {
 		logrus.Warn("Failed to create meta info configmap: ", err)
 	}
