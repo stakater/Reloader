@@ -209,7 +209,7 @@ spec:
           {{- . | toYaml | nindent 10 }}
           {{- end }}
       {{- end }}
-      {{- if or (.Values.reloader.logFormat) (.Values.reloader.logLevel) (.Values.reloader.ignoreSecrets) (.Values.reloader.ignoreNamespaces) (.Values.reloader.namespaceSelector) (.Values.reloader.resourceLabelSelector) (.Values.reloader.ignoreConfigMaps) (.Values.reloader.custom_annotations) (eq .Values.reloader.isArgoRollouts true) (eq .Values.reloader.reloadOnCreate true) (eq .Values.reloader.reloadOnDelete true) (ne .Values.reloader.reloadStrategy "default") (.Values.reloader.enableHA) (.Values.reloader.autoReloadAll)}}
+      {{- if or (.Values.reloader.logFormat) (.Values.reloader.logLevel) (.Values.reloader.ignoreSecrets) (.Values.reloader.ignoreNamespaces) (include "reloader-namespaceSelector" .) (.Values.reloader.resourceLabelSelector) (.Values.reloader.ignoreConfigMaps) (.Values.reloader.custom_annotations) (eq .Values.reloader.isArgoRollouts true) (eq .Values.reloader.reloadOnCreate true) (eq .Values.reloader.reloadOnDelete true) (ne .Values.reloader.reloadStrategy "default") (.Values.reloader.enableHA) (.Values.reloader.autoReloadAll)}}
         args:
           {{- if .Values.reloader.logFormat }}
           - "--log-format={{ .Values.reloader.logFormat }}"
@@ -226,8 +226,8 @@ spec:
           {{- if .Values.reloader.ignoreNamespaces }}
           - "--namespaces-to-ignore={{ .Values.reloader.ignoreNamespaces }}"
           {{- end }}
-          {{- if .Values.reloader.namespaceSelector }}
-          - "--namespace-selector={{ .Values.reloader.namespaceSelector }}"
+          {{- if (include "reloader-namespaceSelector" .) }}
+          - "--namespace-selector=\"{{ include "reloader-namespaceSelector" . }}\""
           {{- end }}
           {{- if .Values.reloader.resourceLabelSelector }}
           - "--resource-label-selector={{ .Values.reloader.resourceLabelSelector }}"

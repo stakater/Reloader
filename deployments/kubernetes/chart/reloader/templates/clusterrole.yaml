@@ -33,7 +33,7 @@ rules:
       - watch
       - create
       - delete
-{{- if .Values.reloader.namespaceSelector }}
+{{- if (include "reloader-namespaceSelector" .) }}
   - apiGroups:
       - ""
     resources:
