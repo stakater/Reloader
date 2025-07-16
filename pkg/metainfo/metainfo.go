@@ -134,17 +134,17 @@ func (m *MetaInfo) ToConfigMap() *v1.ConfigMap {
 func NewMetaInfo(configmap *v1.ConfigMap) *MetaInfo {
 	var buildInfo BuildInfo
 	if val, ok := configmap.Data["buildInfo"]; ok {
-		json.Unmarshal([]byte(val), &buildInfo)
+		_ = json.Unmarshal([]byte(val), &buildInfo)
 	}
 
 	var reloaderOptions ReloaderOptions
 	if val, ok := configmap.Data["reloaderOptions"]; ok {
-		json.Unmarshal([]byte(val), &reloaderOptions)
+		_ = json.Unmarshal([]byte(val), &reloaderOptions)
 	}
 
 	var deploymentInfo metav1.ObjectMeta
 	if val, ok := configmap.Data["deploymentInfo"]; ok {
-		json.Unmarshal([]byte(val), &deploymentInfo)
+		_ = json.Unmarshal([]byte(val), &deploymentInfo)
 	}
 
 	return &MetaInfo{
