@@ -3,6 +3,8 @@ package metainfo
 import (
 	"encoding/json"
 	"runtime/debug"
+	"strconv"
+	"time"
 
 	"github.com/stakater/Reloader/internal/pkg/options"
 	v1 "k8s.io/api/core/v1"
@@ -16,27 +18,31 @@ const (
 )
 
 type ReloaderOptions struct {
-	AutoReloadAll                      bool   `json:"autoReloadAll"`
-	ConfigmapUpdateOnChangeAnnotation  string `json:"configmapUpdateOnChangeAnnotation"`
-	SecretUpdateOnChangeAnnotation     string `json:"secretUpdateOnChangeAnnotation"`
-	ReloaderAutoAnnotation             string `json:"reloaderAutoAnnotation"`
-	IgnoreResourceAnnotation           string `json:"ignoreResourceAnnotation"`
-	ConfigmapReloaderAutoAnnotation    string `json:"configmapReloaderAutoAnnotation"`
-	SecretReloaderAutoAnnotation       string `json:"secretReloaderAutoAnnotation"`
-	ConfigmapExcludeReloaderAnnotation string `json:"configmapExcludeReloaderAnnotation"`
-	SecretExcludeReloaderAnnotation    string `json:"secretExcludeReloaderAnnotation"`
-	AutoSearchAnnotation               string `json:"autoSearchAnnotation"`
-	SearchMatchAnnotation              string `json:"searchMatchAnnotation"`
-	RolloutStrategyAnnotation          string `json:"rolloutStrategyAnnotation"`
-	LogFormat                          string `json:"logFormat"`
-	LogLevel                           string `json:"logLevel"`
-	IsArgoRollouts                     string `json:"isArgoRollouts"`
-	ReloadStrategy                     string `json:"reloadStrategy"`
-	ReloadOnCreate                     string `json:"reloadOnCreate"`
-	ReloadOnDelete                     string `json:"reloadOnDelete"`
-	SyncAfterRestart                   bool   `json:"syncAfterRestart"`
-	EnableHA                           bool   `json:"enableHA"`
-	WebhookUrl                         string `json:"webhookUrl"`
+	AutoReloadAll                      bool     `json:"autoReloadAll"`
+	ConfigmapUpdateOnChangeAnnotation  string   `json:"configmapUpdateOnChangeAnnotation"`
+	SecretUpdateOnChangeAnnotation     string   `json:"secretUpdateOnChangeAnnotation"`
+	ReloaderAutoAnnotation             string   `json:"reloaderAutoAnnotation"`
+	IgnoreResourceAnnotation           string   `json:"ignoreResourceAnnotation"`
+	ConfigmapReloaderAutoAnnotation    string   `json:"configmapReloaderAutoAnnotation"`
+	SecretReloaderAutoAnnotation       string   `json:"secretReloaderAutoAnnotation"`
+	ConfigmapExcludeReloaderAnnotation string   `json:"configmapExcludeReloaderAnnotation"`
+	SecretExcludeReloaderAnnotation    string   `json:"secretExcludeReloaderAnnotation"`
+	AutoSearchAnnotation               string   `json:"autoSearchAnnotation"`
+	SearchMatchAnnotation              string   `json:"searchMatchAnnotation"`
+	RolloutStrategyAnnotation          string   `json:"rolloutStrategyAnnotation"`
+	LogFormat                          string   `json:"logFormat"`
+	LogLevel                           string   `json:"logLevel"`
+	IsArgoRollouts                     string   `json:"isArgoRollouts"`
+	ReloadStrategy                     string   `json:"reloadStrategy"`
+	ReloadOnCreate                     string   `json:"reloadOnCreate"`
+	ReloadOnDelete                     string   `json:"reloadOnDelete"`
+	SyncAfterRestart                   bool     `json:"syncAfterRestart"`
+	EnableHA                           bool     `json:"enableHA"`
+	WebhookUrl                         string   `json:"webhookUrl"`
+	ResourcesToIgnore                  []string `json:"resourcesToIgnore"`
+	NamespaceSelectors                 []string `json:"namespaceSelectors"`
+	ResourceSelectors                  []string `json:"resourceSelectors"`
+	NamespacesToIgnore                 []string `json:"namespacesToIgnore"`
 }
 
 type MetaInfo struct {
@@ -68,16 +74,20 @@ func GetReloaderOptions() *ReloaderOptions {
 		SyncAfterRestart:                   options.SyncAfterRestart,
 		EnableHA:                           options.EnableHA,
 		WebhookUrl:                         options.WebhookUrl,
+		ResourcesToIgnore:                  options.ResourcesToIgnore,
+		NamespaceSelectors:                 options.NamespaceSelectors,
+		ResourceSelectors:                  options.ResourceSelectors,
+		NamespacesToIgnore:                 options.NamespacesToIgnore,
 	}
 }
 
 type BuildInfo struct {
-	GoVersion  string `json:"goversion"`
-	Version    string `json:"version"`
-	Checksum   string `json:"checksum"`
-	CommitHash string `json:"commitHash,omitempty"`
-	IsDirty    string `json:"isDirty,omitempty"`
-	CommitTime string `json:"commitTime,omitempty"`
+	GoVersion  string    `json:"goversion"`
+	Version    string    `json:"version"`
+	Checksum   string    `json:"checksum"`
+	CommitHash string    `json:"commitHash"`
+	IsDirty    bool      `json:"isDirty"`
+	CommitTime time.Time `json:"commitTime"`
 }
 
 func NewBuildInfo(info *debug.BuildInfo) *BuildInfo {
@@ -91,13 +101,14 @@ func NewBuildInfo(info *debug.BuildInfo) *BuildInfo {
 			infoMap[setting.Key] = setting.Value
 		}
 	}
+
 	metaInfo := &BuildInfo{
 		GoVersion:  info.GoVersion,
 		Version:    info.Main.Version,
 		Checksum:   info.Main.Sum,
 		CommitHash: infoMap["vcs.revision"],
-		IsDirty:    infoMap["vcs.modified"],
-		CommitTime: infoMap["vcs.time"],
+		IsDirty:    parseBool(infoMap["vcs.modified"]),
+		CommitTime: parseTime(infoMap["vcs.time"]),
 	}
 
 	return metaInfo
@@ -149,4 +160,26 @@ func toJson(data interface{}) string {
 		return ""
 	}
 	return string(jsonData)
+}
+
+func parseBool(value string) bool {
+	if value == "" {
+		return false
+	}
+	result, err := strconv.ParseBool(value)
+	if err != nil {
+		return false // Default to false if parsing fails
+	}
+	return result
+}
+
+func parseTime(value string) time.Time {
+	if value == "" {
+		return time.Time{} // Return zero time if value is empty
+	}
+	t, err := time.Parse(time.RFC3339, value)
+	if err != nil {
+		return time.Time{} // Return zero time if parsing fails
+	}
+	return t
 }
