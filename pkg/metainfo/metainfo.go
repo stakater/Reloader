@@ -72,12 +72,12 @@ func GetReloaderOptions() *ReloaderOptions {
 }
 
 type BuildInfo struct {
-	GoVersion   string `json:"goversion"`
-	Version     string `json:"version"`
-	Checksum    string `json:"checksum"`
-	VCSRevision string `json:"vcs.revision,omitempty"`
-	VCSModified string `json:"vcs.modified,omitempty"`
-	VCSTime     string `json:"vcs.time,omitempty"`
+	GoVersion  string `json:"goversion"`
+	Version    string `json:"version"`
+	Checksum   string `json:"checksum"`
+	CommitHash string `json:"commitHash,omitempty"`
+	IsDirty    string `json:"isDirty,omitempty"`
+	CommitTime string `json:"commitTime,omitempty"`
 }
 
 func NewBuildInfo(info *debug.BuildInfo) *BuildInfo {
@@ -92,12 +92,12 @@ func NewBuildInfo(info *debug.BuildInfo) *BuildInfo {
 		}
 	}
 	metaInfo := &BuildInfo{
-		GoVersion:   info.GoVersion,
-		Version:     info.Main.Version,
-		Checksum:    info.Main.Sum,
-		VCSRevision: infoMap["vcs.revision"],
-		VCSModified: infoMap["vcs.modified"],
-		VCSTime:     infoMap["vcs.time"],
+		GoVersion:  info.GoVersion,
+		Version:    info.Main.Version,
+		Checksum:   info.Main.Sum,
+		CommitHash: infoMap["vcs.revision"],
+		IsDirty:    infoMap["vcs.modified"],
+		CommitTime: infoMap["vcs.time"],
 	}
 
 	return metaInfo
