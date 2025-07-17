@@ -108,7 +108,7 @@ func NewBuildInfo(info *debug.BuildInfo) *BuildInfo {
 		Checksum:   info.Main.Sum,
 		CommitHash: infoMap["vcs.revision"],
 		IsDirty:    parseBool(infoMap["vcs.modified"]),
-		CommitTime: parseTime(infoMap["vcs.time"]),
+		CommitTime: ParseTime(infoMap["vcs.time"]),
 	}
 
 	return metaInfo
