@@ -173,7 +173,7 @@ func parseBool(value string) bool {
 	return result
 }
 
-func parseTime(value string) time.Time {
+func ParseTime(value string) time.Time {
 	if value == "" {
 		return time.Time{} // Return zero time if value is empty
 	}
