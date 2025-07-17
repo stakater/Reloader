@@ -32,10 +32,10 @@ type ReloaderOptions struct {
 	RolloutStrategyAnnotation          string   `json:"rolloutStrategyAnnotation"`
 	LogFormat                          string   `json:"logFormat"`
 	LogLevel                           string   `json:"logLevel"`
-	IsArgoRollouts                     string   `json:"isArgoRollouts"`
+	IsArgoRollouts                     bool     `json:"isArgoRollouts"`
 	ReloadStrategy                     string   `json:"reloadStrategy"`
-	ReloadOnCreate                     string   `json:"reloadOnCreate"`
-	ReloadOnDelete                     string   `json:"reloadOnDelete"`
+	ReloadOnCreate                     bool     `json:"reloadOnCreate"`
+	ReloadOnDelete                     bool     `json:"reloadOnDelete"`
 	SyncAfterRestart                   bool     `json:"syncAfterRestart"`
 	EnableHA                           bool     `json:"enableHA"`
 	WebhookUrl                         string   `json:"webhookUrl"`
@@ -67,10 +67,10 @@ func GetReloaderOptions() *ReloaderOptions {
 		RolloutStrategyAnnotation:          options.RolloutStrategyAnnotation,
 		LogFormat:                          options.LogFormat,
 		LogLevel:                           options.LogLevel,
-		IsArgoRollouts:                     options.IsArgoRollouts,
+		IsArgoRollouts:                     parseBool(options.IsArgoRollouts),
 		ReloadStrategy:                     options.ReloadStrategy,
-		ReloadOnCreate:                     options.ReloadOnCreate,
-		ReloadOnDelete:                     options.ReloadOnDelete,
+		ReloadOnCreate:                     parseBool(options.ReloadOnCreate),
+		ReloadOnDelete:                     parseBool(options.ReloadOnDelete),
 		SyncAfterRestart:                   options.SyncAfterRestart,
 		EnableHA:                           options.EnableHA,
 		WebhookUrl:                         options.WebhookUrl,
