@@ -103,3 +103,38 @@ rules:
       - create
       - patch
 {{- end }}
+
+---
+
+{{- if .Values.reloader.rbac.enabled }}
+{{- if  (.Capabilities.APIVersions.Has "rbac.authorization.k8s.io/v1") }}
+apiVersion: rbac.authorization.k8s.io/v1
+{{ else }}
+apiVersion: rbac.authorization.k8s.io/v1beta1
+{{- end }}
+kind: Role
+metadata:
+  annotations:
+{{ include "reloader-helm3.annotations" . | indent 4 }}
+  labels:
+{{ include "reloader-labels.chart" . | indent 4 }}
+{{- if .Values.reloader.rbac.labels }}
+{{ tpl (toYaml .Values.reloader.rbac.labels) . | indent 4 }}
+{{- end }}
+{{- if .Values.reloader.matchLabels }}
+{{ tpl (toYaml .Values.reloader.matchLabels) . | indent 4 }}
+{{- end }}
+  name: {{ template "reloader-fullname" . }}-metadata-role
+  namespace: {{ .Values.namespace | default .Release.Namespace }}
+rules:
+  - apiGroups:
+      - ""
+    resources:
+      - configmaps
+    verbs:
+      - list
+      - get
+      - watch
+      - create
+      - update
+{{- end }}

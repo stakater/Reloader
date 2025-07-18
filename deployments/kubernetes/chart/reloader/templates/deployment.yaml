@@ -151,9 +151,7 @@ spec:
               fieldPath: metadata.namespace
 
         - name: RELOADER_DEPLOYMENT_NAME
-          valueFrom:
-            fieldRef:
-              fieldPath: metadata.name
+          value: {{ template "reloader-fullname" . }}
           
       {{- if .Values.reloader.enableHA }}
         - name: POD_NAME

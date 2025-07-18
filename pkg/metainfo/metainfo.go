@@ -2,7 +2,8 @@ package metainfo
 
 import (
 	"encoding/json"
-	"runtime/debug"
+	"fmt"
+	"runtime"
 	"strconv"
 	"time"
 
@@ -11,44 +12,86 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+// Version, Commit, BuildDate, and IsDirty are set during the build process
+// using the -X linker flag to inject these values into the binary.
+// They provide metadata about the build version, commit hash, build date, and whether there are
+// uncommitted changes in the source code at the time of build.
+// This information is useful for debugging and tracking the specific build of the Reloader binary.
+var Version = "dev"
+var Commit = "unknown"
+var BuildDate = "unknown"
+var IsDirty = "false"
+
 const (
 	MetaInfoConfigmapName       = "reloader-meta-info"
-	MetaInfoConfigmapLabel      = "reloader.stakater.com/meta-info"
+	MetaInfoConfigmapLabelKey   = "reloader.stakater.com/meta-info"
 	MetaInfoConfigmapLabelValue = "reloader-oss"
 )
 
+// ReloaderOptions contains all configurable options for the Reloader controller.
+// These options control how Reloader behaves when watching for changes in ConfigMaps and Secrets.
 type ReloaderOptions struct {
-	AutoReloadAll                      bool     `json:"autoReloadAll"`
-	ConfigmapUpdateOnChangeAnnotation  string   `json:"configmapUpdateOnChangeAnnotation"`
-	SecretUpdateOnChangeAnnotation     string   `json:"secretUpdateOnChangeAnnotation"`
-	ReloaderAutoAnnotation             string   `json:"reloaderAutoAnnotation"`
-	IgnoreResourceAnnotation           string   `json:"ignoreResourceAnnotation"`
-	ConfigmapReloaderAutoAnnotation    string   `json:"configmapReloaderAutoAnnotation"`
-	SecretReloaderAutoAnnotation       string   `json:"secretReloaderAutoAnnotation"`
-	ConfigmapExcludeReloaderAnnotation string   `json:"configmapExcludeReloaderAnnotation"`
-	SecretExcludeReloaderAnnotation    string   `json:"secretExcludeReloaderAnnotation"`
-	AutoSearchAnnotation               string   `json:"autoSearchAnnotation"`
-	SearchMatchAnnotation              string   `json:"searchMatchAnnotation"`
-	RolloutStrategyAnnotation          string   `json:"rolloutStrategyAnnotation"`
-	LogFormat                          string   `json:"logFormat"`
-	LogLevel                           string   `json:"logLevel"`
-	IsArgoRollouts                     bool     `json:"isArgoRollouts"`
-	ReloadStrategy                     string   `json:"reloadStrategy"`
-	ReloadOnCreate                     bool     `json:"reloadOnCreate"`
-	ReloadOnDelete                     bool     `json:"reloadOnDelete"`
-	SyncAfterRestart                   bool     `json:"syncAfterRestart"`
-	EnableHA                           bool     `json:"enableHA"`
-	WebhookUrl                         string   `json:"webhookUrl"`
-	ResourcesToIgnore                  []string `json:"resourcesToIgnore"`
-	NamespaceSelectors                 []string `json:"namespaceSelectors"`
-	ResourceSelectors                  []string `json:"resourceSelectors"`
-	NamespacesToIgnore                 []string `json:"namespacesToIgnore"`
+	// AutoReloadAll enables automatic reloading of all resources when their corresponding ConfigMaps/Secrets are updated
+	AutoReloadAll bool `json:"autoReloadAll"`
+	// ConfigmapUpdateOnChangeAnnotation is the annotation key used to detect changes in ConfigMaps specified by name
+	ConfigmapUpdateOnChangeAnnotation string `json:"configmapUpdateOnChangeAnnotation"`
+	// SecretUpdateOnChangeAnnotation is the annotation key used to detect changes in Secrets specified by name
+	SecretUpdateOnChangeAnnotation string `json:"secretUpdateOnChangeAnnotation"`
+	// ReloaderAutoAnnotation is the annotation key used to detect changes in any referenced ConfigMaps or Secrets
+	ReloaderAutoAnnotation string `json:"reloaderAutoAnnotation"`
+	// IgnoreResourceAnnotation is the annotation key used to ignore resources from being watched
+	IgnoreResourceAnnotation string `json:"ignoreResourceAnnotation"`
+	// ConfigmapReloaderAutoAnnotation is the annotation key used to detect changes in ConfigMaps only
+	ConfigmapReloaderAutoAnnotation string `json:"configmapReloaderAutoAnnotation"`
+	// SecretReloaderAutoAnnotation is the annotation key used to detect changes in Secrets only
+	SecretReloaderAutoAnnotation string `json:"secretReloaderAutoAnnotation"`
+	// ConfigmapExcludeReloaderAnnotation is the annotation key containing comma-separated list of ConfigMaps to exclude from watching
+	ConfigmapExcludeReloaderAnnotation string `json:"configmapExcludeReloaderAnnotation"`
+	// SecretExcludeReloaderAnnotation is the annotation key containing comma-separated list of Secrets to exclude from watching
+	SecretExcludeReloaderAnnotation string `json:"secretExcludeReloaderAnnotation"`
+	// AutoSearchAnnotation is the annotation key used to detect changes in ConfigMaps/Secrets tagged with SearchMatchAnnotation
+	AutoSearchAnnotation string `json:"autoSearchAnnotation"`
+	// SearchMatchAnnotation is the annotation key used to tag ConfigMaps/Secrets to be found by AutoSearchAnnotation
+	SearchMatchAnnotation string `json:"searchMatchAnnotation"`
+	// RolloutStrategyAnnotation is the annotation key used to define the rollout update strategy for workloads
+	RolloutStrategyAnnotation string `json:"rolloutStrategyAnnotation"`
+	// LogFormat specifies the log format to use (json, or empty string for default text format)
+	LogFormat string `json:"logFormat"`
+	// LogLevel specifies the log level to use (trace, debug, info, warning, error, fatal, panic)
+	LogLevel string `json:"logLevel"`
+	// IsArgoRollouts indicates whether support for Argo Rollouts is enabled
+	IsArgoRollouts bool `json:"isArgoRollouts"`
+	// ReloadStrategy specifies the strategy used to trigger resource reloads (env-vars or annotations)
+	ReloadStrategy string `json:"reloadStrategy"`
+	// ReloadOnCreate indicates whether to trigger reloads when ConfigMaps/Secrets are created
+	ReloadOnCreate bool `json:"reloadOnCreate"`
+	// ReloadOnDelete indicates whether to trigger reloads when ConfigMaps/Secrets are deleted
+	ReloadOnDelete bool `json:"reloadOnDelete"`
+	// SyncAfterRestart indicates whether to sync add events after Reloader restarts (only works when ReloadOnCreate is true)
+	SyncAfterRestart bool `json:"syncAfterRestart"`
+	// EnableHA indicates whether High Availability mode is enabled with leader election
+	EnableHA bool `json:"enableHA"`
+	// WebhookUrl is the URL to send webhook notifications to instead of performing reloads
+	WebhookUrl string `json:"webhookUrl"`
+	// ResourcesToIgnore is a list of resource types to ignore (e.g., "configmaps" or "secrets")
+	ResourcesToIgnore []string `json:"resourcesToIgnore"`
+	// NamespaceSelectors is a list of label selectors to filter namespaces to watch
+	NamespaceSelectors []string `json:"namespaceSelectors"`
+	// ResourceSelectors is a list of label selectors to filter ConfigMaps and Secrets to watch
+	ResourceSelectors []string `json:"resourceSelectors"`
+	// NamespacesToIgnore is a list of namespace names to ignore when watching for changes
+	NamespacesToIgnore []string `json:"namespacesToIgnore"`
 }
 
+// MetaInfo contains comprehensive metadata about the Reloader instance.
+// This includes build information, configuration options, and deployment details.
 type MetaInfo struct {
-	BuildInfo       BuildInfo         `json:"buildInfo"`
-	ReloaderOptions ReloaderOptions   `json:"reloaderOptions"`
-	DeploymentInfo  metav1.ObjectMeta `json:"deploymentInfo"`
+	// BuildInfo contains information about the build version, commit, and compilation details
+	BuildInfo BuildInfo `json:"buildInfo"`
+	// ReloaderOptions contains all the configuration options and flags used by this Reloader instance
+	ReloaderOptions ReloaderOptions `json:"reloaderOptions"`
+	// DeploymentInfo contains metadata about the Kubernetes deployment of this Reloader instance
+	DeploymentInfo metav1.ObjectMeta `json:"deploymentInfo"`
 }
 
 func GetReloaderOptions() *ReloaderOptions {
@@ -81,34 +124,28 @@ func GetReloaderOptions() *ReloaderOptions {
 	}
 }
 
+// BuildInfo contains information about the build and version of the Reloader binary.
+// This includes Go version, release version, commit details, and build timestamp.
 type BuildInfo struct {
-	GoVersion  string    `json:"goversion"`
-	Version    string    `json:"version"`
-	Checksum   string    `json:"checksum"`
-	CommitHash string    `json:"commitHash"`
-	IsDirty    bool      `json:"isDirty"`
+	// GoVersion is the version of Go used to compile the binary
+	GoVersion string `json:"goVersion"`
+	// ReleaseVersion is the version tag or branch of the Reloader release
+	ReleaseVersion string `json:"releaseVersion"`
+	// CommitHash is the Git commit hash of the source code used to build this binary
+	CommitHash string `json:"commitHash"`
+	// IsDirty indicates whether the working directory had uncommitted changes when built
+	IsDirty bool `json:"isDirty"`
+	// CommitTime is the timestamp of the Git commit used to build this binary
 	CommitTime time.Time `json:"commitTime"`
 }
 
-func NewBuildInfo(info *debug.BuildInfo) *BuildInfo {
-	infoMap := make(map[string]string)
-	infoMap["goversion"] = info.GoVersion
-	infoMap["version"] = info.Main.Version
-	infoMap["checksum"] = info.Main.Sum
-
-	for _, setting := range info.Settings {
-		if setting.Key == "vcs.revision" || setting.Key == "vcs.time" || setting.Key == "vcs.modified" {
-			infoMap[setting.Key] = setting.Value
-		}
-	}
-
+func NewBuildInfo() *BuildInfo {
 	metaInfo := &BuildInfo{
-		GoVersion:  info.GoVersion,
-		Version:    info.Main.Version,
-		Checksum:   info.Main.Sum,
-		CommitHash: infoMap["vcs.revision"],
-		IsDirty:    parseBool(infoMap["vcs.modified"]),
-		CommitTime: ParseTime(infoMap["vcs.time"]),
+		GoVersion:      runtime.Version(),
+		ReleaseVersion: Version,
+		CommitHash:     Commit,
+		IsDirty:        parseBool(IsDirty),
+		CommitTime:     ParseUTCTime(BuildDate),
 	}
 
 	return metaInfo
@@ -120,7 +157,7 @@ func (m *MetaInfo) ToConfigMap() *v1.ConfigMap {
 			Name:      MetaInfoConfigmapName,
 			Namespace: m.DeploymentInfo.Namespace,
 			Labels: map[string]string{
-				MetaInfoConfigmapLabel: MetaInfoConfigmapLabelValue,
+				MetaInfoConfigmapLabelKey: MetaInfoConfigmapLabelValue,
 			},
 		},
 		Data: map[string]string{
@@ -131,27 +168,36 @@ func (m *MetaInfo) ToConfigMap() *v1.ConfigMap {
 	}
 }
 
-func NewMetaInfo(configmap *v1.ConfigMap) *MetaInfo {
+func NewMetaInfo(configmap *v1.ConfigMap) (*MetaInfo, error) {
 	var buildInfo BuildInfo
 	if val, ok := configmap.Data["buildInfo"]; ok {
-		_ = json.Unmarshal([]byte(val), &buildInfo)
+		err := json.Unmarshal([]byte(val), &buildInfo)
+		if err != nil {
+			return nil, fmt.Errorf("failed to unmarshal buildInfo: %w", err)
+		}
 	}
 
 	var reloaderOptions ReloaderOptions
 	if val, ok := configmap.Data["reloaderOptions"]; ok {
-		_ = json.Unmarshal([]byte(val), &reloaderOptions)
+		err := json.Unmarshal([]byte(val), &reloaderOptions)
+		if err != nil {
+			return nil, fmt.Errorf("failed to unmarshal reloaderOptions: %w", err)
+		}
 	}
 
 	var deploymentInfo metav1.ObjectMeta
 	if val, ok := configmap.Data["deploymentInfo"]; ok {
-		_ = json.Unmarshal([]byte(val), &deploymentInfo)
+		err := json.Unmarshal([]byte(val), &deploymentInfo)
+		if err != nil {
+			return nil, fmt.Errorf("failed to unmarshal deploymentInfo: %w", err)
+		}
 	}
 
 	return &MetaInfo{
 		BuildInfo:       buildInfo,
 		ReloaderOptions: reloaderOptions,
 		DeploymentInfo:  deploymentInfo,
-	}
+	}, nil
 }
 
 func toJson(data interface{}) string {
@@ -173,7 +219,7 @@ func parseBool(value string) bool {
 	return result
 }
 
-func ParseTime(value string) time.Time {
+func ParseUTCTime(value string) time.Time {
 	if value == "" {
 		return time.Time{} // Return zero time if value is empty
 	}

@@ -9,6 +9,12 @@ ARG TARGETARCH
 ARG GOPROXY
 ARG GOPRIVATE
 
+ARG COMMIT
+ARG VERSION
+ARG BUILD_DATE
+ARG ISDIRTY
+
+
 WORKDIR /workspace
 
 # Copy the Go Modules manifests
@@ -30,7 +36,10 @@ RUN CGO_ENABLED=0 \
     GOPROXY=${GOPROXY} \
     GOPRIVATE=${GOPRIVATE} \
     GO111MODULE=on \
-    go build -ldflags="-s -w" -installsuffix 'static' -mod=mod -a -o manager ./
+    go build -ldflags="-s -w -X github.com/stakater/Reloader/pkg/metainfo.Version=${VERSION} \
+         -X github.com/stakater/Reloader/pkg/metainfo.Commit=${COMMIT} \
+         -X github.com/stakater/Reloader/pkg/metainfo.BuildDate=${BUILD_DATE} \
+         -X github.com/stakater/Reloader/pkg/metainfo.IsDirty=${ISDIRTY}" -installsuffix 'static' -mod=mod -a -o manager ./
 
 # Use distroless as minimal base image to package the manager binary
 # Refer to https://github.com/GoogleContainerTools/distroless for more details
