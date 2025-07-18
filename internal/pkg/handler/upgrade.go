@@ -139,6 +139,24 @@ func GetArgoRolloutRollingUpgradeFuncs() callbacks.RollingUpgradeFuncs {
 	}
 }
 
+// GetKnativeServiceRollingUpgradeFuncs returns all callback funcs for a Knative service
+func GetKnativeServiceRollingUpgradeFuncs() callbacks.RollingUpgradeFuncs {
+	return callbacks.RollingUpgradeFuncs{
+		ItemFunc:           callbacks.GetKnativeServiceItem,
+		ItemsFunc:          callbacks.GetKnativeServiceItems,
+		AnnotationsFunc:    callbacks.GetKnativeServiceAnnotations,
+		PodAnnotationsFunc: callbacks.GetKnativeServicePodAnnotations,
+		ContainersFunc:     callbacks.GetKnativeServiceContainers,
+		InitContainersFunc: callbacks.GetKnativeServiceInitContainers,
+		UpdateFunc:         callbacks.UpdateKnativeService,
+		PatchFunc:          callbacks.PatchKnativeService,
+		PatchTemplatesFunc: callbacks.GetKnativePatchTemplates,
+		VolumesFunc:        callbacks.GetKnativeServiceVolumes,
+		ResourceType:       "KnativeService",
+		SupportsPatch:      true,
+	}
+}
+
 func sendUpgradeWebhook(config util.Config, webhookUrl string) error {
 	logrus.Infof("Changes detected in '%s' of type '%s' in namespace '%s', Sending webhook to '%s'",
 		config.ResourceName, config.Type, config.Namespace, webhookUrl)
@@ -199,6 +217,12 @@ func doRollingUpgrade(config util.Config, collectors metrics.Collectors, recorde
 		if err != nil {
 			return err
 		}
+	}
+
+	// Add Knative service support
+	err = rollingUpgrade(clients, config, GetKnativeServiceRollingUpgradeFuncs(), collectors, recorder, invoke)
+	if err != nil {
+		return err
 	}
 
 	return nil

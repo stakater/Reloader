@@ -41,6 +41,7 @@ flowchart LR
   Reloader -->|Triggers Rollout| Daemonset
   Reloader -->|Triggers Rollout| Statefulset
   Reloader -->|Triggers Rollout| ArgoRollout
+  Reloader -->|Triggers Rollout| KnativeService
   Reloader -->|Triggers Job| CronJob
   Reloader -->|Sends Notification| Slack,Teams,Webhook
 ```
@@ -320,95 +321,4 @@ Reloader supports multiple strategies for triggering rolling updates when a watc
 
 | Flag | Description |
 |------|-------------|
-| `--namespace-selector='key=value'` <br /> <br />`--namespace-selector='key1=value1,key2=value2'` <br /> <br />`--namespace-selector='key in (value1,value2)'`| Watch only namespaces with matching labels. See [LIST and WATCH filtering](https://kubernetes.io/docs/concepts/overview/working-with-objects/labels/#list-and-watch-filtering) for more details on label selectors |
-| `--namespaces-to-ignore=ns1,ns2` | Skip specific namespaces from being watched |
-
-#### 4. 📝 Annotation Key Overrides
-
-These flags allow you to redefine annotation keys used in your workloads or resources:
-
-| Flag | Overrides |
-|------|-----------|
-| `--auto-annotation` | Overrides `reloader.stakater.com/auto` |
-| `--secret-auto-annotation` | Overrides `secret.reloader.stakater.com/auto` |
-| `--configmap-auto-annotation` | Overrides `configmap.reloader.stakater.com/auto` |
-| `--auto-search-annotation` | Overrides `reloader.stakater.com/search` |
-| `--search-match-annotation` | Overrides `reloader.stakater.com/match` |
-| `--secret-annotation` | Overrides `secret.reloader.stakater.com/reload` |
-| `--configmap-annotation` | Overrides `configmap.reloader.stakater.com/reload` |
-
-## Compatibility
-
-Reloader is compatible with Kubernetes >= 1.19
-
-## Help
-
-### Documentation
-
-The Reloader documentation can be viewed from [the doc site](https://docs.stakater.com/reloader/). The doc source is in the [docs](./docs/) folder.
-
-### Have a question?
-
-File a GitHub [issue](https://github.com/stakater/Reloader/issues).
-
-### Talk to us on Slack
-
-Join and talk to us on Slack for discussing Reloader:
-
-[![Join Slack](https://stakater.github.io/README/stakater-join-slack-btn.png)](https://slack.stakater.com/)
-[![Chat](https://stakater.github.io/README/stakater-chat-btn.png)](https://stakater-community.slack.com/messages/CC5S05S12)
-
-## Contributing
-
-### Bug Reports & Feature Requests
-
-Please use the [issue tracker](https://github.com/stakater/Reloader/issues) to report any bugs or file feature requests.
-
-### Developing
-
-1. Deploy Reloader
-1. Run `okteto up` to activate your development container
-1. `make build`
-1. `./Reloader`
-
-PRs are welcome. In general, we follow the "fork-and-pull" Git workflow:
-
-1. **Fork** the repo on GitHub
-1. **Clone** the project to your own machine
-1. **Commit** changes to your own branch
-1. **Push** your work back up to your fork
-1. Submit a **Pull request** so that we can review your changes
-
-**NOTE:** Be sure to merge the latest from "upstream" before making a pull request!
-
-## Release Processes
-
-_Repository GitHub releases_: As requested by the community in [issue 685](https://github.com/stakater/Reloader/issues/685), Reloader is now based on a manual release process. Releases are no longer done on every merged PR to the main branch, but manually on request.
-
-To make a GitHub release:
-
-1. Code owners create a release branch `release-vX.Y.Z`
-1. Code owners run a dispatch mode workflow to automatically generate version and manifests on the release branch
-1. A PR is created to bump the image version on the release branch, example: [PR-798](https://github.com/stakater/Reloader/pull/798)
-1. Code owners create a GitHub release with tag `vX.Y.Z` and target branch `release-vX.Y.Z`, which triggers creation of images
-1. Code owners create a PR to update the Helm chart version, example: [PR-846](https://github.com/stakater/Reloader/pull/846)
-
-_Repository git tagging_: Push to the main branch will create a merge-image and merge-tag named `merge-${{ github.event.number }}`, for example `merge-800` when pull request number 800 is merged.
-
-## Changelog
-
-View the [releases page](https://github.com/stakater/Reloader/releases) to see what has changed in each release.
-
-## License
-
-Apache2 © [Stakater][website]
-
-## About Stakater
-
-[![Get started with Stakater](https://stakater.github.io/README/stakater-github-banner.png)](https://stakater.com/?utm_source=Reloader&utm_medium=github)
-
-`Reloader` is maintained by [Stakater][website]. Like it? Please let us know at [hello@stakater.com](hello@stakater.com)
-
-See [our other projects](https://github.com/stakater) or contact us in case of professional services and queries on [hello@stakater.com](hello@stakater.com)
-
-[website]: https://stakater.com
+| `--namespace-selector='key=value'` <br /> <br />`--namespace-selector='key1=value1,key2=value2'`
