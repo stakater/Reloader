@@ -106,7 +106,6 @@ reloader:
     labels:
       provider: stakater
       group: com.stakater.platform
-      version: v1.4.5
     # Support for extra environment variables.
     env:
       # Open supports Key value pair as environment variables.
