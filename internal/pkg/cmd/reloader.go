@@ -14,7 +14,6 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/labels"
 
 	"github.com/stakater/Reloader/internal/pkg/controller"
 	"github.com/stakater/Reloader/internal/pkg/metrics"
@@ -33,27 +32,7 @@ func NewReloaderCommand() *cobra.Command {
 	}
 
 	// options
-	cmd.PersistentFlags().BoolVar(&options.AutoReloadAll, "auto-reload-all", false, "Auto reload all resources")
-	cmd.PersistentFlags().StringVar(&options.ConfigmapUpdateOnChangeAnnotation, "configmap-annotation", "configmap.reloader.stakater.com/reload", "annotation to detect changes in configmaps, specified by name")
-	cmd.PersistentFlags().StringVar(&options.SecretUpdateOnChangeAnnotation, "secret-annotation", "secret.reloader.stakater.com/reload", "annotation to detect changes in secrets, specified by name")
-	cmd.PersistentFlags().StringVar(&options.ReloaderAutoAnnotation, "auto-annotation", "reloader.stakater.com/auto", "annotation to detect changes in secrets/configmaps")
-	cmd.PersistentFlags().StringVar(&options.ConfigmapReloaderAutoAnnotation, "configmap-auto-annotation", "configmap.reloader.stakater.com/auto", "annotation to detect changes in configmaps")
-	cmd.PersistentFlags().StringVar(&options.SecretReloaderAutoAnnotation, "secret-auto-annotation", "secret.reloader.stakater.com/auto", "annotation to detect changes in secrets")
-	cmd.PersistentFlags().StringVar(&options.AutoSearchAnnotation, "auto-search-annotation", "reloader.stakater.com/search", "annotation to detect changes in configmaps or secrets tagged with special match annotation")
-	cmd.PersistentFlags().StringVar(&options.SearchMatchAnnotation, "search-match-annotation", "reloader.stakater.com/match", "annotation to mark secrets or configmaps to match the search")
-	cmd.PersistentFlags().StringVar(&options.LogFormat, "log-format", "", "Log format to use (empty string for text, or JSON)")
-	cmd.PersistentFlags().StringVar(&options.LogLevel, "log-level", "info", "Log level to use (trace, debug, info, warning, error, fatal and panic)")
-	cmd.PersistentFlags().StringVar(&options.WebhookUrl, "webhook-url", "", "webhook to trigger instead of performing a reload")
-	cmd.PersistentFlags().StringSlice("resources-to-ignore", []string{}, "list of resources to ignore (valid options 'configMaps' or 'secrets')")
-	cmd.PersistentFlags().StringSlice("namespaces-to-ignore", []string{}, "list of namespaces to ignore")
-	cmd.PersistentFlags().StringSlice("namespace-selector", []string{}, "list of key:value labels to filter on for namespaces")
-	cmd.PersistentFlags().StringSlice("resource-label-selector", []string{}, "list of key:value labels to filter on for configmaps and secrets")
-	cmd.PersistentFlags().StringVar(&options.IsArgoRollouts, "is-Argo-Rollouts", "false", "Add support for argo rollouts")
-	cmd.PersistentFlags().StringVar(&options.ReloadStrategy, constants.ReloadStrategyFlag, constants.EnvVarsReloadStrategy, "Specifies the desired reload strategy")
-	cmd.PersistentFlags().StringVar(&options.ReloadOnCreate, "reload-on-create", "false", "Add support to watch create events")
-	cmd.PersistentFlags().StringVar(&options.ReloadOnDelete, "reload-on-delete", "false", "Add support to watch delete events")
-	cmd.PersistentFlags().BoolVar(&options.EnableHA, "enable-ha", false, "Adds support for running multiple replicas via leadership election")
-	cmd.PersistentFlags().BoolVar(&options.SyncAfterRestart, "sync-after-restart", false, "Sync add events after reloader restarts")
+	util.ConfigureReloaderFlags(cmd)
 
 	return cmd
 }
@@ -142,22 +121,22 @@ func startReloader(cmd *cobra.Command, args []string) {
 		logrus.Fatal(err)
 	}
 
-	ignoredResourcesList, err := getIgnoredResourcesList(cmd)
+	ignoredResourcesList, err := util.GetIgnoredResourcesList()
 	if err != nil {
 		logrus.Fatal(err)
 	}
 
-	ignoredNamespacesList, err := getIgnoredNamespacesList(cmd)
-	if err != nil {
-		logrus.Fatal(err)
+	ignoredNamespacesList := options.NamespacesToIgnore
+	namespaceLabelSelector := ""
+
+	if isGlobal {
+		namespaceLabelSelector, err = util.GetNamespaceLabelSelector()
+		if err != nil {
+			logrus.Fatal(err)
+		}
 	}
 
-	namespaceLabelSelector, err := getNamespaceLabelSelector(cmd, isGlobal)
-	if err != nil {
-		logrus.Fatal(err)
-	}
-
-	resourceLabelSelector, err := getResourceLabelSelector(cmd)
+	resourceLabelSelector, err := util.GetResourceLabelSelector()
 	if err != nil {
 		logrus.Fatal(err)
 	}
@@ -209,112 +188,8 @@ func startReloader(cmd *cobra.Command, args []string) {
 		go leadership.RunLeaderElection(lock, ctx, cancel, podName, controllers)
 	}
 
+	util.PublishMetaInfoConfigmap(clientset)
+
 	leadership.SetupLivenessEndpoint()
 	logrus.Fatal(http.ListenAndServe(constants.DefaultHttpListenAddr, nil))
-}
-
-func getIgnoredNamespacesList(cmd *cobra.Command) (util.List, error) {
-	return getStringSliceFromFlags(cmd, "namespaces-to-ignore")
-}
-
-func getNamespaceLabelSelector(cmd *cobra.Command, isGlobal bool) (string, error) {
-	slice, err := getStringSliceFromFlags(cmd, "namespace-selector")
-	if err != nil {
-		logrus.Fatal(err)
-	}
-
-	for i, kv := range slice {
-		// Legacy support for ":" as a delimiter and "*" for wildcard.
-		if strings.Contains(kv, ":") {
-			split := strings.Split(kv, ":")
-			if split[1] == "*" {
-				slice[i] = split[0]
-			} else {
-				slice[i] = split[0] + "=" + split[1]
-			}
-		}
-		// Convert wildcard to valid apimachinery operator
-		if strings.Contains(kv, "=") {
-			split := strings.Split(kv, "=")
-			if split[1] == "*" {
-				slice[i] = split[0]
-			}
-		}
-	}
-
-	namespaceLabelSelector := strings.Join(slice[:], ",")
-	_, err = labels.Parse(namespaceLabelSelector)
-	if err != nil {
-		logrus.Fatal(err)
-	}
-
-	if !isGlobal && len(namespaceLabelSelector) > 0 {
-		logrus.Warnf("KUBERNETES_NAMESPACE is set but also namespace-selector is set, will ignore the filter and detect changes in the specific namespace.")
-		return "", nil
-	}
-
-	return namespaceLabelSelector, nil
-}
-
-func getResourceLabelSelector(cmd *cobra.Command) (string, error) {
-	slice, err := getStringSliceFromFlags(cmd, "resource-label-selector")
-	if err != nil {
-		logrus.Fatal(err)
-	}
-
-	for i, kv := range slice {
-		// Legacy support for ":" as a delimiter and "*" for wildcard.
-		if strings.Contains(kv, ":") {
-			split := strings.Split(kv, ":")
-			if split[1] == "*" {
-				slice[i] = split[0]
-			} else {
-				slice[i] = split[0] + "=" + split[1]
-			}
-		}
-		// Convert wildcard to valid apimachinery operator
-		if strings.Contains(kv, "=") {
-			split := strings.Split(kv, "=")
-			if split[1] == "*" {
-				slice[i] = split[0]
-			}
-		}
-	}
-
-	resourceLabelSelector := strings.Join(slice[:], ",")
-	_, err = labels.Parse(resourceLabelSelector)
-	if err != nil {
-		logrus.Fatal(err)
-	}
-
-	return resourceLabelSelector, nil
-}
-
-func getStringSliceFromFlags(cmd *cobra.Command, flag string) ([]string, error) {
-	slice, err := cmd.Flags().GetStringSlice(flag)
-	if err != nil {
-		return nil, err
-	}
-
-	return slice, nil
-}
-
-func getIgnoredResourcesList(cmd *cobra.Command) (util.List, error) {
-
-	ignoredResourcesList, err := getStringSliceFromFlags(cmd, "resources-to-ignore")
-	if err != nil {
-		return nil, err
-	}
-
-	for _, v := range ignoredResourcesList {
-		if v != "configMaps" && v != "secrets" {
-			return nil, fmt.Errorf("'resources-to-ignore' only accepts 'configMaps' or 'secrets', not '%s'", v)
-		}
-	}
-
-	if len(ignoredResourcesList) > 1 {
-		return nil, errors.New("'resources-to-ignore' only accepts 'configMaps' or 'secrets', not both")
-	}
-
-	return ignoredResourcesList, nil
 }
