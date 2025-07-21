@@ -62,6 +62,10 @@ jobs:
         go-version-file: 'go.mod'
         check-latest: true
         cache: true
+    - name: Create timestamp
+      id: prep
+      run: echo "created=$(date -u +'%Y-%m-%dT%H:%M:%SZ')" >> $GITHUB_OUTPUT
+
 
     # Get highest tag and remove any suffixes with '-'
     - name: Get Highest tag
@@ -104,6 +108,7 @@ jobs:
         kind create cluster
         kubectl cluster-info
 
+
     - name: Test
       run: make test
 
@@ -136,7 +141,7 @@ jobs:
         pull: true
         push: true
         build-args: |
-          VERSION=merge-${{ github.event.number }}
+          VERSION=merge-${{ steps.generate_tag.outputs.GIT_TAG }}
           COMMIT=${{ github.sha }}
           BUILD_DATE=${{ steps.prep.outputs.created }}
           BUILD_PARAMETERS=${{ env.BUILD_PARAMETERS }}
