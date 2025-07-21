@@ -90,11 +90,13 @@ jobs:
         cd deployments/kubernetes/chart/reloader
         helm lint
 
-    - name: Login to Docker Registry
+    - name: Login to ghcr registry
       uses: docker/login-action@v3
       with:
-        username: ${{ secrets.STAKATER_DOCKERHUB_USERNAME }}
-        password: ${{ secrets.STAKATER_DOCKERHUB_PASSWORD }}
+        registry: ${{env.REGISTRY}}
+        username: stakater-user
+        password: ${{secrets.GITHUB_TOKEN}}
+
 
     - name: Install kubectl
       run: |
@@ -149,7 +151,7 @@ jobs:
         push: true
         build-args: |
           VERSION=merge-${{ steps.generate_tag.outputs.GIT_TAG }}
-          COMMIT=${{ github.sha }}
+          COMMIT=${{github.event.pull_request.head.sha}}
           BUILD_DATE=${{ steps.prep.outputs.created }}
           BUILD_PARAMETERS=${{ env.BUILD_PARAMETERS }}
         
