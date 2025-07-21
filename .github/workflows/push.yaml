@@ -91,6 +91,10 @@ jobs:
         with:
           username: ${{ secrets.STAKATER_DOCKERHUB_USERNAME }}
           password: ${{ secrets.STAKATER_DOCKERHUB_PASSWORD }}
+      
+      - name: Create timestamp
+        id: prep
+        run: echo "created=$(date -u +'%Y-%m-%dT%H:%M:%SZ')" >> $GITHUB_OUTPUT
 
       - name: Generate image repository path for Docker registry
         run: |
@@ -148,7 +152,11 @@ jobs:
           file: ${{ env.DOCKER_FILE_PATH  }}
           pull: true
           push: true
-          build-args: BUILD_PARAMETERS=${{ env.BUILD_PARAMETERS }}
+          build-args: |
+            VERSION=merge-${{ github.event.number }}
+            COMMIT=${{ github.sha }}
+            BUILD_DATE=${{ steps.prep.outputs.created }}
+            BUILD_PARAMETERS=${{ env.BUILD_PARAMETERS }}
           cache-to: type=inline
           platforms: linux/amd64,linux/arm,linux/arm64
           tags: |

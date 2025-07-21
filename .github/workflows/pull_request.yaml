@@ -134,8 +134,13 @@ jobs:
         context: .
         file: ${{ env.DOCKER_FILE_PATH  }}
         pull: true
-        push: false
-        build-args: BUILD_PARAMETERS=${{ env.BUILD_PARAMETERS }}
+        push: true
+        build-args: |
+          VERSION=merge-${{ github.event.number }}
+          COMMIT=${{ github.sha }}
+          BUILD_DATE=${{ steps.prep.outputs.created }}
+          BUILD_PARAMETERS=${{ env.BUILD_PARAMETERS }}
+        
         cache-to: type=inline
         platforms: linux/amd64,linux/arm,linux/arm64
         tags: |

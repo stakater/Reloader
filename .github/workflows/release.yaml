@@ -79,6 +79,10 @@ jobs:
         id: generate_tag
         run: echo "RELEASE_VERSION=${GITHUB_REF#refs/*/}" >> $GITHUB_OUTPUT
 
+      - name: Create timestamp
+        id: prep
+        run: echo "created=$(date -u +'%Y-%m-%dT%H:%M:%SZ')" >> $GITHUB_OUTPUT
+
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
 
@@ -106,6 +110,10 @@ jobs:
           platforms: linux/amd64,linux/arm,linux/arm64
           tags: |
             ${{ env.DOCKER_IMAGE_REPOSITORY }}:${{ steps.generate_tag.outputs.RELEASE_VERSION }}
+          build-args: |
+            VERSION=${{ steps.generate_tag.outputs.RELEASE_VERSION }}
+            COMMIT=${{ github.sha }}
+            BUILD_DATE=${{ steps.prep.outputs.created }}
           labels: |
             org.opencontainers.image.source=${{ github.event.repository.clone_url }}
             org.opencontainers.image.created=${{ steps.prep.outputs.created }}
@@ -152,6 +160,10 @@ jobs:
           platforms: linux/amd64,linux/arm,linux/arm64
           tags: |
             ${{ env.GHCR_IMAGE_REPOSITORY }}:${{ steps.generate_tag.outputs.RELEASE_VERSION }},${{ env.GHCR_IMAGE_REPOSITORY }}:latest
+          build-args: |
+            VERSION=${{ steps.generate_tag.outputs.RELEASE_VERSION }}
+            COMMIT=${{ github.sha }}
+            BUILD_DATE=${{ steps.prep.outputs.created }}
           labels: |
             org.opencontainers.image.source=${{ github.event.repository.clone_url }}
             org.opencontainers.image.created=${{ steps.prep.outputs.created }}
