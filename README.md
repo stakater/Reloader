@@ -321,4 +321,4 @@ Reloader supports multiple strategies for triggering rolling updates when a watc
 
 | Flag | Description |
 |------|-------------|
-| `--namespace-selector='key=value'` <br /> <br />`--namespace-selector='key1=value1,key2=value2'`
+| `--namespace-selector='key=value'` <br /> <br />`--namespace-selector='key1=value1,key2=value2'` | Filter namespaces by label selector |
