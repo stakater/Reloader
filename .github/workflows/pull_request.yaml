@@ -90,14 +90,6 @@ jobs:
         cd deployments/kubernetes/chart/reloader
         helm lint
 
-    - name: Login to ghcr registry
-      uses: docker/login-action@v3
-      with:
-        registry: ${{env.REGISTRY}}
-        username: stakater-user
-        password: ${{secrets.GITHUB_TOKEN}}
-
-
     - name: Install kubectl
       run: |
         curl -LO "https://storage.googleapis.com/kubernetes-release/release/v${KUBERNETES_VERSION}/bin/linux/amd64/kubectl"
@@ -118,7 +110,6 @@ jobs:
 
 
     - name: Test
-      if: false
       run: make test
 
     - name: Generate Tags
@@ -148,7 +139,7 @@ jobs:
         context: .
         file: ${{ env.DOCKER_FILE_PATH  }}
         pull: true
-        push: true
+        push: false
         build-args: |
           VERSION=merge-${{ steps.generate_tag.outputs.GIT_TAG }}
           COMMIT=${{github.event.pull_request.head.sha}}
