@@ -191,7 +191,23 @@ metadata:
 1. You want a quick restart without changing the workload spec
 1. Your platform restricts metadata changes
 
-### 5. ❗ Annotation Behavior Rules & Compatibility
+### 5. ⏸️ Deployment Pause
+
+Prevent multiple rollouts from rapid ConfigMap/Secret updates by pausing deployments temporarily.
+
+```yaml
+metadata:
+  annotations:
+    deployment.reloader.stakater.com/pause-period: "30s"
+```
+
+| Annotation                                       | Description                                                      |
+|--------------------------------------------------|------------------------------------------------------------------|
+| `deployment.reloader.stakater.com/pause-period` | Duration to pause the deployment (e.g., "30s", "5m", "1h")     |
+
+When a ConfigMap/Secret changes, Reloader pauses the deployment. Any subsequent updates during the pause period accumulate and trigger only one rollout when the deployment resumes.
+
+### 6. ❗ Annotation Behavior Rules & Compatibility
 
 - `reloader.stakater.com/auto` and `reloader.stakater.com/search` **cannot be used together** — the `auto` annotation takes precedence.
 - If both `auto` and its typed versions (`secret.reloader.stakater.com/auto`, `configmap.reloader.stakater.com/auto`) are used, **only one needs to be true** to trigger a reload.
@@ -200,7 +216,7 @@ metadata:
     - All workloads are treated as if they have `auto: "true"` unless they explicitly set it to `"false"`.
     - Missing or unrecognized annotation values are treated as `"false"`.
 
-### 6. 🔔 Alerting on Reload
+### 7. 🔔 Alerting on Reload
 
 Reloader can optionally **send alerts** whenever it triggers a rolling upgrade for a workload (e.g., `Deployment`, `StatefulSet`, etc.).
 
