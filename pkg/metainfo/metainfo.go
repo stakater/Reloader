@@ -55,6 +55,11 @@ type ReloaderOptions struct {
 	SearchMatchAnnotation string `json:"searchMatchAnnotation"`
 	// RolloutStrategyAnnotation is the annotation key used to define the rollout update strategy for workloads
 	RolloutStrategyAnnotation string `json:"rolloutStrategyAnnotation"`
+	// PauseDeploymentAnnotation is the annotation key used to define the time period to pause a deployment after
+	PauseDeploymentAnnotation string `json:"pauseDeploymentAnnotation"`
+	// PauseDeploymentTimeAnnotation is the annotation key used to indicate when a deployment was paused by Reloader
+	PauseDeploymentTimeAnnotation string `json:"pauseDeploymentTimeAnnotation"`
+
 	// LogFormat specifies the log format to use (json, or empty string for default text format)
 	LogFormat string `json:"logFormat"`
 	// LogLevel specifies the log level to use (trace, debug, info, warning, error, fatal, panic)
@@ -108,6 +113,8 @@ func GetReloaderOptions() *ReloaderOptions {
 		AutoSearchAnnotation:               options.AutoSearchAnnotation,
 		SearchMatchAnnotation:              options.SearchMatchAnnotation,
 		RolloutStrategyAnnotation:          options.RolloutStrategyAnnotation,
+		PauseDeploymentAnnotation:          options.PauseDeploymentAnnotation,
+		PauseDeploymentTimeAnnotation:      options.PauseDeploymentTimeAnnotation,
 		LogFormat:                          options.LogFormat,
 		LogLevel:                           options.LogLevel,
 		IsArgoRollouts:                     parseBool(options.IsArgoRollouts),
