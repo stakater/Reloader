@@ -16,4 +16,5 @@ styles/
 site/
 /mkdocs.yml
 yq
-bintest_config.py
+bin
+test_config.py
