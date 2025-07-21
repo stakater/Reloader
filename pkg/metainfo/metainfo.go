@@ -12,7 +12,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// Version, Commit, BuildDate, and IsDirty are set during the build process
+// Version, Commit, and BuildDate are set during the build process
 // using the -X linker flag to inject these values into the binary.
 // They provide metadata about the build version, commit hash, build date, and whether there are
 // uncommitted changes in the source code at the time of build.
@@ -20,7 +20,6 @@ import (
 var Version = "dev"
 var Commit = "unknown"
 var BuildDate = "unknown"
-var IsDirty = "false"
 
 const (
 	MetaInfoConfigmapName       = "reloader-meta-info"
@@ -140,8 +139,6 @@ type BuildInfo struct {
 	ReleaseVersion string `json:"releaseVersion"`
 	// CommitHash is the Git commit hash of the source code used to build this binary
 	CommitHash string `json:"commitHash"`
-	// IsDirty indicates whether the working directory had uncommitted changes when built
-	IsDirty bool `json:"isDirty"`
 	// CommitTime is the timestamp of the Git commit used to build this binary
 	CommitTime time.Time `json:"commitTime"`
 }
@@ -151,7 +148,6 @@ func NewBuildInfo() *BuildInfo {
 		GoVersion:      runtime.Version(),
 		ReleaseVersion: Version,
 		CommitHash:     Commit,
-		IsDirty:        parseBool(IsDirty),
 		CommitTime:     ParseUTCTime(BuildDate),
 	}
 

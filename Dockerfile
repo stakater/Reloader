@@ -12,7 +12,6 @@ ARG GOPRIVATE
 ARG COMMIT
 ARG VERSION
 ARG BUILD_DATE
-ARG ISDIRTY
 
 
 WORKDIR /workspace
@@ -38,8 +37,8 @@ RUN CGO_ENABLED=0 \
     GO111MODULE=on \
     go build -ldflags="-s -w -X github.com/stakater/Reloader/pkg/metainfo.Version=${VERSION} \
          -X github.com/stakater/Reloader/pkg/metainfo.Commit=${COMMIT} \
-         -X github.com/stakater/Reloader/pkg/metainfo.BuildDate=${BUILD_DATE} \
-         -X github.com/stakater/Reloader/pkg/metainfo.IsDirty=${ISDIRTY}" -installsuffix 'static' -mod=mod -a -o manager ./
+         -X github.com/stakater/Reloader/pkg/metainfo.BuildDate=${BUILD_DATE}" \
+        -installsuffix 'static' -mod=mod -a -o manager ./
 
 # Use distroless as minimal base image to package the manager binary
 # Refer to https://github.com/GoogleContainerTools/distroless for more details
