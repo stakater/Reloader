@@ -28,17 +28,13 @@ Create chart name and version as used by the chart label.
 {{- end }}
 
 {{- define "reloader-match-labels.chart" -}}
-app: {{ template "reloader-fullname" . }}
-release: {{ .Release.Name | quote }}
+app.kubernetes.io/name: {{ template "reloader-name" . }}
+app.kubernetes.io/instance: {{ .Release.Name | quote }}
 {{- end -}}
 
 {{- define "reloader-labels.chart" -}}
 {{ include "reloader-match-labels.chart" . }}
-app.kubernetes.io/name: {{ template "reloader-name" . }}
-app.kubernetes.io/instance: {{ .Release.Name | quote }}
 helm.sh/chart: "{{ .Chart.Name }}-{{ .Chart.Version | replace "+" "_" }}"
-chart: "{{ .Chart.Name }}-{{ .Chart.Version | replace "+" "_" }}"
-heritage: {{ .Release.Service | quote }}
 app.kubernetes.io/managed-by: {{ .Release.Service | quote }}
 app.kubernetes.io/version: {{ .Chart.AppVersion | quote }}
 {{- end -}}
