@@ -5,6 +5,23 @@ metadata:
   namespace: default
 ---
 apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: reloader-reloader-metadata-role
+  namespace: default
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - configmaps
+  verbs:
+  - list
+  - get
+  - watch
+  - create
+  - update
+---
+apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
   name: reloader-reloader-role
@@ -64,6 +81,20 @@ rules:
   - patch
 ---
 apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: reloader-reloader-metadata-rolebinding
+  namespace: default
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: reloader-reloader-metadata-role
+subjects:
+- kind: ServiceAccount
+  name: reloader-reloader
+  namespace: default
+---
+apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
   name: reloader-reloader-role-binding
@@ -104,7 +135,13 @@ spec:
             resourceFieldRef:
               divisor: "1"
               resource: limits.memory
-        image: "ghcr.io/stakater/reloader:latest"
+        - name: RELOADER_NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
+        - name: RELOADER_DEPLOYMENT_NAME
+          value: reloader-reloader
+        image: ghcr.io/stakater/reloader:latest
         imagePullPolicy: IfNotPresent
         livenessProbe:
           failureThreshold: 5

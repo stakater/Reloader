@@ -218,6 +218,25 @@ reloader:
       ALERT_ADDITIONAL_INFO: "Triggered by Reloader in staging environment"
 ```
 
+### 7. ⏸️ Pause Deployments
+
+This feature allows you to pause rollouts for a deployment for a specified duration, helping to prevent multiple restarts when several ConfigMaps or Secrets are updated in quick succession.
+
+| Annotation                                              | Applies To   | Description                                                                 |
+|---------------------------------------------------------|--------------|-----------------------------------------------------------------------------|
+| `deployment.reloader.stakater.com/pause-period: "5m"`   | Deployment   | Pauses reloads for the specified period (e.g., `5m`, `1h`)                  |
+
+#### How it works
+
+1. Add the `deployment.reloader.stakater.com/pause-period` annotation to your Deployment, specifying the pause duration (e.g., `"5m"` for five minutes).
+1. When a watched ConfigMap or Secret changes, Reloader will still trigger a reload event, but if the deployment is paused, the rollout will have no effect until the pause period has elapsed.
+1. This avoids repeated restarts if multiple resources are updated close together.
+
+#### Use when
+
+1. ✅ Your deployment references multiple ConfigMaps or Secrets that may be updated at the same time.
+1. ✅ You want to minimize unnecessary rollouts and reduce downtime caused by back-to-back configuration changes.
+
 ## 🚀 Installation
 
 ### 1. 📦 Helm
@@ -336,6 +355,8 @@ These flags allow you to redefine annotation keys used in your workloads or reso
 | `--search-match-annotation` | Overrides `reloader.stakater.com/match` |
 | `--secret-annotation` | Overrides `secret.reloader.stakater.com/reload` |
 | `--configmap-annotation` | Overrides `configmap.reloader.stakater.com/reload` |
+| `--pause-deployment-annotation` | Overrides `deployment.reloader.stakater.com/pause-period` |
+| `--pause-deployment-time-annotation` | Overrides `deployment.reloader.stakater.com/paused-at` |
 
 ## Compatibility
 

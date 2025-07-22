@@ -63,6 +63,11 @@ jobs:
         check-latest: true
         cache: true
 
+    - name: Create timestamp
+      id: prep
+      run: echo "created=$(date -u +'%Y-%m-%dT%H:%M:%SZ')" >> $GITHUB_OUTPUT
+
+
     # Get highest tag and remove any suffixes with '-'
     - name: Get Highest tag
       id: highest_tag
@@ -104,6 +109,7 @@ jobs:
         kind create cluster
         kubectl cluster-info
 
+
     - name: Test
       run: make test
 
@@ -135,7 +141,12 @@ jobs:
         file: ${{ env.DOCKER_FILE_PATH  }}
         pull: true
         push: false
-        build-args: BUILD_PARAMETERS=${{ env.BUILD_PARAMETERS }}
+        build-args: |
+          VERSION=merge-${{ steps.generate_tag.outputs.GIT_TAG }}
+          COMMIT=${{github.event.pull_request.head.sha}}
+          BUILD_DATE=${{ steps.prep.outputs.created }}
+          BUILD_PARAMETERS=${{ env.BUILD_PARAMETERS }}
+        
         cache-to: type=inline
         platforms: linux/amd64,linux/arm,linux/arm64
         tags: |
