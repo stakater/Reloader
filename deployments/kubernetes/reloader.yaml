@@ -5,6 +5,23 @@ metadata:
   namespace: default
 ---
 apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: reloader-reloader-metadata-role
+  namespace: default
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - configmaps
+  verbs:
+  - list
+  - get
+  - watch
+  - create
+  - update
+---
+apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
   name: reloader-reloader-role
@@ -64,6 +81,20 @@ rules:
   - patch
 ---
 apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: reloader-reloader-metadata-rolebinding
+  namespace: default
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: reloader-reloader-metadata-role
+subjects:
+- kind: ServiceAccount
+  name: reloader-reloader
+  namespace: default
+---
+apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
   name: reloader-reloader-role-binding
@@ -75,37 +106,6 @@ subjects:
 - kind: ServiceAccount
   name: reloader-reloader
   namespace: default
----
-apiVersion: rbac.authorization.k8s.io/v1
-kind: Role
-metadata:
-  name: reloader-metadata-role
-  namespace: default
-rules:
-  - apiGroups:
-      - ""
-    resources:
-      - configmaps
-    verbs:
-      - list
-      - get
-      - watch
-      - create
-      - update
----
-apiVersion: rbac.authorization.k8s.io/v1
-kind: RoleBinding
-metadata:
-  name: reloader-metadata-role-binding
-  namespace: default
-roleRef:
-  apiGroup: rbac.authorization.k8s.io
-  kind: Role
-  name: reloader-metadata-role
-subjects:
-  - kind: ServiceAccount
-    name: reloader-reloader
-    namespace: default
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -139,11 +139,9 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: metadata.namespace
-        
         - name: RELOADER_DEPLOYMENT_NAME
-          value: default
-              
-        image: "ghcr.io/stakater/reloader:latest"
+          value: reloader-reloader
+        image: ghcr.io/stakater/reloader:test-image
         imagePullPolicy: IfNotPresent
         livenessProbe:
           failureThreshold: 5

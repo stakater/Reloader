@@ -13,7 +13,6 @@ ARG COMMIT
 ARG VERSION
 ARG BUILD_DATE
 
-
 WORKDIR /workspace
 
 # Copy the Go Modules manifests
