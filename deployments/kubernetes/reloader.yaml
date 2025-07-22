@@ -141,7 +141,7 @@ spec:
               fieldPath: metadata.namespace
         - name: RELOADER_DEPLOYMENT_NAME
           value: reloader-reloader
-        image: ghcr.io/stakater/reloader:test-image
+        image: ghcr.io/stakater/reloader:latest
         imagePullPolicy: IfNotPresent
         livenessProbe:
           failureThreshold: 5
