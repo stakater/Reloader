@@ -51,7 +51,7 @@ var (
 	// LogLevel is the log level to use (trace, debug, info, warning, error, fatal and panic)
 	LogLevel = ""
 	// IsArgoRollouts Adds support for argo rollouts
-	IsArgoRollouts = false
+	IsArgoRollouts = "false"
 	// ReloadStrategy Specify the update strategy
 	ReloadStrategy = constants.EnvVarsReloadStrategy
 	// ReloadOnCreate Adds support to watch create events

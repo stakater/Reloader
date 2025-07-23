@@ -7,9 +7,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"regexp"
-	"strconv"
-	"strings"
 
 	"github.com/parnurzeal/gorequest"
 	"github.com/prometheus/client_golang/prometheus"
@@ -264,122 +261,70 @@ func upgradeResource(clients kube.Clients, config util.Config, upgradeFuncs call
 			return err
 		}
 	}
+	annotations := upgradeFuncs.AnnotationsFunc(resource)
+	podAnnotations := upgradeFuncs.PodAnnotationsFunc(resource)
+	result := util.ShouldReload(config, upgradeFuncs.ResourceType, annotations, podAnnotations)
 
-	ignoreResourceAnnotatonValue := config.ResourceAnnotations[options.IgnoreResourceAnnotation]
-	if ignoreResourceAnnotatonValue == "true" {
+	if !result.ShouldReload {
+		logrus.Debugf("No changes detected in '%s' of type '%s' in namespace '%s'", config.ResourceName, config.Type, config.Namespace)
+		return nil
+	}
+
+	strategyResult := strategy(upgradeFuncs, resource, config, result.AutoReload)
+
+	if strategyResult.Result != constants.Updated {
 		return nil
 	}
 
 	// find correct annotation and update the resource
-	annotations := upgradeFuncs.AnnotationsFunc(resource)
-	annotationValue, found := annotations[config.Annotation]
-	searchAnnotationValue, foundSearchAnn := annotations[options.AutoSearchAnnotation]
-	reloaderEnabledValue, foundAuto := annotations[options.ReloaderAutoAnnotation]
-	typedAutoAnnotationEnabledValue, foundTypedAuto := annotations[config.TypedAutoAnnotation]
-	excludeConfigmapAnnotationValue, foundExcludeConfigmap := annotations[options.ConfigmapExcludeReloaderAnnotation]
-	excludeSecretAnnotationValue, foundExcludeSecret := annotations[options.SecretExcludeReloaderAnnotation]
 	pauseInterval, foundPauseInterval := annotations[options.PauseDeploymentAnnotation]
 
-	if !found && !foundAuto && !foundTypedAuto && !foundSearchAnn {
-		annotations = upgradeFuncs.PodAnnotationsFunc(resource)
-		annotationValue = annotations[config.Annotation]
-		searchAnnotationValue = annotations[options.AutoSearchAnnotation]
-		reloaderEnabledValue = annotations[options.ReloaderAutoAnnotation]
-		typedAutoAnnotationEnabledValue = annotations[config.TypedAutoAnnotation]
-	}
-
-	isResourceExcluded := false
-
-	switch config.Type {
-	case constants.ConfigmapEnvVarPostfix:
-		if foundExcludeConfigmap {
-			isResourceExcluded = checkIfResourceIsExcluded(config.ResourceName, excludeConfigmapAnnotationValue)
-		}
-	case constants.SecretEnvVarPostfix:
-		if foundExcludeSecret {
-			isResourceExcluded = checkIfResourceIsExcluded(config.ResourceName, excludeSecretAnnotationValue)
-		}
-	}
-
-	if isResourceExcluded {
-		return nil
-	}
-
-	strategyResult := InvokeStrategyResult{constants.NotUpdated, nil}
-	reloaderEnabled, _ := strconv.ParseBool(reloaderEnabledValue)
-	typedAutoAnnotationEnabled, _ := strconv.ParseBool(typedAutoAnnotationEnabledValue)
-	if reloaderEnabled || typedAutoAnnotationEnabled || reloaderEnabledValue == "" && typedAutoAnnotationEnabledValue == "" && options.AutoReloadAll {
-		strategyResult = strategy(upgradeFuncs, resource, config, true)
-	}
-
-	if strategyResult.Result != constants.Updated && annotationValue != "" {
-		values := strings.Split(annotationValue, ",")
-		for _, value := range values {
-			value = strings.TrimSpace(value)
-			re := regexp.MustCompile("^" + value + "$")
-			if re.Match([]byte(config.ResourceName)) {
-				strategyResult = strategy(upgradeFuncs, resource, config, false)
-				if strategyResult.Result == constants.Updated {
-					break
-				}
-			}
-		}
-	}
-
-	if strategyResult.Result != constants.Updated && searchAnnotationValue == "true" {
-		matchAnnotationValue := config.ResourceAnnotations[options.SearchMatchAnnotation]
-		if matchAnnotationValue == "true" {
-			strategyResult = strategy(upgradeFuncs, resource, config, true)
-		}
-	}
-	if strategyResult.Result == constants.Updated {
-		if foundPauseInterval {
-			deployment, ok := resource.(*app.Deployment)
-			if !ok {
-				logrus.Warnf("Annotation '%s' only applicable for deployments", options.PauseDeploymentAnnotation)
-			} else {
-				_, err = PauseDeployment(deployment, clients, config.Namespace, pauseInterval)
-				if err != nil {
-					logrus.Errorf("Failed to pause deployment '%s' in namespace '%s': %v", resourceName, config.Namespace, err)
-					return err
-				}
-			}
-		}
-		var err error
-		if upgradeFuncs.SupportsPatch && strategyResult.Patch != nil {
-			err = upgradeFuncs.PatchFunc(clients, config.Namespace, resource, strategyResult.Patch.Type, strategyResult.Patch.Bytes)
+	if foundPauseInterval {
+		deployment, ok := resource.(*app.Deployment)
+		if !ok {
+			logrus.Warnf("Annotation '%s' only applicable for deployments", options.PauseDeploymentAnnotation)
 		} else {
-			err = upgradeFuncs.UpdateFunc(clients, config.Namespace, resource)
+			_, err = PauseDeployment(deployment, clients, config.Namespace, pauseInterval)
+			if err != nil {
+				logrus.Errorf("Failed to pause deployment '%s' in namespace '%s': %v", resourceName, config.Namespace, err)
+				return err
+			}
 		}
+	}
 
-		if err != nil {
-			message := fmt.Sprintf("Update for '%s' of type '%s' in namespace '%s' failed with error %v", resourceName, upgradeFuncs.ResourceType, config.Namespace, err)
-			logrus.Errorf("Update for '%s' of type '%s' in namespace '%s' failed with error %v", resourceName, upgradeFuncs.ResourceType, config.Namespace, err)
+	if upgradeFuncs.SupportsPatch && strategyResult.Patch != nil {
+		err = upgradeFuncs.PatchFunc(clients, config.Namespace, resource, strategyResult.Patch.Type, strategyResult.Patch.Bytes)
+	} else {
+		err = upgradeFuncs.UpdateFunc(clients, config.Namespace, resource)
+	}
 
-			collectors.Reloaded.With(prometheus.Labels{"success": "false"}).Inc()
-			collectors.ReloadedByNamespace.With(prometheus.Labels{"success": "false", "namespace": config.Namespace}).Inc()
-			if recorder != nil {
-				recorder.Event(resource, v1.EventTypeWarning, "ReloadFail", message)
-			}
-			return err
-		} else {
-			message := fmt.Sprintf("Changes detected in '%s' of type '%s' in namespace '%s'", config.ResourceName, config.Type, config.Namespace)
-			message += fmt.Sprintf(", Updated '%s' of type '%s' in namespace '%s'", resourceName, upgradeFuncs.ResourceType, config.Namespace)
+	if err != nil {
+		message := fmt.Sprintf("Update for '%s' of type '%s' in namespace '%s' failed with error %v", resourceName, upgradeFuncs.ResourceType, config.Namespace, err)
+		logrus.Errorf("Update for '%s' of type '%s' in namespace '%s' failed with error %v", resourceName, upgradeFuncs.ResourceType, config.Namespace, err)
 
-			logrus.Infof("Changes detected in '%s' of type '%s' in namespace '%s'; updated '%s' of type '%s' in namespace '%s'", config.ResourceName, config.Type, config.Namespace, resourceName, upgradeFuncs.ResourceType, config.Namespace)
+		collectors.Reloaded.With(prometheus.Labels{"success": "false"}).Inc()
+		collectors.ReloadedByNamespace.With(prometheus.Labels{"success": "false", "namespace": config.Namespace}).Inc()
+		if recorder != nil {
+			recorder.Event(resource, v1.EventTypeWarning, "ReloadFail", message)
+		}
+		return err
+	} else {
+		message := fmt.Sprintf("Changes detected in '%s' of type '%s' in namespace '%s'", config.ResourceName, config.Type, config.Namespace)
+		message += fmt.Sprintf(", Updated '%s' of type '%s' in namespace '%s'", resourceName, upgradeFuncs.ResourceType, config.Namespace)
 
-			collectors.Reloaded.With(prometheus.Labels{"success": "true"}).Inc()
-			collectors.ReloadedByNamespace.With(prometheus.Labels{"success": "true", "namespace": config.Namespace}).Inc()
-			alert_on_reload, ok := os.LookupEnv("ALERT_ON_RELOAD")
-			if recorder != nil {
-				recorder.Event(resource, v1.EventTypeNormal, "Reloaded", message)
-			}
-			if ok && alert_on_reload == "true" {
-				msg := fmt.Sprintf(
-					"Reloader detected changes in *%s* of type *%s* in namespace *%s*. Hence reloaded *%s* of type *%s* in namespace *%s*",
-					config.ResourceName, config.Type, config.Namespace, resourceName, upgradeFuncs.ResourceType, config.Namespace)
-				alert.SendWebhookAlert(msg)
-			}
+		logrus.Infof("Changes detected in '%s' of type '%s' in namespace '%s'; updated '%s' of type '%s' in namespace '%s'", config.ResourceName, config.Type, config.Namespace, resourceName, upgradeFuncs.ResourceType, config.Namespace)
+
+		collectors.Reloaded.With(prometheus.Labels{"success": "true"}).Inc()
+		collectors.ReloadedByNamespace.With(prometheus.Labels{"success": "true", "namespace": config.Namespace}).Inc()
+		alert_on_reload, ok := os.LookupEnv("ALERT_ON_RELOAD")
+		if recorder != nil {
+			recorder.Event(resource, v1.EventTypeNormal, "Reloaded", message)
+		}
+		if ok && alert_on_reload == "true" {
+			msg := fmt.Sprintf(
+				"Reloader detected changes in *%s* of type *%s* in namespace *%s*. Hence reloaded *%s* of type *%s* in namespace *%s*",
+				config.ResourceName, config.Type, config.Namespace, resourceName, upgradeFuncs.ResourceType, config.Namespace)
+			alert.SendWebhookAlert(msg)
 		}
 	}
 
