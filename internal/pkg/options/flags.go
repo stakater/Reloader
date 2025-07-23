@@ -40,6 +40,12 @@ var (
 	SearchMatchAnnotation = "reloader.stakater.com/match"
 	// RolloutStrategyAnnotation is an annotation to define rollout update strategy
 	RolloutStrategyAnnotation = "reloader.stakater.com/rollout-strategy"
+	// PauseDeploymentAnnotation is an annotation to define the time period to pause a deployment after
+	// a configmap/secret change has been detected. Valid values are described here: https://pkg.go.dev/time#ParseDuration
+	// only positive values are allowed
+	PauseDeploymentAnnotation = "deployment.reloader.stakater.com/pause-period"
+	// Annotation set by reloader to indicate that the deployment has been paused
+	PauseDeploymentTimeAnnotation = "deployment.reloader.stakater.com/paused-at"
 	// LogFormat is the log format to use (json, or empty string for default)
 	LogFormat = ""
 	// LogLevel is the log level to use (trace, debug, info, warning, error, fatal and panic)

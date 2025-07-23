@@ -27,3 +27,30 @@ subjects:
     name: {{ template "reloader-serviceAccountName" . }}
     namespace: {{ .Values.namespace | default .Release.Namespace }}
 {{- end }}
+
+---
+{{- if .Values.reloader.rbac.enabled }}
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  annotations:
+{{ include "reloader-helm3.annotations" . | indent 4 }}
+  labels:
+{{ include "reloader-labels.chart" . | indent 4 }}
+{{- if .Values.reloader.rbac.labels }}
+{{ tpl (toYaml .Values.reloader.rbac.labels) . | indent 4 }}
+{{- end }}
+{{- if .Values.reloader.matchLabels }}
+{{ tpl (toYaml .Values.reloader.matchLabels) . | indent 4 }}
+{{- end }}
+  name: {{ template "reloader-fullname" . }}-metadata-role-binding
+  namespace: {{ .Values.namespace | default .Release.Namespace }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: {{ template "reloader-fullname" . }}-metadata-role
+subjects:
+  - kind: ServiceAccount
+    name: {{ template "reloader-serviceAccountName" . }}
+    namespace: {{ .Values.namespace | default .Release.Namespace }}
+{{- end }}

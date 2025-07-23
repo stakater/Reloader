@@ -107,9 +107,11 @@ func startReloader(cmd *cobra.Command, args []string) {
 	}
 
 	logrus.Info("Starting Reloader")
+	isGlobal := false
 	currentNamespace := os.Getenv("KUBERNETES_NAMESPACE")
 	if len(currentNamespace) == 0 {
 		currentNamespace = v1.NamespaceAll
+		isGlobal = true
 		logrus.Warnf("KUBERNETES_NAMESPACE is unset, will detect changes in all namespaces.")
 	}
 
@@ -125,10 +127,13 @@ func startReloader(cmd *cobra.Command, args []string) {
 	}
 
 	ignoredNamespacesList := options.NamespacesToIgnore
+	namespaceLabelSelector := ""
 
-	namespaceLabelSelector, err := util.GetNamespaceLabelSelector()
-	if err != nil {
-		logrus.Fatal(err)
+	if isGlobal {
+		namespaceLabelSelector, err = util.GetNamespaceLabelSelector()
+		if err != nil {
+			logrus.Fatal(err)
+		}
 	}
 
 	resourceLabelSelector, err := util.GetResourceLabelSelector()
@@ -182,6 +187,8 @@ func startReloader(cmd *cobra.Command, args []string) {
 		defer cancel()
 		go leadership.RunLeaderElection(lock, ctx, cancel, podName, controllers)
 	}
+
+	util.PublishMetaInfoConfigmap(clientset)
 
 	leadership.SetupLivenessEndpoint()
 	logrus.Fatal(http.ListenAndServe(constants.DefaultHttpListenAddr, nil))

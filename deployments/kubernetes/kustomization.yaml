@@ -6,3 +6,4 @@ resources:
   - manifests/clusterrolebinding.yaml
   - manifests/serviceaccount.yaml
   - manifests/deployment.yaml
+  - manifests/role.yaml

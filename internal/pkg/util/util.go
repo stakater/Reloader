@@ -2,9 +2,11 @@ package util
 
 import (
 	"bytes"
+	"context"
 	"encoding/base64"
 	"errors"
 	"fmt"
+	"os"
 	"regexp"
 	"sort"
 	"strconv"
@@ -15,8 +17,11 @@ import (
 	"github.com/stakater/Reloader/internal/pkg/constants"
 	"github.com/stakater/Reloader/internal/pkg/crypto"
 	"github.com/stakater/Reloader/internal/pkg/options"
+	"github.com/stakater/Reloader/pkg/metainfo"
 	v1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/client-go/kubernetes"
 )
 
 // ConvertToEnvVarName converts the given text into a usable env var
@@ -61,6 +66,39 @@ func GetSHAfromSecret(data map[string][]byte) string {
 	return crypto.GenerateSHA(strings.Join(values, ";"))
 }
 
+func PublishMetaInfoConfigmap(clientset kubernetes.Interface) {
+	namespace := os.Getenv("RELOADER_NAMESPACE")
+	if namespace == "" {
+		logrus.Warn("RELOADER_NAMESPACE is not set, skipping meta info configmap creation")
+		return
+	}
+
+	metaInfo := &metainfo.MetaInfo{
+		BuildInfo:       *metainfo.NewBuildInfo(),
+		ReloaderOptions: *metainfo.GetReloaderOptions(),
+		DeploymentInfo: metav1.ObjectMeta{
+			Name:      os.Getenv("RELOADER_DEPLOYMENT_NAME"),
+			Namespace: namespace,
+		},
+	}
+
+	configMap := metaInfo.ToConfigMap()
+
+	if _, err := clientset.CoreV1().ConfigMaps(namespace).Get(context.Background(), configMap.Name, metav1.GetOptions{}); err == nil {
+		logrus.Info("Meta info configmap already exists, updating it")
+		_, err = clientset.CoreV1().ConfigMaps(namespace).Update(context.Background(), configMap, metav1.UpdateOptions{})
+		if err != nil {
+			logrus.Warn("Failed to update existing meta info configmap: ", err)
+		}
+		return
+	}
+
+	_, err := clientset.CoreV1().ConfigMaps(namespace).Create(context.Background(), configMap, metav1.CreateOptions{})
+	if err != nil {
+		logrus.Warn("Failed to create meta info configmap: ", err)
+	}
+}
+
 type List []string
 
 type Map map[string]string
@@ -83,6 +121,8 @@ func ConfigureReloaderFlags(cmd *cobra.Command) {
 	cmd.PersistentFlags().StringVar(&options.SecretReloaderAutoAnnotation, "secret-auto-annotation", "secret.reloader.stakater.com/auto", "annotation to detect changes in secrets")
 	cmd.PersistentFlags().StringVar(&options.AutoSearchAnnotation, "auto-search-annotation", "reloader.stakater.com/search", "annotation to detect changes in configmaps or secrets tagged with special match annotation")
 	cmd.PersistentFlags().StringVar(&options.SearchMatchAnnotation, "search-match-annotation", "reloader.stakater.com/match", "annotation to mark secrets or configmaps to match the search")
+	cmd.PersistentFlags().StringVar(&options.PauseDeploymentAnnotation, "pause-deployment-annotation", "deployment.reloader.stakater.com/pause-period", "annotation to define the time period to pause a deployment after a configmap/secret change has been detected")
+	cmd.PersistentFlags().StringVar(&options.PauseDeploymentTimeAnnotation, "pause-deployment-time-annotation", "deployment.reloader.stakater.com/paused-at", "annotation to indicate when a deployment was paused by Reloader")
 	cmd.PersistentFlags().StringVar(&options.LogFormat, "log-format", "", "Log format to use (empty string for text, or JSON)")
 	cmd.PersistentFlags().StringVar(&options.LogLevel, "log-level", "info", "Log level to use (trace, debug, info, warning, error, fatal and panic)")
 	cmd.PersistentFlags().StringVar(&options.WebhookUrl, "webhook-url", "", "webhook to trigger instead of performing a reload")
@@ -90,7 +130,7 @@ func ConfigureReloaderFlags(cmd *cobra.Command) {
 	cmd.PersistentFlags().StringSliceVar(&options.NamespacesToIgnore, "namespaces-to-ignore", options.NamespacesToIgnore, "list of namespaces to ignore")
 	cmd.PersistentFlags().StringSliceVar(&options.NamespaceSelectors, "namespace-selector", options.NamespaceSelectors, "list of key:value labels to filter on for namespaces")
 	cmd.PersistentFlags().StringSliceVar(&options.ResourceSelectors, "resource-label-selector", options.ResourceSelectors, "list of key:value labels to filter on for configmaps and secrets")
-	cmd.PersistentFlags().BoolVar(&options.IsArgoRollouts, "is-Argo-Rollouts", false, "Add support for argo rollouts")
+	cmd.PersistentFlags().StringVar(&options.IsArgoRollouts, "is-Argo-Rollouts", "false", "Add support for argo rollouts")
 	cmd.PersistentFlags().StringVar(&options.ReloadStrategy, constants.ReloadStrategyFlag, constants.EnvVarsReloadStrategy, "Specifies the desired reload strategy")
 	cmd.PersistentFlags().StringVar(&options.ReloadOnCreate, "reload-on-create", "false", "Add support to watch create events")
 	cmd.PersistentFlags().StringVar(&options.ReloadOnDelete, "reload-on-delete", "false", "Add support to watch delete events")
@@ -105,7 +145,7 @@ type ReloadCheckResult struct {
 
 func ShouldReload(config Config, resourceType string, annotations Map, podAnnotations Map) ReloadCheckResult {
 
-	if resourceType == "Rollout" && !options.IsArgoRollouts {
+	if resourceType == "Rollout" && options.IsArgoRollouts == "false" {
 		return ReloadCheckResult{
 			ShouldReload: false,
 		}
