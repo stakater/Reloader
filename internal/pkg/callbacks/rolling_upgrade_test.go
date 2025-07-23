@@ -22,9 +22,9 @@ import (
 	patchtypes "k8s.io/apimachinery/pkg/types"
 
 	"github.com/stakater/Reloader/internal/pkg/callbacks"
-	"github.com/stakater/Reloader/internal/pkg/options"
 	"github.com/stakater/Reloader/internal/pkg/testutil"
 	"github.com/stakater/Reloader/pkg/kube"
+	"github.com/stakater/Reloader/pkg/options"
 )
 
 var (

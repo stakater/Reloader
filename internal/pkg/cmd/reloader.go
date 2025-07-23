@@ -17,9 +17,9 @@ import (
 
 	"github.com/stakater/Reloader/internal/pkg/controller"
 	"github.com/stakater/Reloader/internal/pkg/metrics"
-	"github.com/stakater/Reloader/internal/pkg/options"
 	"github.com/stakater/Reloader/internal/pkg/util"
 	"github.com/stakater/Reloader/pkg/kube"
+	"github.com/stakater/Reloader/pkg/options"
 )
 
 // NewReloaderCommand starts the reloader controller
@@ -105,6 +105,8 @@ func startReloader(cmd *cobra.Command, args []string) {
 	if err != nil {
 		logrus.Warn(err)
 	}
+
+	options.InitializeReloaderOptions()
 
 	logrus.Info("Starting Reloader")
 	isGlobal := false

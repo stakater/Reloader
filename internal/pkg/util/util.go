@@ -16,8 +16,8 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/stakater/Reloader/internal/pkg/constants"
 	"github.com/stakater/Reloader/internal/pkg/crypto"
-	"github.com/stakater/Reloader/internal/pkg/options"
 	"github.com/stakater/Reloader/pkg/metainfo"
+	"github.com/stakater/Reloader/pkg/options"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
@@ -75,7 +75,7 @@ func PublishMetaInfoConfigmap(clientset kubernetes.Interface) {
 
 	metaInfo := &metainfo.MetaInfo{
 		BuildInfo:       *metainfo.NewBuildInfo(),
-		ReloaderOptions: *metainfo.GetReloaderOptions(),
+		ReloaderOptions: *options.CommandLineOptions,
 		DeploymentInfo: metav1.ObjectMeta{
 			Name:      os.Getenv("RELOADER_DEPLOYMENT_NAME"),
 			Namespace: namespace,
@@ -143,9 +143,9 @@ type ReloadCheckResult struct {
 	AutoReload   bool
 }
 
-func ShouldReload(config Config, resourceType string, annotations Map, podAnnotations Map) ReloadCheckResult {
+func ShouldReload(config Config, resourceType string, annotations Map, podAnnotations Map, options *options.ReloaderOptions) ReloadCheckResult {
 
-	if resourceType == "Rollout" && options.IsArgoRollouts == "false" {
+	if resourceType == "Rollout" && options.IsArgoRollouts == false {
 		return ReloadCheckResult{
 			ShouldReload: false,
 		}

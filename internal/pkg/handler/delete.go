@@ -8,9 +8,9 @@ import (
 	"github.com/stakater/Reloader/internal/pkg/callbacks"
 	"github.com/stakater/Reloader/internal/pkg/constants"
 	"github.com/stakater/Reloader/internal/pkg/metrics"
-	"github.com/stakater/Reloader/internal/pkg/options"
 	"github.com/stakater/Reloader/internal/pkg/testutil"
 	"github.com/stakater/Reloader/internal/pkg/util"
+	"github.com/stakater/Reloader/pkg/options"
 
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -32,8 +32,8 @@ func (r ResourceDeleteHandler) Handle() error {
 	} else {
 		config, _ := r.GetConfig()
 		// Send webhook
-		if options.WebhookUrl != "" {
-			return sendUpgradeWebhook(config, options.WebhookUrl)
+		if options.CommandLineOptions.WebhookUrl != "" {
+			return sendUpgradeWebhook(config, options.CommandLineOptions.WebhookUrl)
 		}
 		// process resource based on its type
 		return doRollingUpgrade(config, r.Collectors, r.Recorder, invokeDeleteStrategy)
@@ -56,7 +56,7 @@ func (r ResourceDeleteHandler) GetConfig() (util.Config, string) {
 }
 
 func invokeDeleteStrategy(upgradeFuncs callbacks.RollingUpgradeFuncs, item runtime.Object, config util.Config, autoReload bool) InvokeStrategyResult {
-	if options.ReloadStrategy == constants.AnnotationsReloadStrategy {
+	if options.CommandLineOptions.ReloadStrategy == constants.AnnotationsReloadStrategy {
 		return removePodAnnotations(upgradeFuncs, item, config, autoReload)
 	}
 

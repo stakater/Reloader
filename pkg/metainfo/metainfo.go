@@ -4,10 +4,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"runtime"
-	"strconv"
 	"time"
 
-	"github.com/stakater/Reloader/internal/pkg/options"
+	"github.com/stakater/Reloader/pkg/options"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -27,107 +26,15 @@ const (
 	MetaInfoConfigmapLabelValue = "reloader-oss"
 )
 
-// ReloaderOptions contains all configurable options for the Reloader controller.
-// These options control how Reloader behaves when watching for changes in ConfigMaps and Secrets.
-type ReloaderOptions struct {
-	// AutoReloadAll enables automatic reloading of all resources when their corresponding ConfigMaps/Secrets are updated
-	AutoReloadAll bool `json:"autoReloadAll"`
-	// ConfigmapUpdateOnChangeAnnotation is the annotation key used to detect changes in ConfigMaps specified by name
-	ConfigmapUpdateOnChangeAnnotation string `json:"configmapUpdateOnChangeAnnotation"`
-	// SecretUpdateOnChangeAnnotation is the annotation key used to detect changes in Secrets specified by name
-	SecretUpdateOnChangeAnnotation string `json:"secretUpdateOnChangeAnnotation"`
-	// ReloaderAutoAnnotation is the annotation key used to detect changes in any referenced ConfigMaps or Secrets
-	ReloaderAutoAnnotation string `json:"reloaderAutoAnnotation"`
-	// IgnoreResourceAnnotation is the annotation key used to ignore resources from being watched
-	IgnoreResourceAnnotation string `json:"ignoreResourceAnnotation"`
-	// ConfigmapReloaderAutoAnnotation is the annotation key used to detect changes in ConfigMaps only
-	ConfigmapReloaderAutoAnnotation string `json:"configmapReloaderAutoAnnotation"`
-	// SecretReloaderAutoAnnotation is the annotation key used to detect changes in Secrets only
-	SecretReloaderAutoAnnotation string `json:"secretReloaderAutoAnnotation"`
-	// ConfigmapExcludeReloaderAnnotation is the annotation key containing comma-separated list of ConfigMaps to exclude from watching
-	ConfigmapExcludeReloaderAnnotation string `json:"configmapExcludeReloaderAnnotation"`
-	// SecretExcludeReloaderAnnotation is the annotation key containing comma-separated list of Secrets to exclude from watching
-	SecretExcludeReloaderAnnotation string `json:"secretExcludeReloaderAnnotation"`
-	// AutoSearchAnnotation is the annotation key used to detect changes in ConfigMaps/Secrets tagged with SearchMatchAnnotation
-	AutoSearchAnnotation string `json:"autoSearchAnnotation"`
-	// SearchMatchAnnotation is the annotation key used to tag ConfigMaps/Secrets to be found by AutoSearchAnnotation
-	SearchMatchAnnotation string `json:"searchMatchAnnotation"`
-	// RolloutStrategyAnnotation is the annotation key used to define the rollout update strategy for workloads
-	RolloutStrategyAnnotation string `json:"rolloutStrategyAnnotation"`
-	// PauseDeploymentAnnotation is the annotation key used to define the time period to pause a deployment after
-	PauseDeploymentAnnotation string `json:"pauseDeploymentAnnotation"`
-	// PauseDeploymentTimeAnnotation is the annotation key used to indicate when a deployment was paused by Reloader
-	PauseDeploymentTimeAnnotation string `json:"pauseDeploymentTimeAnnotation"`
-
-	// LogFormat specifies the log format to use (json, or empty string for default text format)
-	LogFormat string `json:"logFormat"`
-	// LogLevel specifies the log level to use (trace, debug, info, warning, error, fatal, panic)
-	LogLevel string `json:"logLevel"`
-	// IsArgoRollouts indicates whether support for Argo Rollouts is enabled
-	IsArgoRollouts bool `json:"isArgoRollouts"`
-	// ReloadStrategy specifies the strategy used to trigger resource reloads (env-vars or annotations)
-	ReloadStrategy string `json:"reloadStrategy"`
-	// ReloadOnCreate indicates whether to trigger reloads when ConfigMaps/Secrets are created
-	ReloadOnCreate bool `json:"reloadOnCreate"`
-	// ReloadOnDelete indicates whether to trigger reloads when ConfigMaps/Secrets are deleted
-	ReloadOnDelete bool `json:"reloadOnDelete"`
-	// SyncAfterRestart indicates whether to sync add events after Reloader restarts (only works when ReloadOnCreate is true)
-	SyncAfterRestart bool `json:"syncAfterRestart"`
-	// EnableHA indicates whether High Availability mode is enabled with leader election
-	EnableHA bool `json:"enableHA"`
-	// WebhookUrl is the URL to send webhook notifications to instead of performing reloads
-	WebhookUrl string `json:"webhookUrl"`
-	// ResourcesToIgnore is a list of resource types to ignore (e.g., "configmaps" or "secrets")
-	ResourcesToIgnore []string `json:"resourcesToIgnore"`
-	// NamespaceSelectors is a list of label selectors to filter namespaces to watch
-	NamespaceSelectors []string `json:"namespaceSelectors"`
-	// ResourceSelectors is a list of label selectors to filter ConfigMaps and Secrets to watch
-	ResourceSelectors []string `json:"resourceSelectors"`
-	// NamespacesToIgnore is a list of namespace names to ignore when watching for changes
-	NamespacesToIgnore []string `json:"namespacesToIgnore"`
-}
-
 // MetaInfo contains comprehensive metadata about the Reloader instance.
 // This includes build information, configuration options, and deployment details.
 type MetaInfo struct {
 	// BuildInfo contains information about the build version, commit, and compilation details
 	BuildInfo BuildInfo `json:"buildInfo"`
 	// ReloaderOptions contains all the configuration options and flags used by this Reloader instance
-	ReloaderOptions ReloaderOptions `json:"reloaderOptions"`
+	ReloaderOptions options.ReloaderOptions `json:"reloaderOptions"`
 	// DeploymentInfo contains metadata about the Kubernetes deployment of this Reloader instance
 	DeploymentInfo metav1.ObjectMeta `json:"deploymentInfo"`
-}
-
-func GetReloaderOptions() *ReloaderOptions {
-	return &ReloaderOptions{
-		AutoReloadAll:                      options.AutoReloadAll,
-		ConfigmapUpdateOnChangeAnnotation:  options.ConfigmapUpdateOnChangeAnnotation,
-		SecretUpdateOnChangeAnnotation:     options.SecretUpdateOnChangeAnnotation,
-		ReloaderAutoAnnotation:             options.ReloaderAutoAnnotation,
-		IgnoreResourceAnnotation:           options.IgnoreResourceAnnotation,
-		ConfigmapReloaderAutoAnnotation:    options.ConfigmapReloaderAutoAnnotation,
-		SecretReloaderAutoAnnotation:       options.SecretReloaderAutoAnnotation,
-		ConfigmapExcludeReloaderAnnotation: options.ConfigmapExcludeReloaderAnnotation,
-		SecretExcludeReloaderAnnotation:    options.SecretExcludeReloaderAnnotation,
-		AutoSearchAnnotation:               options.AutoSearchAnnotation,
-		SearchMatchAnnotation:              options.SearchMatchAnnotation,
-		RolloutStrategyAnnotation:          options.RolloutStrategyAnnotation,
-		PauseDeploymentAnnotation:          options.PauseDeploymentAnnotation,
-		PauseDeploymentTimeAnnotation:      options.PauseDeploymentTimeAnnotation,
-		LogFormat:                          options.LogFormat,
-		LogLevel:                           options.LogLevel,
-		IsArgoRollouts:                     parseBool(options.IsArgoRollouts),
-		ReloadStrategy:                     options.ReloadStrategy,
-		ReloadOnCreate:                     parseBool(options.ReloadOnCreate),
-		ReloadOnDelete:                     parseBool(options.ReloadOnDelete),
-		SyncAfterRestart:                   options.SyncAfterRestart,
-		EnableHA:                           options.EnableHA,
-		WebhookUrl:                         options.WebhookUrl,
-		ResourcesToIgnore:                  options.ResourcesToIgnore,
-		NamespaceSelectors:                 options.NamespaceSelectors,
-		ResourceSelectors:                  options.ResourceSelectors,
-		NamespacesToIgnore:                 options.NamespacesToIgnore,
-	}
 }
 
 // BuildInfo contains information about the build and version of the Reloader binary.
@@ -180,7 +87,7 @@ func NewMetaInfo(configmap *v1.ConfigMap) (*MetaInfo, error) {
 		}
 	}
 
-	var reloaderOptions ReloaderOptions
+	var reloaderOptions options.ReloaderOptions
 	if val, ok := configmap.Data["reloaderOptions"]; ok {
 		err := json.Unmarshal([]byte(val), &reloaderOptions)
 		if err != nil {
@@ -209,17 +116,6 @@ func toJson(data interface{}) string {
 		return ""
 	}
 	return string(jsonData)
-}
-
-func parseBool(value string) bool {
-	if value == "" {
-		return false
-	}
-	result, err := strconv.ParseBool(value)
-	if err != nil {
-		return false // Default to false if parsing fails
-	}
-	return result
 }
 
 func ParseUTCTime(value string) time.Time {

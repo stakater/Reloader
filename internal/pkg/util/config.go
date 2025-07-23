@@ -2,11 +2,11 @@ package util
 
 import (
 	"github.com/stakater/Reloader/internal/pkg/constants"
-	"github.com/stakater/Reloader/internal/pkg/options"
+	"github.com/stakater/Reloader/pkg/options"
 	v1 "k8s.io/api/core/v1"
 )
 
-//Config contains rolling upgrade configuration parameters
+// Config contains rolling upgrade configuration parameters
 type Config struct {
 	Namespace           string
 	ResourceName        string
@@ -40,5 +40,25 @@ func GetSecretConfig(secret *v1.Secret) Config {
 		TypedAutoAnnotation: options.SecretReloaderAutoAnnotation,
 		SHAValue:            GetSHAfromSecret(secret.Data),
 		Type:                constants.SecretEnvVarPostfix,
+	}
+}
+
+type ArgoRolloutStrategy int
+
+const (
+	// RestartStrategy is the annotation value for restart strategy for rollouts
+	RestartStrategy ArgoRolloutStrategy = iota
+	// RolloutStrategy is the annotation value for rollout strategy for rollouts
+	RolloutStrategy
+)
+
+func ToArgoRolloutStrategy(s string) ArgoRolloutStrategy {
+	switch s {
+	case "restart":
+		return RestartStrategy
+	case "rollout":
+		fallthrough
+	default:
+		return RolloutStrategy
 	}
 }

@@ -7,8 +7,9 @@ import (
 	"time"
 
 	"github.com/sirupsen/logrus"
-	"github.com/stakater/Reloader/internal/pkg/options"
+	"github.com/stakater/Reloader/internal/pkg/util"
 	"github.com/stakater/Reloader/pkg/kube"
+	"github.com/stakater/Reloader/pkg/options"
 	appsv1 "k8s.io/api/apps/v1"
 	batchv1 "k8s.io/api/batch/v1"
 	v1 "k8s.io/api/core/v1"
@@ -535,10 +536,10 @@ func UpdateRollout(clients kube.Clients, namespace string, resource runtime.Obje
 	rollout := resource.(*argorolloutv1alpha1.Rollout)
 	strategy := rollout.GetAnnotations()[options.RolloutStrategyAnnotation]
 	var err error
-	switch options.ToArgoRolloutStrategy(strategy) {
-	case options.RestartStrategy:
+	switch util.ToArgoRolloutStrategy(strategy) {
+	case util.RestartStrategy:
 		_, err = clients.ArgoRolloutClient.ArgoprojV1alpha1().Rollouts(namespace).Patch(context.TODO(), rollout.Name, patchtypes.MergePatchType, []byte(fmt.Sprintf(`{"spec": {"restartAt": "%s"}}`, time.Now().Format(time.RFC3339))), meta_v1.PatchOptions{FieldManager: "Reloader"})
-	case options.RolloutStrategy:
+	case util.RolloutStrategy:
 		_, err = clients.ArgoRolloutClient.ArgoprojV1alpha1().Rollouts(namespace).Update(context.TODO(), rollout, meta_v1.UpdateOptions{FieldManager: "Reloader"})
 	}
 	return err
