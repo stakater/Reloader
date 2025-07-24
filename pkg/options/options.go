@@ -6,6 +6,10 @@ import (
 	"github.com/stakater/Reloader/internal/pkg/constants"
 )
 
+func init() {
+	InitializeReloaderOptions()
+}
+
 // ReloaderOptions contains all configurable options for the Reloader controller.
 // These options control how Reloader behaves when watching for changes in ConfigMaps and Secrets.
 type ReloaderOptions struct {
