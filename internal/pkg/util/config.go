@@ -42,23 +42,3 @@ func GetSecretConfig(secret *v1.Secret) Config {
 		Type:                constants.SecretEnvVarPostfix,
 	}
 }
-
-type ArgoRolloutStrategy int
-
-const (
-	// RestartStrategy is the annotation value for restart strategy for rollouts
-	RestartStrategy ArgoRolloutStrategy = iota
-	// RolloutStrategy is the annotation value for rollout strategy for rollouts
-	RolloutStrategy
-)
-
-func ToArgoRolloutStrategy(s string) ArgoRolloutStrategy {
-	switch s {
-	case "restart":
-		return RestartStrategy
-	case "rollout":
-		fallthrough
-	default:
-		return RolloutStrategy
-	}
-}
