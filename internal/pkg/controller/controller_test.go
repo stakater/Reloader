@@ -12,10 +12,10 @@ import (
 
 	"github.com/sirupsen/logrus"
 	"github.com/stakater/Reloader/internal/pkg/handler"
+	"github.com/stakater/Reloader/internal/pkg/options"
 	"github.com/stakater/Reloader/internal/pkg/testutil"
 	"github.com/stakater/Reloader/internal/pkg/util"
 	"github.com/stakater/Reloader/pkg/kube"
-	"github.com/stakater/Reloader/pkg/options"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"

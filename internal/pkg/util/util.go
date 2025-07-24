@@ -12,7 +12,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/stakater/Reloader/internal/pkg/constants"
 	"github.com/stakater/Reloader/internal/pkg/crypto"
-	"github.com/stakater/Reloader/pkg/options"
+	"github.com/stakater/Reloader/internal/pkg/options"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/labels"
 )

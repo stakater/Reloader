@@ -8,9 +8,9 @@ import (
 	"github.com/stakater/Reloader/internal/pkg/callbacks"
 	"github.com/stakater/Reloader/internal/pkg/constants"
 	"github.com/stakater/Reloader/internal/pkg/metrics"
+	"github.com/stakater/Reloader/internal/pkg/options"
 	"github.com/stakater/Reloader/internal/pkg/testutil"
 	"github.com/stakater/Reloader/internal/pkg/util"
-	"github.com/stakater/Reloader/pkg/options"
 
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"

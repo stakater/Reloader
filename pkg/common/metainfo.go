@@ -6,7 +6,6 @@ import (
 	"runtime"
 	"time"
 
-	"github.com/stakater/Reloader/pkg/options"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -32,7 +31,7 @@ type MetaInfo struct {
 	// BuildInfo contains information about the build version, commit, and compilation details
 	BuildInfo BuildInfo `json:"buildInfo"`
 	// ReloaderOptions contains all the configuration options and flags used by this Reloader instance
-	ReloaderOptions options.ReloaderOptions `json:"reloaderOptions"`
+	ReloaderOptions ReloaderOptions `json:"reloaderOptions"`
 	// DeploymentInfo contains metadata about the Kubernetes deployment of this Reloader instance
 	DeploymentInfo metav1.ObjectMeta `json:"deploymentInfo"`
 }
@@ -87,7 +86,7 @@ func NewMetaInfo(configmap *v1.ConfigMap) (*MetaInfo, error) {
 		}
 	}
 
-	var reloaderOptions options.ReloaderOptions
+	var reloaderOptions ReloaderOptions
 	if val, ok := configmap.Data["reloaderOptions"]; ok {
 		err := json.Unmarshal([]byte(val), &reloaderOptions)
 		if err != nil {

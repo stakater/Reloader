@@ -7,9 +7,9 @@ import (
 	"time"
 
 	"github.com/sirupsen/logrus"
+	"github.com/stakater/Reloader/internal/pkg/options"
 	"github.com/stakater/Reloader/internal/pkg/util"
 	"github.com/stakater/Reloader/pkg/kube"
-	"github.com/stakater/Reloader/pkg/options"
 	appsv1 "k8s.io/api/apps/v1"
 	batchv1 "k8s.io/api/batch/v1"
 	v1 "k8s.io/api/core/v1"

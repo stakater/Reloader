@@ -9,8 +9,8 @@ import (
 
 	"github.com/sirupsen/logrus"
 	"github.com/stakater/Reloader/internal/pkg/constants"
+	"github.com/stakater/Reloader/internal/pkg/options"
 	"github.com/stakater/Reloader/internal/pkg/util"
-	"github.com/stakater/Reloader/pkg/options"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 )
@@ -22,6 +22,68 @@ type ReloadCheckResult struct {
 	AutoReload   bool
 }
 
+// ReloaderOptions contains all configurable options for the Reloader controller.
+// These options control how Reloader behaves when watching for changes in ConfigMaps and Secrets.
+type ReloaderOptions struct {
+	// AutoReloadAll enables automatic reloading of all resources when their corresponding ConfigMaps/Secrets are updated
+	AutoReloadAll bool `json:"autoReloadAll"`
+	// ConfigmapUpdateOnChangeAnnotation is the annotation key used to detect changes in ConfigMaps specified by name
+	ConfigmapUpdateOnChangeAnnotation string `json:"configmapUpdateOnChangeAnnotation"`
+	// SecretUpdateOnChangeAnnotation is the annotation key used to detect changes in Secrets specified by name
+	SecretUpdateOnChangeAnnotation string `json:"secretUpdateOnChangeAnnotation"`
+	// ReloaderAutoAnnotation is the annotation key used to detect changes in any referenced ConfigMaps or Secrets
+	ReloaderAutoAnnotation string `json:"reloaderAutoAnnotation"`
+	// IgnoreResourceAnnotation is the annotation key used to ignore resources from being watched
+	IgnoreResourceAnnotation string `json:"ignoreResourceAnnotation"`
+	// ConfigmapReloaderAutoAnnotation is the annotation key used to detect changes in ConfigMaps only
+	ConfigmapReloaderAutoAnnotation string `json:"configmapReloaderAutoAnnotation"`
+	// SecretReloaderAutoAnnotation is the annotation key used to detect changes in Secrets only
+	SecretReloaderAutoAnnotation string `json:"secretReloaderAutoAnnotation"`
+	// ConfigmapExcludeReloaderAnnotation is the annotation key containing comma-separated list of ConfigMaps to exclude from watching
+	ConfigmapExcludeReloaderAnnotation string `json:"configmapExcludeReloaderAnnotation"`
+	// SecretExcludeReloaderAnnotation is the annotation key containing comma-separated list of Secrets to exclude from watching
+	SecretExcludeReloaderAnnotation string `json:"secretExcludeReloaderAnnotation"`
+	// AutoSearchAnnotation is the annotation key used to detect changes in ConfigMaps/Secrets tagged with SearchMatchAnnotation
+	AutoSearchAnnotation string `json:"autoSearchAnnotation"`
+	// SearchMatchAnnotation is the annotation key used to tag ConfigMaps/Secrets to be found by AutoSearchAnnotation
+	SearchMatchAnnotation string `json:"searchMatchAnnotation"`
+	// RolloutStrategyAnnotation is the annotation key used to define the rollout update strategy for workloads
+	RolloutStrategyAnnotation string `json:"rolloutStrategyAnnotation"`
+	// PauseDeploymentAnnotation is the annotation key used to define the time period to pause a deployment after
+	PauseDeploymentAnnotation string `json:"pauseDeploymentAnnotation"`
+	// PauseDeploymentTimeAnnotation is the annotation key used to indicate when a deployment was paused by Reloader
+	PauseDeploymentTimeAnnotation string `json:"pauseDeploymentTimeAnnotation"`
+
+	// LogFormat specifies the log format to use (json, or empty string for default text format)
+	LogFormat string `json:"logFormat"`
+	// LogLevel specifies the log level to use (trace, debug, info, warning, error, fatal, panic)
+	LogLevel string `json:"logLevel"`
+	// IsArgoRollouts indicates whether support for Argo Rollouts is enabled
+	IsArgoRollouts bool `json:"isArgoRollouts"`
+	// ReloadStrategy specifies the strategy used to trigger resource reloads (env-vars or annotations)
+	ReloadStrategy string `json:"reloadStrategy"`
+	// ReloadOnCreate indicates whether to trigger reloads when ConfigMaps/Secrets are created
+	ReloadOnCreate bool `json:"reloadOnCreate"`
+	// ReloadOnDelete indicates whether to trigger reloads when ConfigMaps/Secrets are deleted
+	ReloadOnDelete bool `json:"reloadOnDelete"`
+	// SyncAfterRestart indicates whether to sync add events after Reloader restarts (only works when ReloadOnCreate is true)
+	SyncAfterRestart bool `json:"syncAfterRestart"`
+	// EnableHA indicates whether High Availability mode is enabled with leader election
+	EnableHA bool `json:"enableHA"`
+	// WebhookUrl is the URL to send webhook notifications to instead of performing reloads
+	WebhookUrl string `json:"webhookUrl"`
+	// ResourcesToIgnore is a list of resource types to ignore (e.g., "configmaps" or "secrets")
+	ResourcesToIgnore []string `json:"resourcesToIgnore"`
+	// NamespaceSelectors is a list of label selectors to filter namespaces to watch
+	NamespaceSelectors []string `json:"namespaceSelectors"`
+	// ResourceSelectors is a list of label selectors to filter ConfigMaps and Secrets to watch
+	ResourceSelectors []string `json:"resourceSelectors"`
+	// NamespacesToIgnore is a list of namespace names to ignore when watching for changes
+	NamespacesToIgnore []string `json:"namespacesToIgnore"`
+}
+
+var CommandLineOptions *ReloaderOptions
+
 func PublishMetaInfoConfigmap(clientset kubernetes.Interface) {
 	namespace := os.Getenv("RELOADER_NAMESPACE")
 	if namespace == "" {
@@ -31,7 +93,7 @@ func PublishMetaInfoConfigmap(clientset kubernetes.Interface) {
 
 	metaInfo := &MetaInfo{
 		BuildInfo:       *NewBuildInfo(),
-		ReloaderOptions: *options.GetCommandLineOptions(),
+		ReloaderOptions: *GetCommandLineOptions(),
 		DeploymentInfo: metav1.ObjectMeta{
 			Name:      os.Getenv("RELOADER_DEPLOYMENT_NAME"),
 			Namespace: namespace,
@@ -55,7 +117,7 @@ func PublishMetaInfoConfigmap(clientset kubernetes.Interface) {
 	}
 }
 
-func ShouldReload(config util.Config, resourceType string, annotations Map, podAnnotations Map, options *options.ReloaderOptions) ReloadCheckResult {
+func ShouldReload(config util.Config, resourceType string, annotations Map, podAnnotations Map, options *ReloaderOptions) ReloadCheckResult {
 
 	if resourceType == "Rollout" && !options.IsArgoRollouts {
 		return ReloadCheckResult{
@@ -153,4 +215,55 @@ func checkIfResourceIsExcluded(resourceName, excludedResources string) bool {
 	}
 
 	return false
+}
+
+func init() {
+	GetCommandLineOptions()
+}
+
+func GetCommandLineOptions() *ReloaderOptions {
+	if CommandLineOptions == nil {
+		CommandLineOptions = &ReloaderOptions{}
+	}
+
+	CommandLineOptions.AutoReloadAll = options.AutoReloadAll
+	CommandLineOptions.ConfigmapUpdateOnChangeAnnotation = options.ConfigmapUpdateOnChangeAnnotation
+	CommandLineOptions.SecretUpdateOnChangeAnnotation = options.SecretUpdateOnChangeAnnotation
+	CommandLineOptions.ReloaderAutoAnnotation = options.ReloaderAutoAnnotation
+	CommandLineOptions.IgnoreResourceAnnotation = options.IgnoreResourceAnnotation
+	CommandLineOptions.ConfigmapReloaderAutoAnnotation = options.ConfigmapReloaderAutoAnnotation
+	CommandLineOptions.SecretReloaderAutoAnnotation = options.SecretReloaderAutoAnnotation
+	CommandLineOptions.ConfigmapExcludeReloaderAnnotation = options.ConfigmapExcludeReloaderAnnotation
+	CommandLineOptions.SecretExcludeReloaderAnnotation = options.SecretExcludeReloaderAnnotation
+	CommandLineOptions.AutoSearchAnnotation = options.AutoSearchAnnotation
+	CommandLineOptions.SearchMatchAnnotation = options.SearchMatchAnnotation
+	CommandLineOptions.RolloutStrategyAnnotation = options.RolloutStrategyAnnotation
+	CommandLineOptions.PauseDeploymentAnnotation = options.PauseDeploymentAnnotation
+	CommandLineOptions.PauseDeploymentTimeAnnotation = options.PauseDeploymentTimeAnnotation
+	CommandLineOptions.LogFormat = options.LogFormat
+	CommandLineOptions.LogLevel = options.LogLevel
+	CommandLineOptions.ReloadStrategy = options.ReloadStrategy
+	CommandLineOptions.SyncAfterRestart = options.SyncAfterRestart
+	CommandLineOptions.EnableHA = options.EnableHA
+	CommandLineOptions.WebhookUrl = options.WebhookUrl
+	CommandLineOptions.ResourcesToIgnore = options.ResourcesToIgnore
+	CommandLineOptions.NamespaceSelectors = options.NamespaceSelectors
+	CommandLineOptions.ResourceSelectors = options.ResourceSelectors
+	CommandLineOptions.NamespacesToIgnore = options.NamespacesToIgnore
+	CommandLineOptions.IsArgoRollouts = parseBool(options.IsArgoRollouts)
+	CommandLineOptions.ReloadOnCreate = parseBool(options.ReloadOnCreate)
+	CommandLineOptions.ReloadOnDelete = parseBool(options.ReloadOnDelete)
+
+	return CommandLineOptions
+}
+
+func parseBool(value string) bool {
+	if value == "" {
+		return false
+	}
+	result, err := strconv.ParseBool(value)
+	if err != nil {
+		return false // Default to false if parsing fails
+	}
+	return result
 }
