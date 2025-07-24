@@ -16,6 +16,7 @@ import (
 	"github.com/stakater/Reloader/internal/pkg/constants"
 	"github.com/stakater/Reloader/internal/pkg/metrics"
 	"github.com/stakater/Reloader/internal/pkg/util"
+	"github.com/stakater/Reloader/pkg/common"
 	"github.com/stakater/Reloader/pkg/kube"
 	"github.com/stakater/Reloader/pkg/options"
 	app "k8s.io/api/apps/v1"
@@ -263,7 +264,7 @@ func upgradeResource(clients kube.Clients, config util.Config, upgradeFuncs call
 	}
 	annotations := upgradeFuncs.AnnotationsFunc(resource)
 	podAnnotations := upgradeFuncs.PodAnnotationsFunc(resource)
-	result := util.ShouldReload(config, upgradeFuncs.ResourceType, annotations, podAnnotations, options.CommandLineOptions)
+	result := common.ShouldReload(config, upgradeFuncs.ResourceType, annotations, podAnnotations, options.GetCommandLineOptions())
 
 	if !result.ShouldReload {
 		logrus.Debugf("No changes detected in '%s' of type '%s' in namespace '%s'", config.ResourceName, config.Type, config.Namespace)

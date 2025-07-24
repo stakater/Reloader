@@ -1,4 +1,4 @@
-package metainfo
+package common
 
 import (
 	"encoding/json"

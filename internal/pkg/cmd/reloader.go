@@ -18,6 +18,7 @@ import (
 	"github.com/stakater/Reloader/internal/pkg/controller"
 	"github.com/stakater/Reloader/internal/pkg/metrics"
 	"github.com/stakater/Reloader/internal/pkg/util"
+	"github.com/stakater/Reloader/pkg/common"
 	"github.com/stakater/Reloader/pkg/kube"
 	"github.com/stakater/Reloader/pkg/options"
 )
@@ -106,7 +107,7 @@ func startReloader(cmd *cobra.Command, args []string) {
 		logrus.Warn(err)
 	}
 
-	options.InitializeReloaderOptions()
+	options.GetCommandLineOptions()
 
 	logrus.Info("Starting Reloader")
 	isGlobal := false
@@ -190,7 +191,7 @@ func startReloader(cmd *cobra.Command, args []string) {
 		go leadership.RunLeaderElection(lock, ctx, cancel, podName, controllers)
 	}
 
-	util.PublishMetaInfoConfigmap(clientset)
+	common.PublishMetaInfoConfigmap(clientset)
 
 	leadership.SetupLivenessEndpoint()
 	logrus.Fatal(http.ListenAndServe(constants.DefaultHttpListenAddr, nil))

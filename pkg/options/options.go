@@ -7,7 +7,7 @@ import (
 )
 
 func init() {
-	InitializeReloaderOptions()
+	GetCommandLineOptions()
 }
 
 // ReloaderOptions contains all configurable options for the Reloader controller.
@@ -135,36 +135,40 @@ var (
 
 var CommandLineOptions *ReloaderOptions
 
-func InitializeReloaderOptions() {
-	CommandLineOptions = &ReloaderOptions{
-		AutoReloadAll:                      AutoReloadAll,
-		ConfigmapUpdateOnChangeAnnotation:  ConfigmapUpdateOnChangeAnnotation,
-		SecretUpdateOnChangeAnnotation:     SecretUpdateOnChangeAnnotation,
-		ReloaderAutoAnnotation:             ReloaderAutoAnnotation,
-		IgnoreResourceAnnotation:           IgnoreResourceAnnotation,
-		ConfigmapReloaderAutoAnnotation:    ConfigmapReloaderAutoAnnotation,
-		SecretReloaderAutoAnnotation:       SecretReloaderAutoAnnotation,
-		ConfigmapExcludeReloaderAnnotation: ConfigmapExcludeReloaderAnnotation,
-		SecretExcludeReloaderAnnotation:    SecretExcludeReloaderAnnotation,
-		AutoSearchAnnotation:               AutoSearchAnnotation,
-		SearchMatchAnnotation:              SearchMatchAnnotation,
-		RolloutStrategyAnnotation:          RolloutStrategyAnnotation,
-		PauseDeploymentAnnotation:          PauseDeploymentAnnotation,
-		PauseDeploymentTimeAnnotation:      PauseDeploymentTimeAnnotation,
-		LogFormat:                          LogFormat,
-		LogLevel:                           LogLevel,
-		ReloadStrategy:                     ReloadStrategy,
-		SyncAfterRestart:                   SyncAfterRestart,
-		EnableHA:                           EnableHA,
-		WebhookUrl:                         WebhookUrl,
-		ResourcesToIgnore:                  ResourcesToIgnore,
-		NamespaceSelectors:                 NamespaceSelectors,
-		ResourceSelectors:                  ResourceSelectors,
-		NamespacesToIgnore:                 NamespacesToIgnore,
-		IsArgoRollouts:                     parseBool(IsArgoRollouts),
-		ReloadOnCreate:                     parseBool(ReloadOnCreate),
-		ReloadOnDelete:                     parseBool(ReloadOnDelete),
+func GetCommandLineOptions() *ReloaderOptions {
+	if CommandLineOptions == nil {
+		CommandLineOptions = &ReloaderOptions{}
 	}
+
+	CommandLineOptions.AutoReloadAll = AutoReloadAll
+	CommandLineOptions.ConfigmapUpdateOnChangeAnnotation = ConfigmapUpdateOnChangeAnnotation
+	CommandLineOptions.SecretUpdateOnChangeAnnotation = SecretUpdateOnChangeAnnotation
+	CommandLineOptions.ReloaderAutoAnnotation = ReloaderAutoAnnotation
+	CommandLineOptions.IgnoreResourceAnnotation = IgnoreResourceAnnotation
+	CommandLineOptions.ConfigmapReloaderAutoAnnotation = ConfigmapReloaderAutoAnnotation
+	CommandLineOptions.SecretReloaderAutoAnnotation = SecretReloaderAutoAnnotation
+	CommandLineOptions.ConfigmapExcludeReloaderAnnotation = ConfigmapExcludeReloaderAnnotation
+	CommandLineOptions.SecretExcludeReloaderAnnotation = SecretExcludeReloaderAnnotation
+	CommandLineOptions.AutoSearchAnnotation = AutoSearchAnnotation
+	CommandLineOptions.SearchMatchAnnotation = SearchMatchAnnotation
+	CommandLineOptions.RolloutStrategyAnnotation = RolloutStrategyAnnotation
+	CommandLineOptions.PauseDeploymentAnnotation = PauseDeploymentAnnotation
+	CommandLineOptions.PauseDeploymentTimeAnnotation = PauseDeploymentTimeAnnotation
+	CommandLineOptions.LogFormat = LogFormat
+	CommandLineOptions.LogLevel = LogLevel
+	CommandLineOptions.ReloadStrategy = ReloadStrategy
+	CommandLineOptions.SyncAfterRestart = SyncAfterRestart
+	CommandLineOptions.EnableHA = EnableHA
+	CommandLineOptions.WebhookUrl = WebhookUrl
+	CommandLineOptions.ResourcesToIgnore = ResourcesToIgnore
+	CommandLineOptions.NamespaceSelectors = NamespaceSelectors
+	CommandLineOptions.ResourceSelectors = ResourceSelectors
+	CommandLineOptions.NamespacesToIgnore = NamespacesToIgnore
+	CommandLineOptions.IsArgoRollouts = parseBool(IsArgoRollouts)
+	CommandLineOptions.ReloadOnCreate = parseBool(ReloadOnCreate)
+	CommandLineOptions.ReloadOnDelete = parseBool(ReloadOnDelete)
+
+	return CommandLineOptions
 }
 
 func parseBool(value string) bool {
