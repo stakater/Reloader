@@ -145,7 +145,7 @@ type ReloadCheckResult struct {
 
 func ShouldReload(config Config, resourceType string, annotations Map, podAnnotations Map, options *options.ReloaderOptions) ReloadCheckResult {
 
-	if resourceType == "Rollout" && options.IsArgoRollouts == false {
+	if resourceType == "Rollout" && !options.IsArgoRollouts {
 		return ReloadCheckResult{
 			ShouldReload: false,
 		}

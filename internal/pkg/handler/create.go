@@ -23,8 +23,8 @@ func (r ResourceCreatedHandler) Handle() error {
 	} else {
 		config, _ := r.GetConfig()
 		// Send webhook
-		if options.CommandLineOptions.WebhookUrl != "" {
-			return sendUpgradeWebhook(config, options.CommandLineOptions.WebhookUrl)
+		if options.WebhookUrl != "" {
+			return sendUpgradeWebhook(config, options.WebhookUrl)
 		}
 		// process resource based on its type
 		return doRollingUpgrade(config, r.Collectors, r.Recorder, invokeReloadStrategy)

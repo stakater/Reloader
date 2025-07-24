@@ -32,8 +32,8 @@ func (r ResourceDeleteHandler) Handle() error {
 	} else {
 		config, _ := r.GetConfig()
 		// Send webhook
-		if options.CommandLineOptions.WebhookUrl != "" {
-			return sendUpgradeWebhook(config, options.CommandLineOptions.WebhookUrl)
+		if options.WebhookUrl != "" {
+			return sendUpgradeWebhook(config, options.WebhookUrl)
 		}
 		// process resource based on its type
 		return doRollingUpgrade(config, r.Collectors, r.Recorder, invokeDeleteStrategy)
@@ -56,7 +56,7 @@ func (r ResourceDeleteHandler) GetConfig() (util.Config, string) {
 }
 
 func invokeDeleteStrategy(upgradeFuncs callbacks.RollingUpgradeFuncs, item runtime.Object, config util.Config, autoReload bool) InvokeStrategyResult {
-	if options.CommandLineOptions.ReloadStrategy == constants.AnnotationsReloadStrategy {
+	if options.ReloadStrategy == constants.AnnotationsReloadStrategy {
 		return removePodAnnotations(upgradeFuncs, item, config, autoReload)
 	}
 
