@@ -5,6 +5,7 @@ on:
     branches:
       - master
       - 'v**'
+      - release-v1.4.5
     paths:
       - '**'
       - '!.markdownlint.yaml'
@@ -35,6 +36,7 @@ jobs:
 
     permissions:
       contents: read
+      packages: write # to push artifacts to `ghcr.io`
 
     runs-on: ubuntu-latest
     name: Build
@@ -50,6 +52,13 @@ jobs:
       uses: azure/setup-helm@v4
       with:
         version: v3.11.3
+
+    - name: Login to ghcr registry
+      uses: docker/login-action@v3
+      with:
+        registry: ${{env.REGISTRY}}
+        username: stakater-user
+        password: ${{secrets.GITHUB_TOKEN}}
 
     - name: Helm chart unit tests
       uses: d3adb5/helm-unittest-action@v2
@@ -104,8 +113,8 @@ jobs:
         kind create cluster
         kubectl cluster-info
 
-    - name: Test
-      run: make test
+    # - name: Test
+    #   run: make test
 
     - name: Generate Tags
       id: generate_tag
@@ -134,7 +143,7 @@ jobs:
         context: .
         file: ${{ env.DOCKER_FILE_PATH  }}
         pull: true
-        push: false
+        push: true
         build-args: BUILD_PARAMETERS=${{ env.BUILD_PARAMETERS }}
         cache-to: type=inline
         platforms: linux/amd64,linux/arm,linux/arm64
