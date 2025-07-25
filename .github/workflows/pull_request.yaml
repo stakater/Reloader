@@ -5,6 +5,7 @@ on:
     branches:
       - master
       - 'v**'
+      - release-v1.4.5
     paths:
       - '**'
       - '!.markdownlint.yaml'
