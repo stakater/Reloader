@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"net/http"
 	_ "net/http/pprof"
 	"os"
@@ -11,7 +12,12 @@ import (
 func main() {
 	// Start pprof server in a goroutine
 	go func() {
-		http.ListenAndServe("localhost:6060", nil)
+		err := http.ListenAndServe("localhost:6060", nil)
+		if err != nil {
+			fmt.Println("Failed to start pprof server: " + err.Error() + "\n")
+		} else {
+			fmt.Println("pprof server started on localhost:6060")
+		}
 	}()
 
 	if err := app.Run(); err != nil {
