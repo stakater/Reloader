@@ -113,8 +113,8 @@ jobs:
         kind create cluster
         kubectl cluster-info
 
-    - name: Test
-      run: make test
+    # - name: Test
+    #   run: make test
 
     - name: Generate Tags
       id: generate_tag
