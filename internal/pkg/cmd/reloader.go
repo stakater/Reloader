@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	_ "net/http/pprof"
 	"os"
 	"strings"
 
@@ -192,6 +193,17 @@ func startReloader(cmd *cobra.Command, args []string) {
 
 	common.PublishMetaInfoConfigmap(clientset)
 
+	if options.EnablePProf {
+		go startPProfServer()
+	}
+
 	leadership.SetupLivenessEndpoint()
 	logrus.Fatal(http.ListenAndServe(constants.DefaultHttpListenAddr, nil))
+}
+
+func startPProfServer() {
+	logrus.Infof("Starting pprof server on %s", options.PProfAddr)
+	if err := http.ListenAndServe(options.PProfAddr, nil); err != nil {
+		logrus.Errorf("Failed to start pprof server: %v", err)
+	}
 }

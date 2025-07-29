@@ -57,6 +57,8 @@ helm uninstall {{RELEASE_NAME}} -n {{NAMESPACE}}
 | `reloader.logFormat`                | Set type of log format. Value could be either `json` or `""`                                                                                        | string      | `""`      |
 | `reloader.watchGlobally`            | Allow Reloader to watch in all namespaces (`true`) or just in a single namespace (`false`)                                                          | boolean     | `true`    |
 | `reloader.enableHA`                 | Enable leadership election allowing you to run multiple replicas                                                                                    | boolean     | `false`   |
+| `reloader.enablePProf`              | Enables pprof for profiling | boolean | `false` |
+| `reloader.pprofAddr` | Address to start pprof server on | string | `:6060` | 
 | `reloader.readOnlyRootFileSystem`   | Enforce readOnlyRootFilesystem                                                                                                                      | boolean     | `false`   |
 | `reloader.legacy.rbac`              |                                                                                                                                                     | boolean     | `false`   |
 | `reloader.matchLabels`              | Pod labels to match                                                                                                                                 | map         | `{}`      |
