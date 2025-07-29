@@ -87,6 +87,7 @@ helm uninstall {{RELEASE_NAME}} -n {{NAMESPACE}}
 | `reloader.deployment.volumeMounts`              | Mount volume                                                                                                                                                | array  | `[]`              |
 | `reloader.deployment.volumes`                   | Add volume to a pod                                                                                                                                         | array  | `[]`              |
 
+| `reloader.deployment.dnsConfig`                 | dns configuration for pods                                                                                                                                  | map    | `{}`              |
 ### Other Reloader Parameters
 
 | Parameter                              | Description                                                     | Type    | Default |
@@ -99,6 +100,8 @@ helm uninstall {{RELEASE_NAME}} -n {{NAMESPACE}}
 | `reloader.podMonitor.enabled`          | Enable to scrape Reloader's Prometheus metrics                  | boolean | `false` |
 | `reloader.podDisruptionBudget.enabled` | Limit the number of pods of a replicated application            | boolean | `false` |
 | `reloader.netpol.enabled`              |                                                                 | boolean | `false` |
+| `reloader.volumeMounts`                | Mount volume                                                    | array   | `[]`    |
+| `reloader.volumes`                     | Add volume to a pod                                             | array   | `[]`    |
 | `reloader.webhookUrl`                  | Add webhook to Reloader                                         | string  | `""`    |
 
 ## ⚙️ Helm Chart Configuration Notes

@@ -53,6 +53,19 @@ reloader:
   # Set to true to expose a prometheus counter of reloads by namespace (this metric may have high cardinality in clusters with many namespaces)
   enableMetricsByNamespace: false
   deployment:
+    # Specifies the deployment DNS configuration.
+    dnsConfig: {}
+    # nameservers:
+    #   - 1.2.3.4
+    # searches:
+    #   - ns1.svc.cluster-domain.example
+    #   - my.dns.search.suffix
+    # options:
+    #   - name: ndots
+    #     value: "1"
+    #   - name: attempts
+    #     value: "3"
+
     # If you wish to run multiple replicas set reloader.enableHA = true
     replicas: 1
 
