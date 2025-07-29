@@ -19,6 +19,7 @@ import (
 	"github.com/stakater/Reloader/internal/pkg/metrics"
 	"github.com/stakater/Reloader/internal/pkg/options"
 	"github.com/stakater/Reloader/internal/pkg/util"
+	"github.com/stakater/Reloader/pkg/common"
 	"github.com/stakater/Reloader/pkg/kube"
 )
 
@@ -101,6 +102,7 @@ func getHAEnvs() (string, string) {
 }
 
 func startReloader(cmd *cobra.Command, args []string) {
+	common.GetCommandLineOptions()
 	err := configureLogging(options.LogFormat, options.LogLevel)
 	if err != nil {
 		logrus.Warn(err)
@@ -188,7 +190,7 @@ func startReloader(cmd *cobra.Command, args []string) {
 		go leadership.RunLeaderElection(lock, ctx, cancel, podName, controllers)
 	}
 
-	util.PublishMetaInfoConfigmap(clientset)
+	common.PublishMetaInfoConfigmap(clientset)
 
 	leadership.SetupLivenessEndpoint()
 	logrus.Fatal(http.ListenAndServe(constants.DefaultHttpListenAddr, nil))

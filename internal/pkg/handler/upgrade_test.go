@@ -4125,6 +4125,13 @@ func testPausingDeployment(t *testing.T, reloadStrategy string, testName string,
 
 	_ = PerformAction(clients, config, deploymentFuncs, collectors, nil, invokeReloadStrategy)
 
+	// Wait for deployment to have paused-at annotation
+	logrus.Infof("Waiting for deployment %s to have paused-at annotation", testName)
+	err := waitForDeploymentPausedAtAnnotation(clients, deploymentFuncs, config.Namespace, testName, 30*time.Second)
+	if err != nil {
+		t.Errorf("Failed to wait for deployment paused-at annotation: %v", err)
+	}
+
 	if promtestutil.ToFloat64(collectors.Reloaded.With(labelSucceeded)) != 1 {
 		t.Errorf("Counter was not increased")
 	}
@@ -4184,4 +4191,26 @@ func isDeploymentPaused(deployments []runtime.Object, deploymentName string) (bo
 		return false, err
 	}
 	return IsPaused(deployment), nil
+}
+
+// waitForDeploymentPausedAtAnnotation waits for a deployment to have the pause-period annotation
+func waitForDeploymentPausedAtAnnotation(clients kube.Clients, deploymentFuncs callbacks.RollingUpgradeFuncs, namespace, deploymentName string, timeout time.Duration) error {
+	start := time.Now()
+
+	for time.Since(start) < timeout {
+		items := deploymentFuncs.ItemsFunc(clients, namespace)
+		deployment, err := FindDeploymentByName(items, deploymentName)
+		if err == nil {
+			annotations := deployment.GetAnnotations()
+			if annotations != nil {
+				if _, exists := annotations[options.PauseDeploymentTimeAnnotation]; exists {
+					return nil
+				}
+			}
+		}
+
+		time.Sleep(100 * time.Millisecond)
+	}
+
+	return fmt.Errorf("timeout waiting for deployment %s to have pause-period annotation", deploymentName)
 }

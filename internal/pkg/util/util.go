@@ -2,11 +2,9 @@ package util
 
 import (
 	"bytes"
-	"context"
 	"encoding/base64"
 	"errors"
 	"fmt"
-	"os"
 	"sort"
 	"strings"
 
@@ -15,11 +13,8 @@ import (
 	"github.com/stakater/Reloader/internal/pkg/constants"
 	"github.com/stakater/Reloader/internal/pkg/crypto"
 	"github.com/stakater/Reloader/internal/pkg/options"
-	"github.com/stakater/Reloader/pkg/metainfo"
 	v1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
-	"k8s.io/client-go/kubernetes"
 )
 
 // ConvertToEnvVarName converts the given text into a usable env var
@@ -64,42 +59,7 @@ func GetSHAfromSecret(data map[string][]byte) string {
 	return crypto.GenerateSHA(strings.Join(values, ";"))
 }
 
-func PublishMetaInfoConfigmap(clientset kubernetes.Interface) {
-	namespace := os.Getenv("RELOADER_NAMESPACE")
-	if namespace == "" {
-		logrus.Warn("RELOADER_NAMESPACE is not set, skipping meta info configmap creation")
-		return
-	}
-
-	metaInfo := &metainfo.MetaInfo{
-		BuildInfo:       *metainfo.NewBuildInfo(),
-		ReloaderOptions: *metainfo.GetReloaderOptions(),
-		DeploymentInfo: metav1.ObjectMeta{
-			Name:      os.Getenv("RELOADER_DEPLOYMENT_NAME"),
-			Namespace: namespace,
-		},
-	}
-
-	configMap := metaInfo.ToConfigMap()
-
-	if _, err := clientset.CoreV1().ConfigMaps(namespace).Get(context.Background(), configMap.Name, metav1.GetOptions{}); err == nil {
-		logrus.Info("Meta info configmap already exists, updating it")
-		_, err = clientset.CoreV1().ConfigMaps(namespace).Update(context.Background(), configMap, metav1.UpdateOptions{})
-		if err != nil {
-			logrus.Warn("Failed to update existing meta info configmap: ", err)
-		}
-		return
-	}
-
-	_, err := clientset.CoreV1().ConfigMaps(namespace).Create(context.Background(), configMap, metav1.CreateOptions{})
-	if err != nil {
-		logrus.Warn("Failed to create meta info configmap: ", err)
-	}
-}
-
 type List []string
-
-type Map map[string]string
 
 func (l *List) Contains(s string) bool {
 	for _, v := range *l {
