@@ -74,8 +74,8 @@ var (
 	// EnablePProf enables pprof for profiling
 	EnablePProf = false
 	// PProfAddr is the address to start pprof server on
-	// Default is localhost:6060
-	PProfAddr = "localhost:6060"
+	// Default is :6060
+	PProfAddr = ":6060"
 )
 
 func ToArgoRolloutStrategy(s string) ArgoRolloutStrategy {

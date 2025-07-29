@@ -229,6 +229,12 @@ spec:
           {{- if .Values.reloader.resourceLabelSelector }}
           - "--resource-label-selector={{ .Values.reloader.resourceLabelSelector }}"
           {{- end }}
+          {{- if .Values.reloader.enablePProf }}
+          - "--enable-pprof"
+          {{- if and .Values.reloader.pprofAddr }}
+          - "--pprof-addr={{ .Values.reloader.pprofAddr }}"
+          {{- end }}
+          {{- end }}
           {{- if .Values.reloader.custom_annotations }}
             {{- if .Values.reloader.custom_annotations.configmap }}
           - "--configmap-annotation"
