@@ -80,6 +80,10 @@ type ReloaderOptions struct {
 	ResourceSelectors []string `json:"resourceSelectors"`
 	// NamespacesToIgnore is a list of namespace names to ignore when watching for changes
 	NamespacesToIgnore []string `json:"namespacesToIgnore"`
+	// EnablePProf enables pprof for profiling
+	EnablePProf bool `json:"enablePProf"`
+	// PProfAddr is the address to start pprof server on
+	PProfAddr string `json:"pprofAddr"`
 }
 
 var CommandLineOptions *ReloaderOptions
@@ -253,6 +257,7 @@ func GetCommandLineOptions() *ReloaderOptions {
 	CommandLineOptions.IsArgoRollouts = parseBool(options.IsArgoRollouts)
 	CommandLineOptions.ReloadOnCreate = parseBool(options.ReloadOnCreate)
 	CommandLineOptions.ReloadOnDelete = parseBool(options.ReloadOnDelete)
+	CommandLineOptions.EnablePProf = options.EnablePProf
 
 	return CommandLineOptions
 }
