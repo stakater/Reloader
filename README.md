@@ -360,10 +360,10 @@ These flags allow you to redefine annotation keys used in your workloads or reso
 
 ### 5. 🕷️ Debugging
 
-Flag | Description 
----  |---
-`--enable-pprof` | Enables pprof for profiling
-`--pprof-addr` | Address to start pprof server on. Default is `:6060`
+| Flag | Description |
+|---  |-------------|
+| `--enable-pprof` | Enables `pprof` for profiling |
+| `--pprof-addr` | Address to start `pprof` server on. Default is `:6060` |
 
 ## Compatibility
 
