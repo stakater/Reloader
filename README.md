@@ -41,6 +41,7 @@ flowchart LR
   Reloader -->|Triggers Rollout| Daemonset
   Reloader -->|Triggers Rollout| Statefulset
   Reloader -->|Triggers Rollout| ArgoRollout
+  Reloader -->|Triggers Rollout| KnativeService
   Reloader -->|Triggers Job| CronJob
   Reloader -->|Sends Notification| Slack,Teams,Webhook
 ```
@@ -104,7 +105,7 @@ Kubernetes does not trigger pod restarts when a referenced `Secret` or `ConfigMa
 - Restrict reloads to only **Secrets** or only **ConfigMaps**
 - Watch only **specific resources**
 - Use **opt-in via tagging** (`search` + `match`)
-- Exclude workloads you don’t want to reload
+- Exclude workloads you don't want to reload
 
 ### 1. 🔁 Automatic Reload (Default)
 
@@ -269,7 +270,7 @@ kubectl apply -k https://github.com/stakater/Reloader/deployments/kubernetes
 
 ### 4. 🛠️ Custom Kustomize Setup
 
-You can create your own `kustomization.yaml` and use Reloader’s as a base:
+You can create your own `kustomization.yaml` and use Reloader's as a base:
 
 ```yaml
 apiVersion: kustomize.config.k8s.io/v1beta1

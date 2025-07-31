@@ -83,6 +83,22 @@ rules:
       - delete
       - list
       - get
+  - apiGroups:
+      - "serving.knative.dev"
+    resources:
+      - services
+    verbs:
+      - list
+      - get
+      - update
+      - patch
+  - apiGroups:
+      - ""
+    resources:
+      - events
+    verbs:
+      - create
+      - patch
 {{- if .Values.reloader.enableHA }}
   - apiGroups:
       - "coordination.k8s.io"
@@ -93,13 +109,6 @@ rules:
       - get
       - update
 {{- end}}
-  - apiGroups:
-      - ""
-    resources:
-      - events
-    verbs:
-      - create
-      - patch
 {{- end }}
 
 ---

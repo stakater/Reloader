@@ -107,6 +107,15 @@ rules:
       - update
 {{- end}}
   - apiGroups:
+      - "serving.knative.dev"
+    resources:
+      - services
+    verbs:
+      - list
+      - get
+      - update
+      - patch
+  - apiGroups:
       - ""
     resources:
       - events
