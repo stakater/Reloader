@@ -67,7 +67,7 @@ helm uninstall {{RELEASE_NAME}} -n {{NAMESPACE}}
 ### Deployment Reloader Parameters
 
 | Parameter                                       | Description                                                                                                                                                 | Type   | Default           |
-| ----------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- | ------ | ----------------- |
+|-------------------------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------|--------|-------------------|
 | `reloader.deployment.replicas`                  | Number of replicas, if you wish to run multiple replicas set `reloader.enableHA = true`. The replicas will be limited to 1 when `reloader.enableHA = false` | int    | 1                 |
 | `reloader.deployment.revisionHistoryLimit`      | Limit the number of revisions retained in the revision history                                                                                              | int    | 2                 |
 | `reloader.deployment.nodeSelector`              | Scheduling pod to a specific node based on set labels                                                                                                       | map    | `{}`              |
@@ -84,7 +84,7 @@ helm uninstall {{RELEASE_NAME}} -n {{NAMESPACE}}
 | `reloader.deployment.resources`                 | Set container requests and limits (e.g. CPU or memory)                                                                                                      | map    | `{}`              |
 | `reloader.deployment.pod.annotations`           | Set annotations for pod                                                                                                                                     | map    | `{}`              |
 | `reloader.deployment.priorityClassName`         | Set priority class for pod in cluster                                                                                                                       | string | `""`              |
-
+| `reloader.deployment.dnsConfig`                 | dns configuration for pods                                                                                                                                  | map    | `{}`              |
 ### Other Reloader Parameters
 
 | Parameter                              | Description                                                     | Type    | Default |
