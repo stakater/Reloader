@@ -71,6 +71,9 @@ reloader:
     #           - key: "node-role.kubernetes.io/infra-worker"
     #             operator: "Exists"
     affinity: {}
+    
+    volumeMounts: []
+    volumes: []
 
     securityContext:
       runAsNonRoot: true
@@ -340,9 +343,5 @@ reloader:
       # Specifies whether recommended updates are applied when a Pod is started and whether recommended updates
       # are applied during the life of a Pod. Possible values are "Off", "Initial", "Recreate", and "Auto".
       updateMode: Auto
-
-  volumeMounts: []
-
-  volumes: []
 
   webhookUrl: ""
