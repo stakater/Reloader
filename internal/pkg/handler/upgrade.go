@@ -264,7 +264,7 @@ func upgradeResource(clients kube.Clients, config util.Config, upgradeFuncs call
 	}
 	annotations := upgradeFuncs.AnnotationsFunc(resource)
 	podAnnotations := upgradeFuncs.PodAnnotationsFunc(resource)
-	result := common.ShouldReload(config, upgradeFuncs.ResourceType, annotations, podAnnotations, common.GetCommandLineOptions())
+	result := common.ShouldReloadInternal(config, upgradeFuncs.ResourceType, annotations, podAnnotations, common.GetCommandLineOptions())
 
 	if !result.ShouldReload {
 		logrus.Debugf("No changes detected in '%s' of type '%s' in namespace '%s'", config.ResourceName, config.Type, config.Namespace)

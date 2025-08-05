@@ -123,8 +123,10 @@ func PublishMetaInfoConfigmap(clientset kubernetes.Interface) {
 	}
 }
 
+// ShouldReload checks if a resource should be reloaded based on its annotations and the provided options.
+// It will be called from Reloader gateway and has some additional checks for namespaces to ignore and resources to ignore
+// which are not needed in Reloader OSS.
 func ShouldReload(config util.Config, resourceType string, annotations Map, podAnnotations Map, options *ReloaderOptions) ReloadCheckResult {
-
 	if len(options.NamespacesToIgnore) > 0 && slices.Contains(options.NamespacesToIgnore, config.Namespace) {
 		return ReloadCheckResult{
 			ShouldReload: false,
@@ -165,6 +167,14 @@ func ShouldReload(config util.Config, resourceType string, annotations Map, podA
 			ShouldReload: false,
 		}
 	}
+
+	return ShouldReloadInternal(config, resourceType, annotations, podAnnotations, options)
+
+}
+
+// ShouldReload checks if a resource should be reloaded based on its annotations and the provided options.
+// It will be called from Reloader OSS only has the checks that Reloader OSS needs to perform.
+func ShouldReloadInternal(config util.Config, resourceType string, annotations Map, podAnnotations Map, options *ReloaderOptions) ReloadCheckResult {
 
 	ignoreResourceAnnotatonValue := config.ResourceAnnotations[options.IgnoreResourceAnnotation]
 	if ignoreResourceAnnotatonValue == "true" {
