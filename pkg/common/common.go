@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -12,6 +13,7 @@ import (
 	"github.com/stakater/Reloader/internal/pkg/options"
 	"github.com/stakater/Reloader/internal/pkg/util"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/client-go/kubernetes"
 )
 
@@ -118,6 +120,41 @@ func PublishMetaInfoConfigmap(clientset kubernetes.Interface) {
 }
 
 func ShouldReload(config util.Config, resourceType string, annotations Map, podAnnotations Map, options *ReloaderOptions) ReloadCheckResult {
+
+	if len(options.NamespacesToIgnore) > 0 && slices.Contains(options.NamespacesToIgnore, config.Namespace) {
+		return ReloadCheckResult{
+			ShouldReload: false,
+		}
+	}
+
+	if len(options.ResourcesToIgnore) > 0 && slices.Contains(options.ResourcesToIgnore, resourceType) {
+		return ReloadCheckResult{
+			ShouldReload: false,
+		}
+	}
+
+	if len(options.ResourceSelectors) > 0 {
+		resourceLabelSelector, err := util.GetResourceLabelSelector(options.ResourceSelectors)
+		if err != nil {
+			logrus.Error("Failed to parse resource label selector: ", err)
+			return ReloadCheckResult{
+				ShouldReload: false,
+			}
+		}
+		selector, err := labels.Parse(resourceLabelSelector)
+		if err != nil {
+			logrus.Error("Failed to parse resource label selector: ", err)
+			return ReloadCheckResult{
+				ShouldReload: false,
+			}
+		}
+
+		if !selector.Matches(labels.Set(config.Labels)) {
+			return ReloadCheckResult{
+				ShouldReload: false,
+			}
+		}
+	}
 
 	if resourceType == "Rollout" && !options.IsArgoRollouts {
 		return ReloadCheckResult{

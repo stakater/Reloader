@@ -132,13 +132,13 @@ func startReloader(cmd *cobra.Command, args []string) {
 	namespaceLabelSelector := ""
 
 	if isGlobal {
-		namespaceLabelSelector, err = util.GetNamespaceLabelSelector()
+		namespaceLabelSelector, err = util.GetNamespaceLabelSelector(options.NamespaceSelectors)
 		if err != nil {
 			logrus.Fatal(err)
 		}
 	}
 
-	resourceLabelSelector, err := util.GetResourceLabelSelector()
+	resourceLabelSelector, err := util.GetResourceLabelSelector(options.ResourceSelectors)
 	if err != nil {
 		logrus.Fatal(err)
 	}

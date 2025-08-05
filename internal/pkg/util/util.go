@@ -96,9 +96,7 @@ func ConfigureReloaderFlags(cmd *cobra.Command) {
 	cmd.PersistentFlags().BoolVar(&options.SyncAfterRestart, "sync-after-restart", false, "Sync add events after reloader restarts")
 }
 
-func GetNamespaceLabelSelector() (string, error) {
-	slice := options.NamespaceSelectors
-
+func GetNamespaceLabelSelector(slice []string) (string, error) {
 	for i, kv := range slice {
 		// Legacy support for ":" as a delimiter and "*" for wildcard.
 		if strings.Contains(kv, ":") {
@@ -127,9 +125,7 @@ func GetNamespaceLabelSelector() (string, error) {
 	return namespaceLabelSelector, nil
 }
 
-func GetResourceLabelSelector() (string, error) {
-	slice := options.ResourceSelectors
-
+func GetResourceLabelSelector(slice []string) (string, error) {
 	for i, kv := range slice {
 		// Legacy support for ":" as a delimiter and "*" for wildcard.
 		if strings.Contains(kv, ":") {

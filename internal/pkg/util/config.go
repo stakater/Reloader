@@ -15,6 +15,7 @@ type Config struct {
 	TypedAutoAnnotation string
 	SHAValue            string
 	Type                string
+	Labels              map[string]string
 }
 
 // GetConfigmapConfig provides utility config for configmap
@@ -27,6 +28,7 @@ func GetConfigmapConfig(configmap *v1.ConfigMap) Config {
 		TypedAutoAnnotation: options.ConfigmapReloaderAutoAnnotation,
 		SHAValue:            GetSHAfromConfigmap(configmap),
 		Type:                constants.ConfigmapEnvVarPostfix,
+		Labels:              configmap.Labels,
 	}
 }
 
@@ -40,5 +42,6 @@ func GetSecretConfig(secret *v1.Secret) Config {
 		TypedAutoAnnotation: options.SecretReloaderAutoAnnotation,
 		SHAValue:            GetSHAfromSecret(secret.Data),
 		Type:                constants.SecretEnvVarPostfix,
+		Labels:              secret.Labels,
 	}
 }
