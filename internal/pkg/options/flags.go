@@ -63,14 +63,19 @@ var (
 	EnableHA = false
 	// Url to send a request to instead of triggering a reload
 	WebhookUrl = ""
-
+	// ResourcesToIgnore is a list of resources to ignore when watching for changes
 	ResourcesToIgnore = []string{}
-
+	// NamespacesToIgnore is a list of namespace names to ignore when watching for changes
 	NamespacesToIgnore = []string{}
-
+	// NamespaceSelectors is a list of namespace selectors to watch for changes
 	NamespaceSelectors = []string{}
-
+	// ResourceSelectors is a list of resource selectors to watch for changes
 	ResourceSelectors = []string{}
+	// EnablePProf enables pprof for profiling
+	EnablePProf = false
+	// PProfAddr is the address to start pprof server on
+	// Default is :6060
+	PProfAddr = ":6060"
 )
 
 func ToArgoRolloutStrategy(s string) ArgoRolloutStrategy {

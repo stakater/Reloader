@@ -229,6 +229,12 @@ spec:
           {{- if .Values.reloader.resourceLabelSelector }}
           - "--resource-label-selector={{ .Values.reloader.resourceLabelSelector }}"
           {{- end }}
+          {{- if .Values.reloader.enablePProf }}
+          - "--enable-pprof"
+          {{- if and .Values.reloader.pprofAddr }}
+          - "--pprof-addr={{ .Values.reloader.pprofAddr }}"
+          {{- end }}
+          {{- end }}
           {{- if .Values.reloader.custom_annotations }}
             {{- if .Values.reloader.custom_annotations.configmap }}
           - "--configmap-annotation"
@@ -257,6 +263,14 @@ spec:
             {{- if .Values.reloader.custom_annotations.match }}
           - "--search-match-annotation"
           - "{{ .Values.reloader.custom_annotations.match }}"
+            {{- end }}
+            {{- if .Values.reloader.custom_annotations.pausePeriod }}
+          - "--pause-deployment-annotation"
+          - "{{ .Values.reloader.custom_annotations.pausePeriod }}"
+            {{- end }}
+            {{- if .Values.reloader.custom_annotations.pauseTime }}
+          - "--pause-deployment-annotation"
+          - "{{ .Values.reloader.custom_annotations.pauseTime }}"
             {{- end }}
             {{- if .Values.reloader.webhookUrl }}
           - "--webhook-url"

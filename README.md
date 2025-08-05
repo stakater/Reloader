@@ -358,6 +358,13 @@ These flags allow you to redefine annotation keys used in your workloads or reso
 | `--pause-deployment-annotation` | Overrides `deployment.reloader.stakater.com/pause-period` |
 | `--pause-deployment-time-annotation` | Overrides `deployment.reloader.stakater.com/paused-at` |
 
+### 5. 🕷️ Debugging
+
+| Flag | Description |
+|---  |-------------|
+| `--enable-pprof` | Enables `pprof` for profiling |
+| `--pprof-addr` | Address to start `pprof` server on. Default is `:6060` |
+
 ## Compatibility
 
 Reloader is compatible with Kubernetes >= 1.19
