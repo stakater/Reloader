@@ -417,7 +417,11 @@ func getContainerUsingResource(upgradeFuncs callbacks.RollingUpgradeFuncs, item 
 			container = getContainerWithVolumeMount(initContainers, volumeMountName)
 			if container != nil {
 				// if configmap/secret is being used in init container then return the first Pod container to save reloader env
-				return &containers[0]
+				if len(containers) > 0 {
+					return &containers[0]
+				}
+				// No containers available, return nil to avoid crash
+				return nil
 			}
 		} else if container != nil {
 			return container
@@ -430,13 +434,21 @@ func getContainerUsingResource(upgradeFuncs callbacks.RollingUpgradeFuncs, item 
 		container = getContainerWithEnvReference(initContainers, config.ResourceName, config.Type)
 		if container != nil {
 			// if configmap/secret is being used in init container then return the first Pod container to save reloader env
-			return &containers[0]
+			if len(containers) > 0 {
+				return &containers[0]
+			}
+			// No containers available, return nil to avoid crash
+			return nil
 		}
 	}
 
 	// Get the first container if the annotation is related to specified configmap or secret i.e. configmap.reloader.stakater.com/reload
 	if container == nil && !autoReload {
-		return &containers[0]
+		if len(containers) > 0 {
+			return &containers[0]
+		}
+		// No containers available, return nil to avoid crash
+		return nil
 	}
 
 	return container
