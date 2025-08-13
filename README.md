@@ -1,7 +1,11 @@
+
+
 <p align="center">
   <img src="assets/web/reloader.jpg" alt="Reloader" width="40%"/>
 </p>
 
+
+[![Sponsor](https://img.shields.io/badge/Sponsor-❤-brightgreen)](https://github.com/sponsors/stakater)
 [![Go Report Card](https://goreportcard.com/badge/github.com/stakater/reloader?style=flat-square)](https://goreportcard.com/report/github.com/stakater/reloader)
 [![Go Doc](https://img.shields.io/badge/godoc-reference-blue.svg?style=flat-square)](https://godoc.org/github.com/stakater/reloader)
 [![Release](https://img.shields.io/github/release/stakater/reloader.svg?style=flat-square)](https://github.com/stakater/reloader/releases/latest)
