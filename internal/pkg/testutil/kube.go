@@ -21,6 +21,7 @@ import (
 	"github.com/stakater/Reloader/internal/pkg/metrics"
 	"github.com/stakater/Reloader/internal/pkg/options"
 	"github.com/stakater/Reloader/internal/pkg/util"
+	"github.com/stakater/Reloader/pkg/common"
 	"github.com/stakater/Reloader/pkg/kube"
 	appsv1 "k8s.io/api/apps/v1"
 	batchv1 "k8s.io/api/batch/v1"
@@ -733,7 +734,7 @@ func GetResourceSHAFromAnnotation(podAnnotations map[string]string) string {
 		return ""
 	}
 
-	var last util.ReloadSource
+	var last common.ReloadSource
 	bytes := []byte(annotationJson)
 	err := json.Unmarshal(bytes, &last)
 	if err != nil {
@@ -1058,7 +1059,7 @@ func RandSeq(n int) string {
 }
 
 // VerifyResourceEnvVarUpdate verifies whether the rolling upgrade happened or not
-func VerifyResourceEnvVarUpdate(clients kube.Clients, config util.Config, envVarPostfix string, upgradeFuncs callbacks.RollingUpgradeFuncs) bool {
+func VerifyResourceEnvVarUpdate(clients kube.Clients, config common.Config, envVarPostfix string, upgradeFuncs callbacks.RollingUpgradeFuncs) bool {
 	items := upgradeFuncs.ItemsFunc(clients, config.Namespace)
 	for _, i := range items {
 		containers := upgradeFuncs.ContainersFunc(i)
@@ -1104,7 +1105,7 @@ func VerifyResourceEnvVarUpdate(clients kube.Clients, config util.Config, envVar
 }
 
 // VerifyResourceEnvVarRemoved verifies whether the rolling upgrade happened or not and all Envvars SKAKATER_name_CONFIGMAP/SECRET are removed
-func VerifyResourceEnvVarRemoved(clients kube.Clients, config util.Config, envVarPostfix string, upgradeFuncs callbacks.RollingUpgradeFuncs) bool {
+func VerifyResourceEnvVarRemoved(clients kube.Clients, config common.Config, envVarPostfix string, upgradeFuncs callbacks.RollingUpgradeFuncs) bool {
 	items := upgradeFuncs.ItemsFunc(clients, config.Namespace)
 	for _, i := range items {
 		containers := upgradeFuncs.ContainersFunc(i)
@@ -1153,7 +1154,7 @@ func VerifyResourceEnvVarRemoved(clients kube.Clients, config util.Config, envVa
 }
 
 // VerifyResourceAnnotationUpdate verifies whether the rolling upgrade happened or not
-func VerifyResourceAnnotationUpdate(clients kube.Clients, config util.Config, upgradeFuncs callbacks.RollingUpgradeFuncs) bool {
+func VerifyResourceAnnotationUpdate(clients kube.Clients, config common.Config, upgradeFuncs callbacks.RollingUpgradeFuncs) bool {
 	items := upgradeFuncs.ItemsFunc(clients, config.Namespace)
 	for _, i := range items {
 		podAnnotations := upgradeFuncs.PodAnnotationsFunc(i)

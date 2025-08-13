@@ -138,7 +138,7 @@ func GetArgoRolloutRollingUpgradeFuncs() callbacks.RollingUpgradeFuncs {
 	}
 }
 
-func sendUpgradeWebhook(config util.Config, webhookUrl string) error {
+func sendUpgradeWebhook(config common.Config, webhookUrl string) error {
 	logrus.Infof("Changes detected in '%s' of type '%s' in namespace '%s', Sending webhook to '%s'",
 		config.ResourceName, config.Type, config.Namespace, webhookUrl)
 
@@ -169,7 +169,7 @@ func sendWebhook(url string) (string, []error) {
 	return buffer.String(), nil
 }
 
-func doRollingUpgrade(config util.Config, collectors metrics.Collectors, recorder record.EventRecorder, invoke invokeStrategy) error {
+func doRollingUpgrade(config common.Config, collectors metrics.Collectors, recorder record.EventRecorder, invoke invokeStrategy) error {
 	clients := kube.GetClients()
 
 	err := rollingUpgrade(clients, config, GetDeploymentRollingUpgradeFuncs(), collectors, recorder, invoke)
@@ -203,7 +203,7 @@ func doRollingUpgrade(config util.Config, collectors metrics.Collectors, recorde
 	return nil
 }
 
-func rollingUpgrade(clients kube.Clients, config util.Config, upgradeFuncs callbacks.RollingUpgradeFuncs, collectors metrics.Collectors, recorder record.EventRecorder, strategy invokeStrategy) error {
+func rollingUpgrade(clients kube.Clients, config common.Config, upgradeFuncs callbacks.RollingUpgradeFuncs, collectors metrics.Collectors, recorder record.EventRecorder, strategy invokeStrategy) error {
 	err := PerformAction(clients, config, upgradeFuncs, collectors, recorder, strategy)
 	if err != nil {
 		logrus.Errorf("Rolling upgrade for '%s' failed with error = %v", config.ResourceName, err)
@@ -212,7 +212,7 @@ func rollingUpgrade(clients kube.Clients, config util.Config, upgradeFuncs callb
 }
 
 // PerformAction invokes the deployment if there is any change in configmap or secret data
-func PerformAction(clients kube.Clients, config util.Config, upgradeFuncs callbacks.RollingUpgradeFuncs, collectors metrics.Collectors, recorder record.EventRecorder, strategy invokeStrategy) error {
+func PerformAction(clients kube.Clients, config common.Config, upgradeFuncs callbacks.RollingUpgradeFuncs, collectors metrics.Collectors, recorder record.EventRecorder, strategy invokeStrategy) error {
 	items := upgradeFuncs.ItemsFunc(clients, config.Namespace)
 
 	for _, item := range items {
@@ -249,7 +249,7 @@ func retryOnConflict(backoff wait.Backoff, fn func(_ bool) error) error {
 	return err
 }
 
-func upgradeResource(clients kube.Clients, config util.Config, upgradeFuncs callbacks.RollingUpgradeFuncs, collectors metrics.Collectors, recorder record.EventRecorder, strategy invokeStrategy, resource runtime.Object, fetchResource bool) error {
+func upgradeResource(clients kube.Clients, config common.Config, upgradeFuncs callbacks.RollingUpgradeFuncs, collectors metrics.Collectors, recorder record.EventRecorder, strategy invokeStrategy, resource runtime.Object, fetchResource bool) error {
 	accessor, err := meta.Accessor(resource)
 	if err != nil {
 		return err
@@ -264,7 +264,7 @@ func upgradeResource(clients kube.Clients, config util.Config, upgradeFuncs call
 	}
 	annotations := upgradeFuncs.AnnotationsFunc(resource)
 	podAnnotations := upgradeFuncs.PodAnnotationsFunc(resource)
-	result := common.ShouldReloadInternal(config, upgradeFuncs.ResourceType, annotations, podAnnotations, common.GetCommandLineOptions())
+	result := common.ShouldReload(config, upgradeFuncs.ResourceType, annotations, podAnnotations, common.GetCommandLineOptions())
 
 	if !result.ShouldReload {
 		logrus.Debugf("No changes detected in '%s' of type '%s' in namespace '%s'", config.ResourceName, config.Type, config.Namespace)
@@ -403,7 +403,7 @@ func getContainerWithEnvReference(containers []v1.Container, resourceName string
 	return nil
 }
 
-func getContainerUsingResource(upgradeFuncs callbacks.RollingUpgradeFuncs, item runtime.Object, config util.Config, autoReload bool) *v1.Container {
+func getContainerUsingResource(upgradeFuncs callbacks.RollingUpgradeFuncs, item runtime.Object, config common.Config, autoReload bool) *v1.Container {
 	volumes := upgradeFuncs.VolumesFunc(item)
 	containers := upgradeFuncs.ContainersFunc(item)
 	initContainers := upgradeFuncs.InitContainersFunc(item)
@@ -452,16 +452,16 @@ type InvokeStrategyResult struct {
 	Patch  *Patch
 }
 
-type invokeStrategy func(upgradeFuncs callbacks.RollingUpgradeFuncs, item runtime.Object, config util.Config, autoReload bool) InvokeStrategyResult
+type invokeStrategy func(upgradeFuncs callbacks.RollingUpgradeFuncs, item runtime.Object, config common.Config, autoReload bool) InvokeStrategyResult
 
-func invokeReloadStrategy(upgradeFuncs callbacks.RollingUpgradeFuncs, item runtime.Object, config util.Config, autoReload bool) InvokeStrategyResult {
+func invokeReloadStrategy(upgradeFuncs callbacks.RollingUpgradeFuncs, item runtime.Object, config common.Config, autoReload bool) InvokeStrategyResult {
 	if options.ReloadStrategy == constants.AnnotationsReloadStrategy {
 		return updatePodAnnotations(upgradeFuncs, item, config, autoReload)
 	}
 	return updateContainerEnvVars(upgradeFuncs, item, config, autoReload)
 }
 
-func updatePodAnnotations(upgradeFuncs callbacks.RollingUpgradeFuncs, item runtime.Object, config util.Config, autoReload bool) InvokeStrategyResult {
+func updatePodAnnotations(upgradeFuncs callbacks.RollingUpgradeFuncs, item runtime.Object, config common.Config, autoReload bool) InvokeStrategyResult {
 	container := getContainerUsingResource(upgradeFuncs, item, config, autoReload)
 	if container == nil {
 		return InvokeStrategyResult{constants.NoContainerFound, nil}
@@ -469,7 +469,7 @@ func updatePodAnnotations(upgradeFuncs callbacks.RollingUpgradeFuncs, item runti
 
 	// Generate reloaded annotations. Attaching this to the item's annotation will trigger a rollout
 	// Note: the data on this struct is purely informational and is not used for future updates
-	reloadSource := util.NewReloadSourceFromConfig(config, []string{container.Name})
+	reloadSource := common.NewReloadSourceFromConfig(config, []string{container.Name})
 	annotations, patch, err := createReloadedAnnotations(&reloadSource, upgradeFuncs)
 	if err != nil {
 		logrus.Errorf("Failed to create reloaded annotations for %s! error = %v", config.ResourceName, err)
@@ -496,7 +496,7 @@ func getReloaderAnnotationKey() string {
 	)
 }
 
-func createReloadedAnnotations(target *util.ReloadSource, upgradeFuncs callbacks.RollingUpgradeFuncs) (map[string]string, []byte, error) {
+func createReloadedAnnotations(target *common.ReloadSource, upgradeFuncs callbacks.RollingUpgradeFuncs) (map[string]string, []byte, error) {
 	if target == nil {
 		return nil, nil, errors.New("target is required")
 	}
@@ -531,7 +531,7 @@ func getEnvVarName(resourceName string, typeName string) string {
 	return constants.EnvVarPrefix + util.ConvertToEnvVarName(resourceName) + "_" + typeName
 }
 
-func updateContainerEnvVars(upgradeFuncs callbacks.RollingUpgradeFuncs, item runtime.Object, config util.Config, autoReload bool) InvokeStrategyResult {
+func updateContainerEnvVars(upgradeFuncs callbacks.RollingUpgradeFuncs, item runtime.Object, config common.Config, autoReload bool) InvokeStrategyResult {
 	envVar := getEnvVarName(config.ResourceName, config.Type)
 	container := getContainerUsingResource(upgradeFuncs, item, config, autoReload)
 
