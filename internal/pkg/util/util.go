@@ -8,13 +8,11 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/stakater/Reloader/internal/pkg/constants"
 	"github.com/stakater/Reloader/internal/pkg/crypto"
 	"github.com/stakater/Reloader/internal/pkg/options"
 	v1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/labels"
 )
 
 // ConvertToEnvVarName converts the given text into a usable env var
@@ -96,64 +94,6 @@ func ConfigureReloaderFlags(cmd *cobra.Command) {
 	cmd.PersistentFlags().BoolVar(&options.SyncAfterRestart, "sync-after-restart", false, "Sync add events after reloader restarts")
 	cmd.PersistentFlags().BoolVar(&options.EnablePProf, "enable-pprof", false, "Enable pprof for profiling")
 	cmd.PersistentFlags().StringVar(&options.PProfAddr, "pprof-addr", ":6060", "Address to start pprof server on. Default is :6060")
-}
-
-func GetNamespaceLabelSelector(slice []string) (string, error) {
-	for i, kv := range slice {
-		// Legacy support for ":" as a delimiter and "*" for wildcard.
-		if strings.Contains(kv, ":") {
-			split := strings.Split(kv, ":")
-			if split[1] == "*" {
-				slice[i] = split[0]
-			} else {
-				slice[i] = split[0] + "=" + split[1]
-			}
-		}
-		// Convert wildcard to valid apimachinery operator
-		if strings.Contains(kv, "=") {
-			split := strings.Split(kv, "=")
-			if split[1] == "*" {
-				slice[i] = split[0]
-			}
-		}
-	}
-
-	namespaceLabelSelector := strings.Join(slice[:], ",")
-	_, err := labels.Parse(namespaceLabelSelector)
-	if err != nil {
-		logrus.Fatal(err)
-	}
-
-	return namespaceLabelSelector, nil
-}
-
-func GetResourceLabelSelector(slice []string) (string, error) {
-	for i, kv := range slice {
-		// Legacy support for ":" as a delimiter and "*" for wildcard.
-		if strings.Contains(kv, ":") {
-			split := strings.Split(kv, ":")
-			if split[1] == "*" {
-				slice[i] = split[0]
-			} else {
-				slice[i] = split[0] + "=" + split[1]
-			}
-		}
-		// Convert wildcard to valid apimachinery operator
-		if strings.Contains(kv, "=") {
-			split := strings.Split(kv, "=")
-			if split[1] == "*" {
-				slice[i] = split[0]
-			}
-		}
-	}
-
-	resourceLabelSelector := strings.Join(slice[:], ",")
-	_, err := labels.Parse(resourceLabelSelector)
-	if err != nil {
-		logrus.Fatal(err)
-	}
-
-	return resourceLabelSelector, nil
 }
 
 func GetIgnoredResourcesList() (List, error) {
