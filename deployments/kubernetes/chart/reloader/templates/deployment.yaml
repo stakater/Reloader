@@ -71,6 +71,10 @@ spec:
       {{- if .Values.reloader.deployment.priorityClassName }}
       priorityClassName: {{ .Values.reloader.deployment.priorityClassName }}
       {{- end }}
+      {{- with .Values.reloader.deployment.dnsConfig }}
+      dnsConfig:
+      {{- toYaml . | nindent 8 }}
+      {{- end }}
       containers:
       {{- if .Values.global.imageRegistry }}
       - image: "{{ .Values.global.imageRegistry }}/{{ .Values.image.name }}:{{ .Values.image.tag }}"
