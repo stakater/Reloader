@@ -17,3 +17,4 @@ site/
 /mkdocs.yml
 yq
 bin
+test_config.py

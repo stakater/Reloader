@@ -25,10 +25,13 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	batchv1 "k8s.io/api/batch/v1"
 	v1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/api/meta"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes"
 	core_v1 "k8s.io/client-go/kubernetes/typed/core/v1"
+	knativeservingv1 "knative.dev/serving/pkg/apis/serving/v1"
+	knativeclientfake "knative.dev/serving/pkg/client/clientset/versioned/fake"
 )
 
 var (
@@ -1224,4 +1227,62 @@ func CreateRollout(client argorollout.Interface, rolloutName string, namespace s
 	rollout, err := rolloutClient.Create(context.TODO(), rolloutObj, metav1.CreateOptions{})
 	time.Sleep(3 * time.Second)
 	return rollout, err
+}
+
+// CreateKnativeService creates a Knative service for testing
+func CreateKnativeService(client *knativeclientfake.Clientset, name string, namespace string, envVarSourcePresent bool, annotations map[string]string) (runtime.Object, error) {
+	knativeService := GetKnativeService(name, namespace, envVarSourcePresent)
+	if annotations != nil {
+		knativeService.ObjectMeta.Annotations = annotations
+	}
+	return client.ServingV1().Services(namespace).Create(context.TODO(), knativeService, metav1.CreateOptions{})
+}
+
+// DeleteKnativeService deletes a Knative service for testing
+func DeleteKnativeService(client *knativeclientfake.Clientset, namespace string, name string) error {
+	return client.ServingV1().Services(namespace).Delete(context.TODO(), name, metav1.DeleteOptions{})
+}
+
+// GetKnativeService returns a Knative service for testing
+func GetKnativeService(name string, namespace string, envVarSourcePresent bool) *knativeservingv1.Service {
+	knativeService := &knativeservingv1.Service{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name,
+			Namespace: namespace,
+		},
+		Spec: knativeservingv1.ServiceSpec{
+			ConfigurationSpec: knativeservingv1.ConfigurationSpec{
+				Template: knativeservingv1.RevisionTemplateSpec{
+					Spec: knativeservingv1.RevisionSpec{
+						PodSpec: v1.PodSpec{
+							Containers: []v1.Container{
+								{
+									Name:  "test-container",
+									Image: "test-image",
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	if envVarSourcePresent {
+		knativeService.Spec.Template.Spec.Containers[0].Env = []v1.EnvVar{
+			{
+				Name: "TEST_ENV",
+				ValueFrom: &v1.EnvVarSource{
+					ConfigMapKeyRef: &v1.ConfigMapKeySelector{
+						LocalObjectReference: v1.LocalObjectReference{
+							Name: "test-configmap",
+						},
+						Key: "test-key",
+					},
+				},
+			},
+		}
+	}
+
+	return knativeService
 }
