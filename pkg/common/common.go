@@ -10,8 +10,8 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/stakater/Reloader/internal/pkg/constants"
 	"github.com/stakater/Reloader/internal/pkg/options"
-	"github.com/stakater/Reloader/internal/pkg/util"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/client-go/kubernetes"
 )
 
@@ -121,13 +121,66 @@ func PublishMetaInfoConfigmap(clientset kubernetes.Interface) {
 	}
 }
 
-func ShouldReload(config util.Config, resourceType string, annotations Map, podAnnotations Map, options *ReloaderOptions) ReloadCheckResult {
-
-	if resourceType == "Rollout" && !options.IsArgoRollouts {
-		return ReloadCheckResult{
-			ShouldReload: false,
+func GetNamespaceLabelSelector(slice []string) (string, error) {
+	for i, kv := range slice {
+		// Legacy support for ":" as a delimiter and "*" for wildcard.
+		if strings.Contains(kv, ":") {
+			split := strings.Split(kv, ":")
+			if split[1] == "*" {
+				slice[i] = split[0]
+			} else {
+				slice[i] = split[0] + "=" + split[1]
+			}
+		}
+		// Convert wildcard to valid apimachinery operator
+		if strings.Contains(kv, "=") {
+			split := strings.Split(kv, "=")
+			if split[1] == "*" {
+				slice[i] = split[0]
+			}
 		}
 	}
+
+	namespaceLabelSelector := strings.Join(slice[:], ",")
+	_, err := labels.Parse(namespaceLabelSelector)
+	if err != nil {
+		logrus.Fatal(err)
+	}
+
+	return namespaceLabelSelector, nil
+}
+
+func GetResourceLabelSelector(slice []string) (string, error) {
+	for i, kv := range slice {
+		// Legacy support for ":" as a delimiter and "*" for wildcard.
+		if strings.Contains(kv, ":") {
+			split := strings.Split(kv, ":")
+			if split[1] == "*" {
+				slice[i] = split[0]
+			} else {
+				slice[i] = split[0] + "=" + split[1]
+			}
+		}
+		// Convert wildcard to valid apimachinery operator
+		if strings.Contains(kv, "=") {
+			split := strings.Split(kv, "=")
+			if split[1] == "*" {
+				slice[i] = split[0]
+			}
+		}
+	}
+
+	resourceLabelSelector := strings.Join(slice[:], ",")
+	_, err := labels.Parse(resourceLabelSelector)
+	if err != nil {
+		logrus.Fatal(err)
+	}
+
+	return resourceLabelSelector, nil
+}
+
+// ShouldReload checks if a resource should be reloaded based on its annotations and the provided options.
+func ShouldReload(config Config, resourceType string, annotations Map, podAnnotations Map, options *ReloaderOptions) ReloadCheckResult {
 
 	ignoreResourceAnnotatonValue := config.ResourceAnnotations[options.IgnoreResourceAnnotation]
 	if ignoreResourceAnnotatonValue == "true" {
@@ -258,6 +311,7 @@ func GetCommandLineOptions() *ReloaderOptions {
 	CommandLineOptions.ReloadOnCreate = parseBool(options.ReloadOnCreate)
 	CommandLineOptions.ReloadOnDelete = parseBool(options.ReloadOnDelete)
 	CommandLineOptions.EnablePProf = options.EnablePProf
+	CommandLineOptions.PProfAddr = options.PProfAddr
 
 	return CommandLineOptions
 }

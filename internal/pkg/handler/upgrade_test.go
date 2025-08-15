@@ -17,6 +17,7 @@ import (
 	"github.com/stakater/Reloader/internal/pkg/options"
 	"github.com/stakater/Reloader/internal/pkg/testutil"
 	"github.com/stakater/Reloader/internal/pkg/util"
+	"github.com/stakater/Reloader/pkg/common"
 	"github.com/stakater/Reloader/pkg/kube"
 	"github.com/stretchr/testify/assert"
 	v1 "k8s.io/api/core/v1"
@@ -1488,13 +1489,13 @@ func teardownErs() {
 
 }
 
-func getConfigWithAnnotations(resourceType string, name string, shaData string, annotation string, typedAutoAnnotation string) util.Config {
+func getConfigWithAnnotations(resourceType string, name string, shaData string, annotation string, typedAutoAnnotation string) common.Config {
 	ns := ersNamespace
 	if options.ReloadStrategy == constants.AnnotationsReloadStrategy {
 		ns = arsNamespace
 	}
 
-	return util.Config{
+	return common.Config{
 		Namespace:           ns,
 		ResourceName:        name,
 		SHAValue:            shaData,
@@ -1511,7 +1512,7 @@ func getCollectors() metrics.Collectors {
 var labelSucceeded = prometheus.Labels{"success": "true"}
 var labelFailed = prometheus.Labels{"success": "false"}
 
-func testRollingUpgradeInvokeDeleteStrategyArs(t *testing.T, clients kube.Clients, config util.Config, upgradeFuncs callbacks.RollingUpgradeFuncs, collectors metrics.Collectors, envVarPostfix string) {
+func testRollingUpgradeInvokeDeleteStrategyArs(t *testing.T, clients kube.Clients, config common.Config, upgradeFuncs callbacks.RollingUpgradeFuncs, collectors metrics.Collectors, envVarPostfix string) {
 	err := PerformAction(clients, config, upgradeFuncs, collectors, nil, invokeDeleteStrategy)
 	time.Sleep(5 * time.Second)
 	if err != nil {
@@ -1529,7 +1530,7 @@ func testRollingUpgradeInvokeDeleteStrategyArs(t *testing.T, clients kube.Client
 	}
 }
 
-func testRollingUpgradeWithPatchAndInvokeDeleteStrategyArs(t *testing.T, clients kube.Clients, config util.Config, upgradeFuncs callbacks.RollingUpgradeFuncs, collectors metrics.Collectors, envVarPostfix string) {
+func testRollingUpgradeWithPatchAndInvokeDeleteStrategyArs(t *testing.T, clients kube.Clients, config common.Config, upgradeFuncs callbacks.RollingUpgradeFuncs, collectors metrics.Collectors, envVarPostfix string) {
 	err := PerformAction(clients, config, upgradeFuncs, collectors, nil, invokeDeleteStrategy)
 	upgradeFuncs.PatchFunc = func(client kube.Clients, namespace string, resource runtime.Object, patchType patchtypes.PatchType, bytes []byte) error {
 		assert.Equal(t, patchtypes.StrategicMergePatchType, patchType)
@@ -2909,7 +2910,7 @@ func TestIgnoreAnnotationNoReloadUsingErs(t *testing.T) {
 	}
 }
 
-func testRollingUpgradeInvokeDeleteStrategyErs(t *testing.T, clients kube.Clients, config util.Config, upgradeFuncs callbacks.RollingUpgradeFuncs, collectors metrics.Collectors, envVarPostfix string) {
+func testRollingUpgradeInvokeDeleteStrategyErs(t *testing.T, clients kube.Clients, config common.Config, upgradeFuncs callbacks.RollingUpgradeFuncs, collectors metrics.Collectors, envVarPostfix string) {
 	err := PerformAction(clients, config, upgradeFuncs, collectors, nil, invokeDeleteStrategy)
 	time.Sleep(5 * time.Second)
 	if err != nil {
@@ -2926,7 +2927,7 @@ func testRollingUpgradeInvokeDeleteStrategyErs(t *testing.T, clients kube.Client
 	}
 }
 
-func testRollingUpgradeWithPatchAndInvokeDeleteStrategyErs(t *testing.T, clients kube.Clients, config util.Config, upgradeFuncs callbacks.RollingUpgradeFuncs, collectors metrics.Collectors, envVarPostfix string) {
+func testRollingUpgradeWithPatchAndInvokeDeleteStrategyErs(t *testing.T, clients kube.Clients, config common.Config, upgradeFuncs callbacks.RollingUpgradeFuncs, collectors metrics.Collectors, envVarPostfix string) {
 	assert.NotEmpty(t, upgradeFuncs.PatchTemplatesFunc().DeleteEnvVarTemplate)
 
 	err := PerformAction(clients, config, upgradeFuncs, collectors, nil, invokeDeleteStrategy)

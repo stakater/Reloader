@@ -4,7 +4,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/stakater/Reloader/internal/pkg/metrics"
 	"github.com/stakater/Reloader/internal/pkg/options"
-	"github.com/stakater/Reloader/internal/pkg/util"
+	"github.com/stakater/Reloader/pkg/common"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/tools/record"
 )
@@ -33,13 +33,13 @@ func (r ResourceCreatedHandler) Handle() error {
 }
 
 // GetConfig gets configurations containing SHA, annotations, namespace and resource name
-func (r ResourceCreatedHandler) GetConfig() (util.Config, string) {
+func (r ResourceCreatedHandler) GetConfig() (common.Config, string) {
 	var oldSHAData string
-	var config util.Config
+	var config common.Config
 	if _, ok := r.Resource.(*v1.ConfigMap); ok {
-		config = util.GetConfigmapConfig(r.Resource.(*v1.ConfigMap))
+		config = common.GetConfigmapConfig(r.Resource.(*v1.ConfigMap))
 	} else if _, ok := r.Resource.(*v1.Secret); ok {
-		config = util.GetSecretConfig(r.Resource.(*v1.Secret))
+		config = common.GetSecretConfig(r.Resource.(*v1.Secret))
 	} else {
 		logrus.Warnf("Invalid resource: Resource should be 'Secret' or 'Configmap' but found, %v", r.Resource)
 	}

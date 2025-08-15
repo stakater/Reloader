@@ -15,6 +15,7 @@ import (
 	"github.com/stakater/Reloader/internal/pkg/options"
 	"github.com/stakater/Reloader/internal/pkg/testutil"
 	"github.com/stakater/Reloader/internal/pkg/util"
+	"github.com/stakater/Reloader/pkg/common"
 	"github.com/stakater/Reloader/pkg/kube"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -94,7 +95,7 @@ func TestControllerUpdatingConfigmapShouldCreatePodAnnotationInDeployment(t *tes
 	// Verifying deployment update
 	logrus.Infof("Verifying pod annotation has been created")
 	shaData := testutil.ConvertResourceToSHA(testutil.ConfigmapResourceType, namespace, configmapName, "www.stakater.com")
-	config := util.Config{
+	config := common.Config{
 		Namespace:    namespace,
 		ResourceName: configmapName,
 		SHAValue:     shaData,
@@ -147,7 +148,7 @@ func TestControllerUpdatingConfigmapShouldAutoCreatePodAnnotationInDeployment(t 
 	// Verifying deployment update
 	logrus.Infof("Verifying pod annotation has been created")
 	shaData := testutil.ConvertResourceToSHA(testutil.ConfigmapResourceType, namespace, configmapName, "www.stakater.com")
-	config := util.Config{
+	config := common.Config{
 		Namespace:    namespace,
 		ResourceName: configmapName,
 		SHAValue:     shaData,
@@ -212,7 +213,7 @@ func TestControllerCreatingConfigmapShouldCreatePodAnnotationInDeployment(t *tes
 	// Verifying deployment update
 	logrus.Infof("Verifying pod annotation has been created")
 	shaData := testutil.ConvertResourceToSHA(testutil.ConfigmapResourceType, namespace, configmapName, "www.stakater.com")
-	config := util.Config{
+	config := common.Config{
 		Namespace:    namespace,
 		ResourceName: configmapName,
 		SHAValue:     shaData,
@@ -271,7 +272,7 @@ func TestControllerForUpdatingConfigmapShouldUpdateDeploymentUsingArs(t *testing
 	// Verifying deployment update
 	logrus.Infof("Verifying pod annotation has been updated")
 	shaData := testutil.ConvertResourceToSHA(testutil.ConfigmapResourceType, namespace, configmapName, "aurorasolutions.io")
-	config := util.Config{
+	config := common.Config{
 		Namespace:    namespace,
 		ResourceName: configmapName,
 		SHAValue:     shaData,
@@ -326,7 +327,7 @@ func TestControllerUpdatingConfigmapLabelsShouldNotCreateOrCreatePodAnnotationIn
 	// Verifying deployment update
 	logrus.Infof("Verifying pod annotation has been created")
 	shaData := testutil.ConvertResourceToSHA(testutil.ConfigmapResourceType, namespace, configmapName, "www.google.com")
-	config := util.Config{
+	config := common.Config{
 		Namespace:    namespace,
 		ResourceName: configmapName,
 		SHAValue:     shaData,
@@ -390,7 +391,7 @@ func TestControllerCreatingSecretShouldCreatePodAnnotationInDeployment(t *testin
 	// Verifying Upgrade
 	logrus.Infof("Verifying pod annotation has been created")
 	shaData := testutil.ConvertResourceToSHA(testutil.SecretResourceType, namespace, secretName, newData)
-	config := util.Config{
+	config := common.Config{
 		Namespace:    namespace,
 		ResourceName: secretName,
 		SHAValue:     shaData,
@@ -443,7 +444,7 @@ func TestControllerUpdatingSecretShouldCreatePodAnnotationInDeployment(t *testin
 	// Verifying Upgrade
 	logrus.Infof("Verifying pod annotation has been created")
 	shaData := testutil.ConvertResourceToSHA(testutil.SecretResourceType, namespace, secretName, newData)
-	config := util.Config{
+	config := common.Config{
 		Namespace:    namespace,
 		ResourceName: secretName,
 		SHAValue:     shaData,
@@ -501,7 +502,7 @@ func TestControllerUpdatingSecretShouldUpdatePodAnnotationInDeployment(t *testin
 	// Verifying Upgrade
 	logrus.Infof("Verifying pod annotation has been updated")
 	shaData := testutil.ConvertResourceToSHA(testutil.SecretResourceType, namespace, secretName, updatedData)
-	config := util.Config{
+	config := common.Config{
 		Namespace:    namespace,
 		ResourceName: secretName,
 		SHAValue:     shaData,
@@ -552,7 +553,7 @@ func TestControllerUpdatingSecretLabelsShouldNotCreateOrUpdatePodAnnotationInDep
 	// Verifying Upgrade
 	logrus.Infof("Verifying pod annotation has been created")
 	shaData := testutil.ConvertResourceToSHA(testutil.SecretResourceType, namespace, secretName, data)
-	config := util.Config{
+	config := common.Config{
 		Namespace:    namespace,
 		ResourceName: secretName,
 		SHAValue:     shaData,
@@ -604,7 +605,7 @@ func TestControllerUpdatingConfigmapShouldCreatePodAnnotationInDaemonSet(t *test
 	// Verifying DaemonSet update
 	logrus.Infof("Verifying pod annotation has been created")
 	shaData := testutil.ConvertResourceToSHA(testutil.ConfigmapResourceType, namespace, configmapName, "www.stakater.com")
-	config := util.Config{
+	config := common.Config{
 		Namespace:    namespace,
 		ResourceName: configmapName,
 		SHAValue:     shaData,
@@ -667,7 +668,7 @@ func TestControllerForUpdatingConfigmapShouldUpdateDaemonSetUsingArs(t *testing.
 	// Verifying DaemonSet update
 	logrus.Infof("Verifying pod annotation has been updated")
 	shaData := testutil.ConvertResourceToSHA(testutil.ConfigmapResourceType, namespace, configmapName, "aurorasolutions.io")
-	config := util.Config{
+	config := common.Config{
 		Namespace:    namespace,
 		ResourceName: configmapName,
 		SHAValue:     shaData,
@@ -720,7 +721,7 @@ func TestControllerUpdatingSecretShouldCreatePodAnnotationInDaemonSet(t *testing
 	// Verifying Upgrade
 	logrus.Infof("Verifying pod annotation has been created")
 	shaData := testutil.ConvertResourceToSHA(testutil.SecretResourceType, namespace, secretName, newData)
-	config := util.Config{
+	config := common.Config{
 		Namespace:    namespace,
 		ResourceName: secretName,
 		SHAValue:     shaData,
@@ -779,7 +780,7 @@ func TestControllerUpdatingSecretShouldUpdatePodAnnotationInDaemonSet(t *testing
 	// Verifying Upgrade
 	logrus.Infof("Verifying pod annotation has been updated")
 	shaData := testutil.ConvertResourceToSHA(testutil.SecretResourceType, namespace, secretName, updatedData)
-	config := util.Config{
+	config := common.Config{
 		Namespace:    namespace,
 		ResourceName: secretName,
 		SHAValue:     shaData,
@@ -830,7 +831,7 @@ func TestControllerUpdatingSecretLabelsShouldNotCreateOrUpdatePodAnnotationInDae
 	// Verifying Upgrade
 	logrus.Infof("Verifying pod annotation has been created")
 	shaData := testutil.ConvertResourceToSHA(testutil.SecretResourceType, namespace, secretName, data)
-	config := util.Config{
+	config := common.Config{
 		Namespace:    namespace,
 		ResourceName: secretName,
 		SHAValue:     shaData,
@@ -882,7 +883,7 @@ func TestControllerUpdatingConfigmapShouldCreatePodAnnotationInStatefulSet(t *te
 	// Verifying StatefulSet update
 	logrus.Infof("Verifying pod annotation has been created")
 	shaData := testutil.ConvertResourceToSHA(testutil.ConfigmapResourceType, namespace, configmapName, "www.stakater.com")
-	config := util.Config{
+	config := common.Config{
 		Namespace:    namespace,
 		ResourceName: configmapName,
 		SHAValue:     shaData,
@@ -941,7 +942,7 @@ func TestControllerForUpdatingConfigmapShouldUpdateStatefulSetUsingArs(t *testin
 	// Verifying StatefulSet update
 	logrus.Infof("Verifying pod annotation has been updated")
 	shaData := testutil.ConvertResourceToSHA(testutil.ConfigmapResourceType, namespace, configmapName, "aurorasolutions.io")
-	config := util.Config{
+	config := common.Config{
 		Namespace:    namespace,
 		ResourceName: configmapName,
 		SHAValue:     shaData,
@@ -994,7 +995,7 @@ func TestControllerUpdatingSecretShouldCreatePodAnnotationInStatefulSet(t *testi
 	// Verifying Upgrade
 	logrus.Infof("Verifying pod annotation has been created")
 	shaData := testutil.ConvertResourceToSHA(testutil.SecretResourceType, namespace, secretName, newData)
-	config := util.Config{
+	config := common.Config{
 		Namespace:    namespace,
 		ResourceName: secretName,
 		SHAValue:     shaData,
@@ -1046,7 +1047,7 @@ func TestControllerUpdatingConfigmapShouldCreateEnvInDeployment(t *testing.T) {
 	// Verifying deployment update
 	logrus.Infof("Verifying env var has been created")
 	shaData := testutil.ConvertResourceToSHA(testutil.ConfigmapResourceType, namespace, configmapName, "www.stakater.com")
-	config := util.Config{
+	config := common.Config{
 		Namespace:    namespace,
 		ResourceName: configmapName,
 		SHAValue:     shaData,
@@ -1099,7 +1100,7 @@ func TestControllerUpdatingConfigmapShouldAutoCreateEnvInDeployment(t *testing.T
 	// Verifying deployment update
 	logrus.Infof("Verifying env var has been created")
 	shaData := testutil.ConvertResourceToSHA(testutil.ConfigmapResourceType, namespace, configmapName, "www.stakater.com")
-	config := util.Config{
+	config := common.Config{
 		Namespace:    namespace,
 		ResourceName: configmapName,
 		SHAValue:     shaData,
@@ -1164,7 +1165,7 @@ func TestControllerCreatingConfigmapShouldCreateEnvInDeployment(t *testing.T) {
 	// Verifying deployment update
 	logrus.Infof("Verifying env var has been created")
 	shaData := testutil.ConvertResourceToSHA(testutil.ConfigmapResourceType, namespace, configmapName, "www.stakater.com")
-	config := util.Config{
+	config := common.Config{
 		Namespace:    namespace,
 		ResourceName: configmapName,
 		SHAValue:     shaData,
@@ -1223,7 +1224,7 @@ func TestControllerForUpdatingConfigmapShouldUpdateDeploymentUsingErs(t *testing
 	// Verifying deployment update
 	logrus.Infof("Verifying env var has been updated")
 	shaData := testutil.ConvertResourceToSHA(testutil.ConfigmapResourceType, namespace, configmapName, "aurorasolutions.io")
-	config := util.Config{
+	config := common.Config{
 		Namespace:    namespace,
 		ResourceName: configmapName,
 		SHAValue:     shaData,
@@ -1278,7 +1279,7 @@ func TestControllerUpdatingConfigmapLabelsShouldNotCreateOrUpdateEnvInDeployment
 	// Verifying deployment update
 	logrus.Infof("Verifying env var has been created")
 	shaData := testutil.ConvertResourceToSHA(testutil.ConfigmapResourceType, namespace, configmapName, "www.google.com")
-	config := util.Config{
+	config := common.Config{
 		Namespace:    namespace,
 		ResourceName: configmapName,
 		SHAValue:     shaData,
@@ -1342,7 +1343,7 @@ func TestControllerCreatingSecretShouldCreateEnvInDeployment(t *testing.T) {
 	// Verifying Upgrade
 	logrus.Infof("Verifying env var has been created")
 	shaData := testutil.ConvertResourceToSHA(testutil.SecretResourceType, namespace, secretName, newData)
-	config := util.Config{
+	config := common.Config{
 		Namespace:    namespace,
 		ResourceName: secretName,
 		SHAValue:     shaData,
@@ -1395,7 +1396,7 @@ func TestControllerUpdatingSecretShouldCreateEnvInDeployment(t *testing.T) {
 	// Verifying Upgrade
 	logrus.Infof("Verifying env var has been created")
 	shaData := testutil.ConvertResourceToSHA(testutil.SecretResourceType, namespace, secretName, newData)
-	config := util.Config{
+	config := common.Config{
 		Namespace:    namespace,
 		ResourceName: secretName,
 		SHAValue:     shaData,
@@ -1453,7 +1454,7 @@ func TestControllerUpdatingSecretShouldUpdateEnvInDeployment(t *testing.T) {
 	// Verifying Upgrade
 	logrus.Infof("Verifying env var has been updated")
 	shaData := testutil.ConvertResourceToSHA(testutil.SecretResourceType, namespace, secretName, updatedData)
-	config := util.Config{
+	config := common.Config{
 		Namespace:    namespace,
 		ResourceName: secretName,
 		SHAValue:     shaData,
@@ -1504,7 +1505,7 @@ func TestControllerUpdatingSecretLabelsShouldNotCreateOrUpdateEnvInDeployment(t 
 	// Verifying Upgrade
 	logrus.Infof("Verifying env var has been created")
 	shaData := testutil.ConvertResourceToSHA(testutil.SecretResourceType, namespace, secretName, data)
-	config := util.Config{
+	config := common.Config{
 		Namespace:    namespace,
 		ResourceName: secretName,
 		SHAValue:     shaData,
@@ -1556,7 +1557,7 @@ func TestControllerUpdatingConfigmapShouldCreateEnvInDaemonSet(t *testing.T) {
 	// Verifying DaemonSet update
 	logrus.Infof("Verifying env var has been created")
 	shaData := testutil.ConvertResourceToSHA(testutil.ConfigmapResourceType, namespace, configmapName, "www.stakater.com")
-	config := util.Config{
+	config := common.Config{
 		Namespace:    namespace,
 		ResourceName: configmapName,
 		SHAValue:     shaData,
@@ -1619,7 +1620,7 @@ func TestControllerForUpdatingConfigmapShouldUpdateDaemonSetUsingErs(t *testing.
 	// Verifying DaemonSet update
 	logrus.Infof("Verifying env var has been updated")
 	shaData := testutil.ConvertResourceToSHA(testutil.ConfigmapResourceType, namespace, configmapName, "aurorasolutions.io")
-	config := util.Config{
+	config := common.Config{
 		Namespace:    namespace,
 		ResourceName: configmapName,
 		SHAValue:     shaData,
@@ -1672,7 +1673,7 @@ func TestControllerUpdatingSecretShouldCreateEnvInDaemonSet(t *testing.T) {
 	// Verifying Upgrade
 	logrus.Infof("Verifying env var has been created")
 	shaData := testutil.ConvertResourceToSHA(testutil.SecretResourceType, namespace, secretName, newData)
-	config := util.Config{
+	config := common.Config{
 		Namespace:    namespace,
 		ResourceName: secretName,
 		SHAValue:     shaData,
@@ -1731,7 +1732,7 @@ func TestControllerUpdatingSecretShouldUpdateEnvInDaemonSet(t *testing.T) {
 	// Verifying Upgrade
 	logrus.Infof("Verifying env var has been updated")
 	shaData := testutil.ConvertResourceToSHA(testutil.SecretResourceType, namespace, secretName, updatedData)
-	config := util.Config{
+	config := common.Config{
 		Namespace:    namespace,
 		ResourceName: secretName,
 		SHAValue:     shaData,
@@ -1782,7 +1783,7 @@ func TestControllerUpdatingSecretLabelsShouldNotCreateOrUpdateEnvInDaemonSet(t *
 	// Verifying Upgrade
 	logrus.Infof("Verifying env var has been created")
 	shaData := testutil.ConvertResourceToSHA(testutil.SecretResourceType, namespace, secretName, data)
-	config := util.Config{
+	config := common.Config{
 		Namespace:    namespace,
 		ResourceName: secretName,
 		SHAValue:     shaData,
@@ -1834,7 +1835,7 @@ func TestControllerUpdatingConfigmapShouldCreateEnvInStatefulSet(t *testing.T) {
 	// Verifying StatefulSet update
 	logrus.Infof("Verifying env var has been created")
 	shaData := testutil.ConvertResourceToSHA(testutil.ConfigmapResourceType, namespace, configmapName, "www.stakater.com")
-	config := util.Config{
+	config := common.Config{
 		Namespace:    namespace,
 		ResourceName: configmapName,
 		SHAValue:     shaData,
@@ -1893,7 +1894,7 @@ func TestControllerForUpdatingConfigmapShouldUpdateStatefulSetUsingErs(t *testin
 	// Verifying StatefulSet update
 	logrus.Infof("Verifying env var has been updated")
 	shaData := testutil.ConvertResourceToSHA(testutil.ConfigmapResourceType, namespace, configmapName, "aurorasolutions.io")
-	config := util.Config{
+	config := common.Config{
 		Namespace:    namespace,
 		ResourceName: configmapName,
 		SHAValue:     shaData,
@@ -1946,7 +1947,7 @@ func TestControllerUpdatingSecretShouldCreateEnvInStatefulSet(t *testing.T) {
 	// Verifying Upgrade
 	logrus.Infof("Verifying env var has been created")
 	shaData := testutil.ConvertResourceToSHA(testutil.SecretResourceType, namespace, secretName, newData)
-	config := util.Config{
+	config := common.Config{
 		Namespace:    namespace,
 		ResourceName: secretName,
 		SHAValue:     shaData,
@@ -2004,7 +2005,7 @@ func TestControllerUpdatingSecretShouldUpdateEnvInStatefulSet(t *testing.T) {
 	// Verifying Upgrade
 	logrus.Infof("Verifying env var has been updated")
 	shaData := testutil.ConvertResourceToSHA(testutil.SecretResourceType, namespace, secretName, updatedData)
-	config := util.Config{
+	config := common.Config{
 		Namespace:    namespace,
 		ResourceName: secretName,
 		SHAValue:     shaData,
@@ -2062,7 +2063,7 @@ func TestControllerUpdatingSecretShouldUpdatePodAnnotationInStatefulSet(t *testi
 	// Verifying Upgrade
 	logrus.Infof("Verifying pod annotation has been updated")
 	shaData := testutil.ConvertResourceToSHA(testutil.SecretResourceType, namespace, secretName, updatedData)
-	config := util.Config{
+	config := common.Config{
 		Namespace:    namespace,
 		ResourceName: secretName,
 		SHAValue:     shaData,

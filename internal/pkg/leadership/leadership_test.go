@@ -16,7 +16,7 @@ import (
 	"github.com/stakater/Reloader/internal/pkg/metrics"
 	"github.com/stakater/Reloader/internal/pkg/options"
 	"github.com/stakater/Reloader/internal/pkg/testutil"
-	"github.com/stakater/Reloader/internal/pkg/util"
+	"github.com/stakater/Reloader/pkg/common"
 	"github.com/stakater/Reloader/pkg/kube"
 )
 
@@ -159,7 +159,7 @@ func TestRunLeaderElectionWithControllers(t *testing.T) {
 	// Verifying deployment update
 	logrus.Infof("Verifying pod envvars has been created")
 	shaData := testutil.ConvertResourceToSHA(testutil.ConfigmapResourceType, testutil.Namespace, configmapName, "www.stakater.com")
-	config := util.Config{
+	config := common.Config{
 		Namespace:    testutil.Namespace,
 		ResourceName: configmapName,
 		SHAValue:     shaData,
@@ -186,7 +186,7 @@ func TestRunLeaderElectionWithControllers(t *testing.T) {
 	// Verifying that the deployment was not updated as leadership has been lost
 	logrus.Infof("Verifying pod envvars has not been updated")
 	shaData = testutil.ConvertResourceToSHA(testutil.ConfigmapResourceType, testutil.Namespace, configmapName, "www.stakater.com/new")
-	config = util.Config{
+	config = common.Config{
 		Namespace:    testutil.Namespace,
 		ResourceName: configmapName,
 		SHAValue:     shaData,
