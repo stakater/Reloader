@@ -180,7 +180,6 @@ func GetResourceLabelSelector(slice []string) (string, error) {
 }
 
 // ShouldReload checks if a resource should be reloaded based on its annotations and the provided options.
-// It will be called from Reloader OSS only has the checks that Reloader OSS needs to perform.
 func ShouldReload(config Config, resourceType string, annotations Map, podAnnotations Map, options *ReloaderOptions) ReloadCheckResult {
 
 	ignoreResourceAnnotatonValue := config.ResourceAnnotations[options.IgnoreResourceAnnotation]
