@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	argorolloutv1alpha1 "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/prometheus/client_golang/prometheus"
 	promtestutil "github.com/prometheus/client_golang/prometheus/testutil"
 	"github.com/sirupsen/logrus"
@@ -18,6 +19,7 @@ import (
 	"github.com/stakater/Reloader/internal/pkg/util"
 	"github.com/stakater/Reloader/pkg/kube"
 	"github.com/stretchr/testify/assert"
+	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -672,7 +674,7 @@ func teardownArs() {
 		logrus.Errorf("Error while deleting statefulSet with secret as env var source %v", statefulSetError)
 	}
 
-	// Deleting Deployment with pasuse annotation
+	// Deleting Deployment with pause annotation
 	deploymentError = testutil.DeleteDeployment(clients.KubernetesClient, arsNamespace, arsConfigmapWithPausedDeployment)
 	if deploymentError != nil {
 		logrus.Errorf("Error while deleting deployment with configmap %v", deploymentError)
@@ -708,7 +710,7 @@ func teardownArs() {
 		logrus.Errorf("Error while deleting the configmap %v", err)
 	}
 
-	// Deleting Configmap used projected volume in init containers
+	// Deleting secret used in projected volume in init containers
 	err = testutil.DeleteSecret(clients.KubernetesClient, arsNamespace, arsProjectedSecretWithInitContainer)
 	if err != nil {
 		logrus.Errorf("Error while deleting the secret %v", err)
@@ -1392,7 +1394,7 @@ func teardownErs() {
 		logrus.Errorf("Error while deleting the configmap %v", err)
 	}
 
-	// Deleting Configmap used projected volume in init containers
+	// Deleting secret used in projected volume in init containers
 	err = testutil.DeleteSecret(clients.KubernetesClient, ersNamespace, ersProjectedSecretWithInitContainer)
 	if err != nil {
 		logrus.Errorf("Error while deleting the secret %v", err)
@@ -1475,7 +1477,7 @@ func teardownErs() {
 		logrus.Errorf("Error while deleting the configmap used with configmap exclude annotation: %v", err)
 	}
 
-	// Deleting ConfigMap for testins pausing deployments
+	// Deleting ConfigMap for testing pausing deployments
 	err = testutil.DeleteConfigMap(clients.KubernetesClient, ersNamespace, ersConfigmapWithPausedDeployment)
 	if err != nil {
 		logrus.Errorf("Error while deleting the configmap: %v", err)
@@ -2247,7 +2249,7 @@ func TestRollingUpgradeForDeploymentWithSecretExcludeAnnotationUsingArs(t *testi
 	logrus.Infof("Verifying deployment did not update")
 	updated := testutil.VerifyResourceAnnotationUpdate(clients, config, deploymentFuncs)
 	if updated {
-		t.Errorf("Deployment which had to be exluded was updated")
+		t.Errorf("Deployment which had to be excluded was updated")
 	}
 }
 
@@ -4213,4 +4215,73 @@ func waitForDeploymentPausedAtAnnotation(clients kube.Clients, deploymentFuncs c
 	}
 
 	return fmt.Errorf("timeout waiting for deployment %s to have pause-period annotation", deploymentName)
+}
+
+// MockArgoRolloutWithEmptyContainers creates a mock Argo Rollout with no containers
+// This simulates the scenario where Argo Rollouts with workloadRef return empty containers
+func MockArgoRolloutWithEmptyContainers(namespace, name string) *runtime.Object {
+	rollout := &argorolloutv1alpha1.Rollout{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name,
+			Namespace: namespace,
+		},
+		Spec: argorolloutv1alpha1.RolloutSpec{
+			Template: v1.PodTemplateSpec{
+				Spec: v1.PodSpec{
+					Containers:     []v1.Container{}, // Empty containers slice
+					InitContainers: []v1.Container{}, // Empty init containers slice
+					Volumes:        []v1.Volume{},    // Empty volumes slice
+				},
+			},
+		},
+	}
+	var obj runtime.Object = rollout
+	return &obj
+}
+
+// TestGetContainerUsingResourceWithArgoRolloutEmptyContainers tests with real Argo Rollout functions
+func TestGetContainerUsingResourceWithArgoRolloutEmptyContainers(t *testing.T) {
+	namespace := "test-namespace"
+	resourceName := "test-configmap"
+
+	// Use real Argo Rollout functions but mock the containers function
+	rolloutFuncs := GetArgoRolloutRollingUpgradeFuncs()
+	originalContainersFunc := rolloutFuncs.ContainersFunc
+	originalInitContainersFunc := rolloutFuncs.InitContainersFunc
+
+	// Override to return empty containers (simulating workloadRef scenario)
+	rolloutFuncs.ContainersFunc = func(item runtime.Object) []v1.Container {
+		return []v1.Container{} // Empty like workloadRef rollouts
+	}
+	rolloutFuncs.InitContainersFunc = func(item runtime.Object) []v1.Container {
+		return []v1.Container{} // Empty like workloadRef rollouts
+	}
+
+	// Restore original functions after test
+	defer func() {
+		rolloutFuncs.ContainersFunc = originalContainersFunc
+		rolloutFuncs.InitContainersFunc = originalInitContainersFunc
+	}()
+
+	// Use proper Argo Rollout object instead of Pod
+	mockRollout := MockArgoRolloutWithEmptyContainers(namespace, "test-rollout")
+
+	config := util.Config{
+		Namespace:    namespace,
+		ResourceName: resourceName,
+		Type:         constants.ConfigmapEnvVarPostfix,
+		SHAValue:     "test-sha",
+	}
+
+	// Test both autoReload scenarios using subtests as suggested by Felix
+	for _, autoReload := range []bool{true, false} {
+		t.Run(fmt.Sprintf("autoReload_%t", autoReload), func(t *testing.T) {
+			// This tests the actual fix in the context of Argo Rollouts
+			result := getContainerUsingResource(rolloutFuncs, *mockRollout, config, autoReload)
+
+			if result != nil {
+				t.Errorf("Expected nil when using real Argo Rollout functions with empty containers (workloadRef scenario), got %v", result)
+			}
+		})
+	}
 }
