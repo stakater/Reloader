@@ -10,6 +10,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/stakater/Reloader/internal/pkg/constants"
 	"github.com/stakater/Reloader/internal/pkg/options"
+	"github.com/stakater/Reloader/internal/pkg/util"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/client-go/kubernetes"
@@ -74,6 +75,8 @@ type ReloaderOptions struct {
 	WebhookUrl string `json:"webhookUrl"`
 	// ResourcesToIgnore is a list of resource types to ignore (e.g., "configmaps" or "secrets")
 	ResourcesToIgnore []string `json:"resourcesToIgnore"`
+	// WorkloadTypesToIgnore is a list of workload types to ignore (e.g., "jobs" or "cronjobs")
+	WorkloadTypesToIgnore []string `json:"workloadTypesToIgnore"`
 	// NamespaceSelectors is a list of label selectors to filter namespaces to watch
 	NamespaceSelectors []string `json:"namespaceSelectors"`
 	// ResourceSelectors is a list of label selectors to filter ConfigMaps and Secrets to watch
@@ -181,6 +184,32 @@ func GetResourceLabelSelector(slice []string) (string, error) {
 
 // ShouldReload checks if a resource should be reloaded based on its annotations and the provided options.
 func ShouldReload(config Config, resourceType string, annotations Map, podAnnotations Map, options *ReloaderOptions) ReloadCheckResult {
+
+	// Check if this workload type should be ignored
+	if len(options.WorkloadTypesToIgnore) > 0 {
+		ignoredWorkloadTypes, err := util.GetIgnoredWorkloadTypesList()
+		if err != nil {
+			logrus.Errorf("Failed to parse ignored workload types: %v", err)
+		} else {
+			// Map Kubernetes resource types to CLI-friendly names for comparison
+			var resourceToCheck string
+			switch resourceType {
+			case "Job":
+				resourceToCheck = "jobs"
+			case "CronJob":
+				resourceToCheck = "cronjobs"
+			default:
+				resourceToCheck = resourceType // For other types, use as-is
+			}
+
+			// Check if current resource type should be ignored
+			if ignoredWorkloadTypes.Contains(resourceToCheck) {
+				return ReloadCheckResult{
+					ShouldReload: false,
+				}
+			}
+		}
+	}
 
 	ignoreResourceAnnotatonValue := config.ResourceAnnotations[options.IgnoreResourceAnnotation]
 	if ignoreResourceAnnotatonValue == "true" {
@@ -304,6 +333,7 @@ func GetCommandLineOptions() *ReloaderOptions {
 	CommandLineOptions.EnableHA = options.EnableHA
 	CommandLineOptions.WebhookUrl = options.WebhookUrl
 	CommandLineOptions.ResourcesToIgnore = options.ResourcesToIgnore
+	CommandLineOptions.WorkloadTypesToIgnore = options.WorkloadTypesToIgnore
 	CommandLineOptions.NamespaceSelectors = options.NamespaceSelectors
 	CommandLineOptions.ResourceSelectors = options.ResourceSelectors
 	CommandLineOptions.NamespacesToIgnore = options.NamespacesToIgnore

@@ -155,7 +155,7 @@ spec:
 
         - name: RELOADER_DEPLOYMENT_NAME
           value: {{ template "reloader-fullname" . }}
-          
+
       {{- if .Values.reloader.enableHA }}
         - name: POD_NAME
           valueFrom:
@@ -210,7 +210,7 @@ spec:
           {{- . | toYaml | nindent 10 }}
           {{- end }}
       {{- end }}
-      {{- if or (.Values.reloader.logFormat) (.Values.reloader.logLevel) (.Values.reloader.ignoreSecrets) (.Values.reloader.ignoreNamespaces) (include "reloader-namespaceSelector" .) (.Values.reloader.resourceLabelSelector) (.Values.reloader.ignoreConfigMaps) (.Values.reloader.custom_annotations) (eq .Values.reloader.isArgoRollouts true) (eq .Values.reloader.reloadOnCreate true) (eq .Values.reloader.reloadOnDelete true) (ne .Values.reloader.reloadStrategy "default") (.Values.reloader.enableHA) (.Values.reloader.autoReloadAll)}}
+      {{- if or (.Values.reloader.logFormat) (.Values.reloader.logLevel) (.Values.reloader.ignoreSecrets) (.Values.reloader.ignoreNamespaces) (include "reloader-namespaceSelector" .) (.Values.reloader.resourceLabelSelector) (.Values.reloader.ignoreConfigMaps) (.Values.reloader.custom_annotations) (eq .Values.reloader.isArgoRollouts true) (eq .Values.reloader.reloadOnCreate true) (eq .Values.reloader.reloadOnDelete true) (ne .Values.reloader.reloadStrategy "default") (.Values.reloader.enableHA) (.Values.reloader.autoReloadAll) (.Values.reloader.ignoreJobs) (.Values.reloader.ignoreCronJobs)}}
         args:
           {{- if .Values.reloader.logFormat }}
           - "--log-format={{ .Values.reloader.logFormat }}"
@@ -223,6 +223,13 @@ spec:
           {{- end }}
           {{- if .Values.reloader.ignoreConfigMaps }}
           - "--resources-to-ignore=configMaps"
+          {{- end }}
+          {{- if and (.Values.reloader.ignoreJobs) (.Values.reloader.ignoreCronJobs) }}
+          - "--ignored-workload-types=jobs,cronjobs"
+          {{- else if .Values.reloader.ignoreJobs }}
+          - "--ignored-workload-types=jobs"
+          {{- else if .Values.reloader.ignoreCronJobs }}
+          - "--ignored-workload-types=cronjobs"
           {{- end }}
           {{- if .Values.reloader.ignoreNamespaces }}
           - "--namespaces-to-ignore={{ .Values.reloader.ignoreNamespaces }}"

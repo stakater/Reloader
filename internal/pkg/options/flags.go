@@ -65,6 +65,8 @@ var (
 	WebhookUrl = ""
 	// ResourcesToIgnore is a list of resources to ignore when watching for changes
 	ResourcesToIgnore = []string{}
+	// WorkloadTypesToIgnore is a list of workload types to ignore when watching for changes
+	WorkloadTypesToIgnore = []string{}
 	// NamespacesToIgnore is a list of namespace names to ignore when watching for changes
 	NamespacesToIgnore = []string{}
 	// NamespaceSelectors is a list of namespace selectors to watch for changes

@@ -4267,7 +4267,7 @@ func TestGetContainerUsingResourceWithArgoRolloutEmptyContainers(t *testing.T) {
 	// Use proper Argo Rollout object instead of Pod
 	mockRollout := MockArgoRolloutWithEmptyContainers(namespace, "test-rollout")
 
-	config := util.Config{
+	config := common.Config{
 		Namespace:    namespace,
 		ResourceName: resourceName,
 		Type:         constants.ConfigmapEnvVarPostfix,

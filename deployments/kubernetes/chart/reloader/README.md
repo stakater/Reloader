@@ -14,6 +14,8 @@ helm install stakater/reloader # For helm3 add --generate-name flag or set the r
 helm install {{RELEASE_NAME}} stakater/reloader -n {{NAMESPACE}} --set reloader.watchGlobally=false # By default, Reloader watches in all namespaces. To watch in single namespace, set watchGlobally=false
 
 helm install stakater/reloader --set reloader.watchGlobally=false --namespace test --generate-name # Install Reloader in `test` namespace which will only watch `Deployments`, `Daemonsets` `Statefulsets` and `Rollouts` in `test` namespace.
+
+helm install stakater/reloader --set reloader.ignoreJobs=true --set reloader.ignoreCronJobs=true --generate-name # Install Reloader ignoring Jobs and CronJobs from reload monitoring
 ```
 
 ## Uninstalling
@@ -47,6 +49,8 @@ helm uninstall {{RELEASE_NAME}} -n {{NAMESPACE}}
 | `reloader.isOpenshift`              | Enable OpenShift DeploymentConfigs. Valid value are either `true` or `false`                                                                        | boolean     | `false`   |
 | `reloader.ignoreSecrets`            | To ignore secrets. Valid value are either `true` or `false`. Either `ignoreSecrets` or `ignoreConfigMaps` can be ignored, not both at the same time | boolean     | `false`   |
 | `reloader.ignoreConfigMaps`         | To ignore configmaps. Valid value are either `true` or `false`                                                                                      | boolean     | `false`   |
+| `reloader.ignoreJobs`               | To ignore jobs from reload monitoring. Valid value are either `true` or `false`. Translates to `--ignored-workload-types=jobs`                      | boolean     | `false`   |
+| `reloader.ignoreCronJobs`           | To ignore CronJobs from reload monitoring. Valid value are either `true` or `false`. Translates to `--ignored-workload-types=cronjobs`               | boolean     | `false`   |
 | `reloader.reloadOnCreate`           | Enable reload on create events. Valid value are either `true` or `false`                                                                            | boolean     | `false`   |
 | `reloader.reloadOnDelete`           | Enable reload on delete events. Valid value are either `true` or `false`                                                                            | boolean     | `false`   |
 | `reloader.syncAfterRestart`         | Enable sync after Reloader restarts for **Add** events, works only when reloadOnCreate is `true`. Valid value are either `true` or `false`          | boolean     | `false`   |
@@ -58,7 +62,7 @@ helm uninstall {{RELEASE_NAME}} -n {{NAMESPACE}}
 | `reloader.watchGlobally`            | Allow Reloader to watch in all namespaces (`true`) or just in a single namespace (`false`)                                                          | boolean     | `true`    |
 | `reloader.enableHA`                 | Enable leadership election allowing you to run multiple replicas                                                                                    | boolean     | `false`   |
 | `reloader.enablePProf`              | Enables pprof for profiling | boolean | `false` |
-| `reloader.pprofAddr` | Address to start pprof server on | string | `:6060` | 
+| `reloader.pprofAddr` | Address to start pprof server on | string | `:6060` |
 | `reloader.readOnlyRootFileSystem`   | Enforce readOnlyRootFilesystem                                                                                                                      | boolean     | `false`   |
 | `reloader.legacy.rbac`              |                                                                                                                                                     | boolean     | `false`   |
 | `reloader.matchLabels`              | Pod labels to match                                                                                                                                 | map         | `{}`      |
@@ -115,6 +119,10 @@ helm uninstall {{RELEASE_NAME}} -n {{NAMESPACE}}
 - Only one of these resources can be ignored at a time:
   - `ignoreConfigMaps` **or** `ignoreSecrets`
   - Trying to ignore both will cause Helm template compilation errors
+- The `ignoreJobs` and `ignoreCronJobs` flags can be used together or individually
+  - When both are enabled, translates to `--ignored-workload-types=jobs,cronjobs`
+  - When used individually, translates to `--ignored-workload-types=jobs` or `--ignored-workload-types=cronjobs`
+  - These flags prevent Reloader from monitoring and reloading the specified workload types
 
 ### Special Integrations
 - OpenShift (`DeploymentConfig`) and Argo Rollouts support must be **explicitly enabled**
