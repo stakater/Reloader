@@ -83,6 +83,7 @@ func ConfigureReloaderFlags(cmd *cobra.Command) {
 	cmd.PersistentFlags().StringVar(&options.LogLevel, "log-level", "info", "Log level to use (trace, debug, info, warning, error, fatal and panic)")
 	cmd.PersistentFlags().StringVar(&options.WebhookUrl, "webhook-url", "", "webhook to trigger instead of performing a reload")
 	cmd.PersistentFlags().StringSliceVar(&options.ResourcesToIgnore, "resources-to-ignore", options.ResourcesToIgnore, "list of resources to ignore (valid options 'configMaps' or 'secrets')")
+	cmd.PersistentFlags().StringSliceVar(&options.WorkloadTypesToIgnore, "ignored-workload-types", options.WorkloadTypesToIgnore, "list of workload types to ignore (valid options: 'jobs', 'cronjobs', or both)")
 	cmd.PersistentFlags().StringSliceVar(&options.NamespacesToIgnore, "namespaces-to-ignore", options.NamespacesToIgnore, "list of namespaces to ignore")
 	cmd.PersistentFlags().StringSliceVar(&options.NamespaceSelectors, "namespace-selector", options.NamespaceSelectors, "list of key:value labels to filter on for namespaces")
 	cmd.PersistentFlags().StringSliceVar(&options.ResourceSelectors, "resource-label-selector", options.ResourceSelectors, "list of key:value labels to filter on for configmaps and secrets")
@@ -111,4 +112,17 @@ func GetIgnoredResourcesList() (List, error) {
 	}
 
 	return ignoredResourcesList, nil
+}
+
+func GetIgnoredWorkloadTypesList() (List, error) {
+
+	ignoredWorkloadTypesList := options.WorkloadTypesToIgnore
+
+	for _, v := range ignoredWorkloadTypesList {
+		if v != "jobs" && v != "cronjobs" {
+			return nil, fmt.Errorf("'ignored-workload-types' accepts 'jobs', 'cronjobs', or both, not '%s'", v)
+		}
+	}
+
+	return ignoredWorkloadTypesList, nil
 }

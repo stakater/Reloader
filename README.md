@@ -329,12 +329,29 @@ Reloader supports multiple strategies for triggering rolling updates when a watc
 |------|-------------|
 | `--resources-to-ignore=configmaps` | Ignore ConfigMaps (only one type can be ignored at a time) |
 | `--resources-to-ignore=secrets` | Ignore Secrets (cannot combine with configMaps) |
+| `--ignored-workload-types=jobs,cronjobs` | Ignore specific workload types from reload monitoring |
 | `--resource-label-selector=key=value` | Only watch ConfigMaps/Secrets with matching labels |
 
-> **⚠️ Note:**  
-> Only **one** resource type can be ignored at a time.  
-> Trying to ignore **both `configmaps` and `secrets`** will cause an error in Reloader.  
+> **⚠️ Note:**
+>
+> Only **one** resource type can be ignored at a time.
+> Trying to ignore **both `configmaps` and `secrets`** will cause an error in Reloader.
 > ✅ **Workaround:** Scale the Reloader deployment to `0` replicas if you want to disable it completely.
+
+**💡 Workload Type Examples:**
+
+```bash
+# Ignore only Jobs
+--ignored-workload-types=jobs
+
+# Ignore only CronJobs
+--ignored-workload-types=cronjobs
+
+# Ignore both (comma-separated)
+--ignored-workload-types=jobs,cronjobs
+```
+
+> **🔧 Use Case:** Ignoring workload types is useful when you don't want certain types of workloads to be automatically reloaded.
 
 #### 3. 🧩 Namespace Filtering
 

@@ -27,7 +27,11 @@ reloader:
   isOpenshift: false
   ignoreSecrets: false
   ignoreConfigMaps: false
+  # Set to true to exclude Job workloads from automatic reload monitoring
+  # Useful when you don't want Jobs to be restarted when their referenced ConfigMaps/Secrets change
   ignoreJobs: false
+  # Set to true to exclude CronJob workloads from automatic reload monitoring
+  # Useful when you don't want CronJobs to be restarted when their referenced ConfigMaps/Secrets change
   ignoreCronJobs: false
   reloadOnCreate: false
   reloadOnDelete: false
@@ -84,7 +88,7 @@ reloader:
     #           - key: "node-role.kubernetes.io/infra-worker"
     #             operator: "Exists"
     affinity: {}
-    
+
     volumeMounts: []
     volumes: []
 

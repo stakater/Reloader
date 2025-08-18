@@ -61,3 +61,44 @@ tests:
             valueFrom:
               fieldRef:
                 fieldPath: metadata.name
+
+  - it: sets ignored-workload-types argument when ignoreJobs is true
+    set:
+      reloader:
+        ignoreJobs: true
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].args
+          content: "--ignored-workload-types=jobs"
+
+  - it: sets ignored-workload-types argument when ignoreCronJobs is true
+    set:
+      reloader:
+        ignoreCronJobs: true
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].args
+          content: "--ignored-workload-types=cronjobs"
+
+  - it: sets ignored-workload-types argument when both ignoreJobs and ignoreCronJobs are true
+    set:
+      reloader:
+        ignoreJobs: true
+        ignoreCronJobs: true
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].args
+          content: "--ignored-workload-types=jobs,cronjobs"
+
+  - it: does not set ignored-workload-types argument when both ignoreJobs and ignoreCronJobs are false
+    set:
+      reloader:
+        ignoreJobs: false
+        ignoreCronJobs: false
+    asserts:
+      - notContains:
+          path: spec.template.spec.containers[0].args
+          content: "--ignored-workload-types=jobs"
+      - notContains:
+          path: spec.template.spec.containers[0].args
+          content: "--ignored-workload-types=cronjobs"
