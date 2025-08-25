@@ -5,6 +5,7 @@ If you have configured helm on your cluster, you can add Reloader to helm from o
 ## Installation
 
 ```bash
+# Add stakater helm repoository
 helm repo add stakater https://stakater.github.io/stakater-charts
 
 helm repo update
