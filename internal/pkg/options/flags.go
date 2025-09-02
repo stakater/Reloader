@@ -52,6 +52,8 @@ var (
 	LogLevel = ""
 	// IsArgoRollouts Adds support for argo rollouts
 	IsArgoRollouts = "false"
+    // IsKruise enables support for OpenKruise workloads
+    IsKruise = "false"
 	// ReloadStrategy Specify the update strategy
 	ReloadStrategy = constants.EnvVarsReloadStrategy
 	// ReloadOnCreate Adds support to watch create events

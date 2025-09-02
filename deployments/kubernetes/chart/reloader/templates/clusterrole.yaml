@@ -71,6 +71,10 @@ rules:
       - deployments
       - daemonsets
       - statefulsets
+  - apiGroups:
+      - "apps.kruise.io"
+    resources:
+      - statefulsets
     verbs:
       - list
       - get

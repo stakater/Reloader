@@ -120,6 +120,24 @@ func GetStatefulSetRollingUpgradeFuncs() callbacks.RollingUpgradeFuncs {
 	}
 }
 
+// GetKruiseStatefulSetRollingUpgradeFuncs returns callback funcs for Kruise StatefulSets
+func GetKruiseStatefulSetRollingUpgradeFuncs() callbacks.RollingUpgradeFuncs {
+	return callbacks.RollingUpgradeFuncs{
+		ItemFunc:           callbacks.GetKruiseStatefulSetItem,
+		ItemsFunc:          callbacks.GetKruiseStatefulSetItems,
+		AnnotationsFunc:    callbacks.GetKruiseStatefulSetAnnotations,
+		PodAnnotationsFunc: callbacks.GetKruiseStatefulSetPodAnnotations,
+		ContainersFunc:     callbacks.GetKruiseStatefulSetContainers,
+		InitContainersFunc: callbacks.GetKruiseStatefulSetInitContainers,
+		UpdateFunc:         callbacks.UpdateKruiseStatefulSet,
+		PatchFunc:          callbacks.PatchKruiseStatefulSet,
+		PatchTemplatesFunc: callbacks.GetPatchTemplates,
+		VolumesFunc:        callbacks.GetKruiseStatefulSetVolumes,
+		ResourceType:       "KruiseStatefulSet",
+		SupportsPatch:      true,
+	}
+}
+
 // GetArgoRolloutRollingUpgradeFuncs returns all callback funcs for a rollout
 func GetArgoRolloutRollingUpgradeFuncs() callbacks.RollingUpgradeFuncs {
 	return callbacks.RollingUpgradeFuncs{
@@ -175,6 +193,14 @@ func doRollingUpgrade(config common.Config, collectors metrics.Collectors, recor
 	err := rollingUpgrade(clients, config, GetDeploymentRollingUpgradeFuncs(), collectors, recorder, invoke)
 	if err != nil {
 		return err
+	}
+
+	// Kruise StatefulSets (apps.kruise.io)
+	if clients.KruiseClient != nil {
+		err = rollingUpgrade(clients, config, GetKruiseStatefulSetRollingUpgradeFuncs(), collectors, recorder, invoke)
+		if err != nil {
+			return err
+		}
 	}
 	err = rollingUpgrade(clients, config, GetCronJobCreateJobFuncs(), collectors, recorder, invoke)
 	if err != nil {
@@ -293,7 +319,7 @@ func upgradeResource(clients kube.Clients, config common.Config, upgradeFuncs ca
 		}
 	}
 
-	if upgradeFuncs.SupportsPatch && strategyResult.Patch != nil {
+	if upgradeFuncs.SupportsPatch && strategyResult.Patch != nil && !(config.Type == "Secret" || config.Type == "secret") {
 		err = upgradeFuncs.PatchFunc(clients, config.Namespace, resource, strategyResult.Patch.Type, strategyResult.Patch.Bytes)
 	} else {
 		err = upgradeFuncs.UpdateFunc(clients, config.Namespace, resource)
@@ -498,7 +524,7 @@ func updatePodAnnotations(upgradeFuncs callbacks.RollingUpgradeFuncs, item runti
 		pa[k] = v
 	}
 
-	return InvokeStrategyResult{constants.Updated, &Patch{Type: patchtypes.StrategicMergePatchType, Bytes: patch}}
+	return InvokeStrategyResult{constants.Updated, &Patch{Type: patchtypes.MergePatchType, Bytes: patch}}
 }
 
 func getReloaderAnnotationKey() string {
@@ -569,7 +595,7 @@ func updateContainerEnvVars(upgradeFuncs callbacks.RollingUpgradeFuncs, item run
 		patch = fmt.Appendf(nil, upgradeFuncs.PatchTemplatesFunc().EnvVarTemplate, container.Name, envVar, config.SHAValue)
 	}
 
-	return InvokeStrategyResult{updateResult, &Patch{Type: patchtypes.StrategicMergePatchType, Bytes: patch}}
+	return InvokeStrategyResult{updateResult, &Patch{Type: patchtypes.MergePatchType, Bytes: patch}}
 }
 
 func updateEnvVar(container *v1.Container, envVar string, shaData string) constants.Result {

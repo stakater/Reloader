@@ -26,6 +26,15 @@ rules:
       - update
       - patch
   - apiGroups:
+      - "apps.kruise.io"
+    resources:
+      - statefulsets
+    verbs:
+      - list
+      - get
+      - update
+      - patch
+  - apiGroups:
       - "extensions"
     resources:
       - deployments

@@ -1,16 +1,17 @@
 package kube
 
 import (
-	"context"
-	"os"
+    "context"
+    "os"
 
-	"k8s.io/client-go/tools/clientcmd"
+    "k8s.io/client-go/tools/clientcmd"
 
-	argorollout "github.com/argoproj/argo-rollouts/pkg/client/clientset/versioned"
-	appsclient "github.com/openshift/client-go/apps/clientset/versioned"
-	"github.com/sirupsen/logrus"
-	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/rest"
+    argorollout "github.com/argoproj/argo-rollouts/pkg/client/clientset/versioned"
+    appsclient "github.com/openshift/client-go/apps/clientset/versioned"
+    kruiseclient "github.com/openkruise/kruise-api/client/clientset/versioned"
+    "github.com/sirupsen/logrus"
+    "k8s.io/client-go/kubernetes"
+    "k8s.io/client-go/rest"
 )
 
 // Clients struct exposes interfaces for kubernetes as well as openshift if available
@@ -18,6 +19,7 @@ type Clients struct {
 	KubernetesClient    kubernetes.Interface
 	OpenshiftAppsClient appsclient.Interface
 	ArgoRolloutClient   argorollout.Interface
+    KruiseClient        kruiseclient.Interface
 }
 
 var (
@@ -48,11 +50,18 @@ func GetClients() Clients {
 		logrus.Warnf("Unable to create ArgoRollout client error = %v", err)
 	}
 
-	return Clients{
-		KubernetesClient:    client,
-		OpenshiftAppsClient: appsClient,
-		ArgoRolloutClient:   rolloutClient,
-	}
+    var kruiseClient *kruiseclient.Clientset
+    kruiseClient, err = GetKruiseClient()
+    if err != nil {
+        logrus.Warnf("Unable to create Kruise client error = %v", err)
+    }
+
+    return Clients{
+        KubernetesClient:    client,
+        OpenshiftAppsClient: appsClient,
+        ArgoRolloutClient:   rolloutClient,
+        KruiseClient:        kruiseClient,
+    }
 }
 
 func GetArgoRolloutClient() (*argorollout.Clientset, error) {
@@ -61,6 +70,15 @@ func GetArgoRolloutClient() (*argorollout.Clientset, error) {
 		return nil, err
 	}
 	return argorollout.NewForConfig(config)
+}
+
+// GetKruiseClient returns an OpenKruise clientset if the CRDs are installed.
+func GetKruiseClient() (*kruiseclient.Clientset, error) {
+    config, err := getConfig()
+    if err != nil {
+        return nil, err
+    }
+    return kruiseclient.NewForConfig(config)
 }
 
 func isOpenshift() bool {

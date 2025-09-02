@@ -4,6 +4,7 @@ go 1.24.4
 
 require (
 	github.com/argoproj/argo-rollouts v1.8.2
+	github.com/openkruise/kruise-api v1.8.0
 	github.com/openshift/api v0.0.0-20250411135543-10a8fa583797
 	github.com/openshift/client-go v0.0.0-20250402181141-b3bad3b645f2
 	github.com/parnurzeal/gorequest v0.3.0

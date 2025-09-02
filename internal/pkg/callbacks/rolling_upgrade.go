@@ -19,6 +19,7 @@ import (
 	"maps"
 
 	argorolloutv1alpha1 "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
+	kruisev1beta1 "github.com/openkruise/kruise-api/apps/v1beta1"
 )
 
 // ItemFunc is a generic function to return a specific resource in given namespace
@@ -66,6 +67,90 @@ type RollingUpgradeFuncs struct {
 	VolumesFunc            VolumesFunc
 	ResourceType           string
 	SupportsPatch          bool
+}
+
+// ------------------------ Kruise StatefulSet helpers ------------------------
+
+// GetKruiseStatefulSetItem returns a Kruise StatefulSet in given namespace
+func GetKruiseStatefulSetItem(clients kube.Clients, name string, namespace string) (runtime.Object, error) {
+	if clients.KruiseClient == nil {
+		return nil, errors.New("kruise client not available")
+	}
+	sts, err := clients.KruiseClient.AppsV1beta1().StatefulSets(namespace).Get(context.TODO(), name, meta_v1.GetOptions{})
+	if err != nil {
+		logrus.Errorf("Failed to get Kruise StatefulSet %v", err)
+		return nil, err
+	}
+	return sts, nil
+}
+
+// GetKruiseStatefulSetItems returns all Kruise StatefulSets in given namespace
+func GetKruiseStatefulSetItems(clients kube.Clients, namespace string) []runtime.Object {
+	if clients.KruiseClient == nil {
+		return []runtime.Object{}
+	}
+	stsList, err := clients.KruiseClient.AppsV1beta1().StatefulSets(namespace).List(context.TODO(), meta_v1.ListOptions{})
+	if err != nil {
+		logrus.Errorf("Failed to list Kruise StatefulSets %v", err)
+	}
+	items := make([]runtime.Object, len(stsList.Items))
+	for i := range stsList.Items {
+		if stsList.Items[i].Spec.Template.ObjectMeta.Annotations == nil {
+			stsList.Items[i].Spec.Template.ObjectMeta.Annotations = make(map[string]string)
+		}
+		items[i] = &stsList.Items[i]
+	}
+	return items
+}
+
+// UpdateKruiseStatefulSet performs rolling upgrade on a Kruise StatefulSet
+func UpdateKruiseStatefulSet(clients kube.Clients, namespace string, resource runtime.Object) error {
+	if clients.KruiseClient == nil {
+		return errors.New("kruise client not available")
+	}
+	sts := resource.(*kruisev1beta1.StatefulSet)
+	_, err := clients.KruiseClient.AppsV1beta1().StatefulSets(namespace).Update(context.TODO(), sts, meta_v1.UpdateOptions{FieldManager: "Reloader"})
+	return err
+}
+
+// PatchKruiseStatefulSet patches a Kruise StatefulSet (if server-side patch is supported)
+func PatchKruiseStatefulSet(clients kube.Clients, namespace string, resource runtime.Object, patchType patchtypes.PatchType, bytes []byte) error {
+	if clients.KruiseClient == nil {
+		return errors.New("kruise client not available")
+	}
+	sts := resource.(*kruisev1beta1.StatefulSet)
+	_, err := clients.KruiseClient.AppsV1beta1().StatefulSets(namespace).Patch(context.TODO(), sts.Name, patchType, bytes, meta_v1.PatchOptions{FieldManager: "Reloader"})
+	return err
+}
+
+// ------------- shared access helpers for Kruise StatefulSet ----------------
+
+func GetKruiseStatefulSetAnnotations(item runtime.Object) map[string]string {
+	sts := item.(*kruisev1beta1.StatefulSet)
+	if sts.ObjectMeta.Annotations == nil {
+		sts.ObjectMeta.Annotations = make(map[string]string)
+	}
+	return sts.ObjectMeta.Annotations
+}
+
+func GetKruiseStatefulSetPodAnnotations(item runtime.Object) map[string]string {
+	sts := item.(*kruisev1beta1.StatefulSet)
+	if sts.Spec.Template.ObjectMeta.Annotations == nil {
+		sts.Spec.Template.ObjectMeta.Annotations = make(map[string]string)
+	}
+	return sts.Spec.Template.ObjectMeta.Annotations
+}
+
+func GetKruiseStatefulSetContainers(item runtime.Object) []v1.Container {
+	return item.(*kruisev1beta1.StatefulSet).Spec.Template.Spec.Containers
+}
+
+func GetKruiseStatefulSetInitContainers(item runtime.Object) []v1.Container {
+	return item.(*kruisev1beta1.StatefulSet).Spec.Template.Spec.InitContainers
+}
+
+func GetKruiseStatefulSetVolumes(item runtime.Object) []v1.Volume {
+	return item.(*kruisev1beta1.StatefulSet).Spec.Template.Spec.Volumes
 }
 
 // PatchTemplates contains merge JSON patch templates
