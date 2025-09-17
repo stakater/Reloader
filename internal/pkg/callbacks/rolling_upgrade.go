@@ -452,7 +452,6 @@ func CreateJobFromCronjob(clients kube.Clients, namespace string, resource runti
 
 	job := &batchv1.Job{
 		ObjectMeta: meta_v1.ObjectMeta{
-			GenerateName:    cronJob.Name + "-",
 			Namespace:       cronJob.Namespace,
 			Annotations:     annotations,
 			Labels:          cronJob.Spec.JobTemplate.Labels,
