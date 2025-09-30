@@ -172,18 +172,34 @@ func sendWebhook(url string) (string, []error) {
 func doRollingUpgrade(config common.Config, collectors metrics.Collectors, recorder record.EventRecorder, invoke invokeStrategy) error {
 	clients := kube.GetClients()
 
-	err := rollingUpgrade(clients, config, GetDeploymentRollingUpgradeFuncs(), collectors, recorder, invoke)
+	// Get ignored workload types to avoid listing resources without RBAC permissions
+	ignoredWorkloadTypes, err := util.GetIgnoredWorkloadTypesList()
+	if err != nil {
+		logrus.Errorf("Failed to parse ignored workload types: %v", err)
+		ignoredWorkloadTypes = util.List{} // Continue with empty list if parsing fails
+	}
+
+	err = rollingUpgrade(clients, config, GetDeploymentRollingUpgradeFuncs(), collectors, recorder, invoke)
 	if err != nil {
 		return err
 	}
-	err = rollingUpgrade(clients, config, GetCronJobCreateJobFuncs(), collectors, recorder, invoke)
-	if err != nil {
-		return err
+
+	// Only process CronJobs if they are not ignored
+	if !ignoredWorkloadTypes.Contains("cronjobs") {
+		err = rollingUpgrade(clients, config, GetCronJobCreateJobFuncs(), collectors, recorder, invoke)
+		if err != nil {
+			return err
+		}
 	}
-	err = rollingUpgrade(clients, config, GetJobCreateJobFuncs(), collectors, recorder, invoke)
-	if err != nil {
-		return err
+
+	// Only process Jobs if they are not ignored
+	if !ignoredWorkloadTypes.Contains("jobs") {
+		err = rollingUpgrade(clients, config, GetJobCreateJobFuncs(), collectors, recorder, invoke)
+		if err != nil {
+			return err
+		}
 	}
+
 	err = rollingUpgrade(clients, config, GetDaemonSetRollingUpgradeFuncs(), collectors, recorder, invoke)
 	if err != nil {
 		return err
