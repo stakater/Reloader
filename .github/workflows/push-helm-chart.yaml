@@ -106,7 +106,7 @@ jobs:
           commit_email: stakater@gmail.com
 
       - name: Push new chart tag
-        uses: anothrNick/github-tag-action@1.71.0
+        uses: anothrNick/github-tag-action@1.75.0
         env:
           GITHUB_TOKEN: ${{ secrets.PUBLISH_TOKEN }}
           WITH_V: false

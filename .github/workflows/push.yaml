@@ -215,7 +215,7 @@ jobs:
             org.opencontainers.image.revision=${{ github.sha }}
 
       - name: Push Latest Tag
-        uses: anothrNick/github-tag-action@1.71.0
+        uses: anothrNick/github-tag-action@1.75.0
         env:
           GITHUB_TOKEN: ${{ secrets.PUBLISH_TOKEN }}
           WITH_V: false
