@@ -30,7 +30,7 @@ jobs:
     if: ${{ github.event.label.name == 'build-and-push-pr-image' }}
     steps:
     - name: Check out code
-      uses: actions/checkout@v4
+      uses: actions/checkout@v5
       with:
         ref: ${{github.event.pull_request.head.sha}}
         fetch-depth: 0
