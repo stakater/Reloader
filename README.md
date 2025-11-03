@@ -2,6 +2,7 @@
   <img src="assets/web/reloader.jpg" alt="Reloader" width="40%"/>
 </p>
 
+[![💖 Sponsor Our Work](https://img.shields.io/badge/Sponsor%20Our%20Work-FF8C00?style=flat-square&logo=github-sponsors&logoColor=white)](https://github.com/sponsors/stakater?utm_source=github&utm_medium=readme&utm_campaign=reloader)
 [![Go Report Card](https://goreportcard.com/badge/github.com/stakater/reloader?style=flat-square)](https://goreportcard.com/report/github.com/stakater/reloader)
 [![Go Doc](https://img.shields.io/badge/godoc-reference-blue.svg?style=flat-square)](https://godoc.org/github.com/stakater/reloader)
 [![Release](https://img.shields.io/github/release/stakater/reloader.svg?style=flat-square)](https://github.com/stakater/reloader/releases/latest)
@@ -153,6 +154,21 @@ This pattern allows fine-grained reload control — workloads only restart if th
 1. ✅ You want to reload a workload only if it references a ConfigMap or Secret that has been explicitly tagged with `reloader.stakater.com/match: "true"`.
 1. ✅ Use this when you want full control over which shared or system-wide resources trigger reloads. Great in multi-tenant clusters or shared configs.
 
+### ⛔ Resource-Level Ignore Annotation
+
+When you need to prevent specific ConfigMaps or Secrets from triggering any reloads, use the ignore annotation on the resource itself:
+
+```yaml
+apiVersion: v1
+kind: ConfigMap  # or Secret
+metadata:
+  name: my-config
+  annotations:
+    reloader.stakater.com/ignore: "true"
+```
+
+This instructs Reloader to skip all reload logic for that resource across all workloads.
+
 ### 4. ⚙️ Workload-Specific Rollout Strategy
 
 By default, Reloader uses the **rollout** strategy — it updates the pod template to trigger a new rollout. This works well in most cases, but it can cause problems if you're using GitOps tools like ArgoCD, which detect this as configuration drift.
@@ -189,7 +205,7 @@ metadata:
 
 Reloader can optionally **send alerts** whenever it triggers a rolling upgrade for a workload (e.g., `Deployment`, `StatefulSet`, etc.).
 
-These alerts are sent to a configured **webhook endpoint**, which can be a generic receiver or services like Slack or Microsoft Teams.
+These alerts are sent to a configured **webhook endpoint**, which can be a generic receiver or services like Slack, Microsoft Teams or Google Chat.
 
 To enable this feature, update the `reloader.env.secret` section in your `values.yaml` (when installing via Helm):
 
@@ -198,10 +214,29 @@ reloader:
   env:
     secret:
       ALERT_ON_RELOAD: "true"                    # Enable alerting (default: false)
-      ALERT_SINK: "slack"                        # Options: slack, teams, webhook (default: webhook)
+      ALERT_SINK: "slack"                        # Options: slack, teams, gchat or webhook (default: webhook)
       ALERT_WEBHOOK_URL: "<your-webhook-url>"    # Required if ALERT_ON_RELOAD is true
       ALERT_ADDITIONAL_INFO: "Triggered by Reloader in staging environment"
 ```
+
+### 7. ⏸️ Pause Deployments
+
+This feature allows you to pause rollouts for a deployment for a specified duration, helping to prevent multiple restarts when several ConfigMaps or Secrets are updated in quick succession.
+
+| Annotation                                              | Applies To   | Description                                                                 |
+|---------------------------------------------------------|--------------|-----------------------------------------------------------------------------|
+| `deployment.reloader.stakater.com/pause-period: "5m"`   | Deployment   | Pauses reloads for the specified period (e.g., `5m`, `1h`)                  |
+
+#### How it works
+
+1. Add the `deployment.reloader.stakater.com/pause-period` annotation to your Deployment, specifying the pause duration (e.g., `"5m"` for five minutes).
+1. When a watched ConfigMap or Secret changes, Reloader will still trigger a reload event, but if the deployment is paused, the rollout will have no effect until the pause period has elapsed.
+1. This avoids repeated restarts if multiple resources are updated close together.
+
+#### Use when
+
+1. ✅ Your deployment references multiple ConfigMaps or Secrets that may be updated at the same time.
+1. ✅ You want to minimize unnecessary rollouts and reduce downtime caused by back-to-back configuration changes.
 
 ## 🚀 Installation
 
@@ -294,12 +329,29 @@ Reloader supports multiple strategies for triggering rolling updates when a watc
 |------|-------------|
 | `--resources-to-ignore=configmaps` | Ignore ConfigMaps (only one type can be ignored at a time) |
 | `--resources-to-ignore=secrets` | Ignore Secrets (cannot combine with configMaps) |
+| `--ignored-workload-types=jobs,cronjobs` | Ignore specific workload types from reload monitoring |
 | `--resource-label-selector=key=value` | Only watch ConfigMaps/Secrets with matching labels |
 
-> **⚠️ Note:**  
-> Only **one** resource type can be ignored at a time.  
-> Trying to ignore **both `configmaps` and `secrets`** will cause an error in Reloader.  
+> **⚠️ Note:**
+>
+> Only **one** resource type can be ignored at a time.
+> Trying to ignore **both `configmaps` and `secrets`** will cause an error in Reloader.
 > ✅ **Workaround:** Scale the Reloader deployment to `0` replicas if you want to disable it completely.
+
+**💡 Workload Type Examples:**
+
+```bash
+# Ignore only Jobs
+--ignored-workload-types=jobs
+
+# Ignore only CronJobs
+--ignored-workload-types=cronjobs
+
+# Ignore both (comma-separated)
+--ignored-workload-types=jobs,cronjobs
+```
+
+> **🔧 Use Case:** Ignoring workload types is useful when you don't want certain types of workloads to be automatically reloaded.
 
 #### 3. 🧩 Namespace Filtering
 
@@ -321,6 +373,15 @@ These flags allow you to redefine annotation keys used in your workloads or reso
 | `--search-match-annotation` | Overrides `reloader.stakater.com/match` |
 | `--secret-annotation` | Overrides `secret.reloader.stakater.com/reload` |
 | `--configmap-annotation` | Overrides `configmap.reloader.stakater.com/reload` |
+| `--pause-deployment-annotation` | Overrides `deployment.reloader.stakater.com/pause-period` |
+| `--pause-deployment-time-annotation` | Overrides `deployment.reloader.stakater.com/paused-at` |
+
+### 5. 🕷️ Debugging
+
+| Flag | Description |
+|---  |-------------|
+| `--enable-pprof` | Enables `pprof` for profiling |
+| `--pprof-addr` | Address to start `pprof` server on. Default is `:6060` |
 
 ## Compatibility
 
@@ -376,7 +437,7 @@ To make a GitHub release:
 1. Code owners run a dispatch mode workflow to automatically generate version and manifests on the release branch
 1. A PR is created to bump the image version on the release branch, example: [PR-798](https://github.com/stakater/Reloader/pull/798)
 1. Code owners create a GitHub release with tag `vX.Y.Z` and target branch `release-vX.Y.Z`, which triggers creation of images
-1. Code owners create a PR to update the Helm chart version, example: [PR-846](https://github.com/stakater/Reloader/pull/846)
+1. Code owners create a PR with `release/helm-chart` label to update the Helm chart version, example: [PR-846](https://github.com/stakater/Reloader/pull/846)
 
 _Repository git tagging_: Push to the main branch will create a merge-image and merge-tag named `merge-${{ github.event.number }}`, for example `merge-800` when pull request number 800 is merged.
 

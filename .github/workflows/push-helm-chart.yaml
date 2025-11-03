@@ -15,7 +15,7 @@ on:
 
 env:
   HELM_REGISTRY_URL: "https://stakater.github.io/stakater-charts"
-  REGISTRY: ghcr.io
+  REGISTRY: ghcr.io # container registry
 
 jobs:
   verify-and-push-helm-chart:
@@ -73,7 +73,7 @@ jobs:
           exit 1
 
       - name: Install Cosign
-        uses: sigstore/cosign-installer@v3.8.2
+        uses: sigstore/cosign-installer@v3.10.1
 
       - name: Login to GHCR Registry
         uses: docker/login-action@v3
@@ -106,7 +106,7 @@ jobs:
           commit_email: stakater@gmail.com
 
       - name: Push new chart tag
-        uses: anothrNick/github-tag-action@1.71.0
+        uses: anothrNick/github-tag-action@1.75.0
         env:
           GITHUB_TOKEN: ${{ secrets.PUBLISH_TOKEN }}
           WITH_V: false

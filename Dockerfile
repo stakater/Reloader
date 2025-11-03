@@ -2,12 +2,16 @@ ARG BUILDER_IMAGE
 ARG BASE_IMAGE
 
 # Build the manager binary
-FROM --platform=${BUILDPLATFORM} ${BUILDER_IMAGE:-golang:1.24.4} AS builder
+FROM --platform=${BUILDPLATFORM} ${BUILDER_IMAGE:-golang:1.24.9} AS builder
 
 ARG TARGETOS
 ARG TARGETARCH
 ARG GOPROXY
 ARG GOPRIVATE
+
+ARG COMMIT
+ARG VERSION
+ARG BUILD_DATE
 
 WORKDIR /workspace
 
@@ -30,7 +34,10 @@ RUN CGO_ENABLED=0 \
     GOPROXY=${GOPROXY} \
     GOPRIVATE=${GOPRIVATE} \
     GO111MODULE=on \
-    go build -mod=mod -a -o manager main.go
+    go build -ldflags="-s -w -X github.com/stakater/Reloader/pkg/common.Version=${VERSION} \
+         -X github.com/stakater/Reloader/pkg/common.Commit=${COMMIT} \
+         -X github.com/stakater/Reloader/pkg/common.BuildDate=${BUILD_DATE}" \
+        -installsuffix 'static' -mod=mod -a -o manager ./
 
 # Use distroless as minimal base image to package the manager binary
 # Refer to https://github.com/GoogleContainerTools/distroless for more details

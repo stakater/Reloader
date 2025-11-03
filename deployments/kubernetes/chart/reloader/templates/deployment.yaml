@@ -4,15 +4,15 @@ metadata:
   annotations:
 {{ include "reloader-helm3.annotations" . | indent 4 }}
 {{- if .Values.reloader.deployment.annotations }}
-{{ toYaml .Values.reloader.deployment.annotations | indent 4 }}
+{{ tpl (toYaml .Values.reloader.deployment.annotations) . | indent 4 }}
 {{- end }}
   labels:
 {{ include "reloader-labels.chart" . | indent 4 }}
 {{- if .Values.reloader.deployment.labels }}
-{{ toYaml .Values.reloader.deployment.labels | indent 4 }}
+{{ tpl (toYaml .Values.reloader.deployment.labels) . | indent 4 }}
 {{- end }}
 {{- if .Values.reloader.matchLabels }}
-{{ toYaml .Values.reloader.matchLabels | indent 4 }}
+{{ tpl (toYaml .Values.reloader.matchLabels) . | indent 4 }}
 {{- end }}
   name: {{ template "reloader-fullname" . }}
   namespace: {{ .Values.namespace | default .Release.Namespace }}
@@ -25,24 +25,23 @@ spec:
   revisionHistoryLimit: {{ .Values.reloader.deployment.revisionHistoryLimit }}
   selector:
     matchLabels:
-      app: {{ template "reloader-fullname" . }}
-      release: {{ .Release.Name | quote }}
+{{ include "reloader-match-labels.chart" . | indent 6 }}
 {{- if .Values.reloader.matchLabels }}
-{{ toYaml .Values.reloader.matchLabels | indent 6 }}
+{{ tpl (toYaml .Values.reloader.matchLabels) . | indent 6 }}
 {{- end }}
   template:
     metadata:
 {{- if .Values.reloader.deployment.pod.annotations }}
       annotations:
-{{ toYaml .Values.reloader.deployment.pod.annotations | indent 8 }}
+{{ tpl (toYaml .Values.reloader.deployment.pod.annotations) . | indent 8 }}
 {{- end }}
       labels:
 {{ include "reloader-labels.chart" . | indent 8 }}
 {{- if .Values.reloader.deployment.labels }}
-{{ toYaml .Values.reloader.deployment.labels | indent 8 }}
+{{ tpl (toYaml .Values.reloader.deployment.labels) . | indent 8 }}
 {{- end }}
 {{- if .Values.reloader.matchLabels }}
-{{ toYaml .Values.reloader.matchLabels | indent 8 }}
+{{ tpl (toYaml .Values.reloader.matchLabels) . | indent 8 }}
 {{- end }}
     spec:
       {{- with .Values.global.imagePullSecrets }}
@@ -71,6 +70,10 @@ spec:
       {{- end }}
       {{- if .Values.reloader.deployment.priorityClassName }}
       priorityClassName: {{ .Values.reloader.deployment.priorityClassName }}
+      {{- end }}
+      {{- with .Values.reloader.deployment.dnsConfig }}
+      dnsConfig:
+      {{- toYaml . | nindent 8 }}
       {{- end }}
       containers:
       {{- if .Values.global.imageRegistry }}
@@ -144,6 +147,15 @@ spec:
             fieldRef:
               fieldPath: metadata.namespace
       {{- end }}
+
+        - name: RELOADER_NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
+
+        - name: RELOADER_DEPLOYMENT_NAME
+          value: {{ template "reloader-fullname" . }}
+
       {{- if .Values.reloader.enableHA }}
         - name: POD_NAME
           valueFrom:
@@ -198,7 +210,7 @@ spec:
           {{- . | toYaml | nindent 10 }}
           {{- end }}
       {{- end }}
-      {{- if or (.Values.reloader.logFormat) (.Values.reloader.logLevel) (.Values.reloader.ignoreSecrets) (.Values.reloader.ignoreNamespaces) (.Values.reloader.namespaceSelector) (.Values.reloader.resourceLabelSelector) (.Values.reloader.ignoreConfigMaps) (.Values.reloader.custom_annotations) (eq .Values.reloader.isArgoRollouts true) (eq .Values.reloader.reloadOnCreate true) (eq .Values.reloader.reloadOnDelete true) (ne .Values.reloader.reloadStrategy "default") (.Values.reloader.enableHA) (.Values.reloader.autoReloadAll)}}
+      {{- if or (.Values.reloader.logFormat) (.Values.reloader.logLevel) (.Values.reloader.ignoreSecrets) (.Values.reloader.ignoreNamespaces) (include "reloader-namespaceSelector" .) (.Values.reloader.resourceLabelSelector) (.Values.reloader.ignoreConfigMaps) (.Values.reloader.custom_annotations) (eq .Values.reloader.isArgoRollouts true) (eq .Values.reloader.reloadOnCreate true) (eq .Values.reloader.reloadOnDelete true) (ne .Values.reloader.reloadStrategy "default") (.Values.reloader.enableHA) (.Values.reloader.autoReloadAll) (.Values.reloader.ignoreJobs) (.Values.reloader.ignoreCronJobs)}}
         args:
           {{- if .Values.reloader.logFormat }}
           - "--log-format={{ .Values.reloader.logFormat }}"
@@ -212,14 +224,27 @@ spec:
           {{- if .Values.reloader.ignoreConfigMaps }}
           - "--resources-to-ignore=configMaps"
           {{- end }}
+          {{- if and (.Values.reloader.ignoreJobs) (.Values.reloader.ignoreCronJobs) }}
+          - "--ignored-workload-types=jobs,cronjobs"
+          {{- else if .Values.reloader.ignoreJobs }}
+          - "--ignored-workload-types=jobs"
+          {{- else if .Values.reloader.ignoreCronJobs }}
+          - "--ignored-workload-types=cronjobs"
+          {{- end }}
           {{- if .Values.reloader.ignoreNamespaces }}
           - "--namespaces-to-ignore={{ .Values.reloader.ignoreNamespaces }}"
           {{- end }}
-          {{- if .Values.reloader.namespaceSelector }}
-          - "--namespace-selector={{ .Values.reloader.namespaceSelector }}"
+          {{- if (include "reloader-namespaceSelector" .) }}
+          - "--namespace-selector=\"{{ include "reloader-namespaceSelector" . }}\""
           {{- end }}
           {{- if .Values.reloader.resourceLabelSelector }}
           - "--resource-label-selector={{ .Values.reloader.resourceLabelSelector }}"
+          {{- end }}
+          {{- if .Values.reloader.enablePProf }}
+          - "--enable-pprof"
+          {{- if and .Values.reloader.pprofAddr }}
+          - "--pprof-addr={{ .Values.reloader.pprofAddr }}"
+          {{- end }}
           {{- end }}
           {{- if .Values.reloader.custom_annotations }}
             {{- if .Values.reloader.custom_annotations.configmap }}
@@ -249,6 +274,14 @@ spec:
             {{- if .Values.reloader.custom_annotations.match }}
           - "--search-match-annotation"
           - "{{ .Values.reloader.custom_annotations.match }}"
+            {{- end }}
+            {{- if .Values.reloader.custom_annotations.pausePeriod }}
+          - "--pause-deployment-annotation"
+          - "{{ .Values.reloader.custom_annotations.pausePeriod }}"
+            {{- end }}
+            {{- if .Values.reloader.custom_annotations.pauseTime }}
+          - "--pause-deployment-annotation"
+          - "{{ .Values.reloader.custom_annotations.pauseTime }}"
             {{- end }}
             {{- if .Values.reloader.webhookUrl }}
           - "--webhook-url"

@@ -1,12 +1,13 @@
-package util
+package common
 
 import (
 	"github.com/stakater/Reloader/internal/pkg/constants"
 	"github.com/stakater/Reloader/internal/pkg/options"
+	"github.com/stakater/Reloader/internal/pkg/util"
 	v1 "k8s.io/api/core/v1"
 )
 
-//Config contains rolling upgrade configuration parameters
+// Config contains rolling upgrade configuration parameters
 type Config struct {
 	Namespace           string
 	ResourceName        string
@@ -15,6 +16,7 @@ type Config struct {
 	TypedAutoAnnotation string
 	SHAValue            string
 	Type                string
+	Labels              map[string]string
 }
 
 // GetConfigmapConfig provides utility config for configmap
@@ -25,8 +27,9 @@ func GetConfigmapConfig(configmap *v1.ConfigMap) Config {
 		ResourceAnnotations: configmap.Annotations,
 		Annotation:          options.ConfigmapUpdateOnChangeAnnotation,
 		TypedAutoAnnotation: options.ConfigmapReloaderAutoAnnotation,
-		SHAValue:            GetSHAfromConfigmap(configmap),
+		SHAValue:            util.GetSHAfromConfigmap(configmap),
 		Type:                constants.ConfigmapEnvVarPostfix,
+		Labels:              configmap.Labels,
 	}
 }
 
@@ -38,7 +41,8 @@ func GetSecretConfig(secret *v1.Secret) Config {
 		ResourceAnnotations: secret.Annotations,
 		Annotation:          options.SecretUpdateOnChangeAnnotation,
 		TypedAutoAnnotation: options.SecretReloaderAutoAnnotation,
-		SHAValue:            GetSHAfromSecret(secret.Data),
+		SHAValue:            util.GetSHAfromSecret(secret.Data),
 		Type:                constants.SecretEnvVarPostfix,
+		Labels:              secret.Labels,
 	}
 }

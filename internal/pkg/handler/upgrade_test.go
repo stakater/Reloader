@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	argorolloutv1alpha1 "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/prometheus/client_golang/prometheus"
 	promtestutil "github.com/prometheus/client_golang/prometheus/testutil"
 	"github.com/sirupsen/logrus"
@@ -16,8 +17,10 @@ import (
 	"github.com/stakater/Reloader/internal/pkg/options"
 	"github.com/stakater/Reloader/internal/pkg/testutil"
 	"github.com/stakater/Reloader/internal/pkg/util"
+	"github.com/stakater/Reloader/pkg/common"
 	"github.com/stakater/Reloader/pkg/kube"
 	"github.com/stretchr/testify/assert"
+	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -52,6 +55,9 @@ var (
 	arsConfigmapWithConfigMapAutoAnnotation    = "testconfigmapwithconfigmapautoannotationdeployment-handler-" + testutil.RandSeq(5)
 	arsSecretWithExcludeSecretAnnotation       = "testsecretwithsecretexcludeannotationdeployment-handler-" + testutil.RandSeq(5)
 	arsConfigmapWithExcludeConfigMapAnnotation = "testconfigmapwithconfigmapexcludeannotationdeployment-handler-" + testutil.RandSeq(5)
+	arsConfigmapWithIgnoreAnnotation           = "testconfigmapWithIgnoreAnnotation-handler-" + testutil.RandSeq(5)
+	arsSecretWithIgnoreAnnotation              = "testsecretWithIgnoreAnnotation-handler-" + testutil.RandSeq(5)
+	arsConfigmapWithPausedDeployment           = "testconfigmapWithPausedDeployment-handler-" + testutil.RandSeq(5)
 
 	ersNamespace                               = "test-handler-" + testutil.RandSeq(5)
 	ersConfigmapName                           = "testconfigmap-handler-" + testutil.RandSeq(5)
@@ -75,6 +81,9 @@ var (
 	ersConfigmapWithConfigMapAutoAnnotation    = "testconfigmapwithconfigmapautoannotationdeployment-handler-" + testutil.RandSeq(5)
 	ersSecretWithSecretExcludeAnnotation       = "testsecretwithsecretexcludeannotationdeployment-handler-" + testutil.RandSeq(5)
 	ersConfigmapWithConfigMapExcludeAnnotation = "testconfigmapwithconfigmapexcludeannotationdeployment-handler-" + testutil.RandSeq(5)
+	ersConfigmapWithIgnoreAnnotation           = "testconfigmapWithIgnoreAnnotation-handler-" + testutil.RandSeq(5)
+	ersSecretWithIgnoreAnnotation              = "testsecretWithIgnoreAnnotation-handler-" + testutil.RandSeq(5)
+	ersConfigmapWithPausedDeployment           = "testconfigmapWithPausedDeployment-handler-" + testutil.RandSeq(5)
 )
 
 func TestMain(m *testing.M) {
@@ -203,6 +212,12 @@ func setupArs() {
 		logrus.Errorf("Error in configmap creation: %v", err)
 	}
 
+	// Creating configmap for testing pausing deployments
+	_, err = testutil.CreateConfigMap(clients.KubernetesClient, arsNamespace, arsConfigmapWithPausedDeployment, "www.google.com")
+	if err != nil {
+		logrus.Errorf("Error in configmap creation: %v", err)
+	}
+
 	// Creating secret used with secret auto annotation
 	_, err = testutil.CreateSecret(clients.KubernetesClient, arsNamespace, arsSecretWithExcludeSecretAnnotation, data)
 	if err != nil {
@@ -213,6 +228,35 @@ func setupArs() {
 	_, err = testutil.CreateConfigMap(clients.KubernetesClient, arsNamespace, arsConfigmapWithExcludeConfigMapAnnotation, "www.google.com")
 	if err != nil {
 		logrus.Errorf("Error in configmap creation: %v", err)
+	}
+
+	// Creating configmap with ignore annotation
+	_, err = testutil.CreateConfigMap(clients.KubernetesClient, arsNamespace, arsConfigmapWithIgnoreAnnotation, "www.google.com")
+	if err != nil {
+		logrus.Errorf("Error in configmap creation: %v", err)
+	}
+	// Patch with ignore annotation
+	cmClient := clients.KubernetesClient.CoreV1().ConfigMaps(arsNamespace)
+	patch := []byte(`{"metadata":{"annotations":{"reloader.stakater.com/ignore":"true"}}}`)
+	_, _ = cmClient.Patch(context.TODO(), arsConfigmapWithIgnoreAnnotation, patchtypes.MergePatchType, patch, metav1.PatchOptions{})
+
+	// Creating secret with ignore annotation
+	_, err = testutil.CreateSecret(clients.KubernetesClient, arsNamespace, arsSecretWithIgnoreAnnotation, data)
+	if err != nil {
+		logrus.Errorf("Error in secret creation: %v", err)
+	}
+	secretClient := clients.KubernetesClient.CoreV1().Secrets(arsNamespace)
+	_, _ = secretClient.Patch(context.TODO(), arsSecretWithIgnoreAnnotation, patchtypes.MergePatchType, patch, metav1.PatchOptions{})
+
+	// Creating Deployment referencing configmap with ignore annotation
+	_, err = testutil.CreateDeployment(clients.KubernetesClient, arsConfigmapWithIgnoreAnnotation, arsNamespace, true)
+	if err != nil {
+		logrus.Errorf("Error in Deployment with configmap ignore annotation creation: %v", err)
+	}
+	// Creating Deployment referencing secret with ignore annotation
+	_, err = testutil.CreateDeployment(clients.KubernetesClient, arsSecretWithIgnoreAnnotation, arsNamespace, true)
+	if err != nil {
+		logrus.Errorf("Error in Deployment with secret ignore annotation creation: %v", err)
 	}
 
 	// Creating Deployment with configmap
@@ -424,6 +468,12 @@ func setupArs() {
 	if err != nil {
 		logrus.Errorf("Error in Deployment with both annotations: %v", err)
 	}
+
+	// Creating Deployment with pause annotation
+	_, err = testutil.CreateDeploymentWithAnnotations(clients.KubernetesClient, arsConfigmapWithPausedDeployment, arsNamespace, map[string]string{options.PauseDeploymentAnnotation: "10s"}, false)
+	if err != nil {
+		logrus.Errorf("Error in Deployment with configmap creation: %v", err)
+	}
 }
 
 func teardownArs() {
@@ -625,6 +675,12 @@ func teardownArs() {
 		logrus.Errorf("Error while deleting statefulSet with secret as env var source %v", statefulSetError)
 	}
 
+	// Deleting Deployment with pause annotation
+	deploymentError = testutil.DeleteDeployment(clients.KubernetesClient, arsNamespace, arsConfigmapWithPausedDeployment)
+	if deploymentError != nil {
+		logrus.Errorf("Error while deleting deployment with configmap %v", deploymentError)
+	}
+
 	// Deleting Configmap
 	err := testutil.DeleteConfigMap(clients.KubernetesClient, arsNamespace, arsConfigmapName)
 	if err != nil {
@@ -655,7 +711,7 @@ func teardownArs() {
 		logrus.Errorf("Error while deleting the configmap %v", err)
 	}
 
-	// Deleting Configmap used projected volume in init containers
+	// Deleting secret used in projected volume in init containers
 	err = testutil.DeleteSecret(clients.KubernetesClient, arsNamespace, arsProjectedSecretWithInitContainer)
 	if err != nil {
 		logrus.Errorf("Error while deleting the secret %v", err)
@@ -738,6 +794,12 @@ func teardownArs() {
 		logrus.Errorf("Error while deleting the configmap used with configmap auto annotations: %v", err)
 	}
 
+	// Deleting configmap for testing pausing deployments
+	err = testutil.DeleteConfigMap(clients.KubernetesClient, arsNamespace, arsConfigmapWithPausedDeployment)
+	if err != nil {
+		logrus.Errorf("Error while deleting the configmap: %v", err)
+	}
+
 	// Deleting namespace
 	testutil.DeleteNamespace(arsNamespace, clients.KubernetesClient)
 
@@ -797,6 +859,12 @@ func setupErs() {
 		logrus.Errorf("Error in configmap creation: %v", err)
 	}
 
+	// Creating configmap for testing pausing deployments
+	_, err = testutil.CreateConfigMap(clients.KubernetesClient, ersNamespace, ersConfigmapWithPausedDeployment, "www.google.com")
+	if err != nil {
+		logrus.Errorf("Error in configmap creation: %v", err)
+	}
+
 	// Creating secret
 	_, err = testutil.CreateSecret(clients.KubernetesClient, ersNamespace, ersSecretWithInitEnv, data)
 	if err != nil {
@@ -852,6 +920,34 @@ func setupErs() {
 	_, err = testutil.CreateConfigMap(clients.KubernetesClient, ersNamespace, ersConfigmapWithConfigMapExcludeAnnotation, "www.google.com")
 	if err != nil {
 		logrus.Errorf("Error in configmap creation: %v", err)
+	}
+
+	// Creating configmap with ignore annotation
+	_, err = testutil.CreateConfigMap(clients.KubernetesClient, ersNamespace, ersConfigmapWithIgnoreAnnotation, "www.google.com")
+	if err != nil {
+		logrus.Errorf("Error in configmap creation: %v", err)
+	}
+	cmClient := clients.KubernetesClient.CoreV1().ConfigMaps(ersNamespace)
+	patch := []byte(`{"metadata":{"annotations":{"reloader.stakater.com/ignore":"true"}}}`)
+	_, _ = cmClient.Patch(context.TODO(), ersConfigmapWithIgnoreAnnotation, patchtypes.MergePatchType, patch, metav1.PatchOptions{})
+
+	// Creating secret with ignore annotation
+	_, err = testutil.CreateSecret(clients.KubernetesClient, ersNamespace, ersSecretWithIgnoreAnnotation, data)
+	if err != nil {
+		logrus.Errorf("Error in secret creation: %v", err)
+	}
+	secretClient := clients.KubernetesClient.CoreV1().Secrets(ersNamespace)
+	_, _ = secretClient.Patch(context.TODO(), ersSecretWithIgnoreAnnotation, patchtypes.MergePatchType, patch, metav1.PatchOptions{})
+
+	// Creating Deployment referencing configmap with ignore annotation
+	_, err = testutil.CreateDeployment(clients.KubernetesClient, ersConfigmapWithIgnoreAnnotation, ersNamespace, true)
+	if err != nil {
+		logrus.Errorf("Error in Deployment with configmap ignore annotation creation: %v", err)
+	}
+	// Creating Deployment referencing secret with ignore annotation
+	_, err = testutil.CreateDeployment(clients.KubernetesClient, ersSecretWithIgnoreAnnotation, ersNamespace, true)
+	if err != nil {
+		logrus.Errorf("Error in Deployment with secret ignore annotation creation: %v", err)
 	}
 
 	// Creating Deployment with configmap
@@ -971,6 +1067,12 @@ func setupErs() {
 	_, err = testutil.CreateDeploymentWithExcludeAnnotation(clients.KubernetesClient, ersConfigmapWithConfigMapExcludeAnnotation, ersNamespace, testutil.ConfigmapResourceType)
 	if err != nil {
 		logrus.Errorf("Error in Deployment with configmap and with configmap exclude annotation: %v", err)
+	}
+
+	// Creating Deployment with pause annotation
+	_, err = testutil.CreateDeploymentWithAnnotations(clients.KubernetesClient, ersConfigmapWithPausedDeployment, ersNamespace, map[string]string{options.PauseDeploymentAnnotation: "10s"}, false)
+	if err != nil {
+		logrus.Errorf("Error in Deployment with configmap creation: %v", err)
 	}
 
 	// Creating DaemonSet with configmap
@@ -1257,6 +1359,12 @@ func teardownErs() {
 		logrus.Errorf("Error while deleting statefulSet with secret as env var source %v", statefulSetError)
 	}
 
+	// Deleting Deployment for testing pausing deployments
+	deploymentError = testutil.DeleteDeployment(clients.KubernetesClient, ersNamespace, ersConfigmapWithPausedDeployment)
+	if deploymentError != nil {
+		logrus.Errorf("Error while deleting deployment with configmap %v", deploymentError)
+	}
+
 	// Deleting Configmap
 	err := testutil.DeleteConfigMap(clients.KubernetesClient, ersNamespace, ersConfigmapName)
 	if err != nil {
@@ -1287,7 +1395,7 @@ func teardownErs() {
 		logrus.Errorf("Error while deleting the configmap %v", err)
 	}
 
-	// Deleting Configmap used projected volume in init containers
+	// Deleting secret used in projected volume in init containers
 	err = testutil.DeleteSecret(clients.KubernetesClient, ersNamespace, ersProjectedSecretWithInitContainer)
 	if err != nil {
 		logrus.Errorf("Error while deleting the secret %v", err)
@@ -1370,18 +1478,24 @@ func teardownErs() {
 		logrus.Errorf("Error while deleting the configmap used with configmap exclude annotation: %v", err)
 	}
 
+	// Deleting ConfigMap for testing pausing deployments
+	err = testutil.DeleteConfigMap(clients.KubernetesClient, ersNamespace, ersConfigmapWithPausedDeployment)
+	if err != nil {
+		logrus.Errorf("Error while deleting the configmap: %v", err)
+	}
+
 	// Deleting namespace
 	testutil.DeleteNamespace(ersNamespace, clients.KubernetesClient)
 
 }
 
-func getConfigWithAnnotations(resourceType string, name string, shaData string, annotation string, typedAutoAnnotation string) util.Config {
+func getConfigWithAnnotations(resourceType string, name string, shaData string, annotation string, typedAutoAnnotation string) common.Config {
 	ns := ersNamespace
 	if options.ReloadStrategy == constants.AnnotationsReloadStrategy {
 		ns = arsNamespace
 	}
 
-	return util.Config{
+	return common.Config{
 		Namespace:           ns,
 		ResourceName:        name,
 		SHAValue:            shaData,
@@ -1398,7 +1512,7 @@ func getCollectors() metrics.Collectors {
 var labelSucceeded = prometheus.Labels{"success": "true"}
 var labelFailed = prometheus.Labels{"success": "false"}
 
-func testRollingUpgradeInvokeDeleteStrategyArs(t *testing.T, clients kube.Clients, config util.Config, upgradeFuncs callbacks.RollingUpgradeFuncs, collectors metrics.Collectors, envVarPostfix string) {
+func testRollingUpgradeInvokeDeleteStrategyArs(t *testing.T, clients kube.Clients, config common.Config, upgradeFuncs callbacks.RollingUpgradeFuncs, collectors metrics.Collectors, envVarPostfix string) {
 	err := PerformAction(clients, config, upgradeFuncs, collectors, nil, invokeDeleteStrategy)
 	time.Sleep(5 * time.Second)
 	if err != nil {
@@ -1416,7 +1530,7 @@ func testRollingUpgradeInvokeDeleteStrategyArs(t *testing.T, clients kube.Client
 	}
 }
 
-func testRollingUpgradeWithPatchAndInvokeDeleteStrategyArs(t *testing.T, clients kube.Clients, config util.Config, upgradeFuncs callbacks.RollingUpgradeFuncs, collectors metrics.Collectors, envVarPostfix string) {
+func testRollingUpgradeWithPatchAndInvokeDeleteStrategyArs(t *testing.T, clients kube.Clients, config common.Config, upgradeFuncs callbacks.RollingUpgradeFuncs, collectors metrics.Collectors, envVarPostfix string) {
 	err := PerformAction(clients, config, upgradeFuncs, collectors, nil, invokeDeleteStrategy)
 	upgradeFuncs.PatchFunc = func(client kube.Clients, namespace string, resource runtime.Object, patchType patchtypes.PatchType, bytes []byte) error {
 		assert.Equal(t, patchtypes.StrategicMergePatchType, patchType)
@@ -1441,6 +1555,18 @@ func TestRollingUpgradeForDeploymentWithConfigmapUsingArs(t *testing.T) {
 	deploymentFuncs := GetDeploymentRollingUpgradeFuncs()
 	collectors := getCollectors()
 
+	itemCalled := 0
+	itemsCalled := 0
+
+	deploymentFuncs.ItemFunc = func(client kube.Clients, namespace string, name string) (runtime.Object, error) {
+		itemCalled++
+		return callbacks.GetDeploymentItem(client, namespace, name)
+	}
+	deploymentFuncs.ItemsFunc = func(client kube.Clients, namespace string) []runtime.Object {
+		itemsCalled++
+		return callbacks.GetDeploymentItems(client, namespace)
+	}
+
 	err := PerformAction(clients, config, deploymentFuncs, collectors, nil, invokeReloadStrategy)
 	time.Sleep(5 * time.Second)
 	if err != nil {
@@ -1460,6 +1586,10 @@ func TestRollingUpgradeForDeploymentWithConfigmapUsingArs(t *testing.T) {
 	if promtestutil.ToFloat64(collectors.ReloadedByNamespace.With(prometheus.Labels{"success": "true", "namespace": arsNamespace})) != 1 {
 		t.Errorf("Counter by namespace was not increased")
 	}
+
+	assert.Equal(t, 0, itemCalled, "ItemFunc should not be called")
+	assert.Equal(t, 2, itemsCalled, "ItemsFunc should be called twice")
+
 	testRollingUpgradeInvokeDeleteStrategyArs(t, clients, config, deploymentFuncs, collectors, envVarPostfix)
 }
 
@@ -1473,6 +1603,18 @@ func TestRollingUpgradeForDeploymentWithPatchAndRetryUsingArs(t *testing.T) {
 
 	assert.True(t, deploymentFuncs.SupportsPatch)
 	assert.NotEmpty(t, deploymentFuncs.PatchTemplatesFunc().AnnotationTemplate)
+
+	itemCalled := 0
+	itemsCalled := 0
+
+	deploymentFuncs.ItemFunc = func(client kube.Clients, namespace string, name string) (runtime.Object, error) {
+		itemCalled++
+		return callbacks.GetDeploymentItem(client, namespace, name)
+	}
+	deploymentFuncs.ItemsFunc = func(client kube.Clients, namespace string) []runtime.Object {
+		itemsCalled++
+		return callbacks.GetDeploymentItems(client, namespace)
+	}
 
 	patchCalled := 0
 	deploymentFuncs.PatchFunc = func(client kube.Clients, namespace string, resource runtime.Object, patchType patchtypes.PatchType, bytes []byte) error {
@@ -1498,7 +1640,9 @@ func TestRollingUpgradeForDeploymentWithPatchAndRetryUsingArs(t *testing.T) {
 		t.Errorf("Rolling upgrade failed for Deployment with Configmap")
 	}
 
-	assert.Equal(t, 2, patchCalled)
+	assert.Equal(t, 1, itemCalled, "ItemFunc should be called once")
+	assert.Equal(t, 1, itemsCalled, "ItemsFunc should be called once")
+	assert.Equal(t, 2, patchCalled, "PatchFunc should be called twice")
 
 	deploymentFuncs = GetDeploymentRollingUpgradeFuncs()
 	testRollingUpgradeWithPatchAndInvokeDeleteStrategyArs(t, clients, config, deploymentFuncs, collectors, envVarPostfix)
@@ -2106,7 +2250,7 @@ func TestRollingUpgradeForDeploymentWithSecretExcludeAnnotationUsingArs(t *testi
 	logrus.Infof("Verifying deployment did not update")
 	updated := testutil.VerifyResourceAnnotationUpdate(clients, config, deploymentFuncs)
 	if updated {
-		t.Errorf("Deployment which had to be exluded was updated")
+		t.Errorf("Deployment which had to be excluded was updated")
 	}
 }
 
@@ -2204,6 +2348,18 @@ func TestRollingUpgradeForDaemonSetWithConfigmapUsingArs(t *testing.T) {
 	daemonSetFuncs := GetDaemonSetRollingUpgradeFuncs()
 	collectors := getCollectors()
 
+	itemCalled := 0
+	itemsCalled := 0
+
+	daemonSetFuncs.ItemFunc = func(client kube.Clients, namespace string, name string) (runtime.Object, error) {
+		itemCalled++
+		return callbacks.GetDaemonSetItem(client, namespace, name)
+	}
+	daemonSetFuncs.ItemsFunc = func(client kube.Clients, namespace string) []runtime.Object {
+		itemsCalled++
+		return callbacks.GetDaemonSetItems(client, namespace)
+	}
+
 	err := PerformAction(clients, config, daemonSetFuncs, collectors, nil, invokeReloadStrategy)
 	time.Sleep(5 * time.Second)
 	if err != nil {
@@ -2224,6 +2380,9 @@ func TestRollingUpgradeForDaemonSetWithConfigmapUsingArs(t *testing.T) {
 		t.Errorf("Counter by namespace was not increased")
 	}
 
+	assert.Equal(t, 0, itemCalled, "ItemFunc should not be called")
+	assert.Equal(t, 2, itemsCalled, "ItemsFunc should be called twice")
+
 	testRollingUpgradeInvokeDeleteStrategyArs(t, clients, config, daemonSetFuncs, collectors, envVarPostfix)
 }
 
@@ -2234,6 +2393,18 @@ func TestRollingUpgradeForDaemonSetWithPatchAndRetryUsingArs(t *testing.T) {
 	shaData := testutil.ConvertResourceToSHA(testutil.ConfigmapResourceType, arsNamespace, arsConfigmapName, "www.facebook.com")
 	config := getConfigWithAnnotations(envVarPostfix, arsConfigmapName, shaData, options.ConfigmapUpdateOnChangeAnnotation, options.ConfigmapReloaderAutoAnnotation)
 	daemonSetFuncs := GetDaemonSetRollingUpgradeFuncs()
+
+	itemCalled := 0
+	itemsCalled := 0
+
+	daemonSetFuncs.ItemFunc = func(client kube.Clients, namespace string, name string) (runtime.Object, error) {
+		itemCalled++
+		return callbacks.GetDaemonSetItem(client, namespace, name)
+	}
+	daemonSetFuncs.ItemsFunc = func(client kube.Clients, namespace string) []runtime.Object {
+		itemsCalled++
+		return callbacks.GetDaemonSetItems(client, namespace)
+	}
 
 	assert.True(t, daemonSetFuncs.SupportsPatch)
 	assert.NotEmpty(t, daemonSetFuncs.PatchTemplatesFunc().AnnotationTemplate)
@@ -2263,7 +2434,9 @@ func TestRollingUpgradeForDaemonSetWithPatchAndRetryUsingArs(t *testing.T) {
 		t.Errorf("Rolling upgrade failed for DaemonSet with configmap")
 	}
 
-	assert.Equal(t, 2, patchCalled)
+	assert.Equal(t, 1, itemCalled, "ItemFunc should be called once")
+	assert.Equal(t, 1, itemsCalled, "ItemsFunc should be called once")
+	assert.Equal(t, 2, patchCalled, "PatchFunc should be called twice")
 
 	daemonSetFuncs = GetDeploymentRollingUpgradeFuncs()
 	testRollingUpgradeWithPatchAndInvokeDeleteStrategyArs(t, clients, config, daemonSetFuncs, collectors, envVarPostfix)
@@ -2406,6 +2579,18 @@ func TestRollingUpgradeForStatefulSetWithConfigmapUsingArs(t *testing.T) {
 	statefulSetFuncs := GetStatefulSetRollingUpgradeFuncs()
 	collectors := getCollectors()
 
+	itemCalled := 0
+	itemsCalled := 0
+
+	statefulSetFuncs.ItemFunc = func(client kube.Clients, namespace string, name string) (runtime.Object, error) {
+		itemCalled++
+		return callbacks.GetStatefulSetItem(client, namespace, name)
+	}
+	statefulSetFuncs.ItemsFunc = func(client kube.Clients, namespace string) []runtime.Object {
+		itemsCalled++
+		return callbacks.GetStatefulSetItems(client, namespace)
+	}
+
 	err := PerformAction(clients, config, statefulSetFuncs, collectors, nil, invokeReloadStrategy)
 	time.Sleep(5 * time.Second)
 	if err != nil {
@@ -2426,6 +2611,9 @@ func TestRollingUpgradeForStatefulSetWithConfigmapUsingArs(t *testing.T) {
 		t.Errorf("Counter by namespace was not increased")
 	}
 
+	assert.Equal(t, 0, itemCalled, "ItemFunc should not be called")
+	assert.Equal(t, 2, itemsCalled, "ItemsFunc should be called twice")
+
 	testRollingUpgradeInvokeDeleteStrategyArs(t, clients, config, statefulSetFuncs, collectors, envVarPostfix)
 }
 
@@ -2436,6 +2624,18 @@ func TestRollingUpgradeForStatefulSetWithPatchAndRetryUsingArs(t *testing.T) {
 	shaData := testutil.ConvertResourceToSHA(testutil.ConfigmapResourceType, arsNamespace, arsConfigmapName, "www.twitter.com")
 	config := getConfigWithAnnotations(envVarPostfix, arsConfigmapName, shaData, options.ConfigmapUpdateOnChangeAnnotation, options.ConfigmapReloaderAutoAnnotation)
 	statefulSetFuncs := GetStatefulSetRollingUpgradeFuncs()
+
+	itemCalled := 0
+	itemsCalled := 0
+
+	statefulSetFuncs.ItemFunc = func(client kube.Clients, namespace string, name string) (runtime.Object, error) {
+		itemCalled++
+		return callbacks.GetStatefulSetItem(client, namespace, name)
+	}
+	statefulSetFuncs.ItemsFunc = func(client kube.Clients, namespace string) []runtime.Object {
+		itemsCalled++
+		return callbacks.GetStatefulSetItems(client, namespace)
+	}
 
 	assert.True(t, statefulSetFuncs.SupportsPatch)
 	assert.NotEmpty(t, statefulSetFuncs.PatchTemplatesFunc().AnnotationTemplate)
@@ -2465,7 +2665,9 @@ func TestRollingUpgradeForStatefulSetWithPatchAndRetryUsingArs(t *testing.T) {
 		t.Errorf("Rolling upgrade failed for StatefulSet with configmap")
 	}
 
-	assert.Equal(t, 2, patchCalled)
+	assert.Equal(t, 1, itemCalled, "ItemFunc should be called once")
+	assert.Equal(t, 1, itemsCalled, "ItemsFunc should be called once")
+	assert.Equal(t, 2, patchCalled, "PatchFunc should be called twice")
 
 	statefulSetFuncs = GetDeploymentRollingUpgradeFuncs()
 	testRollingUpgradeWithPatchAndInvokeDeleteStrategyArs(t, clients, config, statefulSetFuncs, collectors, envVarPostfix)
@@ -2649,7 +2851,66 @@ func TestFailedRollingUpgradeUsingArs(t *testing.T) {
 	}
 }
 
-func testRollingUpgradeInvokeDeleteStrategyErs(t *testing.T, clients kube.Clients, config util.Config, upgradeFuncs callbacks.RollingUpgradeFuncs, collectors metrics.Collectors, envVarPostfix string) {
+func TestIgnoreAnnotationNoReloadUsingArs(t *testing.T) {
+	options.ReloadStrategy = constants.AnnotationsReloadStrategy
+	envVarPostfix := constants.ConfigmapEnvVarPostfix
+
+	shaData := testutil.ConvertResourceToSHA(testutil.ConfigmapResourceType, arsNamespace, arsConfigmapWithIgnoreAnnotation, "www.stakater.com")
+	config := getConfigWithAnnotations(envVarPostfix, arsConfigmapWithIgnoreAnnotation, shaData, options.ConfigmapUpdateOnChangeAnnotation, options.ConfigmapReloaderAutoAnnotation)
+	config.ResourceAnnotations = map[string]string{"reloader.stakater.com/ignore": "true"}
+	deploymentFuncs := GetDeploymentRollingUpgradeFuncs()
+	collectors := getCollectors()
+
+	err := PerformAction(clients, config, deploymentFuncs, collectors, nil, invokeReloadStrategy)
+	if err != nil {
+		t.Errorf("Rolling upgrade failed for Deployment with Configmap and ignore annotation using ARS")
+	}
+
+	// Ensure deployment is NOT updated
+	updated := testutil.VerifyResourceAnnotationUpdate(clients, config, deploymentFuncs)
+	if updated {
+		t.Errorf("Deployment was updated but should not have been")
+	}
+
+	// Ensure counters remain zero
+	if promtestutil.ToFloat64(collectors.Reloaded.With(labelSucceeded)) != 0 {
+		t.Errorf("Reload counter should not have increased")
+	}
+	if promtestutil.ToFloat64(collectors.ReloadedByNamespace.With(prometheus.Labels{"success": "true", "namespace": arsNamespace})) != 0 {
+		t.Errorf("Reload counter by namespace should not have increased")
+	}
+}
+func TestIgnoreAnnotationNoReloadUsingErs(t *testing.T) {
+	options.ReloadStrategy = constants.EnvVarsReloadStrategy
+	envVarPostfix := constants.ConfigmapEnvVarPostfix
+
+	shaData := testutil.ConvertResourceToSHA(testutil.ConfigmapResourceType, ersNamespace, ersConfigmapWithIgnoreAnnotation, "www.stakater.com")
+	config := getConfigWithAnnotations(envVarPostfix, ersConfigmapWithIgnoreAnnotation, shaData, options.ConfigmapUpdateOnChangeAnnotation, options.ConfigmapReloaderAutoAnnotation)
+	config.ResourceAnnotations = map[string]string{"reloader.stakater.com/ignore": "true"}
+	deploymentFuncs := GetDeploymentRollingUpgradeFuncs()
+	collectors := getCollectors()
+
+	err := PerformAction(clients, config, deploymentFuncs, collectors, nil, invokeReloadStrategy)
+	if err != nil {
+		t.Errorf("Rolling upgrade failed for Deployment with Configmap and ignore annotation using ERS")
+	}
+
+	// Ensure deployment is NOT updated
+	updated := testutil.VerifyResourceEnvVarUpdate(clients, config, envVarPostfix, deploymentFuncs)
+	if updated {
+		t.Errorf("Deployment was updated but should not have been (ERS)")
+	}
+
+	// Ensure counters remain zero
+	if promtestutil.ToFloat64(collectors.Reloaded.With(labelSucceeded)) != 0 {
+		t.Errorf("Reload counter should not have increased (ERS)")
+	}
+	if promtestutil.ToFloat64(collectors.ReloadedByNamespace.With(prometheus.Labels{"success": "true", "namespace": ersNamespace})) != 0 {
+		t.Errorf("Reload counter by namespace should not have increased (ERS)")
+	}
+}
+
+func testRollingUpgradeInvokeDeleteStrategyErs(t *testing.T, clients kube.Clients, config common.Config, upgradeFuncs callbacks.RollingUpgradeFuncs, collectors metrics.Collectors, envVarPostfix string) {
 	err := PerformAction(clients, config, upgradeFuncs, collectors, nil, invokeDeleteStrategy)
 	time.Sleep(5 * time.Second)
 	if err != nil {
@@ -2666,7 +2927,7 @@ func testRollingUpgradeInvokeDeleteStrategyErs(t *testing.T, clients kube.Client
 	}
 }
 
-func testRollingUpgradeWithPatchAndInvokeDeleteStrategyErs(t *testing.T, clients kube.Clients, config util.Config, upgradeFuncs callbacks.RollingUpgradeFuncs, collectors metrics.Collectors, envVarPostfix string) {
+func testRollingUpgradeWithPatchAndInvokeDeleteStrategyErs(t *testing.T, clients kube.Clients, config common.Config, upgradeFuncs callbacks.RollingUpgradeFuncs, collectors metrics.Collectors, envVarPostfix string) {
 	assert.NotEmpty(t, upgradeFuncs.PatchTemplatesFunc().DeleteEnvVarTemplate)
 
 	err := PerformAction(clients, config, upgradeFuncs, collectors, nil, invokeDeleteStrategy)
@@ -3843,5 +4104,185 @@ func TestFailedRollingUpgradeUsingErs(t *testing.T) {
 
 	if promtestutil.ToFloat64(collectors.ReloadedByNamespace.With(prometheus.Labels{"success": "false", "namespace": ersNamespace})) != 1 {
 		t.Errorf("Counter by namespace was not increased")
+	}
+}
+
+func TestPausingDeploymentUsingErs(t *testing.T) {
+	options.ReloadStrategy = constants.EnvVarsReloadStrategy
+	testPausingDeployment(t, options.ReloadStrategy, ersConfigmapWithPausedDeployment, ersNamespace)
+}
+
+func TestPausingDeploymentUsingArs(t *testing.T) {
+	options.ReloadStrategy = constants.AnnotationsReloadStrategy
+	testPausingDeployment(t, options.ReloadStrategy, arsConfigmapWithPausedDeployment, arsNamespace)
+}
+
+func testPausingDeployment(t *testing.T, reloadStrategy string, testName string, namespace string) {
+	options.ReloadStrategy = reloadStrategy
+	envVarPostfix := constants.ConfigmapEnvVarPostfix
+
+	shaData := testutil.ConvertResourceToSHA(testutil.ConfigmapResourceType, namespace, testName, "pause.stakater.com")
+	config := getConfigWithAnnotations(envVarPostfix, testName, shaData, options.ConfigmapUpdateOnChangeAnnotation, options.ConfigmapReloaderAutoAnnotation)
+	deploymentFuncs := GetDeploymentRollingUpgradeFuncs()
+	collectors := getCollectors()
+
+	_ = PerformAction(clients, config, deploymentFuncs, collectors, nil, invokeReloadStrategy)
+
+	// Wait for deployment to have paused-at annotation
+	logrus.Infof("Waiting for deployment %s to have paused-at annotation", testName)
+	err := waitForDeploymentPausedAtAnnotation(clients, deploymentFuncs, config.Namespace, testName, 30*time.Second)
+	if err != nil {
+		t.Errorf("Failed to wait for deployment paused-at annotation: %v", err)
+	}
+
+	if promtestutil.ToFloat64(collectors.Reloaded.With(labelSucceeded)) != 1 {
+		t.Errorf("Counter was not increased")
+	}
+
+	if promtestutil.ToFloat64(collectors.ReloadedByNamespace.With(prometheus.Labels{"success": "true", "namespace": namespace})) != 1 {
+		t.Errorf("Counter by namespace was not increased")
+	}
+
+	logrus.Infof("Verifying deployment has been paused")
+	items := deploymentFuncs.ItemsFunc(clients, config.Namespace)
+	deploymentPaused, err := isDeploymentPaused(items, testName)
+	if err != nil {
+		t.Errorf("%s", err.Error())
+	}
+	if !deploymentPaused {
+		t.Errorf("Deployment has not been paused")
+	}
+
+	shaData = testutil.ConvertResourceToSHA(testutil.ConfigmapResourceType, namespace, testName, "pause-changed.stakater.com")
+	config = getConfigWithAnnotations(envVarPostfix, testName, shaData, options.ConfigmapUpdateOnChangeAnnotation, options.ConfigmapReloaderAutoAnnotation)
+
+	_ = PerformAction(clients, config, deploymentFuncs, collectors, nil, invokeReloadStrategy)
+
+	if promtestutil.ToFloat64(collectors.Reloaded.With(labelSucceeded)) != 2 {
+		t.Errorf("Counter was not increased")
+	}
+
+	if promtestutil.ToFloat64(collectors.ReloadedByNamespace.With(prometheus.Labels{"success": "true", "namespace": namespace})) != 2 {
+		t.Errorf("Counter by namespace was not increased")
+	}
+
+	logrus.Infof("Verifying deployment is still paused")
+	items = deploymentFuncs.ItemsFunc(clients, config.Namespace)
+	deploymentPaused, err = isDeploymentPaused(items, testName)
+	if err != nil {
+		t.Errorf("%s", err.Error())
+	}
+	if !deploymentPaused {
+		t.Errorf("Deployment should still be paused")
+	}
+
+	logrus.Infof("Verifying deployment has been resumed after pause interval")
+	time.Sleep(11 * time.Second)
+	items = deploymentFuncs.ItemsFunc(clients, config.Namespace)
+	deploymentPaused, err = isDeploymentPaused(items, testName)
+	if err != nil {
+		t.Errorf("%s", err.Error())
+	}
+	if deploymentPaused {
+		t.Errorf("Deployment should have been resumed after pause interval")
+	}
+}
+
+func isDeploymentPaused(deployments []runtime.Object, deploymentName string) (bool, error) {
+	deployment, err := FindDeploymentByName(deployments, deploymentName)
+	if err != nil {
+		return false, err
+	}
+	return IsPaused(deployment), nil
+}
+
+// waitForDeploymentPausedAtAnnotation waits for a deployment to have the pause-period annotation
+func waitForDeploymentPausedAtAnnotation(clients kube.Clients, deploymentFuncs callbacks.RollingUpgradeFuncs, namespace, deploymentName string, timeout time.Duration) error {
+	start := time.Now()
+
+	for time.Since(start) < timeout {
+		items := deploymentFuncs.ItemsFunc(clients, namespace)
+		deployment, err := FindDeploymentByName(items, deploymentName)
+		if err == nil {
+			annotations := deployment.GetAnnotations()
+			if annotations != nil {
+				if _, exists := annotations[options.PauseDeploymentTimeAnnotation]; exists {
+					return nil
+				}
+			}
+		}
+
+		time.Sleep(100 * time.Millisecond)
+	}
+
+	return fmt.Errorf("timeout waiting for deployment %s to have pause-period annotation", deploymentName)
+}
+
+// MockArgoRolloutWithEmptyContainers creates a mock Argo Rollout with no containers
+// This simulates the scenario where Argo Rollouts with workloadRef return empty containers
+func MockArgoRolloutWithEmptyContainers(namespace, name string) *runtime.Object {
+	rollout := &argorolloutv1alpha1.Rollout{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name,
+			Namespace: namespace,
+		},
+		Spec: argorolloutv1alpha1.RolloutSpec{
+			Template: v1.PodTemplateSpec{
+				Spec: v1.PodSpec{
+					Containers:     []v1.Container{}, // Empty containers slice
+					InitContainers: []v1.Container{}, // Empty init containers slice
+					Volumes:        []v1.Volume{},    // Empty volumes slice
+				},
+			},
+		},
+	}
+	var obj runtime.Object = rollout
+	return &obj
+}
+
+// TestGetContainerUsingResourceWithArgoRolloutEmptyContainers tests with real Argo Rollout functions
+func TestGetContainerUsingResourceWithArgoRolloutEmptyContainers(t *testing.T) {
+	namespace := "test-namespace"
+	resourceName := "test-configmap"
+
+	// Use real Argo Rollout functions but mock the containers function
+	rolloutFuncs := GetArgoRolloutRollingUpgradeFuncs()
+	originalContainersFunc := rolloutFuncs.ContainersFunc
+	originalInitContainersFunc := rolloutFuncs.InitContainersFunc
+
+	// Override to return empty containers (simulating workloadRef scenario)
+	rolloutFuncs.ContainersFunc = func(item runtime.Object) []v1.Container {
+		return []v1.Container{} // Empty like workloadRef rollouts
+	}
+	rolloutFuncs.InitContainersFunc = func(item runtime.Object) []v1.Container {
+		return []v1.Container{} // Empty like workloadRef rollouts
+	}
+
+	// Restore original functions after test
+	defer func() {
+		rolloutFuncs.ContainersFunc = originalContainersFunc
+		rolloutFuncs.InitContainersFunc = originalInitContainersFunc
+	}()
+
+	// Use proper Argo Rollout object instead of Pod
+	mockRollout := MockArgoRolloutWithEmptyContainers(namespace, "test-rollout")
+
+	config := common.Config{
+		Namespace:    namespace,
+		ResourceName: resourceName,
+		Type:         constants.ConfigmapEnvVarPostfix,
+		SHAValue:     "test-sha",
+	}
+
+	// Test both autoReload scenarios using subtests as suggested by Felix
+	for _, autoReload := range []bool{true, false} {
+		t.Run(fmt.Sprintf("autoReload_%t", autoReload), func(t *testing.T) {
+			// This tests the actual fix in the context of Argo Rollouts
+			result := getContainerUsingResource(rolloutFuncs, *mockRollout, config, autoReload)
+
+			if result != nil {
+				t.Errorf("Expected nil when using real Argo Rollout functions with empty containers (workloadRef scenario), got %v", result)
+			}
+		})
 	}
 }
