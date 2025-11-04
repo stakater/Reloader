@@ -1,4 +1,4 @@
-FROM python:3.13-alpine as builder
+FROM python:3.14-alpine as builder
 
 # set workdir
 RUN mkdir -p $HOME/application
