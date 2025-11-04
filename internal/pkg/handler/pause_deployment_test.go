@@ -9,7 +9,6 @@ import (
 	"github.com/stakater/Reloader/internal/pkg/options"
 	"github.com/stakater/Reloader/pkg/kube"
 	"github.com/stretchr/testify/assert"
-	app "k8s.io/api/apps/v1"
 	appsv1 "k8s.io/api/apps/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -374,14 +373,14 @@ func TestPauseDeployment(t *testing.T) {
 }
 
 // Simple helper function for test cases
-func FindDeploymentByName(deployments []runtime.Object, deploymentName string) (*app.Deployment, error) {
+func FindDeploymentByName(deployments []runtime.Object, deploymentName string) (*appsv1.Deployment, error) {
 	for _, deployment := range deployments {
 		accessor, err := meta.Accessor(deployment)
 		if err != nil {
 			return nil, fmt.Errorf("error getting accessor for item: %v", err)
 		}
 		if accessor.GetName() == deploymentName {
-			deploymentObj, ok := deployment.(*app.Deployment)
+			deploymentObj, ok := deployment.(*appsv1.Deployment)
 			if !ok {
 				return nil, fmt.Errorf("failed to cast to Deployment")
 			}

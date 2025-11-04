@@ -83,9 +83,9 @@ func GetDeploymentItem(clients kube.Clients, name string, namespace string) (run
 		return nil, err
 	}
 
-	if deployment.Spec.Template.ObjectMeta.Annotations == nil {
+	if deployment.Spec.Template.Annotations == nil {
 		annotations := make(map[string]string)
-		deployment.Spec.Template.ObjectMeta.Annotations = annotations
+		deployment.Spec.Template.Annotations = annotations
 	}
 
 	return deployment, nil
@@ -101,9 +101,9 @@ func GetDeploymentItems(clients kube.Clients, namespace string) []runtime.Object
 	items := make([]runtime.Object, len(deployments.Items))
 	// Ensure we always have pod annotations to add to
 	for i, v := range deployments.Items {
-		if v.Spec.Template.ObjectMeta.Annotations == nil {
+		if v.Spec.Template.Annotations == nil {
 			annotations := make(map[string]string)
-			deployments.Items[i].Spec.Template.ObjectMeta.Annotations = annotations
+			deployments.Items[i].Spec.Template.Annotations = annotations
 		}
 		items[i] = &deployments.Items[i]
 	}
@@ -132,9 +132,9 @@ func GetCronJobItems(clients kube.Clients, namespace string) []runtime.Object {
 	items := make([]runtime.Object, len(cronjobs.Items))
 	// Ensure we always have pod annotations to add to
 	for i, v := range cronjobs.Items {
-		if v.Spec.JobTemplate.Spec.Template.ObjectMeta.Annotations == nil {
+		if v.Spec.JobTemplate.Spec.Template.Annotations == nil {
 			annotations := make(map[string]string)
-			cronjobs.Items[i].Spec.JobTemplate.Spec.Template.ObjectMeta.Annotations = annotations
+			cronjobs.Items[i].Spec.JobTemplate.Spec.Template.Annotations = annotations
 		}
 		items[i] = &cronjobs.Items[i]
 	}
@@ -163,9 +163,9 @@ func GetJobItems(clients kube.Clients, namespace string) []runtime.Object {
 	items := make([]runtime.Object, len(jobs.Items))
 	// Ensure we always have pod annotations to add to
 	for i, v := range jobs.Items {
-		if v.Spec.Template.ObjectMeta.Annotations == nil {
+		if v.Spec.Template.Annotations == nil {
 			annotations := make(map[string]string)
-			jobs.Items[i].Spec.Template.ObjectMeta.Annotations = annotations
+			jobs.Items[i].Spec.Template.Annotations = annotations
 		}
 		items[i] = &jobs.Items[i]
 	}
@@ -194,8 +194,8 @@ func GetDaemonSetItems(clients kube.Clients, namespace string) []runtime.Object 
 	items := make([]runtime.Object, len(daemonSets.Items))
 	// Ensure we always have pod annotations to add to
 	for i, v := range daemonSets.Items {
-		if v.Spec.Template.ObjectMeta.Annotations == nil {
-			daemonSets.Items[i].Spec.Template.ObjectMeta.Annotations = make(map[string]string)
+		if v.Spec.Template.Annotations == nil {
+			daemonSets.Items[i].Spec.Template.Annotations = make(map[string]string)
 		}
 		items[i] = &daemonSets.Items[i]
 	}
@@ -224,8 +224,8 @@ func GetStatefulSetItems(clients kube.Clients, namespace string) []runtime.Objec
 	items := make([]runtime.Object, len(statefulSets.Items))
 	// Ensure we always have pod annotations to add to
 	for i, v := range statefulSets.Items {
-		if v.Spec.Template.ObjectMeta.Annotations == nil {
-			statefulSets.Items[i].Spec.Template.ObjectMeta.Annotations = make(map[string]string)
+		if v.Spec.Template.Annotations == nil {
+			statefulSets.Items[i].Spec.Template.Annotations = make(map[string]string)
 		}
 		items[i] = &statefulSets.Items[i]
 	}
@@ -254,8 +254,8 @@ func GetRolloutItems(clients kube.Clients, namespace string) []runtime.Object {
 	items := make([]runtime.Object, len(rollouts.Items))
 	// Ensure we always have pod annotations to add to
 	for i, v := range rollouts.Items {
-		if v.Spec.Template.ObjectMeta.Annotations == nil {
-			rollouts.Items[i].Spec.Template.ObjectMeta.Annotations = make(map[string]string)
+		if v.Spec.Template.Annotations == nil {
+			rollouts.Items[i].Spec.Template.Annotations = make(map[string]string)
 		}
 		items[i] = &rollouts.Items[i]
 	}
@@ -265,98 +265,98 @@ func GetRolloutItems(clients kube.Clients, namespace string) []runtime.Object {
 
 // GetDeploymentAnnotations returns the annotations of given deployment
 func GetDeploymentAnnotations(item runtime.Object) map[string]string {
-	if item.(*appsv1.Deployment).ObjectMeta.Annotations == nil {
-		item.(*appsv1.Deployment).ObjectMeta.Annotations = make(map[string]string)
+	if item.(*appsv1.Deployment).Annotations == nil {
+		item.(*appsv1.Deployment).Annotations = make(map[string]string)
 	}
-	return item.(*appsv1.Deployment).ObjectMeta.Annotations
+	return item.(*appsv1.Deployment).Annotations
 }
 
 // GetCronJobAnnotations returns the annotations of given cronjob
 func GetCronJobAnnotations(item runtime.Object) map[string]string {
-	if item.(*batchv1.CronJob).ObjectMeta.Annotations == nil {
-		item.(*batchv1.CronJob).ObjectMeta.Annotations = make(map[string]string)
+	if item.(*batchv1.CronJob).Annotations == nil {
+		item.(*batchv1.CronJob).Annotations = make(map[string]string)
 	}
-	return item.(*batchv1.CronJob).ObjectMeta.Annotations
+	return item.(*batchv1.CronJob).Annotations
 }
 
 // GetJobAnnotations returns the annotations of given job
 func GetJobAnnotations(item runtime.Object) map[string]string {
-	if item.(*batchv1.Job).ObjectMeta.Annotations == nil {
-		item.(*batchv1.Job).ObjectMeta.Annotations = make(map[string]string)
+	if item.(*batchv1.Job).Annotations == nil {
+		item.(*batchv1.Job).Annotations = make(map[string]string)
 	}
-	return item.(*batchv1.Job).ObjectMeta.Annotations
+	return item.(*batchv1.Job).Annotations
 }
 
 // GetDaemonSetAnnotations returns the annotations of given daemonSet
 func GetDaemonSetAnnotations(item runtime.Object) map[string]string {
-	if item.(*appsv1.DaemonSet).ObjectMeta.Annotations == nil {
-		item.(*appsv1.DaemonSet).ObjectMeta.Annotations = make(map[string]string)
+	if item.(*appsv1.DaemonSet).Annotations == nil {
+		item.(*appsv1.DaemonSet).Annotations = make(map[string]string)
 	}
-	return item.(*appsv1.DaemonSet).ObjectMeta.Annotations
+	return item.(*appsv1.DaemonSet).Annotations
 }
 
 // GetStatefulSetAnnotations returns the annotations of given statefulSet
 func GetStatefulSetAnnotations(item runtime.Object) map[string]string {
-	if item.(*appsv1.StatefulSet).ObjectMeta.Annotations == nil {
-		item.(*appsv1.StatefulSet).ObjectMeta.Annotations = make(map[string]string)
+	if item.(*appsv1.StatefulSet).Annotations == nil {
+		item.(*appsv1.StatefulSet).Annotations = make(map[string]string)
 	}
-	return item.(*appsv1.StatefulSet).ObjectMeta.Annotations
+	return item.(*appsv1.StatefulSet).Annotations
 }
 
 // GetRolloutAnnotations returns the annotations of given rollout
 func GetRolloutAnnotations(item runtime.Object) map[string]string {
-	if item.(*argorolloutv1alpha1.Rollout).ObjectMeta.Annotations == nil {
-		item.(*argorolloutv1alpha1.Rollout).ObjectMeta.Annotations = make(map[string]string)
+	if item.(*argorolloutv1alpha1.Rollout).Annotations == nil {
+		item.(*argorolloutv1alpha1.Rollout).Annotations = make(map[string]string)
 	}
-	return item.(*argorolloutv1alpha1.Rollout).ObjectMeta.Annotations
+	return item.(*argorolloutv1alpha1.Rollout).Annotations
 }
 
 // GetDeploymentPodAnnotations returns the pod's annotations of given deployment
 func GetDeploymentPodAnnotations(item runtime.Object) map[string]string {
-	if item.(*appsv1.Deployment).Spec.Template.ObjectMeta.Annotations == nil {
-		item.(*appsv1.Deployment).Spec.Template.ObjectMeta.Annotations = make(map[string]string)
+	if item.(*appsv1.Deployment).Spec.Template.Annotations == nil {
+		item.(*appsv1.Deployment).Spec.Template.Annotations = make(map[string]string)
 	}
-	return item.(*appsv1.Deployment).Spec.Template.ObjectMeta.Annotations
+	return item.(*appsv1.Deployment).Spec.Template.Annotations
 }
 
 // GetCronJobPodAnnotations returns the pod's annotations of given cronjob
 func GetCronJobPodAnnotations(item runtime.Object) map[string]string {
-	if item.(*batchv1.CronJob).Spec.JobTemplate.Spec.Template.ObjectMeta.Annotations == nil {
-		item.(*batchv1.CronJob).Spec.JobTemplate.Spec.Template.ObjectMeta.Annotations = make(map[string]string)
+	if item.(*batchv1.CronJob).Spec.JobTemplate.Spec.Template.Annotations == nil {
+		item.(*batchv1.CronJob).Spec.JobTemplate.Spec.Template.Annotations = make(map[string]string)
 	}
-	return item.(*batchv1.CronJob).Spec.JobTemplate.Spec.Template.ObjectMeta.Annotations
+	return item.(*batchv1.CronJob).Spec.JobTemplate.Spec.Template.Annotations
 }
 
 // GetJobPodAnnotations returns the pod's annotations of given job
 func GetJobPodAnnotations(item runtime.Object) map[string]string {
-	if item.(*batchv1.Job).Spec.Template.ObjectMeta.Annotations == nil {
-		item.(*batchv1.Job).Spec.Template.ObjectMeta.Annotations = make(map[string]string)
+	if item.(*batchv1.Job).Spec.Template.Annotations == nil {
+		item.(*batchv1.Job).Spec.Template.Annotations = make(map[string]string)
 	}
-	return item.(*batchv1.Job).Spec.Template.ObjectMeta.Annotations
+	return item.(*batchv1.Job).Spec.Template.Annotations
 }
 
 // GetDaemonSetPodAnnotations returns the pod's annotations of given daemonSet
 func GetDaemonSetPodAnnotations(item runtime.Object) map[string]string {
-	if item.(*appsv1.DaemonSet).Spec.Template.ObjectMeta.Annotations == nil {
-		item.(*appsv1.DaemonSet).Spec.Template.ObjectMeta.Annotations = make(map[string]string)
+	if item.(*appsv1.DaemonSet).Spec.Template.Annotations == nil {
+		item.(*appsv1.DaemonSet).Spec.Template.Annotations = make(map[string]string)
 	}
-	return item.(*appsv1.DaemonSet).Spec.Template.ObjectMeta.Annotations
+	return item.(*appsv1.DaemonSet).Spec.Template.Annotations
 }
 
 // GetStatefulSetPodAnnotations returns the pod's annotations of given statefulSet
 func GetStatefulSetPodAnnotations(item runtime.Object) map[string]string {
-	if item.(*appsv1.StatefulSet).Spec.Template.ObjectMeta.Annotations == nil {
-		item.(*appsv1.StatefulSet).Spec.Template.ObjectMeta.Annotations = make(map[string]string)
+	if item.(*appsv1.StatefulSet).Spec.Template.Annotations == nil {
+		item.(*appsv1.StatefulSet).Spec.Template.Annotations = make(map[string]string)
 	}
-	return item.(*appsv1.StatefulSet).Spec.Template.ObjectMeta.Annotations
+	return item.(*appsv1.StatefulSet).Spec.Template.Annotations
 }
 
 // GetRolloutPodAnnotations returns the pod's annotations of given rollout
 func GetRolloutPodAnnotations(item runtime.Object) map[string]string {
-	if item.(*argorolloutv1alpha1.Rollout).Spec.Template.ObjectMeta.Annotations == nil {
-		item.(*argorolloutv1alpha1.Rollout).Spec.Template.ObjectMeta.Annotations = make(map[string]string)
+	if item.(*argorolloutv1alpha1.Rollout).Spec.Template.Annotations == nil {
+		item.(*argorolloutv1alpha1.Rollout).Spec.Template.Annotations = make(map[string]string)
 	}
-	return item.(*argorolloutv1alpha1.Rollout).Spec.Template.ObjectMeta.Annotations
+	return item.(*argorolloutv1alpha1.Rollout).Spec.Template.Annotations
 }
 
 // GetDeploymentContainers returns the containers of given deployment
@@ -481,9 +481,9 @@ func ReCreateJobFromjob(clients kube.Clients, namespace string, resource runtime
 	}
 
 	// Remove fields that should not be specified when creating a new Job
-	job.ObjectMeta.ResourceVersion = ""
-	job.ObjectMeta.UID = ""
-	job.ObjectMeta.CreationTimestamp = meta_v1.Time{}
+	job.ResourceVersion = ""
+	job.UID = ""
+	job.CreationTimestamp = meta_v1.Time{}
 	job.Status = batchv1.JobStatus{}
 
 	// Remove problematic labels

@@ -94,7 +94,7 @@ func getAnnotations(name string, autoReload bool, secretAutoReload bool, configm
 		annotations[options.ConfigmapReloaderAutoAnnotation] = "true"
 	}
 
-	if !(len(annotations) > 0) {
+	if len(annotations) == 0 {
 		annotations = map[string]string{
 			options.ConfigmapUpdateOnChangeAnnotation: name,
 			options.SecretUpdateOnChangeAnnotation:    name}
@@ -479,18 +479,19 @@ func GetDeploymentWithPodAnnotations(namespace string, deploymentName string, bo
 		},
 	}
 	if !both {
-		deployment.ObjectMeta.Annotations = nil
+		deployment.Annotations = nil
 	}
-	deployment.Spec.Template.ObjectMeta.Annotations = getAnnotations(deploymentName, true, false, false, map[string]string{})
+	deployment.Spec.Template.Annotations = getAnnotations(deploymentName, true, false, false, map[string]string{})
 	return deployment
 }
 
 func GetDeploymentWithTypedAutoAnnotation(namespace string, deploymentName string, resourceType string) *appsv1.Deployment {
 	replicaset := int32(1)
 	var objectMeta metav1.ObjectMeta
-	if resourceType == SecretResourceType {
+	switch resourceType {
+	case SecretResourceType:
 		objectMeta = getObjectMeta(namespace, deploymentName, false, true, false, map[string]string{})
-	} else if resourceType == ConfigmapResourceType {
+	case ConfigmapResourceType:
 		objectMeta = getObjectMeta(namespace, deploymentName, false, false, true, map[string]string{})
 	}
 
@@ -514,9 +515,10 @@ func GetDeploymentWithExcludeAnnotation(namespace string, deploymentName string,
 
 	annotation := map[string]string{}
 
-	if resourceType == SecretResourceType {
+	switch resourceType {
+	case SecretResourceType:
 		annotation[options.SecretExcludeReloaderAnnotation] = deploymentName
-	} else if resourceType == ConfigmapResourceType {
+	case ConfigmapResourceType:
 		annotation[options.ConfigmapExcludeReloaderAnnotation] = deploymentName
 	}
 
@@ -747,12 +749,13 @@ func GetResourceSHAFromAnnotation(podAnnotations map[string]string) string {
 // ConvertResourceToSHA generates SHA from secret or configmap data
 func ConvertResourceToSHA(resourceType string, namespace string, resourceName string, data string) string {
 	values := []string{}
-	if resourceType == SecretResourceType {
+	switch resourceType {
+	case SecretResourceType:
 		secret := GetSecret(namespace, resourceName, data)
 		for k, v := range secret.Data {
 			values = append(values, k+"="+string(v[:]))
 		}
-	} else if resourceType == ConfigmapResourceType {
+	case ConfigmapResourceType:
 		configmap := GetConfigmap(namespace, resourceName, data)
 		for k, v := range configmap.Data {
 			values = append(values, k+"="+v)

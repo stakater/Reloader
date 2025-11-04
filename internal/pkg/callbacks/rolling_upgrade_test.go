@@ -373,19 +373,19 @@ func TestPatchResources(t *testing.T) {
 			assert.NoError(t, err)
 			patchedResource, err := callbacks.GetDeploymentItem(clients, "test-deployment", fixtures.namespace)
 			assert.NoError(t, err)
-			assert.Equal(t, "test", patchedResource.(*appsv1.Deployment).ObjectMeta.Annotations["test"])
+			assert.Equal(t, "test", patchedResource.(*appsv1.Deployment).Annotations["test"])
 		}},
 		{"DaemonSet", createTestDaemonSetWithAnnotations, callbacks.PatchDaemonSet, deleteTestDaemonSet, func(err error) {
 			assert.NoError(t, err)
 			patchedResource, err := callbacks.GetDaemonSetItem(clients, "test-daemonset", fixtures.namespace)
 			assert.NoError(t, err)
-			assert.Equal(t, "test", patchedResource.(*appsv1.DaemonSet).ObjectMeta.Annotations["test"])
+			assert.Equal(t, "test", patchedResource.(*appsv1.DaemonSet).Annotations["test"])
 		}},
 		{"StatefulSet", createTestStatefulSetWithAnnotations, callbacks.PatchStatefulSet, deleteTestStatefulSet, func(err error) {
 			assert.NoError(t, err)
 			patchedResource, err := callbacks.GetStatefulSetItem(clients, "test-statefulset", fixtures.namespace)
 			assert.NoError(t, err)
-			assert.Equal(t, "test", patchedResource.(*appsv1.StatefulSet).ObjectMeta.Annotations["test"])
+			assert.Equal(t, "test", patchedResource.(*appsv1.StatefulSet).Annotations["test"])
 		}},
 		{"CronJob", createTestCronJobWithAnnotations, callbacks.PatchCronJob, deleteTestCronJob, func(err error) {
 			assert.EqualError(t, err, "not supported patching: CronJob")
@@ -621,17 +621,17 @@ func deleteTestStatefulSets(clients kube.Clients, namespace string) error {
 func createResourceWithPodAnnotations(obj runtime.Object, annotations map[string]string) runtime.Object {
 	switch v := obj.(type) {
 	case *appsv1.Deployment:
-		v.Spec.Template.ObjectMeta.Annotations = annotations
+		v.Spec.Template.Annotations = annotations
 	case *appsv1.DaemonSet:
-		v.Spec.Template.ObjectMeta.Annotations = annotations
+		v.Spec.Template.Annotations = annotations
 	case *appsv1.StatefulSet:
-		v.Spec.Template.ObjectMeta.Annotations = annotations
+		v.Spec.Template.Annotations = annotations
 	case *batchv1.CronJob:
-		v.Spec.JobTemplate.Spec.Template.ObjectMeta.Annotations = annotations
+		v.Spec.JobTemplate.Spec.Template.Annotations = annotations
 	case *batchv1.Job:
-		v.Spec.Template.ObjectMeta.Annotations = annotations
+		v.Spec.Template.Annotations = annotations
 	case *argorolloutv1alpha1.Rollout:
-		v.Spec.Template.ObjectMeta.Annotations = annotations
+		v.Spec.Template.Annotations = annotations
 	}
 	return obj
 }
