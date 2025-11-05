@@ -2341,7 +2341,7 @@ func TestController_resourceInNamespaceSelector(t *testing.T) {
 				indexer:           tt.fields.indexer,
 				queue:             tt.fields.queue,
 				informer:          tt.fields.informer,
-				namespace:         tt.fields.namespace.ObjectMeta.Name,
+				namespace:         tt.fields.namespace.Name,
 				namespaceSelector: tt.fields.namespaceSelector,
 			}
 

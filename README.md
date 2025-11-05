@@ -433,11 +433,14 @@ _Repository GitHub releases_: As requested by the community in [issue 685](https
 
 To make a GitHub release:
 
-1. Code owners create a release branch `release-vX.Y.Z`
-1. Code owners run a dispatch mode workflow to automatically generate version and manifests on the release branch
+1. Code owners create a release branch `release-vX.Y.Z` from `master`
+1. Code owners run [Init Release](https://github.com/stakater/Reloader/actions/workflows/init-branch-release.yaml) workflow to automatically generate version and manifests on the release branch
+    - Set the `TARGET_BRANCH` parameter to release branch i.e. `release-vX.Y.Z`
+    - Set the `TARGET_VERSION` to release version without 'v' i.e. `X.Y.Z`
 1. A PR is created to bump the image version on the release branch, example: [PR-798](https://github.com/stakater/Reloader/pull/798)
 1. Code owners create a GitHub release with tag `vX.Y.Z` and target branch `release-vX.Y.Z`, which triggers creation of images
-1. Code owners create a PR with `release/helm-chart` label to update the Helm chart version, example: [PR-846](https://github.com/stakater/Reloader/pull/846)
+1. Code owners create another branch from `master` and bump the helm chart version as well as Reloader image version.
+    - Code owners create a PR with `release/helm-chart` label, example: [PR-846](https://github.com/stakater/Reloader/pull/846)
 
 _Repository git tagging_: Push to the main branch will create a merge-image and merge-tag named `merge-${{ github.event.number }}`, for example `merge-800` when pull request number 800 is merged.
 

@@ -3,5 +3,6 @@
     {
       "pattern": "^(?!http).+"
     }
-  ]
+  ],
+  "retryOn429": true
 }

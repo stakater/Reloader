@@ -160,7 +160,12 @@ func sendWebhook(url string) (string, []error) {
 		// the reloader seems to retry automatically so no retry logic added
 		return "", err
 	}
-	defer resp.Body.Close()
+	defer func() {
+		closeErr := resp.Body.Close()
+		if closeErr != nil {
+			logrus.Error(closeErr)
+		}
+	}()
 	var buffer bytes.Buffer
 	_, bufferErr := io.Copy(&buffer, resp.Body)
 	if bufferErr != nil {
@@ -350,7 +355,8 @@ func upgradeResource(clients kube.Clients, config common.Config, upgradeFuncs ca
 
 func getVolumeMountName(volumes []v1.Volume, mountType string, volumeName string) string {
 	for i := range volumes {
-		if mountType == constants.ConfigmapEnvVarPostfix {
+		switch mountType {
+		case constants.ConfigmapEnvVarPostfix:
 			if volumes[i].ConfigMap != nil && volumes[i].ConfigMap.Name == volumeName {
 				return volumes[i].Name
 			}
@@ -362,7 +368,7 @@ func getVolumeMountName(volumes []v1.Volume, mountType string, volumeName string
 					}
 				}
 			}
-		} else if mountType == constants.SecretEnvVarPostfix {
+		case constants.SecretEnvVarPostfix:
 			if volumes[i].Secret != nil && volumes[i].Secret.SecretName == volumeName {
 				return volumes[i].Name
 			}
@@ -399,9 +405,9 @@ func getContainerWithEnvReference(containers []v1.Container, resourceName string
 		for j := range envs {
 			envVarSource := envs[j].ValueFrom
 			if envVarSource != nil {
-				if resourceType == constants.SecretEnvVarPostfix && envVarSource.SecretKeyRef != nil && envVarSource.SecretKeyRef.LocalObjectReference.Name == resourceName {
+				if resourceType == constants.SecretEnvVarPostfix && envVarSource.SecretKeyRef != nil && envVarSource.SecretKeyRef.Name == resourceName {
 					return &containers[i]
-				} else if resourceType == constants.ConfigmapEnvVarPostfix && envVarSource.ConfigMapKeyRef != nil && envVarSource.ConfigMapKeyRef.LocalObjectReference.Name == resourceName {
+				} else if resourceType == constants.ConfigmapEnvVarPostfix && envVarSource.ConfigMapKeyRef != nil && envVarSource.ConfigMapKeyRef.Name == resourceName {
 					return &containers[i]
 				}
 			}
@@ -409,9 +415,9 @@ func getContainerWithEnvReference(containers []v1.Container, resourceName string
 
 		envsFrom := containers[i].EnvFrom
 		for j := range envsFrom {
-			if resourceType == constants.SecretEnvVarPostfix && envsFrom[j].SecretRef != nil && envsFrom[j].SecretRef.LocalObjectReference.Name == resourceName {
+			if resourceType == constants.SecretEnvVarPostfix && envsFrom[j].SecretRef != nil && envsFrom[j].SecretRef.Name == resourceName {
 				return &containers[i]
-			} else if resourceType == constants.ConfigmapEnvVarPostfix && envsFrom[j].ConfigMapRef != nil && envsFrom[j].ConfigMapRef.LocalObjectReference.Name == resourceName {
+			} else if resourceType == constants.ConfigmapEnvVarPostfix && envsFrom[j].ConfigMapRef != nil && envsFrom[j].ConfigMapRef.Name == resourceName {
 				return &containers[i]
 			}
 		}

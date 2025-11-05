@@ -9,6 +9,15 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
+type AlertSink string
+
+const (
+	AlertSinkSlack      AlertSink = "slack"
+	AlertSinkTeams      AlertSink = "teams"
+	AlertSinkGoogleChat AlertSink = "gchat"
+	AlertSinkRaw        AlertSink = "raw"
+)
+
 // function to send alert msg to webhook service
 func SendWebhookAlert(msg string) {
 	webhook_url, ok := os.LookupEnv("ALERT_WEBHOOK_URL")
@@ -31,14 +40,15 @@ func SendWebhookAlert(msg string) {
 		msg = fmt.Sprintf("%s : %s", alert_additional_info, msg)
 	}
 
-	if alert_sink == "slack" {
+	switch AlertSink(alert_sink) {
+	case AlertSinkSlack:
 		sendSlackAlert(webhook_url, webhook_proxy, msg)
-	} else if alert_sink == "teams" {
+	case AlertSinkTeams:
 		sendTeamsAlert(webhook_url, webhook_proxy, msg)
-	} else if alert_sink == "gchat" {
+	case AlertSinkGoogleChat:
 		sendGoogleChatAlert(webhook_url, webhook_proxy, msg)
-	} else {
-		msg = strings.Replace(msg, "*", "", -1)
+	default:
+		msg = strings.ReplaceAll(msg, "*", "")
 		sendRawWebhookAlert(webhook_url, webhook_proxy, msg)
 	}
 }
