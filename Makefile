@@ -102,6 +102,9 @@ run:
 build:
 	"$(GOCMD)" build ${GOFLAGS} ${LDFLAGS} -o "${BINARY}"
 
+lint: golangci-lint ## Run golangci-lint on the codebase
+	$(GOLANGCI_LINT) run ./...
+
 build-image:
 	docker buildx build \
 		--platform ${OS}/${ARCH} \

@@ -53,11 +53,7 @@ jobs:
           make install
 
       - name: Run golangci-lint
-        uses: golangci/golangci-lint-action@v8
-        with:
-          version: latest
-          only-new-issues: false
-          args: --timeout 10m
+        run: make lint
 
       - name: Install kubectl
         run: |
