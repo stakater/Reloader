@@ -17,7 +17,7 @@ fullnameOverride: ""
 image:
   name: stakater/reloader
   repository: ghcr.io/stakater/reloader
-  tag: v1.4.9
+  tag: v1.4.10
   # digest: sha256:1234567
   pullPolicy: IfNotPresent
 
