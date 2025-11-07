@@ -50,6 +50,7 @@ spec:
       {{- end }}
       {{- if .Values.reloader.deployment.nodeSelector }}
       nodeSelector:
+        "kubernetes.io/os": linux
 {{ toYaml .Values.reloader.deployment.nodeSelector | indent 8 }}
       {{- end }}
       {{- if or (.Values.reloader.deployment.affinity) (.Values.reloader.enableHA) }}
