@@ -123,6 +123,8 @@ spec:
       labels:
         app: reloader-reloader
     spec:
+      nodeSelector:
+        "kubernetes.io/os": linux
       containers:
       - env:
         - name: GOMAXPROCS
