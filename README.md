@@ -211,12 +211,13 @@ To enable this feature, update the `reloader.env.secret` section in your `values
 
 ```yaml
 reloader:
-  env:
-    secret:
-      ALERT_ON_RELOAD: "true"                    # Enable alerting (default: false)
-      ALERT_SINK: "slack"                        # Options: slack, teams, gchat or webhook (default: webhook)
-      ALERT_WEBHOOK_URL: "<your-webhook-url>"    # Required if ALERT_ON_RELOAD is true
-      ALERT_ADDITIONAL_INFO: "Triggered by Reloader in staging environment"
+  deployment:
+    env:
+      secret:
+        ALERT_ON_RELOAD: "true"                    # Enable alerting (default: false)
+        ALERT_SINK: "slack"                        # Options: slack, teams, gchat or webhook (default: webhook)
+        ALERT_WEBHOOK_URL: "<your-webhook-url>"    # Required if ALERT_ON_RELOAD is true
+        ALERT_ADDITIONAL_INFO: "Triggered by Reloader in staging environment"
 ```
 
 ### 7. ⏸️ Pause Deployments
