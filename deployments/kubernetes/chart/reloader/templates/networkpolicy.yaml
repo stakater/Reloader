@@ -7,17 +7,16 @@ metadata:
   labels:
 {{ include "reloader-labels.chart" . | indent 4 }}
 {{- if .Values.reloader.matchLabels }}
-{{ toYaml .Values.reloader.matchLabels | indent 4 }}
+{{ tpl (toYaml .Values.reloader.matchLabels) . | indent 4 }}
 {{- end }}
   name: {{ template "reloader-fullname" . }}
   namespace: {{ .Values.namespace | default .Release.Namespace }}
 spec:
   podSelector:
     matchLabels:
-      app: {{ template "reloader-fullname" . }}
-      release: {{ .Release.Name | quote }}
+{{ include "reloader-match-labels.chart" . | indent 6 }}
 {{- if .Values.reloader.matchLabels }}
-{{ toYaml .Values.reloader.matchLabels | indent 6 }}
+{{ tpl (toYaml .Values.reloader.matchLabels) . | indent 6 }}
 {{- end }}
   policyTypes:
   - Ingress

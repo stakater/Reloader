@@ -1,8 +1,9 @@
 name: Release Go project
 
 on:
-  release:
-    types: [published]
+  push:
+    tags:
+      - "v*"
 
 env:
   DOCKER_FILE_PATH: Dockerfile
@@ -12,7 +13,7 @@ env:
   REGISTRY: ghcr.io
 
 jobs:
-  build:
+  release:
 
     permissions:
       contents: read
@@ -23,7 +24,7 @@ jobs:
 
     steps:
       - name: Check out code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           token: ${{ secrets.PUBLISH_TOKEN }}
           fetch-depth: 0 # otherwise, you will fail to push refs to dest repo
@@ -36,7 +37,7 @@ jobs:
           version: v3.11.3
 
       - name: Set up Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v6
         with:
           go-version-file: 'go.mod'
           check-latest: true
@@ -47,11 +48,7 @@ jobs:
           make install
 
       - name: Run golangci-lint
-        uses: golangci/golangci-lint-action@v5
-        with:
-          version: latest
-          only-new-issues: false
-          args: --timeout 10m
+        run: make lint
 
       - name: Install kubectl
         run: |
@@ -77,6 +74,10 @@ jobs:
       - name: Get Tag from Github Ref
         id: generate_tag
         run: echo "RELEASE_VERSION=${GITHUB_REF#refs/*/}" >> $GITHUB_OUTPUT
+
+      - name: Create timestamp
+        id: prep
+        run: echo "created=$(date -u +'%Y-%m-%dT%H:%M:%SZ')" >> $GITHUB_OUTPUT
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
@@ -105,6 +106,10 @@ jobs:
           platforms: linux/amd64,linux/arm,linux/arm64
           tags: |
             ${{ env.DOCKER_IMAGE_REPOSITORY }}:${{ steps.generate_tag.outputs.RELEASE_VERSION }}
+          build-args: |
+            VERSION=${{ steps.generate_tag.outputs.RELEASE_VERSION }}
+            COMMIT=${{ github.sha }}
+            BUILD_DATE=${{ steps.prep.outputs.created }}
           labels: |
             org.opencontainers.image.source=${{ github.event.repository.clone_url }}
             org.opencontainers.image.created=${{ steps.prep.outputs.created }}
@@ -151,6 +156,10 @@ jobs:
           platforms: linux/amd64,linux/arm,linux/arm64
           tags: |
             ${{ env.GHCR_IMAGE_REPOSITORY }}:${{ steps.generate_tag.outputs.RELEASE_VERSION }},${{ env.GHCR_IMAGE_REPOSITORY }}:latest
+          build-args: |
+            VERSION=${{ steps.generate_tag.outputs.RELEASE_VERSION }}
+            COMMIT=${{ github.sha }}
+            BUILD_DATE=${{ steps.prep.outputs.created }}
           labels: |
             org.opencontainers.image.source=${{ github.event.repository.clone_url }}
             org.opencontainers.image.created=${{ steps.prep.outputs.created }}
@@ -192,22 +201,6 @@ jobs:
       ##############################
       ## Add steps to generate required artifacts for a release here(helm chart, operator manifest etc.)
       ##############################
-
-      # # Generate tag for operator without "v"
-      # - name: Generate Operator Tag
-      #   id: generate_operator_tag
-      #   uses: anothrNick/github-tag-action@1.70.0
-      #   env:
-      #     GITHUB_TOKEN: ${{ secrets.STAKATER_GITHUB_TOKEN }}
-      #     WITH_V: false
-      #     DEFAULT_BUMP: patch
-      #     DRY_RUN: true
-
-      # # Update chart tag to the latest semver tag
-      # - name: Update Chart Version
-      #   env:
-      #     VERSION: ${{ steps.generate_operator_tag.outputs.RELEASE_VERSION }}
-      #   run: make bump-chart
 
       - name: Run GoReleaser
         uses: goreleaser/goreleaser-action@master

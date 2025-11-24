@@ -1,5 +1,4 @@
 etc/pki
-root/buildinfo
 etc/ssl/certs
 etc/redhat-release
 usr/share/zoneinfo

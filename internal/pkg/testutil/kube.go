@@ -21,6 +21,7 @@ import (
 	"github.com/stakater/Reloader/internal/pkg/metrics"
 	"github.com/stakater/Reloader/internal/pkg/options"
 	"github.com/stakater/Reloader/internal/pkg/util"
+	"github.com/stakater/Reloader/pkg/common"
 	"github.com/stakater/Reloader/pkg/kube"
 	appsv1 "k8s.io/api/apps/v1"
 	batchv1 "k8s.io/api/batch/v1"
@@ -101,7 +102,7 @@ func getAnnotations(name string, autoReload bool, secretAutoReload bool, configm
 		annotations[options.SecretProviderClassReloaderAutoAnnotation] = "true"
 	}
 
-	if !(len(annotations) > 0) {
+	if len(annotations) == 0 {
 		annotations = map[string]string{
 			options.ConfigmapUpdateOnChangeAnnotation:           name,
 			options.SecretUpdateOnChangeAnnotation:              name,
@@ -501,20 +502,21 @@ func GetDeploymentWithPodAnnotations(namespace string, deploymentName string, bo
 		},
 	}
 	if !both {
-		deployment.ObjectMeta.Annotations = nil
+		deployment.Annotations = nil
 	}
-	deployment.Spec.Template.ObjectMeta.Annotations = getAnnotations(deploymentName, true, false, false, false, map[string]string{})
+	deployment.Spec.Template.Annotations = getAnnotations(deploymentName, true, false, false, false, map[string]string{})
 	return deployment
 }
 
 func GetDeploymentWithTypedAutoAnnotation(namespace string, deploymentName string, resourceType string) *appsv1.Deployment {
 	replicaset := int32(1)
 	var objectMeta metav1.ObjectMeta
-	if resourceType == SecretResourceType {
+	switch resourceType {
+	case SecretResourceType:
 		objectMeta = getObjectMeta(namespace, deploymentName, false, true, false, false, map[string]string{})
-	} else if resourceType == ConfigmapResourceType {
+	case ConfigmapResourceType:
 		objectMeta = getObjectMeta(namespace, deploymentName, false, false, true, false, map[string]string{})
-	} else if resourceType == SecretProviderClassPodStatusResourceType {
+	case SecretProviderClassPodStatusResourceType:
 		objectMeta = getObjectMeta(namespace, deploymentName, false, false, false, true, map[string]string{})
 	}
 
@@ -538,11 +540,12 @@ func GetDeploymentWithExcludeAnnotation(namespace string, deploymentName string,
 
 	annotation := map[string]string{}
 
-	if resourceType == SecretResourceType {
+	switch resourceType {
+	case SecretResourceType:
 		annotation[options.SecretExcludeReloaderAnnotation] = deploymentName
-	} else if resourceType == ConfigmapResourceType {
+	case ConfigmapResourceType:
 		annotation[options.ConfigmapExcludeReloaderAnnotation] = deploymentName
-	} else if resourceType == SecretProviderClassPodStatusResourceType {
+	case SecretProviderClassPodStatusResourceType:
 		annotation[options.SecretProviderClassExcludeReloaderAnnotation] = deploymentName
 	}
 
@@ -796,7 +799,7 @@ func GetResourceSHAFromAnnotation(podAnnotations map[string]string) string {
 		return ""
 	}
 
-	var last util.ReloadSource
+	var last common.ReloadSource
 	bytes := []byte(annotationJson)
 	err := json.Unmarshal(bytes, &last)
 	if err != nil {
@@ -809,17 +812,18 @@ func GetResourceSHAFromAnnotation(podAnnotations map[string]string) string {
 // ConvertResourceToSHA generates SHA from secret, configmap or secretproviderclasspodstatus data
 func ConvertResourceToSHA(resourceType string, namespace string, resourceName string, data string) string {
 	values := []string{}
-	if resourceType == SecretResourceType {
+	switch resourceType {
+	case SecretResourceType:
 		secret := GetSecret(namespace, resourceName, data)
 		for k, v := range secret.Data {
 			values = append(values, k+"="+string(v[:]))
 		}
-	} else if resourceType == ConfigmapResourceType {
+	case ConfigmapResourceType:
 		configmap := GetConfigmap(namespace, resourceName, data)
 		for k, v := range configmap.Data {
 			values = append(values, k+"="+v)
 		}
-	} else if resourceType == SecretProviderClassPodStatusResourceType {
+	case SecretProviderClassPodStatusResourceType:
 		secretproviderclasspodstatus := GetSecretProviderClassPodStatus(namespace, resourceName, data)
 		for _, v := range secretproviderclasspodstatus.Status.Objects {
 			values = append(values, v.ID+"="+v.Version)
@@ -877,6 +881,26 @@ func CreateDeployment(client kubernetes.Interface, deploymentName string, namesp
 	} else {
 		deploymentObj = GetDeploymentWithEnvVars(namespace, deploymentName)
 	}
+	deployment, err := deploymentClient.Create(context.TODO(), deploymentObj, metav1.CreateOptions{})
+	time.Sleep(3 * time.Second)
+	return deployment, err
+}
+
+// CreateDeployment creates a deployment in given namespace and returns the Deployment
+func CreateDeploymentWithAnnotations(client kubernetes.Interface, deploymentName string, namespace string, additionalAnnotations map[string]string, volumeMount bool) (*appsv1.Deployment, error) {
+	logrus.Infof("Creating Deployment")
+	deploymentClient := client.AppsV1().Deployments(namespace)
+	var deploymentObj *appsv1.Deployment
+	if volumeMount {
+		deploymentObj = GetDeployment(namespace, deploymentName)
+	} else {
+		deploymentObj = GetDeploymentWithEnvVars(namespace, deploymentName)
+	}
+
+	for annotationKey, annotationValue := range additionalAnnotations {
+		deploymentObj.Annotations[annotationKey] = annotationValue
+	}
+
 	deployment, err := deploymentClient.Create(context.TODO(), deploymentObj, metav1.CreateOptions{})
 	time.Sleep(3 * time.Second)
 	return deployment, err
@@ -1056,6 +1080,22 @@ func DeleteStatefulSet(client kubernetes.Interface, namespace string, statefulse
 	return statefulsetError
 }
 
+// DeleteCronJob deletes a cronJob in given namespace and returns the error if any
+func DeleteCronJob(client kubernetes.Interface, namespace string, cronJobName string) error {
+	logrus.Infof("Deleting CronJob %s", cronJobName)
+	cronJobError := client.BatchV1().CronJobs(namespace).Delete(context.TODO(), cronJobName, metav1.DeleteOptions{})
+	time.Sleep(3 * time.Second)
+	return cronJobError
+}
+
+// Deleteob deletes a job in given namespace and returns the error if any
+func DeleteJob(client kubernetes.Interface, namespace string, jobName string) error {
+	logrus.Infof("Deleting Job %s", jobName)
+	jobError := client.BatchV1().Jobs(namespace).Delete(context.TODO(), jobName, metav1.DeleteOptions{})
+	time.Sleep(3 * time.Second)
+	return jobError
+}
+
 // UpdateConfigMap updates a configmap in given namespace and returns the error if any
 func UpdateConfigMap(configmapClient core_v1.ConfigMapInterface, namespace string, configmapName string, label string, data string) error {
 	logrus.Infof("Updating configmap %q.\n", configmapName)
@@ -1147,7 +1187,7 @@ func RandSeq(n int) string {
 }
 
 // VerifyResourceEnvVarUpdate verifies whether the rolling upgrade happened or not
-func VerifyResourceEnvVarUpdate(clients kube.Clients, config util.Config, envVarPostfix string, upgradeFuncs callbacks.RollingUpgradeFuncs) bool {
+func VerifyResourceEnvVarUpdate(clients kube.Clients, config common.Config, envVarPostfix string, upgradeFuncs callbacks.RollingUpgradeFuncs) bool {
 	items := upgradeFuncs.ItemsFunc(clients, config.Namespace)
 	for _, i := range items {
 		containers := upgradeFuncs.ContainersFunc(i)
@@ -1193,7 +1233,7 @@ func VerifyResourceEnvVarUpdate(clients kube.Clients, config util.Config, envVar
 }
 
 // VerifyResourceEnvVarRemoved verifies whether the rolling upgrade happened or not and all Envvars SKAKATER_name_CONFIGMAP/SECRET are removed
-func VerifyResourceEnvVarRemoved(clients kube.Clients, config util.Config, envVarPostfix string, upgradeFuncs callbacks.RollingUpgradeFuncs) bool {
+func VerifyResourceEnvVarRemoved(clients kube.Clients, config common.Config, envVarPostfix string, upgradeFuncs callbacks.RollingUpgradeFuncs) bool {
 	items := upgradeFuncs.ItemsFunc(clients, config.Namespace)
 	for _, i := range items {
 		containers := upgradeFuncs.ContainersFunc(i)
@@ -1242,7 +1282,7 @@ func VerifyResourceEnvVarRemoved(clients kube.Clients, config util.Config, envVa
 }
 
 // VerifyResourceAnnotationUpdate verifies whether the rolling upgrade happened or not
-func VerifyResourceAnnotationUpdate(clients kube.Clients, config util.Config, upgradeFuncs callbacks.RollingUpgradeFuncs) bool {
+func VerifyResourceAnnotationUpdate(clients kube.Clients, config common.Config, upgradeFuncs callbacks.RollingUpgradeFuncs) bool {
 	items := upgradeFuncs.ItemsFunc(clients, config.Namespace)
 	for _, i := range items {
 		podAnnotations := upgradeFuncs.PodAnnotationsFunc(i)

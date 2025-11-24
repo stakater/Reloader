@@ -11,10 +11,10 @@ metadata:
   labels:
 {{ include "reloader-labels.chart" . | indent 4 }}
 {{- if .Values.reloader.rbac.labels }}
-{{ toYaml .Values.reloader.rbac.labels | indent 4 }}
+{{ tpl (toYaml .Values.reloader.rbac.labels) . | indent 4 }}
 {{- end }}
 {{- if .Values.reloader.matchLabels }}
-{{ toYaml .Values.reloader.matchLabels | indent 4 }}
+{{ tpl (toYaml .Values.reloader.matchLabels) . | indent 4 }}
 {{- end }}
   name: {{ template "reloader-fullname" . }}-role
 rules:
@@ -31,7 +31,7 @@ rules:
       - list
       - get
       - watch
-{{- if .Values.reloader.namespaceSelector }}
+{{- if (include "reloader-namespaceSelector" .) }}
   - apiGroups:
       - ""
     resources:
@@ -76,6 +76,7 @@ rules:
       - get
       - update
       - patch
+{{- if .Values.reloader.ignoreCronJobs }}{{- else }}
   - apiGroups:
       - "batch"
     resources:
@@ -83,6 +84,8 @@ rules:
     verbs:
       - list
       - get
+{{- end }}
+{{- if .Values.reloader.ignoreJobs }}{{- else }}
   - apiGroups:
       - "batch"
     resources:
@@ -92,6 +95,7 @@ rules:
       - delete
       - list
       - get
+{{- end}}
 {{- if .Values.reloader.enableHA }}
   - apiGroups:
       - "coordination.k8s.io"

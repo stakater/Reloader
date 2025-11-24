@@ -25,7 +25,7 @@ env:
 
 jobs:
   qa:
-    uses: stakater/.github/.github/workflows/pull_request_doc_qa.yaml@v0.0.117
+    uses: stakater/.github/.github/workflows/pull_request_doc_qa.yaml@v0.0.163
     with:
       MD_CONFIG: .github/md_config.json
       DOC_SRC: README.md
@@ -40,7 +40,7 @@ jobs:
     name: Build
     steps:
     - name: Check out code
-      uses: actions/checkout@v4
+      uses: actions/checkout@v5
       with:
         ref: ${{github.event.pull_request.head.sha}}
         fetch-depth: 0
@@ -57,11 +57,16 @@ jobs:
         charts: deployments/kubernetes/chart/reloader
 
     - name: Set up Go
-      uses: actions/setup-go@v5
+      uses: actions/setup-go@v6
       with:
         go-version-file: 'go.mod'
         check-latest: true
         cache: true
+
+    - name: Create timestamp
+      id: prep
+      run: echo "created=$(date -u +'%Y-%m-%dT%H:%M:%SZ')" >> $GITHUB_OUTPUT
+
 
     # Get highest tag and remove any suffixes with '-'
     - name: Get Highest tag
@@ -75,11 +80,7 @@ jobs:
         make install
 
     - name: Run golangci-lint
-      uses: golangci/golangci-lint-action@v5
-      with:
-        version: latest
-        only-new-issues: false
-        args: --timeout 10m
+      run: make lint
 
     - name: Helm Lint
       run: |
@@ -103,6 +104,7 @@ jobs:
       run: |
         kind create cluster
         kubectl cluster-info
+
 
     - name: Test
       run: make test
@@ -135,7 +137,12 @@ jobs:
         file: ${{ env.DOCKER_FILE_PATH  }}
         pull: true
         push: false
-        build-args: BUILD_PARAMETERS=${{ env.BUILD_PARAMETERS }}
+        build-args: |
+          VERSION=merge-${{ steps.generate_tag.outputs.GIT_TAG }}
+          COMMIT=${{github.event.pull_request.head.sha}}
+          BUILD_DATE=${{ steps.prep.outputs.created }}
+          BUILD_PARAMETERS=${{ env.BUILD_PARAMETERS }}
+        
         cache-to: type=inline
         platforms: linux/amd64,linux/arm,linux/arm64
         tags: |

@@ -41,11 +41,10 @@ YQ ?= $(LOCALBIN)/yq
 KUSTOMIZE_VERSION ?= v5.3.0
 CONTROLLER_TOOLS_VERSION ?= v0.14.0
 ENVTEST_VERSION ?= release-0.17
-GOLANGCI_LINT_VERSION ?= v1.57.2
+GOLANGCI_LINT_VERSION ?= v2.6.1
 
 YQ_VERSION ?= v4.27.5
 YQ_DOWNLOAD_URL = "https://github.com/mikefarah/yq/releases/download/$(YQ_VERSION)/yq_$(OS)_$(ARCH)"
-
 
 .PHONY: yq
 yq: $(YQ) ## Download YQ locally if needed
@@ -57,7 +56,6 @@ $(YQ):
 	}
 	@chmod +x $(YQ)
 	@echo "yq downloaded successfully to $(YQ)."
-
 
 .PHONY: kustomize
 kustomize: $(KUSTOMIZE) ## Download kustomize locally if necessary.
@@ -77,7 +75,7 @@ $(ENVTEST): $(LOCALBIN)
 .PHONY: golangci-lint
 golangci-lint: $(GOLANGCI_LINT) ## Download golangci-lint locally if necessary.
 $(GOLANGCI_LINT): $(LOCALBIN)
-	$(call go-install-tool,$(GOLANGCI_LINT),github.com/golangci/golangci-lint/cmd/golangci-lint,${GOLANGCI_LINT_VERSION})
+	$(call go-install-tool,$(GOLANGCI_LINT),github.com/golangci/golangci-lint/v2/cmd/golangci-lint,${GOLANGCI_LINT_VERSION})
 
 # go-install-tool will 'go install' any package with custom target and name of binary, if it doesn't exist
 # $1 - target path with name of binary (ideally with version)
@@ -103,6 +101,9 @@ run:
 
 build:
 	"$(GOCMD)" build ${GOFLAGS} ${LDFLAGS} -o "${BINARY}"
+
+lint: golangci-lint ## Run golangci-lint on the codebase
+	$(GOLANGCI_LINT) run ./...
 
 build-image:
 	docker buildx build \
@@ -156,12 +157,6 @@ k8s-manifests: $(KUSTOMIZE) ## Generate k8s manifests using Kustomize from 'mani
 .PHONY: update-manifests-version
 update-manifests-version: ## Generate k8s manifests using Kustomize from 'manifests' folder
 	sed -i 's/image:.*/image: \"ghcr.io\/stakater\/reloader:v$(VERSION)"/g' deployments/kubernetes/manifests/deployment.yaml
-
-# Bump Chart
-bump-chart: 
-	sed -i "s/^appVersion:.*/appVersion: v$(VERSION)/" deployments/kubernetes/chart/reloader/Chart.yaml
-	sed -i "s/tag:.*/tag: v$(VERSION)/" deployments/kubernetes/chart/reloader/values.yaml
-	sed -i "s/version:.*/version: v$(VERSION)/" deployments/kubernetes/chart/reloader/values.yaml
 
 YQ_VERSION = v4.42.1
 YQ_BIN = $(shell pwd)/yq

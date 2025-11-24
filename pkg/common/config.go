@@ -1,8 +1,9 @@
-package util
+package common
 
 import (
 	"github.com/stakater/Reloader/internal/pkg/constants"
 	"github.com/stakater/Reloader/internal/pkg/options"
+	"github.com/stakater/Reloader/internal/pkg/util"
 	v1 "k8s.io/api/core/v1"
 	csiv1 "sigs.k8s.io/secrets-store-csi-driver/apis/v1"
 )
@@ -16,6 +17,7 @@ type Config struct {
 	TypedAutoAnnotation string
 	SHAValue            string
 	Type                string
+	Labels              map[string]string
 }
 
 // GetConfigmapConfig provides utility config for configmap
@@ -26,8 +28,9 @@ func GetConfigmapConfig(configmap *v1.ConfigMap) Config {
 		ResourceAnnotations: configmap.Annotations,
 		Annotation:          options.ConfigmapUpdateOnChangeAnnotation,
 		TypedAutoAnnotation: options.ConfigmapReloaderAutoAnnotation,
-		SHAValue:            GetSHAfromConfigmap(configmap),
+		SHAValue:            util.GetSHAfromConfigmap(configmap),
 		Type:                constants.ConfigmapEnvVarPostfix,
+		Labels:              configmap.Labels,
 	}
 }
 
@@ -39,8 +42,9 @@ func GetSecretConfig(secret *v1.Secret) Config {
 		ResourceAnnotations: secret.Annotations,
 		Annotation:          options.SecretUpdateOnChangeAnnotation,
 		TypedAutoAnnotation: options.SecretReloaderAutoAnnotation,
-		SHAValue:            GetSHAfromSecret(secret.Data),
+		SHAValue:            util.GetSHAfromSecret(secret.Data),
 		Type:                constants.SecretEnvVarPostfix,
+		Labels:              secret.Labels,
 	}
 }
 
@@ -52,7 +56,7 @@ func GetSecretProviderClassPodStatusConfig(podStatus *csiv1.SecretProviderClassP
 		ResourceName:        podStatus.Status.SecretProviderClassName,
 		Annotation:          options.SecretProviderClassUpdateOnChangeAnnotation,
 		TypedAutoAnnotation: options.SecretProviderClassReloaderAutoAnnotation,
-		SHAValue:            GetSHAfromSecretProviderClassPodStatus(podStatus.Status),
+		SHAValue:            util.GetSHAfromSecretProviderClassPodStatus(podStatus.Status),
 		Type:                constants.SecretProviderClassEnvVarPostfix,
 	}
 }

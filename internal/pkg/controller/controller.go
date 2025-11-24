@@ -134,13 +134,13 @@ func (c *Controller) Add(obj interface{}) {
 }
 
 func (c *Controller) resourceInIgnoredNamespace(raw interface{}) bool {
-	switch object := raw.(type) {
+	switch obj := raw.(type) {
 	case *v1.ConfigMap:
-		return c.ignoredNamespaces.Contains(object.ObjectMeta.Namespace)
+		return c.ignoredNamespaces.Contains(obj.Namespace)
 	case *v1.Secret:
-		return c.ignoredNamespaces.Contains(object.ObjectMeta.Namespace)
+		return c.ignoredNamespaces.Contains(obj.Namespace)
 	case *csiv1.SecretProviderClassPodStatus:
-		return c.ignoredNamespaces.Contains(object.ObjectMeta.Namespace)
+		return c.ignoredNamespaces.Contains(obj.Namespace)
 	}
 	return false
 }
@@ -231,7 +231,7 @@ func (c *Controller) Run(threadiness int, stopCh chan struct{}) {
 
 	// Wait for all involved caches to be synced, before processing items from the queue is started
 	if !cache.WaitForCacheSync(stopCh, c.informer.HasSynced) {
-		runtime.HandleError(fmt.Errorf("Timed out waiting for caches to sync"))
+		runtime.HandleError(fmt.Errorf("timed out waiting for caches to sync"))
 		return
 	}
 
@@ -245,9 +245,9 @@ func (c *Controller) Run(threadiness int, stopCh chan struct{}) {
 
 func (c *Controller) runWorker() {
 	// At this point the controller is fully initialized and we can start processing the resources
-	if c.resource == "secrets" {
+	if c.resource == string(v1.ResourceSecrets) {
 		secretControllerInitialized = true
-	} else if c.resource == "configMaps" {
+	} else if c.resource == string(v1.ResourceConfigMaps) {
 		configmapControllerInitialized = true
 	}
 

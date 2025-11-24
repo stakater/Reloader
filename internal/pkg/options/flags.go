@@ -25,6 +25,8 @@ var (
 	SecretProviderClassUpdateOnChangeAnnotation = "secretproviderclass.reloader.stakater.com/reload"
 	// ReloaderAutoAnnotation is an annotation to detect changes in secrets/configmaps
 	ReloaderAutoAnnotation = "reloader.stakater.com/auto"
+	// IgnoreResourceAnnotation is an annotation to ignore changes in secrets/configmaps
+	IgnoreResourceAnnotation = "reloader.stakater.com/ignore"
 	// ConfigmapReloaderAutoAnnotation is an annotation to detect changes in configmaps
 	ConfigmapReloaderAutoAnnotation = "configmap.reloader.stakater.com/auto"
 	// SecretReloaderAutoAnnotation is an annotation to detect changes in secrets
@@ -45,6 +47,12 @@ var (
 	SearchMatchAnnotation = "reloader.stakater.com/match"
 	// RolloutStrategyAnnotation is an annotation to define rollout update strategy
 	RolloutStrategyAnnotation = "reloader.stakater.com/rollout-strategy"
+	// PauseDeploymentAnnotation is an annotation to define the time period to pause a deployment after
+	// a configmap/secret change has been detected. Valid values are described here: https://pkg.go.dev/time#ParseDuration
+	// only positive values are allowed
+	PauseDeploymentAnnotation = "deployment.reloader.stakater.com/pause-period"
+	// Annotation set by reloader to indicate that the deployment has been paused
+	PauseDeploymentTimeAnnotation = "deployment.reloader.stakater.com/paused-at"
 	// LogFormat is the log format to use (json, or empty string for default)
 	LogFormat = ""
 	// LogLevel is the log level to use (trace, debug, info, warning, error, fatal and panic)
@@ -64,6 +72,21 @@ var (
 	WebhookUrl = ""
 	// EnableCSIIntegration Adds support to watch SecretProviderClassPodStatus and restart deployment based on it
 	EnableCSIIntegration = false
+	// ResourcesToIgnore is a list of resources to ignore when watching for changes
+	ResourcesToIgnore = []string{}
+	// WorkloadTypesToIgnore is a list of workload types to ignore when watching for changes
+	WorkloadTypesToIgnore = []string{}
+	// NamespacesToIgnore is a list of namespace names to ignore when watching for changes
+	NamespacesToIgnore = []string{}
+	// NamespaceSelectors is a list of namespace selectors to watch for changes
+	NamespaceSelectors = []string{}
+	// ResourceSelectors is a list of resource selectors to watch for changes
+	ResourceSelectors = []string{}
+	// EnablePProf enables pprof for profiling
+	EnablePProf = false
+	// PProfAddr is the address to start pprof server on
+	// Default is :6060
+	PProfAddr = ":6060"
 )
 
 func ToArgoRolloutStrategy(s string) ArgoRolloutStrategy {

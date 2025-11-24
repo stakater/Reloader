@@ -14,12 +14,25 @@ kubernetes:
 nameOverride: ""
 fullnameOverride: ""
 
+image:
+  name: stakater/reloader
+  repository: ghcr.io/stakater/reloader
+  tag: v1.4.10
+  # digest: sha256:1234567
+  pullPolicy: IfNotPresent
+
 reloader:
   autoReloadAll: false
   isArgoRollouts: false
   isOpenshift: false
   ignoreSecrets: false
   ignoreConfigMaps: false
+  # Set to true to exclude Job workloads from automatic reload monitoring
+  # Useful when you don't want Jobs to be restarted when their referenced ConfigMaps/Secrets change
+  ignoreJobs: false
+  # Set to true to exclude CronJob workloads from automatic reload monitoring
+  # Useful when you don't want CronJobs to be restarted when their referenced ConfigMaps/Secrets change
+  ignoreCronJobs: false
   reloadOnCreate: false
   reloadOnDelete: false
   syncAfterRestart: false
@@ -32,6 +45,10 @@ reloader:
   watchGlobally: true
   # Set to true to enable leadership election allowing you to run multiple replicas
   enableHA: false
+  # Set to true to enable pprof for profiling
+  enablePProf: false
+  # Address to start pprof server on. Default is ":6060"
+  pprofAddr: ":6060"
   # Set to true if you have a pod security policy that enforces readOnlyRootFilesystem
   readOnlyRootFileSystem: false
   legacy:
@@ -40,6 +57,19 @@ reloader:
   # Set to true to expose a prometheus counter of reloads by namespace (this metric may have high cardinality in clusters with many namespaces)
   enableMetricsByNamespace: false
   deployment:
+    # Specifies the deployment DNS configuration.
+    dnsConfig: {}
+    # nameservers:
+    #   - 1.2.3.4
+    # searches:
+    #   - ns1.svc.cluster-domain.example
+    #   - my.dns.search.suffix
+    # options:
+    #   - name: ndots
+    #     value: "1"
+    #   - name: attempts
+    #     value: "3"
+
     # If you wish to run multiple replicas set reloader.enableHA = true
     replicas: 1
 
@@ -59,13 +89,17 @@ reloader:
     #             operator: "Exists"
     affinity: {}
 
+    volumeMounts: []
+    volumes: []
+
     securityContext:
       runAsNonRoot: true
       runAsUser: 65534
       seccompProfile:
         type: RuntimeDefault
 
-    containerSecurityContext: {}
+    containerSecurityContext:
+      {}
       # capabilities:
       #   drop:
       #     - ALL
@@ -89,20 +123,14 @@ reloader:
     #     whenUnsatisfiable: DoNotSchedule
     #     labelSelector:
     #       matchLabels:
-    #         app: my-app
+    #         app.kubernetes.io/instance: my-app
     topologySpreadConstraints: []
 
     annotations: {}
     labels:
       provider: stakater
       group: com.stakater.platform
-      version: v1.2.1
-    image:
-      name: ghcr.io/stakater/reloader
-      base: stakater/reloader
-      tag: v1.2.1
-      # digest: sha256:1234567
-      pullPolicy: IfNotPresent
+      version: v1.4.10
     # Support for extra environment variables.
     env:
       # Open supports Key value pair as environment variables.
@@ -158,7 +186,8 @@ reloader:
     gomaxprocsOverride: ""
     gomemlimitOverride: ""
 
-  service: {}
+  service:
+    {}
 
     # labels: {}
     # annotations: {}
@@ -331,9 +360,5 @@ reloader:
       # Specifies whether recommended updates are applied when a Pod is started and whether recommended updates
       # are applied during the life of a Pod. Possible values are "Off", "Initial", "Recreate", and "Auto".
       updateMode: Auto
-
-  volumeMounts: []
-
-  volumes: []
 
   webhookUrl: ""
