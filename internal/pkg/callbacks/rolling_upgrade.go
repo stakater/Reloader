@@ -13,7 +13,9 @@ import (
 	batchv1 "k8s.io/api/batch/v1"
 	v1 "k8s.io/api/core/v1"
 	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	patchtypes "k8s.io/apimachinery/pkg/types"
 
 	"maps"
@@ -576,4 +578,290 @@ func GetStatefulSetVolumes(item runtime.Object) []v1.Volume {
 // GetRolloutVolumes returns the Volumes of given rollout
 func GetRolloutVolumes(item runtime.Object) []v1.Volume {
 	return item.(*argorolloutv1alpha1.Rollout).Spec.Template.Spec.Volumes
+}
+
+// Knative Service GVR (Group Version Resource)
+var knativeServiceGVR = schema.GroupVersionResource{
+	Group:    "serving.knative.dev",
+	Version:  "v1",
+	Resource: "services",
+}
+
+// GetKnativeServiceItem returns the Knative Service in given namespace
+func GetKnativeServiceItem(clients kube.Clients, name string, namespace string) (runtime.Object, error) {
+	if clients.DynamicClient == nil {
+		return nil, fmt.Errorf("dynamic client not available")
+	}
+	
+	service, err := clients.DynamicClient.Resource(knativeServiceGVR).Namespace(namespace).Get(context.TODO(), name, meta_v1.GetOptions{})
+	if err != nil {
+		logrus.Errorf("Failed to get Knative Service %v", err)
+		return nil, err
+	}
+
+	// Ensure template annotations exist
+	template, found, err := unstructured.NestedMap(service.Object, "spec", "template", "metadata")
+	if err != nil {
+		return nil, err
+	}
+	if !found {
+		template = make(map[string]interface{})
+	}
+	if _, found := template["annotations"]; !found {
+		template["annotations"] = make(map[string]interface{})
+		unstructured.SetNestedMap(service.Object, template, "spec", "template", "metadata")
+	}
+
+	return service, nil
+}
+
+// GetKnativeServiceItems returns the Knative Services in given namespace
+func GetKnativeServiceItems(clients kube.Clients, namespace string) []runtime.Object {
+	if clients.DynamicClient == nil {
+		logrus.Warnf("Dynamic client not available, skipping Knative Services")
+		return []runtime.Object{}
+	}
+
+	services, err := clients.DynamicClient.Resource(knativeServiceGVR).Namespace(namespace).List(context.TODO(), meta_v1.ListOptions{})
+	if err != nil {
+		logrus.Errorf("Failed to list Knative Services %v", err)
+		return []runtime.Object{}
+	}
+
+	items := make([]runtime.Object, len(services.Items))
+	for i, v := range services.Items {
+		// Ensure template annotations exist
+		template, found, err := unstructured.NestedMap(v.Object, "spec", "template", "metadata")
+		if err == nil {
+			if !found {
+				template = make(map[string]interface{})
+			}
+			if _, found := template["annotations"]; !found {
+				template["annotations"] = make(map[string]interface{})
+				unstructured.SetNestedMap(v.Object, template, "spec", "template", "metadata")
+			}
+		}
+		items[i] = &v
+	}
+
+	return items
+}
+
+// GetKnativeServiceAnnotations returns the annotations of given Knative Service
+func GetKnativeServiceAnnotations(item runtime.Object) map[string]string {
+	service := item.(*unstructured.Unstructured)
+	annotations, found, err := unstructured.NestedStringMap(service.Object, "metadata", "annotations")
+	if err != nil || !found {
+		annotations = make(map[string]string)
+		unstructured.SetNestedStringMap(service.Object, annotations, "metadata", "annotations")
+	}
+	return annotations
+}
+
+// GetKnativeServicePodAnnotations returns the pod's annotations of given Knative Service
+func GetKnativeServicePodAnnotations(item runtime.Object) map[string]string {
+	service := item.(*unstructured.Unstructured)
+	annotations, found, err := unstructured.NestedStringMap(service.Object, "spec", "template", "metadata", "annotations")
+	if err != nil || !found {
+		annotations = make(map[string]string)
+		unstructured.SetNestedStringMap(service.Object, annotations, "spec", "template", "metadata", "annotations")
+	}
+	return annotations
+}
+
+// GetKnativeServiceContainers returns the containers of given Knative Service
+func GetKnativeServiceContainers(item runtime.Object) []v1.Container {
+	service := item.(*unstructured.Unstructured)
+	containers, found, err := unstructured.NestedSlice(service.Object, "spec", "template", "spec", "containers")
+	if err != nil || !found || len(containers) == 0 {
+		return []v1.Container{}
+	}
+
+	// Convert unstructured containers to v1.Container
+	result := make([]v1.Container, 0, len(containers))
+	for _, c := range containers {
+		containerMap, ok := c.(map[string]interface{})
+		if !ok {
+			continue
+		}
+		container := v1.Container{}
+		if name, ok := containerMap["name"].(string); ok {
+			container.Name = name
+		}
+		if image, ok := containerMap["image"].(string); ok {
+			container.Image = image
+		}
+		// Handle env vars
+		if env, ok := containerMap["env"].([]interface{}); ok {
+			container.Env = make([]v1.EnvVar, 0, len(env))
+			for _, e := range env {
+				if envMap, ok := e.(map[string]interface{}); ok {
+					envVar := v1.EnvVar{}
+					if name, ok := envMap["name"].(string); ok {
+						envVar.Name = name
+					}
+					if value, ok := envMap["value"].(string); ok {
+						envVar.Value = value
+					}
+					// Handle valueFrom if needed
+					if valueFrom, ok := envMap["valueFrom"].(map[string]interface{}); ok {
+						if configMapKeyRef, ok := valueFrom["configMapKeyRef"].(map[string]interface{}); ok {
+							envVar.ValueFrom = &v1.EnvVarSource{
+								ConfigMapKeyRef: &v1.ConfigMapKeySelector{
+									LocalObjectReference: v1.LocalObjectReference{
+										Name: configMapKeyRef["name"].(string),
+									},
+									Key: configMapKeyRef["key"].(string),
+								},
+							}
+						} else if secretKeyRef, ok := valueFrom["secretKeyRef"].(map[string]interface{}); ok {
+							envVar.ValueFrom = &v1.EnvVarSource{
+								SecretKeyRef: &v1.SecretKeySelector{
+									LocalObjectReference: v1.LocalObjectReference{
+										Name: secretKeyRef["name"].(string),
+									},
+									Key: secretKeyRef["key"].(string),
+								},
+							}
+						}
+					}
+					container.Env = append(container.Env, envVar)
+				}
+			}
+		}
+		// Handle envFrom
+		if envFrom, ok := containerMap["envFrom"].([]interface{}); ok {
+			container.EnvFrom = make([]v1.EnvFromSource, 0, len(envFrom))
+			for _, ef := range envFrom {
+				if envFromMap, ok := ef.(map[string]interface{}); ok {
+					envFromSource := v1.EnvFromSource{}
+					if configMapRef, ok := envFromMap["configMapRef"].(map[string]interface{}); ok {
+						envFromSource.ConfigMapRef = &v1.ConfigMapEnvSource{
+							LocalObjectReference: v1.LocalObjectReference{
+								Name: configMapRef["name"].(string),
+							},
+						}
+					}
+					if secretRef, ok := envFromMap["secretRef"].(map[string]interface{}); ok {
+						envFromSource.SecretRef = &v1.SecretEnvSource{
+							LocalObjectReference: v1.LocalObjectReference{
+								Name: secretRef["name"].(string),
+							},
+						}
+					}
+					container.EnvFrom = append(container.EnvFrom, envFromSource)
+				}
+			}
+		}
+		result = append(result, container)
+	}
+	return result
+}
+
+// GetKnativeServiceInitContainers returns the init containers of given Knative Service
+func GetKnativeServiceInitContainers(item runtime.Object) []v1.Container {
+	service := item.(*unstructured.Unstructured)
+	containers, found, err := unstructured.NestedSlice(service.Object, "spec", "template", "spec", "initContainers")
+	if err != nil || !found {
+		return []v1.Container{}
+	}
+
+	// Similar conversion as GetKnativeServiceContainers but simpler for init containers
+	result := make([]v1.Container, 0, len(containers))
+	for _, c := range containers {
+		containerMap, ok := c.(map[string]interface{})
+		if !ok {
+			continue
+		}
+		container := v1.Container{}
+		if name, ok := containerMap["name"].(string); ok {
+			container.Name = name
+		}
+		result = append(result, container)
+	}
+	return result
+}
+
+// GetKnativeServiceVolumes returns the Volumes of given Knative Service
+func GetKnativeServiceVolumes(item runtime.Object) []v1.Volume {
+	service := item.(*unstructured.Unstructured)
+	volumes, found, err := unstructured.NestedSlice(service.Object, "spec", "template", "spec", "volumes")
+	if err != nil || !found {
+		return []v1.Volume{}
+	}
+
+	result := make([]v1.Volume, 0, len(volumes))
+	for _, v := range volumes {
+		volumeMap, ok := v.(map[string]interface{})
+		if !ok {
+			continue
+		}
+		volume := v1.Volume{}
+		if name, ok := volumeMap["name"].(string); ok {
+			volume.Name = name
+		}
+		if configMap, ok := volumeMap["configMap"].(map[string]interface{}); ok {
+			volume.ConfigMap = &v1.ConfigMapVolumeSource{
+				LocalObjectReference: v1.LocalObjectReference{
+					Name: configMap["name"].(string),
+				},
+			}
+		}
+		if secret, ok := volumeMap["secret"].(map[string]interface{}); ok {
+			volume.Secret = &v1.SecretVolumeSource{
+				SecretName: secret["secretName"].(string),
+			}
+		}
+		result = append(result, volume)
+	}
+	return result
+}
+
+// UpdateKnativeService performs rolling upgrade on Knative Service by updating spec.template to trigger new revision
+// IMPORTANT: We update the Service spec.template, NOT the underlying Deployment. This triggers Knative to create
+// a new revision, which is the correct way to update Knative Services. Directly modifying the Deployment would
+// cause Knative's controller to reconcile and revert the changes (see: https://github.com/knative/serving/issues/14705)
+func UpdateKnativeService(clients kube.Clients, namespace string, resource runtime.Object) error {
+	service := resource.(*unstructured.Unstructured)
+	if clients.DynamicClient == nil {
+		return fmt.Errorf("dynamic client not available")
+	}
+
+	// Ensure we're updating the Service, not the Deployment
+	// The service object should have spec.template which we've already modified
+	_, err := clients.DynamicClient.Resource(knativeServiceGVR).Namespace(namespace).Update(context.TODO(), service, meta_v1.UpdateOptions{FieldManager: "Reloader"})
+	if err != nil {
+		logrus.Errorf("Failed to update Knative Service %s in namespace %s: %v", service.GetName(), namespace, err)
+		return err
+	}
+	logrus.Infof("Successfully updated Knative Service %s in namespace %s, new revision will be created", service.GetName(), namespace)
+	return nil
+}
+
+// PatchKnativeService performs patch on Knative Service
+// IMPORTANT: We patch the Service spec.template, NOT the underlying Deployment. This triggers Knative to create
+// a new revision, which is the correct way to update Knative Services. Directly modifying the Deployment would
+// cause Knative's controller to reconcile and revert the changes (see: https://github.com/knative/serving/issues/14705)
+func PatchKnativeService(clients kube.Clients, namespace string, resource runtime.Object, patchType patchtypes.PatchType, bytes []byte) error {
+	service := resource.(*unstructured.Unstructured)
+	if clients.DynamicClient == nil {
+		return fmt.Errorf("dynamic client not available")
+	}
+
+	_, err := clients.DynamicClient.Resource(knativeServiceGVR).Namespace(namespace).Patch(context.TODO(), service.GetName(), patchType, bytes, meta_v1.PatchOptions{FieldManager: "Reloader"})
+	if err != nil {
+		logrus.Errorf("Failed to patch Knative Service %s in namespace %s: %v", service.GetName(), namespace, err)
+		return err
+	}
+	logrus.Infof("Successfully patched Knative Service %s in namespace %s, new revision will be created", service.GetName(), namespace)
+	return nil
+}
+
+// GetKnativeServicePatchTemplates returns patch templates for Knative Services
+func GetKnativeServicePatchTemplates() PatchTemplates {
+	return PatchTemplates{
+		AnnotationTemplate:   `{"spec":{"template":{"metadata":{"annotations":{"%s":"%s"}}}}}`,                                   // strategic merge patch
+		EnvVarTemplate:       `{"spec":{"template":{"spec":{"containers":[{"name":"%s","env":[{"name":"%s","value":"%s"}]}]}}}}`, // strategic merge patch
+		DeleteEnvVarTemplate: `[{"op":"remove","path":"/spec/template/spec/containers/%d/env/%d"}]`,                              // JSON patch
+	}
 }
