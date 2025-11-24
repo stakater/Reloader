@@ -160,6 +160,16 @@ func startReloader(cmd *cobra.Command, args []string) {
 
 	var controllers []*controller.Controller
 	for k := range kube.ResourceMap {
+		if k == "secretproviderclasspodstatuses" {
+			if !options.EnableCSIIntegration {
+				continue
+			}
+			if !kube.IsCSIInstalled {
+				logrus.Infof("Can't run secretproviderclasspodstatuses controller as CSI CRDs are not installed")
+				continue
+			}
+		}
+
 		if ignoredResourcesList.Contains(k) || (len(namespaceLabelSelector) == 0 && k == "namespaces") {
 			continue
 		}
