@@ -65,6 +65,17 @@ rules:
       - update
       - patch
 {{- end }}
+{{- if and (.Capabilities.APIVersions.Has "serving.knative.dev/v1") (.Values.reloader.isKnative) }}
+  - apiGroups:
+      - "serving.knative.dev"
+    resources:
+      - services
+    verbs:
+      - list
+      - get
+      - update
+      - patch
+{{- end }}
   - apiGroups:
       - "apps"
     resources:

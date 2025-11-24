@@ -24,6 +24,7 @@ image:
 reloader:
   autoReloadAll: false
   isArgoRollouts: false
+  isKnative: false
   isOpenshift: false
   ignoreSecrets: false
   ignoreConfigMaps: false
