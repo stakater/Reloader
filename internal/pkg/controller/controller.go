@@ -201,11 +201,7 @@ func (c *Controller) Update(old interface{}, new interface{}) {
 
 // Delete function to add an object to the queue in case of deleting a resource
 func (c *Controller) Delete(old interface{}) {
-	switch object := old.(type) {
-	case *v1.Namespace:
-		c.removeSelectedNamespaceFromCache(*object)
-		return
-	case *csiv1.SecretProviderClassPodStatus:
+	if _, ok := old.(*csiv1.SecretProviderClassPodStatus); ok {
 		return
 	}
 
@@ -217,6 +213,12 @@ func (c *Controller) Delete(old interface{}) {
 				Recorder:   c.recorder,
 			})
 		}
+	}
+
+	switch object := old.(type) {
+	case *v1.Namespace:
+		c.removeSelectedNamespaceFromCache(*object)
+		return
 	}
 }
 
