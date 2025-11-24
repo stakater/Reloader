@@ -47,6 +47,7 @@ helm uninstall {{RELEASE_NAME}} -n {{NAMESPACE}}
 | ----------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- | ----------- | --------- |
 | `reloader.autoReloadAll`            |                                                                                                                                                     | boolean     | `false`   |
 | `reloader.isArgoRollouts`           | Enable Argo `Rollouts`. Valid value are either `true` or `false`                                                                                    | boolean     | `false`   |
+| `reloader.isKnative`                | Enable Knative `Services` support. Valid value are either `true` or `false`                                                                         | boolean     | `false`   |
 | `reloader.isOpenshift`              | Enable OpenShift DeploymentConfigs. Valid value are either `true` or `false`                                                                        | boolean     | `false`   |
 | `reloader.ignoreSecrets`            | To ignore secrets. Valid value are either `true` or `false`. Either `ignoreSecrets` or `ignoreConfigMaps` can be ignored, not both at the same time | boolean     | `false`   |
 | `reloader.ignoreConfigMaps`         | To ignore configmaps. Valid value are either `true` or `false`                                                                                      | boolean     | `false`   |

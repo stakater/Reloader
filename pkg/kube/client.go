@@ -9,6 +9,7 @@ import (
 	argorollout "github.com/argoproj/argo-rollouts/pkg/client/clientset/versioned"
 	appsclient "github.com/openshift/client-go/apps/clientset/versioned"
 	"github.com/sirupsen/logrus"
+	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 )
@@ -18,6 +19,7 @@ type Clients struct {
 	KubernetesClient    kubernetes.Interface
 	OpenshiftAppsClient appsclient.Interface
 	ArgoRolloutClient   argorollout.Interface
+	DynamicClient       dynamic.Interface
 }
 
 var (
@@ -48,10 +50,16 @@ func GetClients() Clients {
 		logrus.Warnf("Unable to create ArgoRollout client error = %v", err)
 	}
 
+	dynamicClient, err := GetDynamicClient()
+	if err != nil {
+		logrus.Warnf("Unable to create Dynamic client error = %v", err)
+	}
+
 	return Clients{
 		KubernetesClient:    client,
 		OpenshiftAppsClient: appsClient,
 		ArgoRolloutClient:   rolloutClient,
+		DynamicClient:       dynamicClient,
 	}
 }
 
@@ -61,6 +69,14 @@ func GetArgoRolloutClient() (*argorollout.Clientset, error) {
 		return nil, err
 	}
 	return argorollout.NewForConfig(config)
+}
+
+func GetDynamicClient() (dynamic.Interface, error) {
+	config, err := getConfig()
+	if err != nil {
+		return nil, err
+	}
+	return dynamic.NewForConfig(config)
 }
 
 func isOpenshift() bool {

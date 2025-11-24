@@ -23,7 +23,7 @@ Reloader bridges that gap by ensuring your workloads stay in sync with configura
 
 - ✅ **Zero manual restarts**: No need to manually rollout workloads after config/secret changes.
 - 🔒 **Secure by design**: Ensure your apps always use the most up-to-date credentials or tokens.
-- 🛠️ **Flexible**: Works with all major workload types — Deployment, StatefulSet, Daemonset, ArgoRollout, and more.
+- 🛠️ **Flexible**: Works with all major workload types — Deployment, StatefulSet, Daemonset, ArgoRollout, Knative Service, and more.
 - ⚡ **Fast feedback loop**: Ideal for CI/CD pipelines where secrets/configs change frequently.
 - 🔄 **Out-of-the-box integration**: Just label your workloads and let Reloader do the rest.
 
@@ -42,6 +42,7 @@ flowchart LR
   Reloader -->|Triggers Rollout| Daemonset
   Reloader -->|Triggers Rollout| Statefulset
   Reloader -->|Triggers Rollout| ArgoRollout
+  Reloader -->|Triggers Revision| Knative Service
   Reloader -->|Triggers Job| CronJob
   Reloader -->|Sends Notification| Slack,Teams,Webhook
 ```
@@ -192,7 +193,41 @@ metadata:
 1. You want a quick restart without changing the workload spec
 1. Your platform restricts metadata changes
 
-### 5. ❗ Annotation Behavior Rules & Compatibility
+### 5. 🎯 Knative Service Support
+
+Reloader supports Knative Services by updating the Service's `spec.template`, which triggers Knative to create a new revision. This is the correct way to update Knative Services and avoids the issue where directly modifying the underlying Deployment causes Knative's controller to reconcile and revert changes (see [Knative Serving Issue #14705](https://github.com/knative/serving/issues/14705)).
+
+**Important**: Reloader updates the Knative Service resource itself, not the underlying Deployment. This ensures:
+- ✅ New revisions are created properly
+- ✅ Old revisions are scaled down gracefully
+- ✅ No conflicts with Knative's reconciliation loop
+
+Usage is the same as other resources - simply add Reloader annotations to your Knative Service:
+
+```yaml
+apiVersion: serving.knative.dev/v1
+kind: Service
+metadata:
+  name: my-app
+  annotations:
+    reloader.stakater.com/auto: "true"
+spec:
+  template:
+    metadata:
+      annotations:
+        reloader.stakater.com/auto: "true"
+    spec:
+      containers:
+        - name: user-container
+          image: your-image
+          envFrom:
+            - configMapRef:
+                name: my-config
+            - secretRef:
+                name: my-secret
+```
+
+### 6. ❗ Annotation Behavior Rules & Compatibility
 
 - `reloader.stakater.com/auto` and `reloader.stakater.com/search` **cannot be used together** — the `auto` annotation takes precedence.
 - If both `auto` and its typed versions (`secret.reloader.stakater.com/auto`, `configmap.reloader.stakater.com/auto`) are used, **only one needs to be true** to trigger a reload.
@@ -201,7 +236,7 @@ metadata:
     - All workloads are treated as if they have `auto: "true"` unless they explicitly set it to `"false"`.
     - Missing or unrecognized annotation values are treated as `"false"`.
 
-### 6. 🔔 Alerting on Reload
+### 7. 🔔 Alerting on Reload
 
 Reloader can optionally **send alerts** whenever it triggers a rolling upgrade for a workload (e.g., `Deployment`, `StatefulSet`, etc.).
 
@@ -220,7 +255,7 @@ reloader:
         ALERT_ADDITIONAL_INFO: "Triggered by Reloader in staging environment"
 ```
 
-### 7. ⏸️ Pause Deployments
+### 8. ⏸️ Pause Deployments
 
 This feature allows you to pause rollouts for a deployment for a specified duration, helping to prevent multiple restarts when several ConfigMaps or Secrets are updated in quick succession.
 
