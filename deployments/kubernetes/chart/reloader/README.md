@@ -132,7 +132,7 @@ helm uninstall {{RELEASE_NAME}} -n {{NAMESPACE}}
 ### OpenShift Considerations
 - Recent OpenShift versions (tested on 4.13.3) require:
   - Users to be in a dynamically assigned UID range
-  - **Solution**: Unset `runAsUser` via `deployment.securityContext.runAsUser=null`
+  - **Solution**: Unset `runAsUser` via `reloader.deployment.securityContext.runAsUser=null`
   - Let OpenShift assign UID automatically during installation
 
 ### Core Functionality Flags

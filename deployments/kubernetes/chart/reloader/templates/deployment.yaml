@@ -280,7 +280,7 @@ spec:
           - "{{ .Values.reloader.custom_annotations.pausePeriod }}"
             {{- end }}
             {{- if .Values.reloader.custom_annotations.pauseTime }}
-          - "--pause-deployment-annotation"
+          - "--pause-deployment-time-annotation"
           - "{{ .Values.reloader.custom_annotations.pauseTime }}"
             {{- end }}
             {{- if .Values.reloader.webhookUrl }}
