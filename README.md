@@ -19,6 +19,10 @@ In a traditional Kubernetes setup, updating a `Secret` or `ConfigMap` does not a
 
 Reloader bridges that gap by ensuring your workloads stay in sync with configuration changes — automatically and safely.
 
+## 🎥 Reloader in Action
+
+![demo](https://github.com/user-attachments/assets/ad9e59c7-39cf-45d7-89d6-4c22034104dd)
+
 ## 🚀 Why Reloader?
 
 - ✅ **Zero manual restarts**: No need to manually rollout workloads after config/secret changes.
