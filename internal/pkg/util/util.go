@@ -13,6 +13,7 @@ import (
 	"github.com/stakater/Reloader/internal/pkg/crypto"
 	"github.com/stakater/Reloader/internal/pkg/options"
 	v1 "k8s.io/api/core/v1"
+	csiv1 "sigs.k8s.io/secrets-store-csi-driver/apis/v1"
 )
 
 // ConvertToEnvVarName converts the given text into a usable env var
@@ -53,6 +54,16 @@ func GetSHAfromSecret(data map[string][]byte) string {
 	for k, v := range data {
 		values = append(values, k+"="+string(v[:]))
 	}
+	sort.Strings(values)
+	return crypto.GenerateSHA(strings.Join(values, ";"))
+}
+
+func GetSHAfromSecretProviderClassPodStatus(data csiv1.SecretProviderClassPodStatusStatus) string {
+	values := []string{}
+	for _, v := range data.Objects {
+		values = append(values, v.ID+"="+v.Version)
+	}
+	values = append(values, "SecretProviderClassName="+data.SecretProviderClassName)
 	sort.Strings(values)
 	return crypto.GenerateSHA(strings.Join(values, ";"))
 }
