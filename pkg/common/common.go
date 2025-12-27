@@ -266,15 +266,6 @@ func ShouldReload(config Config, resourceType string, annotations Map, podAnnota
 		}
 	}
 
-	reloaderEnabled, _ := strconv.ParseBool(reloaderEnabledValue)
-	typedAutoAnnotationEnabled, _ := strconv.ParseBool(typedAutoAnnotationEnabledValue)
-	if reloaderEnabled || typedAutoAnnotationEnabled || reloaderEnabledValue == "" && typedAutoAnnotationEnabledValue == "" && options.AutoReloadAll {
-		return ReloadCheckResult{
-			ShouldReload: true,
-			AutoReload:   true,
-		}
-	}
-
 	values := strings.Split(annotationValue, ",")
 	for _, value := range values {
 		value = strings.TrimSpace(value)
@@ -294,6 +285,15 @@ func ShouldReload(config Config, resourceType string, annotations Map, podAnnota
 				ShouldReload: true,
 				AutoReload:   true,
 			}
+		}
+	}
+
+	reloaderEnabled, _ := strconv.ParseBool(reloaderEnabledValue)
+	typedAutoAnnotationEnabled, _ := strconv.ParseBool(typedAutoAnnotationEnabledValue)
+	if reloaderEnabled || typedAutoAnnotationEnabled || reloaderEnabledValue == "" && typedAutoAnnotationEnabledValue == "" && options.AutoReloadAll {
+		return ReloadCheckResult{
+			ShouldReload: true,
+			AutoReload:   true,
 		}
 	}
 
