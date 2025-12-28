@@ -46,9 +46,21 @@ func BindFlags(fs *pflag.FlagSet, cfg *Config) {
 	fs.BoolVar(&cfg.SyncAfterRestart, "sync-after-restart", cfg.SyncAfterRestart,
 		"Trigger sync operation after restart")
 
-	// High availability
+	// High availability / Leader election
 	fs.BoolVar(&cfg.EnableHA, "enable-ha", cfg.EnableHA,
 		"Enable high-availability mode with leader election")
+	fs.StringVar(&cfg.LeaderElection.LockName, "leader-election-id", cfg.LeaderElection.LockName,
+		"Name of the lease resource for leader election")
+	fs.StringVar(&cfg.LeaderElection.Namespace, "leader-election-namespace", cfg.LeaderElection.Namespace,
+		"Namespace for the leader election lease (defaults to pod namespace)")
+	fs.DurationVar(&cfg.LeaderElection.LeaseDuration, "leader-election-lease-duration", cfg.LeaderElection.LeaseDuration,
+		"Duration that non-leader candidates will wait before attempting to acquire leadership")
+	fs.DurationVar(&cfg.LeaderElection.RenewDeadline, "leader-election-renew-deadline", cfg.LeaderElection.RenewDeadline,
+		"Duration that the acting leader will retry refreshing leadership before giving up")
+	fs.DurationVar(&cfg.LeaderElection.RetryPeriod, "leader-election-retry-period", cfg.LeaderElection.RetryPeriod,
+		"Duration between leader election retries")
+	fs.BoolVar(&cfg.LeaderElection.ReleaseOnCancel, "leader-election-release-on-cancel", cfg.LeaderElection.ReleaseOnCancel,
+		"Release the leader lock when the manager is stopped")
 
 	// Webhook
 	fs.StringVar(&cfg.WebhookURL, "webhook-url", cfg.WebhookURL,

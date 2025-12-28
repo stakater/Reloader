@@ -128,10 +128,10 @@ func TestNamespaceFilterPredicate_Generic(t *testing.T) {
 
 func TestLabelSelectorPredicate_Create(t *testing.T) {
 	tests := []struct {
-		name          string
-		selector      string
-		objectLabels  map[string]string
-		wantAllow     bool
+		name         string
+		selector     string
+		objectLabels map[string]string
+		wantAllow    bool
 	}{
 		{
 			name:         "match single label",
@@ -355,38 +355,38 @@ func TestCombinedFiltering(t *testing.T) {
 	labelPredicate := LabelSelectorPredicate(cfg)
 
 	tests := []struct {
-		name        string
-		namespace   string
-		labels      map[string]string
-		wantNSAllow bool
+		name           string
+		namespace      string
+		labels         map[string]string
+		wantNSAllow    bool
 		wantLabelAllow bool
 	}{
 		{
-			name:        "allowed namespace and matching labels",
-			namespace:   "default",
-			labels:      map[string]string{"managed": "true"},
-			wantNSAllow: true,
+			name:           "allowed namespace and matching labels",
+			namespace:      "default",
+			labels:         map[string]string{"managed": "true"},
+			wantNSAllow:    true,
 			wantLabelAllow: true,
 		},
 		{
-			name:        "allowed namespace but non-matching labels",
-			namespace:   "default",
-			labels:      map[string]string{"managed": "false"},
-			wantNSAllow: true,
+			name:           "allowed namespace but non-matching labels",
+			namespace:      "default",
+			labels:         map[string]string{"managed": "false"},
+			wantNSAllow:    true,
 			wantLabelAllow: false,
 		},
 		{
-			name:        "ignored namespace with matching labels",
-			namespace:   "kube-system",
-			labels:      map[string]string{"managed": "true"},
-			wantNSAllow: false,
+			name:           "ignored namespace with matching labels",
+			namespace:      "kube-system",
+			labels:         map[string]string{"managed": "true"},
+			wantNSAllow:    false,
 			wantLabelAllow: true,
 		},
 		{
-			name:        "ignored namespace and non-matching labels",
-			namespace:   "kube-system",
-			labels:      map[string]string{"managed": "false"},
-			wantNSAllow: false,
+			name:           "ignored namespace and non-matching labels",
+			namespace:      "kube-system",
+			labels:         map[string]string{"managed": "false"},
+			wantNSAllow:    false,
 			wantLabelAllow: false,
 		},
 	}

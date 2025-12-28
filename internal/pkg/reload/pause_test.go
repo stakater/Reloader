@@ -65,10 +65,10 @@ func TestPauseHandler_GetPausePeriod(t *testing.T) {
 	handler := NewPauseHandler(cfg)
 
 	tests := []struct {
-		name        string
-		workload    workload.WorkloadAccessor
-		wantPeriod  time.Duration
-		wantErr     bool
+		name       string
+		workload   workload.WorkloadAccessor
+		wantPeriod time.Duration
+		wantErr    bool
 	}{
 		{
 			name: "valid pause period",

@@ -22,35 +22,22 @@ const (
 
 // Strategy defines how workload restarts are triggered.
 type Strategy interface {
-	// Apply applies the reload strategy to the pod spec.
-	// Returns true if changes were made, false otherwise.
 	Apply(input StrategyInput) (bool, error)
-
-	// Name returns the strategy name for logging purposes.
 	Name() string
 }
 
 // StrategyInput contains the information needed to apply a reload strategy.
 type StrategyInput struct {
-	// ResourceName is the name of the ConfigMap or Secret that changed.
-	ResourceName string
-	// ResourceType is the type of resource (configmap or secret).
-	ResourceType ResourceType
-	// Namespace is the namespace of the resource.
-	Namespace string
-	// Hash is the SHA hash of the resource content.
-	Hash string
-	// Container is the container to target for env var injection.
-	// If nil, the first container is used.
-	Container *corev1.Container
-	// PodAnnotations is the pod template annotations map (for annotation strategy).
+	ResourceName   string
+	ResourceType   ResourceType
+	Namespace      string
+	Hash           string
+	Container      *corev1.Container
 	PodAnnotations map[string]string
-	// AutoReload indicates if this is an auto-reload (affects container selection).
-	AutoReload bool
+	AutoReload     bool
 }
 
 // ReloadSource contains metadata about what triggered a reload.
-// This is stored in the annotation when using annotation strategy.
 type ReloadSource struct {
 	Kind       string    `json:"kind"`
 	Name       string    `json:"name"`
@@ -61,7 +48,6 @@ type ReloadSource struct {
 }
 
 // EnvVarStrategy triggers reloads by adding/updating environment variables.
-// This is the default strategy and is GitOps-friendly.
 type EnvVarStrategy struct{}
 
 // NewEnvVarStrategy creates a new EnvVarStrategy.
@@ -69,13 +55,11 @@ func NewEnvVarStrategy() *EnvVarStrategy {
 	return &EnvVarStrategy{}
 }
 
-// Name returns the strategy name.
 func (s *EnvVarStrategy) Name() string {
 	return string(config.ReloadStrategyEnvVars)
 }
 
 // Apply adds, updates, or removes an environment variable to trigger a restart.
-// When hash is empty (resource deleted), the env var is removed.
 func (s *EnvVarStrategy) Apply(input StrategyInput) (bool, error) {
 	if input.Container == nil {
 		return false, fmt.Errorf("container is required for env-var strategy")
@@ -83,25 +67,20 @@ func (s *EnvVarStrategy) Apply(input StrategyInput) (bool, error) {
 
 	envVarName := s.envVarName(input.ResourceName, input.ResourceType)
 
-	// Handle deletion: remove the env var when hash is empty
 	if input.Hash == "" {
 		return s.removeEnvVar(input.Container, envVarName), nil
 	}
 
-	// Check if env var already exists
 	for i := range input.Container.Env {
 		if input.Container.Env[i].Name == envVarName {
 			if input.Container.Env[i].Value == input.Hash {
-				// Already up to date
 				return false, nil
 			}
-			// Update existing
 			input.Container.Env[i].Value = input.Hash
 			return true, nil
 		}
 	}
 
-	// Add new env var
 	input.Container.Env = append(input.Container.Env, corev1.EnvVar{
 		Name:  envVarName,
 		Value: input.Hash,
@@ -110,12 +89,9 @@ func (s *EnvVarStrategy) Apply(input StrategyInput) (bool, error) {
 	return true, nil
 }
 
-// removeEnvVar removes an environment variable from a container.
-// Returns true if a variable was removed.
 func (s *EnvVarStrategy) removeEnvVar(container *corev1.Container, name string) bool {
 	for i := range container.Env {
 		if container.Env[i].Name == name {
-			// Remove by replacing with last element and truncating
 			container.Env[i] = container.Env[len(container.Env)-1]
 			container.Env = container.Env[:len(container.Env)-1]
 			return true
@@ -124,7 +100,6 @@ func (s *EnvVarStrategy) removeEnvVar(container *corev1.Container, name string) 
 	return false
 }
 
-// envVarName generates the environment variable name for a resource.
 func (s *EnvVarStrategy) envVarName(resourceName string, resourceType ResourceType) string {
 	var postfix string
 	switch resourceType {
@@ -136,8 +111,6 @@ func (s *EnvVarStrategy) envVarName(resourceName string, resourceType ResourceTy
 	return EnvVarPrefix + convertToEnvVarName(resourceName) + "_" + postfix
 }
 
-// convertToEnvVarName converts a string to a valid environment variable name.
-// Invalid characters are replaced with underscores, and the result is uppercased.
 func convertToEnvVarName(text string) string {
 	var buffer bytes.Buffer
 	upper := strings.ToUpper(text)
@@ -169,7 +142,6 @@ func NewAnnotationStrategy(cfg *config.Config) *AnnotationStrategy {
 	return &AnnotationStrategy{cfg: cfg}
 }
 
-// Name returns the strategy name.
 func (s *AnnotationStrategy) Name() string {
 	return string(config.ReloadStrategyAnnotations)
 }
@@ -185,7 +157,6 @@ func (s *AnnotationStrategy) Apply(input StrategyInput) (bool, error) {
 		containerName = input.Container.Name
 	}
 
-	// Create reload source metadata
 	source := ReloadSource{
 		Kind:       string(input.ResourceType),
 		Name:       input.ResourceName,
@@ -204,7 +175,6 @@ func (s *AnnotationStrategy) Apply(input StrategyInput) (bool, error) {
 	existingValue := input.PodAnnotations[annotationKey]
 
 	if existingValue == string(sourceJSON) {
-		// Already up to date
 		return false, nil
 	}
 

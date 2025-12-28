@@ -3,10 +3,10 @@ package controller
 import (
 	"context"
 	"fmt"
-	"time"
 
 	argorolloutsv1alpha1 "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/go-logr/logr"
+	"github.com/stakater/Reloader/internal/pkg/alerting"
 	"github.com/stakater/Reloader/internal/pkg/config"
 	"github.com/stakater/Reloader/internal/pkg/events"
 	"github.com/stakater/Reloader/internal/pkg/metrics"
@@ -36,12 +36,10 @@ type ManagerOptions struct {
 }
 
 // NewManager creates a new controller-runtime manager with the given options.
+// This follows controller-runtime and operator-sdk conventions for leader election.
 func NewManager(opts ManagerOptions) (ctrl.Manager, error) {
 	cfg := opts.Config
-
-	leaseDuration := 15 * time.Second
-	renewDeadline := 10 * time.Second
-	retryPeriod := 2 * time.Second
+	le := cfg.LeaderElection
 
 	mgrOpts := ctrl.Options{
 		Scheme: runtimeScheme,
@@ -49,11 +47,19 @@ func NewManager(opts ManagerOptions) (ctrl.Manager, error) {
 			BindAddress: cfg.MetricsAddr,
 		},
 		HealthProbeBindAddress: cfg.HealthAddr,
-		LeaderElection:         cfg.EnableHA,
-		LeaderElectionID:       "reloader-leader-election",
-		LeaseDuration:          &leaseDuration,
-		RenewDeadline:          &renewDeadline,
-		RetryPeriod:            &retryPeriod,
+
+		// Leader election configuration following operator-sdk best practices:
+		// - LeaderElection enables/disables leader election
+		// - LeaderElectionID is the name of the lease resource
+		// - LeaderElectionNamespace where the lease is created (defaults to pod namespace)
+		// - LeaderElectionReleaseOnCancel allows faster failover by releasing the lock on shutdown
+		LeaderElection:                cfg.EnableHA,
+		LeaderElectionID:              le.LockName,
+		LeaderElectionNamespace:       le.Namespace,
+		LeaderElectionReleaseOnCancel: le.ReleaseOnCancel,
+		LeaseDuration:                 &le.LeaseDuration,
+		RenewDeadline:                 &le.RenewDeadline,
+		RetryPeriod:                   &le.RetryPeriod,
 	}
 
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), mgrOpts)
@@ -61,6 +67,10 @@ func NewManager(opts ManagerOptions) (ctrl.Manager, error) {
 		return nil, fmt.Errorf("creating manager: %w", err)
 	}
 
+	// Add health and readiness probes.
+	// The healthz probe reports whether the manager is running.
+	// The readyz probe reports whether the manager is ready to serve requests.
+	// When leader election is enabled, readyz will fail until this instance becomes leader.
 	if err := mgr.AddHealthzCheck("healthz", healthz.Ping); err != nil {
 		return nil, fmt.Errorf("setting up health check: %w", err)
 	}
@@ -76,6 +86,13 @@ func SetupReconcilers(mgr ctrl.Manager, cfg *config.Config, log logr.Logger, col
 	registry := workload.NewRegistry(cfg.ArgoRolloutsEnabled)
 	reloadService := reload.NewService(cfg)
 	eventRecorder := events.NewRecorder(mgr.GetEventRecorderFor("reloader"))
+	pauseHandler := reload.NewPauseHandler(cfg)
+
+	// Create alerter based on configuration
+	alerter := alerting.NewAlerter(cfg)
+	if cfg.Alerting.Enabled {
+		log.Info("alerting enabled", "sink", cfg.Alerting.Sink)
+	}
 
 	// Create webhook client if URL is configured
 	var webhookClient *webhook.Client
@@ -84,6 +101,7 @@ func SetupReconcilers(mgr ctrl.Manager, cfg *config.Config, log logr.Logger, col
 		log.Info("webhook mode enabled", "url", cfg.WebhookURL)
 	}
 
+	// Setup ConfigMap reconciler
 	if !cfg.IsResourceIgnored("configmaps") {
 		if err := (&ConfigMapReconciler{
 			Client:        mgr.GetClient(),
@@ -94,11 +112,13 @@ func SetupReconcilers(mgr ctrl.Manager, cfg *config.Config, log logr.Logger, col
 			Collectors:    collectors,
 			EventRecorder: eventRecorder,
 			WebhookClient: webhookClient,
+			Alerter:       alerter,
 		}).SetupWithManager(mgr); err != nil {
 			return fmt.Errorf("setting up configmap reconciler: %w", err)
 		}
 	}
 
+	// Setup Secret reconciler
 	if !cfg.IsResourceIgnored("secrets") {
 		if err := (&SecretReconciler{
 			Client:        mgr.GetClient(),
@@ -109,9 +129,34 @@ func SetupReconcilers(mgr ctrl.Manager, cfg *config.Config, log logr.Logger, col
 			Collectors:    collectors,
 			EventRecorder: eventRecorder,
 			WebhookClient: webhookClient,
+			Alerter:       alerter,
 		}).SetupWithManager(mgr); err != nil {
 			return fmt.Errorf("setting up secret reconciler: %w", err)
 		}
+	}
+
+	// Setup Namespace reconciler if namespace selectors are configured
+	if len(cfg.NamespaceSelectors) > 0 {
+		nsCache := NewNamespaceCache(true)
+		if err := (&NamespaceReconciler{
+			Client: mgr.GetClient(),
+			Log:    log.WithName("namespace-reconciler"),
+			Config: cfg,
+			Cache:  nsCache,
+		}).SetupWithManager(mgr); err != nil {
+			return fmt.Errorf("setting up namespace reconciler: %w", err)
+		}
+		log.Info("namespace reconciler enabled for label selector filtering")
+	}
+
+	// Setup Deployment reconciler for pause handling
+	if err := (&DeploymentReconciler{
+		Client:       mgr.GetClient(),
+		Log:          log.WithName("deployment-reconciler"),
+		Config:       cfg,
+		PauseHandler: pauseHandler,
+	}).SetupWithManager(mgr); err != nil {
+		return fmt.Errorf("setting up deployment reconciler: %w", err)
 	}
 
 	return nil

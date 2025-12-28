@@ -6,12 +6,18 @@ import (
 	"os"
 	"testing"
 
+	"github.com/go-logr/logr"
 	"github.com/stakater/Reloader/internal/pkg/config"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 )
+
+// testLogger returns a no-op logger for testing.
+func testLogger() logr.Logger {
+	return logr.Discard()
+}
 
 func TestNewBuildInfo(t *testing.T) {
 	// Set build variables for testing
@@ -166,7 +172,7 @@ func TestPublisher_Publish_NoNamespace(t *testing.T) {
 	fakeClient := fake.NewClientBuilder().WithScheme(scheme).Build()
 
 	cfg := config.NewDefault()
-	publisher := NewPublisher(fakeClient, cfg)
+	publisher := NewPublisher(fakeClient, cfg, testLogger())
 
 	err := publisher.Publish(context.Background())
 	if err != nil {
@@ -188,7 +194,7 @@ func TestPublisher_Publish_CreateNew(t *testing.T) {
 	fakeClient := fake.NewClientBuilder().WithScheme(scheme).Build()
 
 	cfg := config.NewDefault()
-	publisher := NewPublisher(fakeClient, cfg)
+	publisher := NewPublisher(fakeClient, cfg, testLogger())
 
 	ctx := context.Background()
 	err := publisher.Publish(ctx)
@@ -233,7 +239,7 @@ func TestPublisher_Publish_UpdateExisting(t *testing.T) {
 		Build()
 
 	cfg := config.NewDefault()
-	publisher := NewPublisher(fakeClient, cfg)
+	publisher := NewPublisher(fakeClient, cfg, testLogger())
 
 	ctx := context.Background()
 	err := publisher.Publish(ctx)
@@ -277,7 +283,7 @@ func TestPublishMetaInfoConfigMap(t *testing.T) {
 	cfg := config.NewDefault()
 	ctx := context.Background()
 
-	err := PublishMetaInfoConfigMap(ctx, fakeClient, cfg)
+	err := PublishMetaInfoConfigMap(ctx, fakeClient, cfg, testLogger())
 	if err != nil {
 		t.Errorf("PublishMetaInfoConfigMap() error = %v", err)
 	}

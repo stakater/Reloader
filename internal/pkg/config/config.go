@@ -1,5 +1,4 @@
 // Package config provides configuration management for Reloader.
-// It replaces the old global variables pattern with an immutable Config struct.
 package config
 
 import (
@@ -12,11 +11,7 @@ import (
 type ReloadStrategy string
 
 const (
-	// ReloadStrategyEnvVars adds/updates environment variables to trigger restart.
-	// This is the default and recommended strategy for GitOps compatibility.
-	ReloadStrategyEnvVars ReloadStrategy = "env-vars"
-
-	// ReloadStrategyAnnotations adds/updates pod template annotations to trigger restart.
+	ReloadStrategyEnvVars     ReloadStrategy = "env-vars"
 	ReloadStrategyAnnotations ReloadStrategy = "annotations"
 )
 
@@ -24,143 +19,81 @@ const (
 type ArgoRolloutStrategy string
 
 const (
-	// ArgoRolloutStrategyRestart uses the restart mechanism for Argo Rollouts.
 	ArgoRolloutStrategyRestart ArgoRolloutStrategy = "restart"
-
-	// ArgoRolloutStrategyRollout uses the rollout mechanism for Argo Rollouts.
 	ArgoRolloutStrategyRollout ArgoRolloutStrategy = "rollout"
 )
 
 // Config holds all configuration for Reloader.
-// This struct is immutable after creation - all fields should be set during initialization.
 type Config struct {
-	// Annotations holds customizable annotation keys.
-	Annotations AnnotationConfig
-
-	// AutoReloadAll enables automatic reload for all resources without requiring annotations.
-	AutoReloadAll bool
-
-	// ReloadStrategy determines how workload restarts are triggered.
-	ReloadStrategy ReloadStrategy
-
-	// ArgoRolloutsEnabled enables support for Argo Rollouts workload type.
+	Annotations         AnnotationConfig
+	AutoReloadAll       bool
+	ReloadStrategy      ReloadStrategy
 	ArgoRolloutsEnabled bool
-
-	// ArgoRolloutStrategy determines how Argo Rollouts are updated.
 	ArgoRolloutStrategy ArgoRolloutStrategy
+	ReloadOnCreate      bool
+	ReloadOnDelete      bool
+	SyncAfterRestart    bool
+	EnableHA            bool
+	WebhookURL          string
 
-	// ReloadOnCreate enables watching for resource creation events.
-	ReloadOnCreate bool
-
-	// ReloadOnDelete enables watching for resource deletion events.
-	ReloadOnDelete bool
-
-	// SyncAfterRestart triggers a sync operation after a restart is performed.
-	SyncAfterRestart bool
-
-	// EnableHA enables high-availability mode with leader election.
-	EnableHA bool
-
-	// WebhookURL is an optional URL to send notifications to instead of triggering reload.
-	WebhookURL string
-
-	// Filtering configuration
-	IgnoredResources   []string // ConfigMaps/Secrets to ignore (case-insensitive)
-	IgnoredWorkloads   []string // Workload types to ignore
-	IgnoredNamespaces  []string // Namespaces to ignore
-	NamespaceSelectors []labels.Selector
-	ResourceSelectors  []labels.Selector
-
-	// Raw selector strings (for backward compatibility with old code)
+	IgnoredResources         []string
+	IgnoredWorkloads         []string
+	IgnoredNamespaces        []string
+	NamespaceSelectors       []labels.Selector
+	ResourceSelectors        []labels.Selector
 	NamespaceSelectorStrings []string
 	ResourceSelectorStrings  []string
 
-	// Logging configuration
-	LogFormat string // "json" or "" for default
-	LogLevel  string // trace, debug, info, warning, error, fatal, panic
-
-	// Metrics configuration
-	MetricsAddr string // Address to serve metrics on (default :9090)
-
-	// Health probe configuration
-	HealthAddr string // Address to serve health probes on (default :8081)
-
-	// Profiling configuration
+	LogFormat   string
+	LogLevel    string
+	MetricsAddr string
+	HealthAddr  string
 	EnablePProf bool
 	PProfAddr   string
 
-	// Alerting configuration
-	Alerting AlertingConfig
-
-	// Leader election configuration
-	LeaderElection LeaderElectionConfig
-
-	// WatchedNamespace limits watching to a specific namespace (empty = all namespaces)
+	Alerting         AlertingConfig
+	LeaderElection   LeaderElectionConfig
 	WatchedNamespace string
-
-	// SyncPeriod is the period for re-syncing watched resources
-	SyncPeriod time.Duration
+	SyncPeriod       time.Duration
 }
 
-// AnnotationConfig holds all customizable annotation keys.
+// AnnotationConfig holds customizable annotation keys.
 type AnnotationConfig struct {
-	// Prefix is the base prefix for all annotations (default: reloader.stakater.com)
-	Prefix string
-
-	// Auto annotations
-	Auto          string // reloader.stakater.com/auto
-	ConfigmapAuto string // configmap.reloader.stakater.com/auto
-	SecretAuto    string // secret.reloader.stakater.com/auto
-
-	// Reload annotations (explicit resource names)
-	ConfigmapReload string // configmap.reloader.stakater.com/reload
-	SecretReload    string // secret.reloader.stakater.com/reload
-
-	// Exclude annotations
-	ConfigmapExclude string // configmaps.exclude.reloader.stakater.com/reload
-	SecretExclude    string // secrets.exclude.reloader.stakater.com/reload
-
-	// Ignore annotation
-	Ignore string // reloader.stakater.com/ignore
-
-	// Search/Match annotations
-	Search string // reloader.stakater.com/search
-	Match  string // reloader.stakater.com/match
-
-	// Rollout strategy annotation
-	RolloutStrategy string // reloader.stakater.com/rollout-strategy
-
-	// Pause annotations
-	PausePeriod string // deployment.reloader.stakater.com/pause-period
-	PausedAt    string // deployment.reloader.stakater.com/paused-at
-
-	// Last reloaded from annotation (set by Reloader)
-	LastReloadedFrom string // reloader.stakater.com/last-reloaded-from
+	Prefix           string
+	Auto             string
+	ConfigmapAuto    string
+	SecretAuto       string
+	ConfigmapReload  string
+	SecretReload     string
+	ConfigmapExclude string
+	SecretExclude    string
+	Ignore           string
+	Search           string
+	Match            string
+	RolloutStrategy  string
+	PausePeriod      string
+	PausedAt         string
+	LastReloadedFrom string
 }
 
 // AlertingConfig holds configuration for alerting integrations.
 type AlertingConfig struct {
-	// Enabled enables alerting notifications on reload events.
-	Enabled bool
-
-	// WebhookURL is the webhook URL to send alerts to.
+	Enabled    bool
 	WebhookURL string
-
-	// Sink determines the alert format: "slack", "teams", "gchat", or "raw" (default).
-	Sink string
-
-	// Proxy is an optional HTTP proxy for webhook requests.
-	Proxy string
-
-	// Additional is optional context prepended to alert messages.
+	Sink       string
+	Proxy      string
 	Additional string
 }
 
 // LeaderElectionConfig holds configuration for leader election.
 type LeaderElectionConfig struct {
-	LockName  string
-	Namespace string
-	Identity  string
+	LockName        string
+	Namespace       string
+	Identity        string
+	LeaseDuration   time.Duration
+	RenewDeadline   time.Duration
+	RetryPeriod     time.Duration
+	ReleaseOnCancel bool
 }
 
 // NewDefault creates a Config with default values.
@@ -189,7 +122,11 @@ func NewDefault() *Config {
 		PProfAddr:           ":6060",
 		Alerting:            AlertingConfig{},
 		LeaderElection: LeaderElectionConfig{
-			LockName: "stakater-reloader-lock",
+			LockName:        "reloader-leader-election",
+			LeaseDuration:   15 * time.Second,
+			RenewDeadline:   10 * time.Second,
+			RetryPeriod:     2 * time.Second,
+			ReleaseOnCancel: true,
 		},
 		WatchedNamespace: "",
 		SyncPeriod:       0,
@@ -247,7 +184,6 @@ func (c *Config) IsNamespaceIgnored(namespace string) bool {
 	return false
 }
 
-// equalFold is a simple case-insensitive string comparison.
 func equalFold(s, t string) bool {
 	if len(s) != len(t) {
 		return false
@@ -255,7 +191,6 @@ func equalFold(s, t string) bool {
 	for i := 0; i < len(s); i++ {
 		c1, c2 := s[i], t[i]
 		if c1 != c2 {
-			// Convert to lowercase for comparison
 			if 'A' <= c1 && c1 <= 'Z' {
 				c1 += 'a' - 'A'
 			}

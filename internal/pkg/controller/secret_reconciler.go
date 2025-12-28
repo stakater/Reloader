@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/go-logr/logr"
+	"github.com/stakater/Reloader/internal/pkg/alerting"
 	"github.com/stakater/Reloader/internal/pkg/config"
 	"github.com/stakater/Reloader/internal/pkg/events"
 	"github.com/stakater/Reloader/internal/pkg/metrics"
@@ -33,6 +34,7 @@ type SecretReconciler struct {
 	Collectors    *metrics.Collectors
 	EventRecorder *events.Recorder
 	WebhookClient *webhook.Client
+	Alerter       alerting.Alerter
 
 	initialized bool
 	initOnce    sync.Once
@@ -131,6 +133,19 @@ func (r *SecretReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 				"workload", decision.Workload.GetName(),
 				"kind", decision.Workload.Kind(),
 			)
+
+			// Send alert notification
+			if err := r.Alerter.Send(ctx, alerting.AlertMessage{
+				WorkloadKind:      string(decision.Workload.Kind()),
+				WorkloadName:      decision.Workload.GetName(),
+				WorkloadNamespace: decision.Workload.GetNamespace(),
+				ResourceKind:      "Secret",
+				ResourceName:      secret.Name,
+				ResourceNamespace: secret.Namespace,
+				Timestamp:         time.Now(),
+			}); err != nil {
+				log.Error(err, "failed to send alert")
+			}
 		}
 	}
 
@@ -199,6 +214,19 @@ func (r *SecretReconciler) handleDelete(ctx context.Context, req ctrl.Request, l
 		if updated {
 			r.EventRecorder.ReloadSuccess(decision.Workload.GetObject(), "Secret", req.Name)
 			r.recordMetrics(true, req.Namespace)
+
+			// Send alert notification
+			if err := r.Alerter.Send(ctx, alerting.AlertMessage{
+				WorkloadKind:      string(decision.Workload.Kind()),
+				WorkloadName:      decision.Workload.GetName(),
+				WorkloadNamespace: decision.Workload.GetNamespace(),
+				ResourceKind:      "Secret",
+				ResourceName:      req.Name,
+				ResourceNamespace: req.Namespace,
+				Timestamp:         time.Now(),
+			}); err != nil {
+				log.Error(err, "failed to send alert")
+			}
 		}
 	}
 

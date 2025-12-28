@@ -10,7 +10,7 @@ import (
 	"runtime"
 	"time"
 
-	"github.com/sirupsen/logrus"
+	"github.com/go-logr/logr"
 	"github.com/stakater/Reloader/internal/pkg/config"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -199,30 +199,29 @@ func (m *MetaInfo) ToConfigMap() *corev1.ConfigMap {
 type Publisher struct {
 	client client.Client
 	cfg    *config.Config
+	log    logr.Logger
 }
 
 // NewPublisher creates a new Publisher.
-func NewPublisher(c client.Client, cfg *config.Config) *Publisher {
+func NewPublisher(c client.Client, cfg *config.Config, log logr.Logger) *Publisher {
 	return &Publisher{
 		client: c,
 		cfg:    cfg,
+		log:    log,
 	}
 }
 
 // Publish creates or updates the metadata ConfigMap.
-// Returns an error if the operation fails, or nil on success.
-// If RELOADER_NAMESPACE is not set, this is a no-op.
 func (p *Publisher) Publish(ctx context.Context) error {
 	namespace := os.Getenv(EnvReloaderNamespace)
 	if namespace == "" {
-		logrus.Warn("RELOADER_NAMESPACE is not set, skipping meta info configmap creation")
+		p.log.Info("RELOADER_NAMESPACE is not set, skipping meta info configmap creation")
 		return nil
 	}
 
 	metaInfo := NewMetaInfo(p.cfg)
 	configMap := metaInfo.ToConfigMap()
 
-	// Try to get existing ConfigMap
 	existing := &corev1.ConfigMap{}
 	err := p.client.Get(ctx, client.ObjectKey{
 		Name:      ConfigMapName,
@@ -233,34 +232,36 @@ func (p *Publisher) Publish(ctx context.Context) error {
 		if !errors.IsNotFound(err) {
 			return fmt.Errorf("failed to get existing meta info configmap: %w", err)
 		}
-		// ConfigMap doesn't exist, create it
-		logrus.Info("Creating meta info configmap")
+		p.log.Info("Creating meta info configmap")
 		if err := p.client.Create(ctx, configMap, client.FieldOwner(FieldManager)); err != nil {
 			return fmt.Errorf("failed to create meta info configmap: %w", err)
 		}
-		logrus.Info("Meta info configmap created successfully")
+		p.log.Info("Meta info configmap created successfully")
 		return nil
 	}
 
-	// ConfigMap exists, update it
-	logrus.Info("Meta info configmap already exists, updating it")
+	p.log.Info("Meta info configmap already exists, updating it")
 	existing.Data = configMap.Data
 	existing.Labels = configMap.Labels
 	if err := p.client.Update(ctx, existing, client.FieldOwner(FieldManager)); err != nil {
 		return fmt.Errorf("failed to update meta info configmap: %w", err)
 	}
-	logrus.Info("Meta info configmap updated successfully")
+	p.log.Info("Meta info configmap updated successfully")
 	return nil
 }
 
 // PublishMetaInfoConfigMap is a convenience function that creates a Publisher and calls Publish.
-// This provides a simple API similar to the v1 PublishMetaInfoConfigmap function.
-func PublishMetaInfoConfigMap(ctx context.Context, c client.Client, cfg *config.Config) error {
-	publisher := NewPublisher(c, cfg)
+func PublishMetaInfoConfigMap(ctx context.Context, c client.Client, cfg *config.Config, log logr.Logger) error {
+	publisher := NewPublisher(c, cfg, log)
 	return publisher.Publish(ctx)
 }
 
-// toJSON marshals data to JSON string. Returns empty string on error.
+// CreateOrUpdate creates or updates the metadata ConfigMap using the provided client.
+func CreateOrUpdate(c client.Client, cfg *config.Config, log logr.Logger) error {
+	ctx := context.Background()
+	return PublishMetaInfoConfigMap(ctx, c, cfg, log)
+}
+
 func toJSON(data interface{}) string {
 	jsonData, err := json.Marshal(data)
 	if err != nil {
@@ -269,8 +270,6 @@ func toJSON(data interface{}) string {
 	return string(jsonData)
 }
 
-// parseUTCTime parses a time string in RFC3339 format.
-// Returns zero time if value is empty or parsing fails.
 func parseUTCTime(value string) time.Time {
 	if value == "" {
 		return time.Time{}

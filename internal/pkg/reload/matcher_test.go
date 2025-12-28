@@ -92,7 +92,7 @@ func TestMatcher_ShouldReload(t *testing.T) {
 				ResourceType:        ResourceTypeConfigMap,
 				ResourceAnnotations: nil,
 				WorkloadAnnotations: map[string]string{
-					"reloader.stakater.com/auto":               "true",
+					"reloader.stakater.com/auto":             "true",
 					"configmap.reloader.stakater.com/reload": "external-config",
 				},
 				PodAnnotations: nil,
@@ -277,7 +277,7 @@ func TestMatcher_ShouldReload(t *testing.T) {
 				ResourceType:        ResourceTypeSecret,
 				ResourceAnnotations: nil,
 				WorkloadAnnotations: map[string]string{
-					"reloader.stakater.com/auto":                 "true",
+					"reloader.stakater.com/auto":                   "true",
 					"secrets.exclude.reloader.stakater.com/reload": "my-secret",
 				},
 				PodAnnotations: nil,
@@ -403,7 +403,7 @@ func TestMatcher_BugFix_AutoDoesNotIgnoreExplicit(t *testing.T) {
 		ResourceType:        ResourceTypeConfigMap,
 		ResourceAnnotations: nil,
 		WorkloadAnnotations: map[string]string{
-			"reloader.stakater.com/auto":             "true",           // Enables auto-reload
+			"reloader.stakater.com/auto":             "true",            // Enables auto-reload
 			"configmap.reloader.stakater.com/reload": "external-config", // Explicit list
 		},
 		PodAnnotations: nil,

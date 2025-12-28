@@ -3,13 +3,11 @@ package reload
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"time"
 
 	"github.com/stakater/Reloader/internal/pkg/config"
 	"github.com/stakater/Reloader/internal/pkg/workload"
 	corev1 "k8s.io/api/core/v1"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 // Service orchestrates the reload logic for ConfigMaps and Secrets.
@@ -69,18 +67,15 @@ type ReloadDecision struct {
 }
 
 // ProcessConfigMap evaluates all workloads to determine which should be reloaded.
-// This method does not modify any workloads - it only returns decisions.
 func (s *Service) ProcessConfigMap(change ConfigMapChange, workloads []workload.WorkloadAccessor) []ReloadDecision {
 	if change.ConfigMap == nil {
 		return nil
 	}
 
-	// Check if we should process this event type
 	if !s.shouldProcessEvent(change.EventType) {
 		return nil
 	}
 
-	// Compute hash
 	hash := s.hasher.HashConfigMap(change.ConfigMap)
 	if change.EventType == EventTypeDelete {
 		hash = s.hasher.EmptyHash()
@@ -97,18 +92,15 @@ func (s *Service) ProcessConfigMap(change ConfigMapChange, workloads []workload.
 }
 
 // ProcessSecret evaluates all workloads to determine which should be reloaded.
-// This method does not modify any workloads - it only returns decisions.
 func (s *Service) ProcessSecret(change SecretChange, workloads []workload.WorkloadAccessor) []ReloadDecision {
 	if change.Secret == nil {
 		return nil
 	}
 
-	// Check if we should process this event type
 	if !s.shouldProcessEvent(change.EventType) {
 		return nil
 	}
 
-	// Compute hash
 	hash := s.hasher.HashSecret(change.Secret)
 	if change.EventType == EventTypeDelete {
 		hash = s.hasher.EmptyHash()
@@ -124,7 +116,6 @@ func (s *Service) ProcessSecret(change SecretChange, workloads []workload.Worklo
 	)
 }
 
-// processResource processes a resource change against all workloads.
 func (s *Service) processResource(
 	resourceName string,
 	resourceNamespace string,
@@ -136,17 +127,14 @@ func (s *Service) processResource(
 	var decisions []ReloadDecision
 
 	for _, wl := range workloads {
-		// Skip workloads in different namespaces
 		if wl.GetNamespace() != resourceNamespace {
 			continue
 		}
 
-		// Check if workload should be ignored based on type
 		if s.cfg.IsWorkloadIgnored(string(wl.Kind())) {
 			continue
 		}
 
-		// Check if workload uses this resource (via volumes or env)
 		var usesResource bool
 		switch resourceType {
 		case ResourceTypeConfigMap:
@@ -155,7 +143,6 @@ func (s *Service) processResource(
 			usesResource = wl.UsesSecret(resourceName)
 		}
 
-		// Build match input
 		input := MatchInput{
 			ResourceName:        resourceName,
 			ResourceNamespace:   resourceNamespace,
@@ -165,11 +152,8 @@ func (s *Service) processResource(
 			PodAnnotations:      wl.GetPodTemplateAnnotations(),
 		}
 
-		// Check if we should reload
 		matchResult := s.matcher.ShouldReload(input)
 
-		// For auto-reload, the workload must actually use the resource
-		// For explicit annotation, the user explicitly requested it
 		shouldReload := matchResult.ShouldReload
 		if matchResult.AutoReload && !usesResource {
 			shouldReload = false
@@ -187,7 +171,6 @@ func (s *Service) processResource(
 	return decisions
 }
 
-// shouldProcessEvent checks if the event type should be processed.
 func (s *Service) shouldProcessEvent(eventType EventType) bool {
 	switch eventType {
 	case EventTypeCreate:
@@ -202,8 +185,6 @@ func (s *Service) shouldProcessEvent(eventType EventType) bool {
 }
 
 // ApplyReload applies the reload strategy to a workload.
-// This modifies the workload in-place but does not persist the changes.
-// Returns true if changes were made, false otherwise.
 func (s *Service) ApplyReload(
 	ctx context.Context,
 	wl workload.WorkloadAccessor,
@@ -213,7 +194,6 @@ func (s *Service) ApplyReload(
 	hash string,
 	autoReload bool,
 ) (bool, error) {
-	// Find the target container
 	container := s.findTargetContainer(wl, resourceName, resourceType, autoReload)
 
 	input := StrategyInput{
@@ -226,13 +206,11 @@ func (s *Service) ApplyReload(
 		AutoReload:     autoReload,
 	}
 
-	// Apply the strategy-specific changes
 	updated, err := s.strategy.Apply(input)
 	if err != nil {
 		return false, err
 	}
 
-	// Always set the attribution annotation regardless of strategy
 	if updated {
 		s.setAttributionAnnotation(wl, resourceName, resourceType, namespace, hash, container)
 	}
@@ -240,8 +218,6 @@ func (s *Service) ApplyReload(
 	return updated, nil
 }
 
-// setAttributionAnnotation sets the last-reloaded-from annotation on the pod template.
-// This is always set regardless of the reload strategy for audit purposes.
 func (s *Service) setAttributionAnnotation(
 	wl workload.WorkloadAccessor,
 	resourceName string,
@@ -266,16 +242,12 @@ func (s *Service) setAttributionAnnotation(
 
 	sourceJSON, err := json.Marshal(source)
 	if err != nil {
-		// Non-fatal: skip annotation if marshaling fails
 		return
 	}
 
 	wl.SetPodTemplateAnnotation(s.cfg.Annotations.LastReloadedFrom, string(sourceJSON))
 }
 
-// findTargetContainer finds the container to target for the reload.
-// For auto-reload, it finds the container that uses the resource.
-// For explicit annotation, it returns the first container.
 func (s *Service) findTargetContainer(
 	wl workload.WorkloadAccessor,
 	resourceName string,
@@ -287,7 +259,6 @@ func (s *Service) findTargetContainer(
 		return nil
 	}
 
-	// For explicit annotation, return the first container
 	if !autoReload {
 		return &containers[0]
 	}
@@ -295,40 +266,31 @@ func (s *Service) findTargetContainer(
 	volumes := wl.GetVolumes()
 	initContainers := wl.GetInitContainers()
 
-	// For auto-reload, find the container that uses the resource
-	// Check volumes first
 	volumeName := s.findVolumeUsingResource(volumes, resourceName, resourceType)
 	if volumeName != "" {
 		container := s.findContainerWithVolumeMount(containers, volumeName)
 		if container != nil {
 			return container
 		}
-		// Check init containers
 		container = s.findContainerWithVolumeMount(initContainers, volumeName)
 		if container != nil {
-			// Return the first regular container for init container refs
 			return &containers[0]
 		}
 	}
 
-	// Check env references
 	container := s.findContainerWithEnvRef(containers, resourceName, resourceType)
 	if container != nil {
 		return container
 	}
 
-	// Check init container env references
 	container = s.findContainerWithEnvRef(initContainers, resourceName, resourceType)
 	if container != nil {
-		// Return the first regular container for init container refs
 		return &containers[0]
 	}
 
-	// Default to first container
 	return &containers[0]
 }
 
-// findVolumeUsingResource finds a volume that uses the given resource.
 func (s *Service) findVolumeUsingResource(volumes []corev1.Volume, resourceName string, resourceType ResourceType) string {
 	for _, vol := range volumes {
 		switch resourceType {
@@ -359,7 +321,6 @@ func (s *Service) findVolumeUsingResource(volumes []corev1.Volume, resourceName 
 	return ""
 }
 
-// findContainerWithVolumeMount finds a container that mounts the given volume.
 func (s *Service) findContainerWithVolumeMount(containers []corev1.Container, volumeName string) *corev1.Container {
 	for i := range containers {
 		for _, mount := range containers[i].VolumeMounts {
@@ -371,10 +332,8 @@ func (s *Service) findContainerWithVolumeMount(containers []corev1.Container, vo
 	return nil
 }
 
-// findContainerWithEnvRef finds a container that references the resource via env.
 func (s *Service) findContainerWithEnvRef(containers []corev1.Container, resourceName string, resourceType ResourceType) *corev1.Container {
 	for i := range containers {
-		// Check env vars
 		for _, env := range containers[i].Env {
 			if env.ValueFrom == nil {
 				continue
@@ -391,7 +350,6 @@ func (s *Service) findContainerWithEnvRef(containers []corev1.Container, resourc
 			}
 		}
 
-		// Check envFrom
 		for _, envFrom := range containers[i].EnvFrom {
 			switch resourceType {
 			case ResourceTypeConfigMap:
@@ -411,37 +369,4 @@ func (s *Service) findContainerWithEnvRef(containers []corev1.Container, resourc
 // Hasher returns the hasher used by this service.
 func (s *Service) Hasher() *Hasher {
 	return s.hasher
-}
-
-// Matcher returns the matcher used by this service.
-func (s *Service) Matcher() *Matcher {
-	return s.matcher
-}
-
-// Strategy returns the strategy used by this service.
-func (s *Service) Strategy() Strategy {
-	return s.strategy
-}
-
-// ListWorkloads lists all workloads in the given namespace.
-// If namespace is empty, lists workloads in all namespaces.
-func ListWorkloads(ctx context.Context, c client.Client, namespace string, registry *workload.Registry) ([]workload.WorkloadAccessor, error) {
-	var workloads []workload.WorkloadAccessor
-
-	for _, kind := range registry.SupportedKinds() {
-		list, err := listWorkloadsByKind(ctx, c, namespace, kind)
-		if err != nil {
-			return nil, fmt.Errorf("listing %s: %w", kind, err)
-		}
-		workloads = append(workloads, list...)
-	}
-
-	return workloads, nil
-}
-
-// listWorkloadsByKind lists workloads of a specific kind.
-func listWorkloadsByKind(ctx context.Context, c client.Client, namespace string, kind workload.Kind) ([]workload.WorkloadAccessor, error) {
-	// This will be implemented by the controller using the appropriate list functions
-	// For now, return empty slice as the controller will handle this
-	return nil, nil
 }
