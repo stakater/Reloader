@@ -24,6 +24,7 @@ type ReloadHandler struct {
 	Collectors    *metrics.Collectors
 	EventRecorder *events.Recorder
 	Alerter       alerting.Alerter
+	PauseHandler  *reload.PauseHandler
 }
 
 // Process handles the reload workflow: list workloads, get decisions, webhook or apply.
@@ -112,6 +113,7 @@ func (h *ReloadHandler) applyReloads(
 			ctx,
 			h.Client,
 			h.ReloadService,
+			h.PauseHandler,
 			decision.Workload,
 			resourceName,
 			resourceType,

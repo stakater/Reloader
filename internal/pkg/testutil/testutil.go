@@ -430,3 +430,51 @@ func WaitForDeploymentConfigReloadedAnnotation(client openshiftclient.Interface,
 	}
 	return found, err
 }
+
+// WaitForDeploymentPaused waits for a deployment to be paused (spec.Paused=true).
+func WaitForDeploymentPaused(client kubernetes.Interface, namespace, name string, timeout time.Duration) (bool, error) {
+	var paused bool
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+	err := wait.PollUntilContextTimeout(
+		ctx, time.Second, timeout, true, func(ctx context.Context) (bool, error) {
+			deployment, err := client.AppsV1().Deployments(namespace).Get(ctx, name, metav1.GetOptions{})
+			if err != nil {
+				return false, nil // Keep waiting
+			}
+			if deployment.Spec.Paused {
+				paused = true
+				return true, nil
+			}
+			return false, nil
+		},
+	)
+	if wait.Interrupted(err) {
+		return paused, nil
+	}
+	return paused, err
+}
+
+// WaitForDeploymentUnpaused waits for a deployment to be unpaused (spec.Paused=false).
+func WaitForDeploymentUnpaused(client kubernetes.Interface, namespace, name string, timeout time.Duration) (bool, error) {
+	var unpaused bool
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+	err := wait.PollUntilContextTimeout(
+		ctx, time.Second, timeout, true, func(ctx context.Context) (bool, error) {
+			deployment, err := client.AppsV1().Deployments(namespace).Get(ctx, name, metav1.GetOptions{})
+			if err != nil {
+				return false, nil // Keep waiting
+			}
+			if !deployment.Spec.Paused {
+				unpaused = true
+				return true, nil
+			}
+			return false, nil
+		},
+	)
+	if wait.Interrupted(err) {
+		return unpaused, nil
+	}
+	return unpaused, err
+}

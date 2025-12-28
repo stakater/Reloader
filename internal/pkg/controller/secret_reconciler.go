@@ -30,6 +30,7 @@ type SecretReconciler struct {
 	EventRecorder *events.Recorder
 	WebhookClient *webhook.Client
 	Alerter       alerting.Alerter
+	PauseHandler  *reload.PauseHandler
 
 	handler     *ReloadHandler
 	initialized bool
@@ -97,6 +98,7 @@ func (r *SecretReconciler) reloadHandler() *ReloadHandler {
 			Collectors:    r.Collectors,
 			EventRecorder: r.EventRecorder,
 			Alerter:       r.Alerter,
+			PauseHandler:  r.PauseHandler,
 		}
 	}
 	return r.handler

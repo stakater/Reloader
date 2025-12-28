@@ -150,6 +150,7 @@ func SetupReconcilers(mgr ctrl.Manager, cfg *config.Config, log logr.Logger, col
 			EventRecorder: eventRecorder,
 			WebhookClient: webhookClient,
 			Alerter:       alerter,
+			PauseHandler:  pauseHandler,
 		}).SetupWithManager(mgr); err != nil {
 			return fmt.Errorf("setting up configmap reconciler: %w", err)
 		}
@@ -167,6 +168,7 @@ func SetupReconcilers(mgr ctrl.Manager, cfg *config.Config, log logr.Logger, col
 			EventRecorder: eventRecorder,
 			WebhookClient: webhookClient,
 			Alerter:       alerter,
+			PauseHandler:  pauseHandler,
 		}).SetupWithManager(mgr); err != nil {
 			return fmt.Errorf("setting up secret reconciler: %w", err)
 		}

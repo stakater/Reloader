@@ -54,11 +54,18 @@ func (r *DeploymentReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 		return ctrl.Result{RequeueAfter: remainingTime}, nil
 	}
 
-	// Pause period has expired - unpause the deployment
 	log.Info("Unpausing deployment after pause period expired")
-	r.PauseHandler.ClearPause(&deploy)
+	err = UpdateObjectWithRetry(
+		ctx, r.Client, &deploy, func() (bool, error) {
+			if !r.PauseHandler.IsPausedByReloader(&deploy) {
+				return false, nil
+			}
+			r.PauseHandler.ClearPause(&deploy)
+			return true, nil
+		},
+	)
 
-	if err := r.Update(ctx, &deploy, client.FieldOwner(FieldManager)); err != nil {
+	if err != nil {
 		log.Error(err, "Failed to unpause deployment")
 		return ctrl.Result{}, err
 	}

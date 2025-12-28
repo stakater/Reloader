@@ -13,6 +13,39 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
+// UpdateObjectWithRetry updates a Kubernetes object with retry on conflict.
+// It re-fetches the object on each retry attempt and calls modifyFn to apply changes.
+// The modifyFn receives the latest version of the object and should modify it in place.
+// If modifyFn returns false, the update is skipped (e.g., if the condition no longer applies).
+func UpdateObjectWithRetry(
+	ctx context.Context,
+	c client.Client,
+	obj client.Object,
+	modifyFn func() (shouldUpdate bool, err error),
+) error {
+	return retry.RetryOnConflict(
+		retry.DefaultBackoff, func() error {
+			if err := c.Get(ctx, client.ObjectKeyFromObject(obj), obj); err != nil {
+				if errors.IsNotFound(err) {
+					return nil
+				}
+				return err
+			}
+
+			shouldUpdate, err := modifyFn()
+			if err != nil {
+				return err
+			}
+
+			if !shouldUpdate {
+				return nil
+			}
+
+			return c.Update(ctx, obj, client.FieldOwner(FieldManager))
+		},
+	)
+}
+
 // UpdateWorkloadWithRetry updates a workload with exponential backoff on conflict.
 // On conflict, it re-fetches the object, re-applies the reload changes, and retries.
 // For Jobs and CronJobs, special handling is applied:
@@ -23,6 +56,7 @@ func UpdateWorkloadWithRetry(
 	ctx context.Context,
 	c client.Client,
 	reloadService *reload.Service,
+	pauseHandler *reload.PauseHandler,
 	wl workload.WorkloadAccessor,
 	resourceName string,
 	resourceType reload.ResourceType,
@@ -38,6 +72,8 @@ func UpdateWorkloadWithRetry(
 		return updateCronJobWithNewJob(ctx, c, reloadService, wl, resourceName, resourceType, namespace, hash, autoReload)
 	case workload.KindArgoRollout:
 		return updateArgoRollout(ctx, c, reloadService, wl, resourceName, resourceType, namespace, hash, autoReload)
+	case workload.KindDeployment:
+		return updateDeploymentWithPause(ctx, c, reloadService, pauseHandler, wl, resourceName, resourceType, namespace, hash, autoReload)
 	default:
 		return updateStandardWorkload(ctx, c, reloadService, wl, resourceName, resourceType, namespace, hash, autoReload)
 	}
@@ -60,36 +96,38 @@ func retryWithReload(
 	var updated bool
 	isFirstAttempt := true
 
-	err := retry.RetryOnConflict(retry.DefaultBackoff, func() error {
-		if !isFirstAttempt {
-			obj := wl.GetObject()
-			key := client.ObjectKeyFromObject(obj)
-			if err := c.Get(ctx, key, obj); err != nil {
-				if errors.IsNotFound(err) {
-					return nil
+	err := retry.RetryOnConflict(
+		retry.DefaultBackoff, func() error {
+			if !isFirstAttempt {
+				obj := wl.GetObject()
+				key := client.ObjectKeyFromObject(obj)
+				if err := c.Get(ctx, key, obj); err != nil {
+					if errors.IsNotFound(err) {
+						return nil
+					}
+					return err
 				}
-				return err
 			}
-		}
-		isFirstAttempt = false
+			isFirstAttempt = false
 
-		var applyErr error
-		updated, applyErr = reloadService.ApplyReload(ctx, wl, resourceName, resourceType, namespace, hash, autoReload)
-		if applyErr != nil {
-			return applyErr
-		}
+			var applyErr error
+			updated, applyErr = reloadService.ApplyReload(ctx, wl, resourceName, resourceType, namespace, hash, autoReload)
+			if applyErr != nil {
+				return applyErr
+			}
 
-		if !updated {
-			return nil
-		}
+			if !updated {
+				return nil
+			}
 
-		return updateFn()
-	})
+			return updateFn()
+		},
+	)
 
 	return updated, err
 }
 
-// updateStandardWorkload updates Deployments, DaemonSets, StatefulSets, etc.
+// updateStandardWorkload updates DaemonSets, StatefulSets, etc.
 func updateStandardWorkload(
 	ctx context.Context,
 	c client.Client,
@@ -101,10 +139,40 @@ func updateStandardWorkload(
 	hash string,
 	autoReload bool,
 ) (bool, error) {
-	return retryWithReload(ctx, c, reloadService, wl, resourceName, resourceType, namespace, hash, autoReload,
+	return retryWithReload(
+		ctx, c, reloadService, wl, resourceName, resourceType, namespace, hash, autoReload,
 		func() error {
 			return c.Update(ctx, wl.GetObject(), client.FieldOwner(FieldManager))
-		})
+		},
+	)
+}
+
+// updateDeploymentWithPause updates a Deployment and applies pause if configured.
+func updateDeploymentWithPause(
+	ctx context.Context,
+	c client.Client,
+	reloadService *reload.Service,
+	pauseHandler *reload.PauseHandler,
+	wl workload.WorkloadAccessor,
+	resourceName string,
+	resourceType reload.ResourceType,
+	namespace string,
+	hash string,
+	autoReload bool,
+) (bool, error) {
+	shouldPause := pauseHandler != nil && pauseHandler.ShouldPause(wl)
+
+	return retryWithReload(
+		ctx, c, reloadService, wl, resourceName, resourceType, namespace, hash, autoReload,
+		func() error {
+			if shouldPause {
+				if err := pauseHandler.ApplyPause(wl); err != nil {
+					return err
+				}
+			}
+			return c.Update(ctx, wl.GetObject(), client.FieldOwner(FieldManager))
+		},
+	)
 }
 
 // updateJobWithRecreate deletes the Job and recreates it with the updated spec.
@@ -148,9 +216,11 @@ func updateJobWithRecreate(
 
 	// Delete the old job with background propagation
 	policy := metav1.DeletePropagationBackground
-	if err := c.Delete(ctx, oldJob, &client.DeleteOptions{
-		PropagationPolicy: &policy,
-	}); err != nil {
+	if err := c.Delete(
+		ctx, oldJob, &client.DeleteOptions{
+			PropagationPolicy: &policy,
+		},
+	); err != nil {
 		if !errors.IsNotFound(err) {
 			return false, err
 		}
@@ -217,12 +287,10 @@ func updateCronJobWithNewJob(
 
 	cronJob := cronJobWl.GetCronJob()
 
-	// Build annotations for the new Job
 	annotations := make(map[string]string)
 	annotations["cronjob.kubernetes.io/instantiate"] = "manual"
 	maps.Copy(annotations, cronJob.Spec.JobTemplate.Annotations)
 
-	// Create a new Job from the CronJob template
 	job := &batchv1.Job{
 		ObjectMeta: metav1.ObjectMeta{
 			GenerateName: cronJob.Name + "-",
@@ -237,6 +305,22 @@ func updateCronJobWithNewJob(
 	}
 
 	if err := c.Create(ctx, job, client.FieldOwner(FieldManager)); err != nil {
+		return false, err
+	}
+
+	savedAnnotations := maps.Clone(cronJob.Spec.JobTemplate.Spec.Template.Annotations)
+
+	err = UpdateObjectWithRetry(
+		ctx, c, cronJob, func() (bool, error) {
+			if cronJob.Spec.JobTemplate.Spec.Template.Annotations == nil {
+				cronJob.Spec.JobTemplate.Spec.Template.Annotations = make(map[string]string)
+			}
+			maps.Copy(cronJob.Spec.JobTemplate.Spec.Template.Annotations, savedAnnotations)
+			return true, nil
+		},
+	)
+
+	if err != nil {
 		return false, err
 	}
 
@@ -262,8 +346,10 @@ func updateArgoRollout(
 		return false, nil
 	}
 
-	return retryWithReload(ctx, c, reloadService, wl, resourceName, resourceType, namespace, hash, autoReload,
+	return retryWithReload(
+		ctx, c, reloadService, wl, resourceName, resourceType, namespace, hash, autoReload,
 		func() error {
 			return rolloutWl.Update(ctx, c)
-		})
+		},
+	)
 }

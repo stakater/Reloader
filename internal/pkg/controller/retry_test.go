@@ -133,6 +133,7 @@ func TestUpdateWorkloadWithRetry_WorkloadTypes(t *testing.T) {
 					context.Background(),
 					fakeClient,
 					reloadService,
+					nil, // no pause handler
 					wl,
 					"test-resource",
 					tt.resourceType,
@@ -214,6 +215,7 @@ func TestUpdateWorkloadWithRetry_Strategies(t *testing.T) {
 					context.Background(),
 					fakeClient,
 					reloadService,
+					nil, // no pause handler for this test
 					wl,
 					"test-cm",
 					reload.ResourceTypeConfigMap,
@@ -265,6 +267,7 @@ func TestUpdateWorkloadWithRetry_NoUpdate(t *testing.T) {
 		context.Background(),
 		fakeClient,
 		reloadService,
+		nil, // no pause handler
 		wl,
 		"test-cm",
 		reload.ResourceTypeConfigMap,
@@ -298,5 +301,285 @@ func TestResourceTypeKind(t *testing.T) {
 				}
 			},
 		)
+	}
+}
+
+func TestUpdateWorkloadWithRetry_PauseDeployment(t *testing.T) {
+	cfg := config.NewDefault()
+	reloadService := reload.NewService(cfg)
+	pauseHandler := reload.NewPauseHandler(cfg)
+
+	deployment := testutil.NewDeployment(
+		"test-deployment", "default", map[string]string{
+			"reloader.stakater.com/auto":                    "true",
+			"deployment.reloader.stakater.com/pause-period": "5m",
+		},
+	)
+
+	fakeClient := fake.NewClientBuilder().
+		WithScheme(testutil.NewScheme()).
+		WithObjects(deployment).
+		Build()
+
+	wl := workload.NewDeploymentWorkload(deployment)
+
+	updated, err := controller.UpdateWorkloadWithRetry(
+		context.Background(),
+		fakeClient,
+		reloadService,
+		pauseHandler,
+		wl,
+		"test-cm",
+		reload.ResourceTypeConfigMap,
+		"default",
+		"abc123",
+		true,
+	)
+
+	if err != nil {
+		t.Fatalf("UpdateWorkloadWithRetry failed: %v", err)
+	}
+	if !updated {
+		t.Error("Expected workload to be updated")
+	}
+
+	var result appsv1.Deployment
+	if err := fakeClient.Get(
+		context.Background(), types.NamespacedName{Name: "test-deployment", Namespace: "default"}, &result,
+	); err != nil {
+		t.Fatalf("Failed to get deployment: %v", err)
+	}
+
+	if result.Spec.Template.Annotations == nil {
+		t.Fatal("Expected pod template annotations to be set")
+	}
+
+	if !result.Spec.Paused {
+		t.Error("Expected deployment to be paused (spec.Paused=true)")
+	}
+
+	pausedAt := result.Annotations[cfg.Annotations.PausedAt]
+	if pausedAt == "" {
+		t.Error("Expected paused-at annotation to be set")
+	}
+}
+
+// TestUpdateWorkloadWithRetry_PauseWithExplicitAnnotation tests pause with explicit configmap annotation (no auto).
+func TestUpdateWorkloadWithRetry_PauseWithExplicitAnnotation(t *testing.T) {
+	cfg := config.NewDefault()
+	reloadService := reload.NewService(cfg)
+	pauseHandler := reload.NewPauseHandler(cfg)
+
+	deployment := testutil.NewDeployment(
+		"test-deployment", "default", map[string]string{
+			cfg.Annotations.ConfigmapReload: "test-cm", // explicit, not auto
+			cfg.Annotations.PausePeriod:     "5m",
+		},
+	)
+
+	fakeClient := fake.NewClientBuilder().
+		WithScheme(testutil.NewScheme()).
+		WithObjects(deployment).
+		Build()
+
+	wl := workload.NewDeploymentWorkload(deployment)
+
+	updated, err := controller.UpdateWorkloadWithRetry(
+		context.Background(),
+		fakeClient,
+		reloadService,
+		pauseHandler,
+		wl,
+		"test-cm",
+		reload.ResourceTypeConfigMap,
+		"default",
+		"abc123",
+		false, // NOT auto reload
+	)
+
+	if err != nil {
+		t.Fatalf("UpdateWorkloadWithRetry failed: %v", err)
+	}
+	if !updated {
+		t.Error("Expected workload to be updated")
+	}
+
+	var result appsv1.Deployment
+	if err := fakeClient.Get(
+		context.Background(), types.NamespacedName{Name: "test-deployment", Namespace: "default"}, &result,
+	); err != nil {
+		t.Fatalf("Failed to get deployment: %v", err)
+	}
+
+	if result.Spec.Template.Annotations == nil {
+		t.Fatal("Expected pod template annotations to be set")
+	}
+
+	if !result.Spec.Paused {
+		t.Error("Expected deployment to be paused (spec.Paused=true)")
+	}
+
+	pausedAt := result.Annotations[cfg.Annotations.PausedAt]
+	if pausedAt == "" {
+		t.Error("Expected paused-at annotation to be set")
+	}
+}
+
+// TestUpdateWorkloadWithRetry_PauseWithSecretReload tests pause with Secret-triggered reload.
+func TestUpdateWorkloadWithRetry_PauseWithSecretReload(t *testing.T) {
+	cfg := config.NewDefault()
+	reloadService := reload.NewService(cfg)
+	pauseHandler := reload.NewPauseHandler(cfg)
+
+	deployment := testutil.NewDeployment(
+		"test-deployment", "default", map[string]string{
+			cfg.Annotations.SecretReload: "test-secret", // explicit secret, not auto
+			cfg.Annotations.PausePeriod:  "5m",
+		},
+	)
+
+	fakeClient := fake.NewClientBuilder().
+		WithScheme(testutil.NewScheme()).
+		WithObjects(deployment).
+		Build()
+
+	wl := workload.NewDeploymentWorkload(deployment)
+
+	updated, err := controller.UpdateWorkloadWithRetry(
+		context.Background(),
+		fakeClient,
+		reloadService,
+		pauseHandler,
+		wl,
+		"test-secret",
+		reload.ResourceTypeSecret,
+		"default",
+		"abc123",
+		false,
+	)
+
+	if err != nil {
+		t.Fatalf("UpdateWorkloadWithRetry failed: %v", err)
+	}
+	if !updated {
+		t.Error("Expected workload to be updated")
+	}
+
+	var result appsv1.Deployment
+	if err := fakeClient.Get(
+		context.Background(), types.NamespacedName{Name: "test-deployment", Namespace: "default"}, &result,
+	); err != nil {
+		t.Fatalf("Failed to get deployment: %v", err)
+	}
+
+	if !result.Spec.Paused {
+		t.Error("Expected deployment to be paused (spec.Paused=true)")
+	}
+
+	pausedAt := result.Annotations[cfg.Annotations.PausedAt]
+	if pausedAt == "" {
+		t.Error("Expected paused-at annotation to be set")
+	}
+}
+
+// TestUpdateWorkloadWithRetry_PauseWithAutoSecret tests pause with auto annotation + Secret change.
+func TestUpdateWorkloadWithRetry_PauseWithAutoSecret(t *testing.T) {
+	cfg := config.NewDefault()
+	reloadService := reload.NewService(cfg)
+	pauseHandler := reload.NewPauseHandler(cfg)
+
+	deployment := testutil.NewDeployment(
+		"test-deployment", "default", map[string]string{
+			cfg.Annotations.Auto:        "true",
+			cfg.Annotations.PausePeriod: "5m",
+		},
+	)
+
+	fakeClient := fake.NewClientBuilder().
+		WithScheme(testutil.NewScheme()).
+		WithObjects(deployment).
+		Build()
+
+	wl := workload.NewDeploymentWorkload(deployment)
+
+	updated, err := controller.UpdateWorkloadWithRetry(
+		context.Background(),
+		fakeClient,
+		reloadService,
+		pauseHandler,
+		wl,
+		"test-secret",
+		reload.ResourceTypeSecret,
+		"default",
+		"abc123",
+		true,
+	)
+
+	if err != nil {
+		t.Fatalf("UpdateWorkloadWithRetry failed: %v", err)
+	}
+	if !updated {
+		t.Error("Expected workload to be updated")
+	}
+
+	var result appsv1.Deployment
+	if err := fakeClient.Get(
+		context.Background(), types.NamespacedName{Name: "test-deployment", Namespace: "default"}, &result,
+	); err != nil {
+		t.Fatalf("Failed to get deployment: %v", err)
+	}
+
+	if !result.Spec.Paused {
+		t.Error("Expected deployment to be paused (spec.Paused=true)")
+	}
+}
+
+func TestUpdateWorkloadWithRetry_NoPauseWithoutAnnotation(t *testing.T) {
+	cfg := config.NewDefault()
+	reloadService := reload.NewService(cfg)
+	pauseHandler := reload.NewPauseHandler(cfg)
+
+	deployment := testutil.NewDeployment(
+		"test-deployment", "default", map[string]string{
+			"reloader.stakater.com/auto": "true",
+		},
+	)
+
+	fakeClient := fake.NewClientBuilder().
+		WithScheme(testutil.NewScheme()).
+		WithObjects(deployment).
+		Build()
+
+	wl := workload.NewDeploymentWorkload(deployment)
+
+	updated, err := controller.UpdateWorkloadWithRetry(
+		context.Background(),
+		fakeClient,
+		reloadService,
+		pauseHandler,
+		wl,
+		"test-cm",
+		reload.ResourceTypeConfigMap,
+		"default",
+		"abc123",
+		true,
+	)
+
+	if err != nil {
+		t.Fatalf("UpdateWorkloadWithRetry failed: %v", err)
+	}
+	if !updated {
+		t.Error("Expected workload to be updated")
+	}
+
+	var result appsv1.Deployment
+	if err := fakeClient.Get(
+		context.Background(), types.NamespacedName{Name: "test-deployment", Namespace: "default"}, &result,
+	); err != nil {
+		t.Fatalf("Failed to get deployment: %v", err)
+	}
+
+	if result.Spec.Paused {
+		t.Error("Expected deployment NOT to be paused (no pause-period annotation)")
 	}
 }

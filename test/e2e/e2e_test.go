@@ -228,6 +228,46 @@ func (f *testFixture) assertDeploymentConfigReloaded(name string) {
 	}
 }
 
+// assertDeploymentPaused asserts that a deployment is paused (spec.Paused=true).
+func (f *testFixture) assertDeploymentPaused(name string) {
+	f.t.Helper()
+	paused, err := testutil.WaitForDeploymentPaused(k8sClient, namespace, name, waitTimeout)
+	if err != nil {
+		f.t.Fatalf("Error waiting for deployment %s to be paused: %v", name, err)
+	}
+	if !paused {
+		f.t.Errorf("Deployment %s was not paused after reload", name)
+	}
+}
+
+// assertDeploymentUnpaused asserts that a deployment is unpaused (spec.Paused=false).
+func (f *testFixture) assertDeploymentUnpaused(name string, timeout time.Duration) {
+	f.t.Helper()
+	unpaused, err := testutil.WaitForDeploymentUnpaused(k8sClient, namespace, name, timeout)
+	if err != nil {
+		f.t.Fatalf("Error waiting for deployment %s to be unpaused: %v", name, err)
+	}
+	if !unpaused {
+		f.t.Errorf("Deployment %s was not unpaused after pause period", name)
+	}
+}
+
+// assertDeploymentHasPausedAtAnnotation asserts that a deployment has the paused-at annotation.
+func (f *testFixture) assertDeploymentHasPausedAtAnnotation(name string) {
+	f.t.Helper()
+	deploy, err := k8sClient.AppsV1().Deployments(namespace).Get(context.Background(), name, metav1.GetOptions{})
+	if err != nil {
+		f.t.Fatalf("Failed to get deployment %s: %v", name, err)
+	}
+	if deploy.Annotations == nil {
+		f.t.Errorf("Deployment %s has no annotations", name)
+		return
+	}
+	if _, ok := deploy.Annotations[cfg.Annotations.PausedAt]; !ok {
+		f.t.Errorf("Deployment %s does not have paused-at annotation", name)
+	}
+}
+
 // cleanup removes all created resources.
 func (f *testFixture) cleanup() {
 	for _, w := range f.workloads {
@@ -613,6 +653,77 @@ func TestDeploymentConfigAutoReload(t *testing.T) {
 
 	f.updateConfigMap(f.name, "updated-data")
 	f.assertDeploymentConfigReloaded(f.name)
+}
+
+// TestDeploymentPausePeriod tests the pause-period annotation on Deployment.
+// It verifies that after a reload, the deployment is paused and then unpaused after the period expires.
+func TestDeploymentPausePeriod(t *testing.T) {
+	f := newFixture(t, "pause-period")
+	defer f.cleanup()
+
+	pausePeriod := "10s"
+
+	f.createConfigMap(f.name, "initial-data")
+	f.createDeployment(
+		f.name, true, map[string]string{
+			cfg.Annotations.ConfigmapReload: f.name,
+			cfg.Annotations.PausePeriod:     pausePeriod,
+		},
+	)
+	f.waitForReady()
+	f.updateConfigMap(f.name, "updated-data")
+	f.assertDeploymentReloaded(f.name, nil)
+	f.assertDeploymentPaused(f.name)
+	f.assertDeploymentHasPausedAtAnnotation(f.name)
+	t.Log("Waiting for pause period to expire...")
+	f.assertDeploymentUnpaused(f.name, 20*time.Second)
+}
+
+// TestDeploymentPausePeriodWithAutoReload tests pause-period with auto reload annotation.
+func TestDeploymentPausePeriodWithAutoReload(t *testing.T) {
+	f := newFixture(t, "pause-auto")
+	defer f.cleanup()
+
+	pausePeriod := "10s"
+
+	f.createConfigMap(f.name, "initial-data")
+	f.createDeployment(
+		f.name, true, map[string]string{
+			cfg.Annotations.Auto:        "true",
+			cfg.Annotations.PausePeriod: pausePeriod,
+		},
+	)
+	f.waitForReady()
+	f.updateConfigMap(f.name, "updated-data")
+	f.assertDeploymentReloaded(f.name, nil)
+	f.assertDeploymentPaused(f.name)
+	t.Log("Waiting for pause period to expire...")
+	f.assertDeploymentUnpaused(f.name, 20*time.Second)
+}
+
+// TestDeploymentNoPauseWithoutAnnotation tests that deployments without pause-period are not paused.
+func TestDeploymentNoPauseWithoutAnnotation(t *testing.T) {
+	f := newFixture(t, "no-pause")
+	defer f.cleanup()
+
+	f.createConfigMap(f.name, "initial-data")
+	f.createDeployment(
+		f.name, true, map[string]string{
+			cfg.Annotations.ConfigmapReload: f.name,
+		},
+	)
+	f.waitForReady()
+	f.updateConfigMap(f.name, "updated-data")
+	f.assertDeploymentReloaded(f.name, nil)
+
+	time.Sleep(3 * time.Second)
+	deploy, err := k8sClient.AppsV1().Deployments(namespace).Get(context.Background(), f.name, metav1.GetOptions{})
+	if err != nil {
+		t.Fatalf("Failed to get deployment: %v", err)
+	}
+	if deploy.Spec.Paused {
+		t.Errorf("Deployment should NOT be paused without pause-period annotation")
+	}
 }
 
 // startManagerWithConfig creates and starts a controller-runtime manager for e2e testing.
