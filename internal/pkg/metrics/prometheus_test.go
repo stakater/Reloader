@@ -1,0 +1,187 @@
+package metrics
+
+import (
+	"testing"
+
+	"github.com/prometheus/client_golang/prometheus"
+	dto "github.com/prometheus/client_model/go"
+)
+
+func TestNewCollectors_CreatesCounters(t *testing.T) {
+	collectors := NewCollectors()
+
+	if collectors.Reloaded == nil {
+		t.Error("NewCollectors() should create Reloaded counter")
+	}
+	if collectors.ReloadedByNamespace == nil {
+		t.Error("NewCollectors() should create ReloadedByNamespace counter")
+	}
+}
+
+func TestNewCollectors_InitializesWithZero(t *testing.T) {
+	collectors := NewCollectors()
+
+	metric := &dto.Metric{}
+	err := collectors.Reloaded.With(prometheus.Labels{"success": "true"}).Write(metric)
+	if err != nil {
+		t.Fatalf("Failed to get metric: %v", err)
+	}
+	if metric.Counter.GetValue() != 0 {
+		t.Errorf("Initial success=true counter = %v, want 0", metric.Counter.GetValue())
+	}
+
+	err = collectors.Reloaded.With(prometheus.Labels{"success": "false"}).Write(metric)
+	if err != nil {
+		t.Fatalf("Failed to get metric: %v", err)
+	}
+	if metric.Counter.GetValue() != 0 {
+		t.Errorf("Initial success=false counter = %v, want 0", metric.Counter.GetValue())
+	}
+}
+
+func TestRecordReload_Success(t *testing.T) {
+	collectors := NewCollectors()
+	collectors.RecordReload(true, "default")
+
+	metric := &dto.Metric{}
+	err := collectors.Reloaded.With(prometheus.Labels{"success": "true"}).Write(metric)
+	if err != nil {
+		t.Fatalf("Failed to get metric: %v", err)
+	}
+	if metric.Counter.GetValue() != 1 {
+		t.Errorf("success=true counter = %v, want 1", metric.Counter.GetValue())
+	}
+}
+
+func TestRecordReload_Failure(t *testing.T) {
+	collectors := NewCollectors()
+	collectors.RecordReload(false, "default")
+
+	metric := &dto.Metric{}
+	err := collectors.Reloaded.With(prometheus.Labels{"success": "false"}).Write(metric)
+	if err != nil {
+		t.Fatalf("Failed to get metric: %v", err)
+	}
+	if metric.Counter.GetValue() != 1 {
+		t.Errorf("success=false counter = %v, want 1", metric.Counter.GetValue())
+	}
+}
+
+func TestRecordReload_MultipleIncrements(t *testing.T) {
+	collectors := NewCollectors()
+	collectors.RecordReload(true, "default")
+	collectors.RecordReload(true, "default")
+	collectors.RecordReload(false, "default")
+
+	metric := &dto.Metric{}
+
+	err := collectors.Reloaded.With(prometheus.Labels{"success": "true"}).Write(metric)
+	if err != nil {
+		t.Fatalf("Failed to get metric: %v", err)
+	}
+	if metric.Counter.GetValue() != 2 {
+		t.Errorf("success=true counter = %v, want 2", metric.Counter.GetValue())
+	}
+
+	err = collectors.Reloaded.With(prometheus.Labels{"success": "false"}).Write(metric)
+	if err != nil {
+		t.Fatalf("Failed to get metric: %v", err)
+	}
+	if metric.Counter.GetValue() != 1 {
+		t.Errorf("success=false counter = %v, want 1", metric.Counter.GetValue())
+	}
+}
+
+func TestRecordReload_WithNamespaceTracking(t *testing.T) {
+	t.Setenv("METRICS_COUNT_BY_NAMESPACE", "enabled")
+
+	collectors := NewCollectors()
+	collectors.RecordReload(true, "kube-system")
+
+	metric := &dto.Metric{}
+	err := collectors.ReloadedByNamespace.With(
+		prometheus.Labels{
+			"success":   "true",
+			"namespace": "kube-system",
+		},
+	).Write(metric)
+	if err != nil {
+		t.Fatalf("Failed to get metric: %v", err)
+	}
+	if metric.Counter.GetValue() != 1 {
+		t.Errorf("namespace counter = %v, want 1", metric.Counter.GetValue())
+	}
+}
+
+func TestRecordReload_WithoutNamespaceTracking(t *testing.T) {
+	t.Setenv("METRICS_COUNT_BY_NAMESPACE", "")
+
+	collectors := NewCollectors()
+	collectors.RecordReload(true, "kube-system")
+
+	if collectors.countByNamespace {
+		t.Error("countByNamespace should be false when env var is not set")
+	}
+}
+
+func TestNilCollectors_NoPanic(t *testing.T) {
+	var c *Collectors = nil
+
+	c.RecordReload(true, "default")
+	c.RecordReload(false, "default")
+}
+
+func TestRecordReload_DifferentNamespaces(t *testing.T) {
+	t.Setenv("METRICS_COUNT_BY_NAMESPACE", "enabled")
+
+	collectors := NewCollectors()
+	collectors.RecordReload(true, "namespace-a")
+	collectors.RecordReload(true, "namespace-b")
+	collectors.RecordReload(true, "namespace-a")
+
+	metric := &dto.Metric{}
+
+	err := collectors.ReloadedByNamespace.With(
+		prometheus.Labels{
+			"success":   "true",
+			"namespace": "namespace-a",
+		},
+	).Write(metric)
+	if err != nil {
+		t.Fatalf("Failed to get metric: %v", err)
+	}
+	if metric.Counter.GetValue() != 2 {
+		t.Errorf("namespace-a counter = %v, want 2", metric.Counter.GetValue())
+	}
+
+	err = collectors.ReloadedByNamespace.With(
+		prometheus.Labels{
+			"success":   "true",
+			"namespace": "namespace-b",
+		},
+	).Write(metric)
+	if err != nil {
+		t.Fatalf("Failed to get metric: %v", err)
+	}
+	if metric.Counter.GetValue() != 1 {
+		t.Errorf("namespace-b counter = %v, want 1", metric.Counter.GetValue())
+	}
+}
+
+func TestCollectors_MetricNames(t *testing.T) {
+	collectors := NewCollectors()
+
+	ch := make(chan *prometheus.Desc, 10)
+	collectors.Reloaded.Describe(ch)
+	close(ch)
+
+	found := false
+	for desc := range ch {
+		if desc.String() != "" {
+			found = true
+		}
+	}
+	if !found {
+		t.Error("Expected Reloaded metric to have a description")
+	}
+}

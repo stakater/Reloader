@@ -9,7 +9,8 @@ _gopath/
 .vscode
 vendor
 dist
-Reloader
+/reloader
+/Reloader
 !**/chart/reloader
 *.tgz
 styles/
