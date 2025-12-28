@@ -78,8 +78,8 @@ func (h *Hasher) computeSHA(data string) string {
 	return fmt.Sprintf("%x", hasher.Sum(nil))
 }
 
-// EmptyHash returns the hash of empty content.
-// This is useful for comparison when resources are deleted.
+// EmptyHash returns an empty string to signal resource deletion.
+// This triggers env var removal when using the env-vars strategy.
 func (h *Hasher) EmptyHash() string {
-	return h.computeSHA("")
+	return ""
 }

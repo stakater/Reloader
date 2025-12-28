@@ -74,13 +74,19 @@ func (s *EnvVarStrategy) Name() string {
 	return string(config.ReloadStrategyEnvVars)
 }
 
-// Apply adds or updates an environment variable to trigger a restart.
+// Apply adds, updates, or removes an environment variable to trigger a restart.
+// When hash is empty (resource deleted), the env var is removed.
 func (s *EnvVarStrategy) Apply(input StrategyInput) (bool, error) {
 	if input.Container == nil {
 		return false, fmt.Errorf("container is required for env-var strategy")
 	}
 
 	envVarName := s.envVarName(input.ResourceName, input.ResourceType)
+
+	// Handle deletion: remove the env var when hash is empty
+	if input.Hash == "" {
+		return s.removeEnvVar(input.Container, envVarName), nil
+	}
 
 	// Check if env var already exists
 	for i := range input.Container.Env {
@@ -102,6 +108,20 @@ func (s *EnvVarStrategy) Apply(input StrategyInput) (bool, error) {
 	})
 
 	return true, nil
+}
+
+// removeEnvVar removes an environment variable from a container.
+// Returns true if a variable was removed.
+func (s *EnvVarStrategy) removeEnvVar(container *corev1.Container, name string) bool {
+	for i := range container.Env {
+		if container.Env[i].Name == name {
+			// Remove by replacing with last element and truncating
+			container.Env[i] = container.Env[len(container.Env)-1]
+			container.Env = container.Env[:len(container.Env)-1]
+			return true
+		}
+	}
+	return false
 }
 
 // envVarName generates the environment variable name for a resource.

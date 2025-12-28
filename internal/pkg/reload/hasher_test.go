@@ -20,7 +20,8 @@ func TestHasher_HashConfigMap(t *testing.T) {
 				Data:       nil,
 				BinaryData: nil,
 			},
-			wantHash: hasher.EmptyHash(),
+			// Empty configmap gets a valid hash (hash of empty data)
+			wantHash: hasher.HashConfigMap(&corev1.ConfigMap{}),
 		},
 		{
 			name: "configmap with data",
@@ -120,7 +121,8 @@ func TestHasher_HashSecret(t *testing.T) {
 			secret: &corev1.Secret{
 				Data: nil,
 			},
-			wantHash: hasher.EmptyHash(),
+			// Empty secret gets a valid hash (hash of empty data)
+			wantHash: hasher.HashSecret(&corev1.Secret{}),
 		},
 		{
 			name: "secret with data",
@@ -196,36 +198,39 @@ func TestHasher_HashSecret_DifferentValues(t *testing.T) {
 func TestHasher_EmptyHash(t *testing.T) {
 	hasher := NewHasher()
 
+	// EmptyHash returns empty string to signal deletion
 	emptyHash := hasher.EmptyHash()
-	if emptyHash == "" {
-		t.Error("EmptyHash should not be empty string")
+	if emptyHash != "" {
+		t.Errorf("EmptyHash should be empty string, got %s", emptyHash)
 	}
 
-	// Empty ConfigMap should match EmptyHash
+	// Empty ConfigMap should have a valid hash (not empty)
 	cm := &corev1.ConfigMap{}
-	if hasher.HashConfigMap(cm) != emptyHash {
-		t.Error("Empty ConfigMap hash should equal EmptyHash")
+	cmHash := hasher.HashConfigMap(cm)
+	if cmHash == "" {
+		t.Error("Empty ConfigMap should have a non-empty hash")
 	}
 
-	// Empty Secret should match EmptyHash
+	// Empty Secret should have a valid hash (not empty)
 	secret := &corev1.Secret{}
-	if hasher.HashSecret(secret) != emptyHash {
-		t.Error("Empty Secret hash should equal EmptyHash")
+	secretHash := hasher.HashSecret(secret)
+	if secretHash == "" {
+		t.Error("Empty Secret should have a non-empty hash")
 	}
 }
 
 func TestHasher_NilInput(t *testing.T) {
 	hasher := NewHasher()
 
-	// Test nil ConfigMap
+	// Test nil ConfigMap - returns hash of empty content (not EmptyHash)
 	cmHash := hasher.HashConfigMap(nil)
-	if cmHash != hasher.EmptyHash() {
-		t.Errorf("nil ConfigMap should return EmptyHash, got %s", cmHash)
+	if cmHash == "" {
+		t.Error("nil ConfigMap should return a valid hash")
 	}
 
-	// Test nil Secret
+	// Test nil Secret - returns hash of empty content (not EmptyHash)
 	secretHash := hasher.HashSecret(nil)
-	if secretHash != hasher.EmptyHash() {
-		t.Errorf("nil Secret should return EmptyHash, got %s", secretHash)
+	if secretHash == "" {
+		t.Error("nil Secret should return a valid hash")
 	}
 }

@@ -2,7 +2,9 @@ package reload
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"time"
 
 	"github.com/stakater/Reloader/internal/pkg/config"
 	"github.com/stakater/Reloader/internal/pkg/workload"
@@ -224,7 +226,51 @@ func (s *Service) ApplyReload(
 		AutoReload:     autoReload,
 	}
 
-	return s.strategy.Apply(input)
+	// Apply the strategy-specific changes
+	updated, err := s.strategy.Apply(input)
+	if err != nil {
+		return false, err
+	}
+
+	// Always set the attribution annotation regardless of strategy
+	if updated {
+		s.setAttributionAnnotation(wl, resourceName, resourceType, namespace, hash, container)
+	}
+
+	return updated, nil
+}
+
+// setAttributionAnnotation sets the last-reloaded-from annotation on the pod template.
+// This is always set regardless of the reload strategy for audit purposes.
+func (s *Service) setAttributionAnnotation(
+	wl workload.WorkloadAccessor,
+	resourceName string,
+	resourceType ResourceType,
+	namespace string,
+	hash string,
+	container *corev1.Container,
+) {
+	containerName := ""
+	if container != nil {
+		containerName = container.Name
+	}
+
+	source := ReloadSource{
+		Kind:       string(resourceType),
+		Name:       resourceName,
+		Namespace:  namespace,
+		Hash:       hash,
+		Containers: []string{containerName},
+		ReloadedAt: time.Now().UTC(),
+	}
+
+	sourceJSON, err := json.Marshal(source)
+	if err != nil {
+		// Non-fatal: skip annotation if marshaling fails
+		return
+	}
+
+	wl.SetPodTemplateAnnotation(s.cfg.Annotations.LastReloadedFrom, string(sourceJSON))
 }
 
 // findTargetContainer finds the container to target for the reload.
