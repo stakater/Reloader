@@ -1,12 +1,23 @@
 package config
 
 import (
+	"os"
+	"strings"
 	"testing"
 
 	"github.com/spf13/pflag"
+	"github.com/spf13/viper"
 )
 
+// resetViper resets the viper instance for testing.
+func resetViper() {
+	v = viper.New()
+	v.SetEnvKeyReplacer(strings.NewReplacer("-", "_"))
+	v.AutomaticEnv()
+}
+
 func TestBindFlags(t *testing.T) {
+	resetViper()
 	cfg := NewDefault()
 	fs := pflag.NewFlagSet("test", pflag.ContinueOnError)
 
@@ -48,6 +59,12 @@ func TestBindFlags(t *testing.T) {
 		"pause-deployment-annotation",
 		"pause-deployment-time-annotation",
 		"watch-namespace",
+		"alert-on-reload",
+		"alert-webhook-url",
+		"alert-sink",
+		"alert-proxy",
+		"alert-additional-info",
+		"alert-structured",
 	}
 
 	for _, flagName := range expectedFlags {
@@ -58,6 +75,7 @@ func TestBindFlags(t *testing.T) {
 }
 
 func TestBindFlags_DefaultValues(t *testing.T) {
+	resetViper()
 	cfg := NewDefault()
 	fs := pflag.NewFlagSet("test", pflag.ContinueOnError)
 
@@ -65,6 +83,10 @@ func TestBindFlags_DefaultValues(t *testing.T) {
 
 	if err := fs.Parse([]string{}); err != nil {
 		t.Fatalf("Parse() error = %v", err)
+	}
+
+	if err := ApplyFlags(cfg); err != nil {
+		t.Fatalf("ApplyFlags() error = %v", err)
 	}
 
 	if cfg.ReloadStrategy != ReloadStrategyEnvVars {
@@ -77,6 +99,7 @@ func TestBindFlags_DefaultValues(t *testing.T) {
 }
 
 func TestBindFlags_CustomValues(t *testing.T) {
+	resetViper()
 	cfg := NewDefault()
 	fs := pflag.NewFlagSet("test", pflag.ContinueOnError)
 
@@ -94,6 +117,10 @@ func TestBindFlags_CustomValues(t *testing.T) {
 
 	if err := fs.Parse(args); err != nil {
 		t.Fatalf("Parse() error = %v", err)
+	}
+
+	if err := ApplyFlags(cfg); err != nil {
+		t.Fatalf("ApplyFlags() error = %v", err)
 	}
 
 	if !cfg.AutoReloadAll {
@@ -143,35 +170,31 @@ func TestApplyFlags_BooleanStrings(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		t.Run(
-			tt.name, func(t *testing.T) {
-				fv = flagValues{}
+		t.Run(tt.name, func(t *testing.T) {
+			resetViper()
+			cfg := NewDefault()
+			fs := pflag.NewFlagSet("test", pflag.ContinueOnError)
+			BindFlags(fs, cfg)
 
-				cfg := NewDefault()
-				fs := pflag.NewFlagSet("test", pflag.ContinueOnError)
-				BindFlags(fs, cfg)
+			if err := fs.Parse(tt.args); err != nil {
+				t.Fatalf("Parse() error = %v", err)
+			}
 
-				if err := fs.Parse(tt.args); err != nil {
-					t.Fatalf("Parse() error = %v", err)
-				}
+			err := ApplyFlags(cfg)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("ApplyFlags() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
 
-				err := ApplyFlags(cfg)
-				if (err != nil) != tt.wantErr {
-					t.Errorf("ApplyFlags() error = %v, wantErr %v", err, tt.wantErr)
-					return
-				}
-
-				if cfg.ArgoRolloutsEnabled != tt.want {
-					t.Errorf("ArgoRolloutsEnabled = %v, want %v", cfg.ArgoRolloutsEnabled, tt.want)
-				}
-			},
-		)
+			if cfg.ArgoRolloutsEnabled != tt.want {
+				t.Errorf("ArgoRolloutsEnabled = %v, want %v", cfg.ArgoRolloutsEnabled, tt.want)
+			}
+		})
 	}
 }
 
 func TestApplyFlags_CommaSeparatedLists(t *testing.T) {
-	fv = flagValues{}
-
+	resetViper()
 	cfg := NewDefault()
 	fs := pflag.NewFlagSet("test", pflag.ContinueOnError)
 	BindFlags(fs, cfg)
@@ -201,15 +224,13 @@ func TestApplyFlags_CommaSeparatedLists(t *testing.T) {
 		t.Errorf("IgnoredWorkloads length = %d, want 2", len(cfg.IgnoredWorkloads))
 	}
 
-	// Check ignored namespaces
 	if len(cfg.IgnoredNamespaces) != 2 {
 		t.Errorf("IgnoredNamespaces length = %d, want 2", len(cfg.IgnoredNamespaces))
 	}
 }
 
 func TestApplyFlags_Selectors(t *testing.T) {
-	fv = flagValues{}
-
+	resetViper()
 	cfg := NewDefault()
 	fs := pflag.NewFlagSet("test", pflag.ContinueOnError)
 	BindFlags(fs, cfg)
@@ -241,8 +262,7 @@ func TestApplyFlags_Selectors(t *testing.T) {
 }
 
 func TestApplyFlags_InvalidSelector(t *testing.T) {
-	fv = flagValues{}
-
+	resetViper()
 	cfg := NewDefault()
 	fs := pflag.NewFlagSet("test", pflag.ContinueOnError)
 	BindFlags(fs, cfg)
@@ -258,6 +278,100 @@ func TestApplyFlags_InvalidSelector(t *testing.T) {
 	err := ApplyFlags(cfg)
 	if err == nil {
 		t.Error("ApplyFlags() should return error for invalid selector")
+	}
+}
+
+func TestApplyFlags_AlertingEnvVars(t *testing.T) {
+	tests := []struct {
+		name       string
+		envVars    map[string]string
+		wantURL    string
+		wantSink   string
+		wantEnable bool
+	}{
+		{
+			name: "ALERT_WEBHOOK_URL enables alerting",
+			envVars: map[string]string{
+				"ALERT_WEBHOOK_URL": "https://hooks.example.com",
+			},
+			wantURL:    "https://hooks.example.com",
+			wantEnable: true,
+		},
+		{
+			name: "all alert env vars",
+			envVars: map[string]string{
+				"ALERT_WEBHOOK_URL":   "https://hooks.example.com",
+				"ALERT_SINK":          "slack",
+				"ALERT_WEBHOOK_PROXY": "http://proxy:8080",
+			},
+			wantURL:    "https://hooks.example.com",
+			wantSink:   "slack",
+			wantEnable: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Clear env and reset viper
+			for k := range tt.envVars {
+				os.Unsetenv(k)
+			}
+			resetViper()
+
+			// Set env vars
+			for k, val := range tt.envVars {
+				os.Setenv(k, val)
+				defer os.Unsetenv(k)
+			}
+
+			cfg := NewDefault()
+			fs := pflag.NewFlagSet("test", pflag.ContinueOnError)
+			BindFlags(fs, cfg)
+
+			if err := fs.Parse([]string{}); err != nil {
+				t.Fatalf("Parse() error = %v", err)
+			}
+
+			if err := ApplyFlags(cfg); err != nil {
+				t.Fatalf("ApplyFlags() error = %v", err)
+			}
+
+			if cfg.Alerting.WebhookURL != tt.wantURL {
+				t.Errorf("Alerting.WebhookURL = %q, want %q", cfg.Alerting.WebhookURL, tt.wantURL)
+			}
+
+			if tt.wantSink != "" && cfg.Alerting.Sink != tt.wantSink {
+				t.Errorf("Alerting.Sink = %q, want %q", cfg.Alerting.Sink, tt.wantSink)
+			}
+
+			if cfg.Alerting.Enabled != tt.wantEnable {
+				t.Errorf("Alerting.Enabled = %v, want %v", cfg.Alerting.Enabled, tt.wantEnable)
+			}
+		})
+	}
+}
+
+func TestApplyFlags_LegacyProxyEnvVar(t *testing.T) {
+	resetViper()
+
+	// Set legacy env var
+	os.Setenv("ALERT_WEBHOOK_PROXY", "http://legacy-proxy:8080")
+	defer os.Unsetenv("ALERT_WEBHOOK_PROXY")
+
+	cfg := NewDefault()
+	fs := pflag.NewFlagSet("test", pflag.ContinueOnError)
+	BindFlags(fs, cfg)
+
+	if err := fs.Parse([]string{}); err != nil {
+		t.Fatalf("Parse() error = %v", err)
+	}
+
+	if err := ApplyFlags(cfg); err != nil {
+		t.Fatalf("ApplyFlags() error = %v", err)
+	}
+
+	if cfg.Alerting.Proxy != "http://legacy-proxy:8080" {
+		t.Errorf("Alerting.Proxy = %q, want %q", cfg.Alerting.Proxy, "http://legacy-proxy:8080")
 	}
 }
 
@@ -282,14 +396,12 @@ func TestParseBoolString(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		t.Run(
-			tt.input, func(t *testing.T) {
-				got := parseBoolString(tt.input)
-				if got != tt.want {
-					t.Errorf("parseBoolString(%q) = %v, want %v", tt.input, got, tt.want)
-				}
-			},
-		)
+		t.Run(tt.input, func(t *testing.T) {
+			got := parseBoolString(tt.input)
+			if got != tt.want {
+				t.Errorf("parseBoolString(%q) = %v, want %v", tt.input, got, tt.want)
+			}
+		})
 	}
 }
 
@@ -308,19 +420,17 @@ func TestSplitAndTrim(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		t.Run(
-			tt.name, func(t *testing.T) {
-				got := splitAndTrim(tt.input)
-				if len(got) != len(tt.want) {
-					t.Errorf("splitAndTrim(%q) length = %d, want %d", tt.input, len(got), len(tt.want))
-					return
+		t.Run(tt.name, func(t *testing.T) {
+			got := splitAndTrim(tt.input)
+			if len(got) != len(tt.want) {
+				t.Errorf("splitAndTrim(%q) length = %d, want %d", tt.input, len(got), len(tt.want))
+				return
+			}
+			for i := range got {
+				if got[i] != tt.want[i] {
+					t.Errorf("splitAndTrim(%q)[%d] = %q, want %q", tt.input, i, got[i], tt.want[i])
 				}
-				for i := range got {
-					if got[i] != tt.want[i] {
-						t.Errorf("splitAndTrim(%q)[%d] = %q, want %q", tt.input, i, got[i], tt.want[i])
-					}
-				}
-			},
-		)
+			}
+		})
 	}
 }
