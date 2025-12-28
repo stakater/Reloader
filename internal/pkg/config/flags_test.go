@@ -1,7 +1,6 @@
 package config
 
 import (
-	"os"
 	"strings"
 	"testing"
 
@@ -170,26 +169,28 @@ func TestApplyFlags_BooleanStrings(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			resetViper()
-			cfg := NewDefault()
-			fs := pflag.NewFlagSet("test", pflag.ContinueOnError)
-			BindFlags(fs, cfg)
+		t.Run(
+			tt.name, func(t *testing.T) {
+				resetViper()
+				cfg := NewDefault()
+				fs := pflag.NewFlagSet("test", pflag.ContinueOnError)
+				BindFlags(fs, cfg)
 
-			if err := fs.Parse(tt.args); err != nil {
-				t.Fatalf("Parse() error = %v", err)
-			}
+				if err := fs.Parse(tt.args); err != nil {
+					t.Fatalf("Parse() error = %v", err)
+				}
 
-			err := ApplyFlags(cfg)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("ApplyFlags() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
+				err := ApplyFlags(cfg)
+				if (err != nil) != tt.wantErr {
+					t.Errorf("ApplyFlags() error = %v, wantErr %v", err, tt.wantErr)
+					return
+				}
 
-			if cfg.ArgoRolloutsEnabled != tt.want {
-				t.Errorf("ArgoRolloutsEnabled = %v, want %v", cfg.ArgoRolloutsEnabled, tt.want)
-			}
-		})
+				if cfg.ArgoRolloutsEnabled != tt.want {
+					t.Errorf("ArgoRolloutsEnabled = %v, want %v", cfg.ArgoRolloutsEnabled, tt.want)
+				}
+			},
+		)
 	}
 }
 
@@ -311,52 +312,46 @@ func TestApplyFlags_AlertingEnvVars(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			// Clear env and reset viper
-			for k := range tt.envVars {
-				os.Unsetenv(k)
-			}
-			resetViper()
+		t.Run(
+			tt.name, func(t *testing.T) {
+				resetViper()
 
-			// Set env vars
-			for k, val := range tt.envVars {
-				os.Setenv(k, val)
-				defer os.Unsetenv(k)
-			}
+				for k, val := range tt.envVars {
+					t.Setenv(k, val)
+				}
 
-			cfg := NewDefault()
-			fs := pflag.NewFlagSet("test", pflag.ContinueOnError)
-			BindFlags(fs, cfg)
+				cfg := NewDefault()
+				fs := pflag.NewFlagSet("test", pflag.ContinueOnError)
+				BindFlags(fs, cfg)
 
-			if err := fs.Parse([]string{}); err != nil {
-				t.Fatalf("Parse() error = %v", err)
-			}
+				if err := fs.Parse([]string{}); err != nil {
+					t.Fatalf("Parse() error = %v", err)
+				}
 
-			if err := ApplyFlags(cfg); err != nil {
-				t.Fatalf("ApplyFlags() error = %v", err)
-			}
+				if err := ApplyFlags(cfg); err != nil {
+					t.Fatalf("ApplyFlags() error = %v", err)
+				}
 
-			if cfg.Alerting.WebhookURL != tt.wantURL {
-				t.Errorf("Alerting.WebhookURL = %q, want %q", cfg.Alerting.WebhookURL, tt.wantURL)
-			}
+				if cfg.Alerting.WebhookURL != tt.wantURL {
+					t.Errorf("Alerting.WebhookURL = %q, want %q", cfg.Alerting.WebhookURL, tt.wantURL)
+				}
 
-			if tt.wantSink != "" && cfg.Alerting.Sink != tt.wantSink {
-				t.Errorf("Alerting.Sink = %q, want %q", cfg.Alerting.Sink, tt.wantSink)
-			}
+				if tt.wantSink != "" && cfg.Alerting.Sink != tt.wantSink {
+					t.Errorf("Alerting.Sink = %q, want %q", cfg.Alerting.Sink, tt.wantSink)
+				}
 
-			if cfg.Alerting.Enabled != tt.wantEnable {
-				t.Errorf("Alerting.Enabled = %v, want %v", cfg.Alerting.Enabled, tt.wantEnable)
-			}
-		})
+				if cfg.Alerting.Enabled != tt.wantEnable {
+					t.Errorf("Alerting.Enabled = %v, want %v", cfg.Alerting.Enabled, tt.wantEnable)
+				}
+			},
+		)
 	}
 }
 
 func TestApplyFlags_LegacyProxyEnvVar(t *testing.T) {
 	resetViper()
 
-	// Set legacy env var
-	os.Setenv("ALERT_WEBHOOK_PROXY", "http://legacy-proxy:8080")
-	defer os.Unsetenv("ALERT_WEBHOOK_PROXY")
+	t.Setenv("ALERT_WEBHOOK_PROXY", "http://legacy-proxy:8080")
 
 	cfg := NewDefault()
 	fs := pflag.NewFlagSet("test", pflag.ContinueOnError)
@@ -396,12 +391,14 @@ func TestParseBoolString(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		t.Run(tt.input, func(t *testing.T) {
-			got := parseBoolString(tt.input)
-			if got != tt.want {
-				t.Errorf("parseBoolString(%q) = %v, want %v", tt.input, got, tt.want)
-			}
-		})
+		t.Run(
+			tt.input, func(t *testing.T) {
+				got := parseBoolString(tt.input)
+				if got != tt.want {
+					t.Errorf("parseBoolString(%q) = %v, want %v", tt.input, got, tt.want)
+				}
+			},
+		)
 	}
 }
 
@@ -420,17 +417,19 @@ func TestSplitAndTrim(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got := splitAndTrim(tt.input)
-			if len(got) != len(tt.want) {
-				t.Errorf("splitAndTrim(%q) length = %d, want %d", tt.input, len(got), len(tt.want))
-				return
-			}
-			for i := range got {
-				if got[i] != tt.want[i] {
-					t.Errorf("splitAndTrim(%q)[%d] = %q, want %q", tt.input, i, got[i], tt.want[i])
+		t.Run(
+			tt.name, func(t *testing.T) {
+				got := splitAndTrim(tt.input)
+				if len(got) != len(tt.want) {
+					t.Errorf("splitAndTrim(%q) length = %d, want %d", tt.input, len(got), len(tt.want))
+					return
 				}
-			}
-		})
+				for i := range got {
+					if got[i] != tt.want[i] {
+						t.Errorf("splitAndTrim(%q)[%d] = %q, want %q", tt.input, i, got[i], tt.want[i])
+					}
+				}
+			},
+		)
 	}
 }
