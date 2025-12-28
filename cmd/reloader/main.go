@@ -51,17 +51,14 @@ func newReloaderCommand() *cobra.Command {
 }
 
 func run(cmd *cobra.Command, args []string) error {
-	// Apply post-parse flag processing
 	if err := config.ApplyFlags(cfg); err != nil {
 		return fmt.Errorf("applying flags: %w", err)
 	}
 
-	// Validate the configuration
 	if err := cfg.Validate(); err != nil {
 		return fmt.Errorf("validating config: %w", err)
 	}
 
-	// Validate HA environment variables
 	if cfg.EnableHA {
 		if err := validateHAEnvs(); err != nil {
 			return err
@@ -72,7 +69,6 @@ func run(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	// Configure logging
 	log, err := configureLogging(cfg.LogFormat, cfg.LogLevel)
 	if err != nil {
 		return fmt.Errorf("configuring logging: %w", err)
@@ -82,7 +78,6 @@ func run(cmd *cobra.Command, args []string) error {
 
 	log.Info("Starting Reloader")
 
-	// Log configuration
 	if ns := os.Getenv("KUBERNETES_NAMESPACE"); ns == "" {
 		log.Info("KUBERNETES_NAMESPACE is unset, will detect changes in all namespaces")
 	}
@@ -107,10 +102,8 @@ func run(cmd *cobra.Command, args []string) error {
 		)
 	}
 
-	// Setup Prometheus metrics
 	collectors := metrics.SetupPrometheusEndpoint()
 
-	// Create the controller-runtime manager
 	mgr, err := controller.NewManager(
 		controller.ManagerOptions{
 			Config:     cfg,
@@ -122,23 +115,19 @@ func run(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("creating manager: %w", err)
 	}
 
-	// Setup all reconcilers
 	if err := controller.SetupReconcilers(mgr, cfg, log, &collectors); err != nil {
 		return fmt.Errorf("setting up reconcilers: %w", err)
 	}
 
-	// Create metadata ConfigMap
 	if err := metadata.CreateOrUpdate(mgr.GetClient(), cfg, log); err != nil {
 		log.Error(err, "Failed to create metadata ConfigMap")
 		// Non-fatal, continue starting
 	}
 
-	// Start pprof server if enabled
 	if cfg.EnablePProf {
 		go startPProfServer(log)
 	}
 
-	// Setup signal handling for graceful shutdown
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -150,7 +139,6 @@ func run(cmd *cobra.Command, args []string) error {
 		cancel()
 	}()
 
-	// Start the manager
 	log.Info("Starting controller manager")
 	if err := controller.RunManager(ctx, mgr, log); err != nil {
 		return fmt.Errorf("manager exited with error: %w", err)
@@ -178,7 +166,6 @@ func configureLogging(logFormat, logLevel string) (logr.Logger, error) {
 		return logr.Logger{}, fmt.Errorf("unsupported log level: %q", logLevel)
 	}
 
-	// Configure output format
 	var zl zerolog.Logger
 	switch logFormat {
 	case "json":

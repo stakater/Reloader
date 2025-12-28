@@ -42,7 +42,6 @@ func (e ValidationErrors) Error() string {
 func (c *Config) Validate() error {
 	var errs ValidationErrors
 
-	// Validate ReloadStrategy
 	switch c.ReloadStrategy {
 	case ReloadStrategyEnvVars, ReloadStrategyAnnotations:
 		// valid
@@ -57,7 +56,6 @@ func (c *Config) Validate() error {
 		)
 	}
 
-	// Validate ArgoRolloutStrategy
 	switch c.ArgoRolloutStrategy {
 	case ArgoRolloutStrategyRestart, ArgoRolloutStrategyRollout:
 		// valid
@@ -74,7 +72,6 @@ func (c *Config) Validate() error {
 		)
 	}
 
-	// Validate LogLevel
 	switch strings.ToLower(c.LogLevel) {
 	case "trace", "debug", "info", "warn", "warning", "error", "fatal", "panic", "":
 		// valid
@@ -87,7 +84,6 @@ func (c *Config) Validate() error {
 		)
 	}
 
-	// Validate LogFormat
 	switch strings.ToLower(c.LogFormat) {
 	case "json", "":
 		// valid
@@ -100,17 +96,17 @@ func (c *Config) Validate() error {
 		)
 	}
 
-	// Normalize IgnoredResources to lowercase for consistent comparison
 	c.IgnoredResources = normalizeToLower(c.IgnoredResources)
 
-	// Validate and normalize IgnoredWorkloads
 	c.IgnoredWorkloads = normalizeToLower(c.IgnoredWorkloads)
 	for _, w := range c.IgnoredWorkloads {
 		if _, err := workload.KindFromString(w); err != nil {
-			errs = append(errs, ValidationError{
-				Field:   "IgnoredWorkloads",
-				Message: fmt.Sprintf("unknown workload type %q", w),
-			})
+			errs = append(
+				errs, ValidationError{
+					Field:   "IgnoredWorkloads",
+					Message: fmt.Sprintf("unknown workload type %q", w),
+				},
+			)
 		}
 	}
 

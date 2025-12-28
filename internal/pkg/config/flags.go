@@ -22,118 +22,200 @@ func init() {
 // Call this before parsing flags, then call ApplyFlags after parsing.
 func BindFlags(fs *pflag.FlagSet, cfg *Config) {
 	// Auto reload
-	fs.Bool("auto-reload-all", cfg.AutoReloadAll,
-		"Automatically reload all resources when their configmaps/secrets are updated, without requiring annotations")
+	fs.Bool(
+		"auto-reload-all", cfg.AutoReloadAll,
+		"Automatically reload all resources when their configmaps/secrets are updated, without requiring annotations",
+	)
 
 	// Reload strategy
-	fs.String("reload-strategy", string(cfg.ReloadStrategy),
-		"Strategy for triggering workload restart: 'env-vars' (default, GitOps friendly) or 'annotations'")
+	fs.String(
+		"reload-strategy", string(cfg.ReloadStrategy),
+		"Strategy for triggering workload restart: 'env-vars' (default, GitOps friendly) or 'annotations'",
+	)
 
 	// Argo Rollouts
-	fs.String("is-Argo-Rollouts", "false",
-		"Enable Argo Rollouts support (true/false)")
+	fs.String(
+		"is-Argo-Rollouts", "false",
+		"Enable Argo Rollouts support (true/false)",
+	)
 
 	// Event watching
-	fs.String("reload-on-create", "false",
-		"Reload when configmaps/secrets are created (true/false)")
-	fs.String("reload-on-delete", "false",
-		"Reload when configmaps/secrets are deleted (true/false)")
+	fs.String(
+		"reload-on-create", "false",
+		"Reload when configmaps/secrets are created (true/false)",
+	)
+	fs.String(
+		"reload-on-delete", "false",
+		"Reload when configmaps/secrets are deleted (true/false)",
+	)
 
 	// Sync after restart
-	fs.Bool("sync-after-restart", cfg.SyncAfterRestart,
-		"Trigger sync operation after restart")
+	fs.Bool(
+		"sync-after-restart", cfg.SyncAfterRestart,
+		"Trigger sync operation after restart",
+	)
 
 	// High availability / Leader election
-	fs.Bool("enable-ha", cfg.EnableHA,
-		"Enable high-availability mode with leader election")
-	fs.String("leader-election-id", cfg.LeaderElection.LockName,
-		"Name of the lease resource for leader election")
-	fs.String("leader-election-namespace", cfg.LeaderElection.Namespace,
-		"Namespace for the leader election lease (defaults to pod namespace)")
-	fs.Duration("leader-election-lease-duration", cfg.LeaderElection.LeaseDuration,
-		"Duration that non-leader candidates will wait before attempting to acquire leadership")
-	fs.Duration("leader-election-renew-deadline", cfg.LeaderElection.RenewDeadline,
-		"Duration that the acting leader will retry refreshing leadership before giving up")
-	fs.Duration("leader-election-retry-period", cfg.LeaderElection.RetryPeriod,
-		"Duration between leader election retries")
-	fs.Bool("leader-election-release-on-cancel", cfg.LeaderElection.ReleaseOnCancel,
-		"Release the leader lock when the manager is stopped")
+	fs.Bool(
+		"enable-ha", cfg.EnableHA,
+		"Enable high-availability mode with leader election",
+	)
+	fs.String(
+		"leader-election-id", cfg.LeaderElection.LockName,
+		"Name of the lease resource for leader election",
+	)
+	fs.String(
+		"leader-election-namespace", cfg.LeaderElection.Namespace,
+		"Namespace for the leader election lease (defaults to pod namespace)",
+	)
+	fs.Duration(
+		"leader-election-lease-duration", cfg.LeaderElection.LeaseDuration,
+		"Duration that non-leader candidates will wait before attempting to acquire leadership",
+	)
+	fs.Duration(
+		"leader-election-renew-deadline", cfg.LeaderElection.RenewDeadline,
+		"Duration that the acting leader will retry refreshing leadership before giving up",
+	)
+	fs.Duration(
+		"leader-election-retry-period", cfg.LeaderElection.RetryPeriod,
+		"Duration between leader election retries",
+	)
+	fs.Bool(
+		"leader-election-release-on-cancel", cfg.LeaderElection.ReleaseOnCancel,
+		"Release the leader lock when the manager is stopped",
+	)
 
 	// Webhook
-	fs.String("webhook-url", cfg.WebhookURL,
-		"URL to send notification instead of triggering reload")
+	fs.String(
+		"webhook-url", cfg.WebhookURL,
+		"URL to send notification instead of triggering reload",
+	)
 
 	// Filtering - resources
-	fs.String("resources-to-ignore", "",
-		"Comma-separated list of resources to ignore (valid options: 'configMaps' or 'secrets')")
-	fs.String("ignored-workload-types", "",
-		"Comma-separated list of workload types to ignore (valid options: 'jobs', 'cronjobs', or both)")
-	fs.String("namespaces-to-ignore", "",
-		"Comma-separated list of namespaces to ignore")
+	fs.String(
+		"resources-to-ignore", "",
+		"Comma-separated list of resources to ignore (valid options: 'configMaps' or 'secrets')",
+	)
+	fs.String(
+		"ignored-workload-types", "",
+		"Comma-separated list of workload types to ignore (valid options: 'jobs', 'cronjobs', or both)",
+	)
+	fs.String(
+		"namespaces-to-ignore", "",
+		"Comma-separated list of namespaces to ignore",
+	)
 
 	// Filtering - selectors
-	fs.String("namespace-selector", "",
-		"Comma-separated list of namespace label selectors")
-	fs.String("resource-label-selector", "",
-		"Comma-separated list of resource label selectors")
+	fs.String(
+		"namespace-selector", "",
+		"Comma-separated list of namespace label selectors",
+	)
+	fs.String(
+		"resource-label-selector", "",
+		"Comma-separated list of resource label selectors",
+	)
 
 	// Logging
-	fs.String("log-format", cfg.LogFormat,
-		"Log format: 'json' or empty for default")
-	fs.String("log-level", cfg.LogLevel,
-		"Log level: trace, debug, info, warning, error, fatal, panic")
+	fs.String(
+		"log-format", cfg.LogFormat,
+		"Log format: 'json' or empty for default",
+	)
+	fs.String(
+		"log-level", cfg.LogLevel,
+		"Log level: trace, debug, info, warning, error, fatal, panic",
+	)
 
 	// Metrics
-	fs.String("metrics-addr", cfg.MetricsAddr,
-		"Address to serve metrics on")
+	fs.String(
+		"metrics-addr", cfg.MetricsAddr,
+		"Address to serve metrics on",
+	)
 
 	// Health probes
-	fs.String("health-addr", cfg.HealthAddr,
-		"Address to serve health probes on")
+	fs.String(
+		"health-addr", cfg.HealthAddr,
+		"Address to serve health probes on",
+	)
 
 	// Profiling
-	fs.Bool("enable-pprof", cfg.EnablePProf,
-		"Enable pprof profiling server")
-	fs.String("pprof-addr", cfg.PProfAddr,
-		"Address for pprof server")
+	fs.Bool(
+		"enable-pprof", cfg.EnablePProf,
+		"Enable pprof profiling server",
+	)
+	fs.String(
+		"pprof-addr", cfg.PProfAddr,
+		"Address for pprof server",
+	)
 
 	// Annotation customization (flag names match v1 for backward compatibility)
-	fs.String("auto-annotation", cfg.Annotations.Auto,
-		"Annotation to detect changes in secrets/configmaps")
-	fs.String("configmap-auto-annotation", cfg.Annotations.ConfigmapAuto,
-		"Annotation to detect changes in configmaps")
-	fs.String("secret-auto-annotation", cfg.Annotations.SecretAuto,
-		"Annotation to detect changes in secrets")
-	fs.String("configmap-annotation", cfg.Annotations.ConfigmapReload,
-		"Annotation to detect changes in configmaps, specified by name")
-	fs.String("secret-annotation", cfg.Annotations.SecretReload,
-		"Annotation to detect changes in secrets, specified by name")
-	fs.String("auto-search-annotation", cfg.Annotations.Search,
-		"Annotation to detect changes in configmaps or secrets tagged with special match annotation")
-	fs.String("search-match-annotation", cfg.Annotations.Match,
-		"Annotation to mark secrets or configmaps to match the search")
-	fs.String("pause-deployment-annotation", cfg.Annotations.PausePeriod,
-		"Annotation to define the time period to pause a deployment after a configmap/secret change")
-	fs.String("pause-deployment-time-annotation", cfg.Annotations.PausedAt,
-		"Annotation to indicate when a deployment was paused by Reloader")
+	fs.String(
+		"auto-annotation", cfg.Annotations.Auto,
+		"Annotation to detect changes in secrets/configmaps",
+	)
+	fs.String(
+		"configmap-auto-annotation", cfg.Annotations.ConfigmapAuto,
+		"Annotation to detect changes in configmaps",
+	)
+	fs.String(
+		"secret-auto-annotation", cfg.Annotations.SecretAuto,
+		"Annotation to detect changes in secrets",
+	)
+	fs.String(
+		"configmap-annotation", cfg.Annotations.ConfigmapReload,
+		"Annotation to detect changes in configmaps, specified by name",
+	)
+	fs.String(
+		"secret-annotation", cfg.Annotations.SecretReload,
+		"Annotation to detect changes in secrets, specified by name",
+	)
+	fs.String(
+		"auto-search-annotation", cfg.Annotations.Search,
+		"Annotation to detect changes in configmaps or secrets tagged with special match annotation",
+	)
+	fs.String(
+		"search-match-annotation", cfg.Annotations.Match,
+		"Annotation to mark secrets or configmaps to match the search",
+	)
+	fs.String(
+		"pause-deployment-annotation", cfg.Annotations.PausePeriod,
+		"Annotation to define the time period to pause a deployment after a configmap/secret change",
+	)
+	fs.String(
+		"pause-deployment-time-annotation", cfg.Annotations.PausedAt,
+		"Annotation to indicate when a deployment was paused by Reloader",
+	)
 
 	// Watched namespace (for single-namespace mode)
-	fs.String("watch-namespace", cfg.WatchedNamespace,
-		"Namespace to watch (empty for all namespaces)")
+	fs.String(
+		"watch-namespace", cfg.WatchedNamespace,
+		"Namespace to watch (empty for all namespaces)",
+	)
 
 	// Alerting
-	fs.Bool("alert-on-reload", cfg.Alerting.Enabled,
-		"Enable sending alerts when resources are reloaded")
-	fs.String("alert-webhook-url", cfg.Alerting.WebhookURL,
-		"Webhook URL to send alerts to")
-	fs.String("alert-sink", cfg.Alerting.Sink,
-		"Alert sink type: 'slack', 'teams', 'gchat', or 'raw' (default)")
-	fs.String("alert-proxy", cfg.Alerting.Proxy,
-		"Proxy URL for alert webhook requests")
-	fs.String("alert-additional-info", cfg.Alerting.Additional,
-		"Additional info to include in alerts (e.g., cluster name)")
-	fs.Bool("alert-structured", cfg.Alerting.Structured,
-		"For raw sink: send structured JSON instead of plain text")
+	fs.Bool(
+		"alert-on-reload", cfg.Alerting.Enabled,
+		"Enable sending alerts when resources are reloaded",
+	)
+	fs.String(
+		"alert-webhook-url", cfg.Alerting.WebhookURL,
+		"Webhook URL to send alerts to",
+	)
+	fs.String(
+		"alert-sink", cfg.Alerting.Sink,
+		"Alert sink type: 'slack', 'teams', 'gchat', or 'raw' (default)",
+	)
+	fs.String(
+		"alert-proxy", cfg.Alerting.Proxy,
+		"Proxy URL for alert webhook requests",
+	)
+	fs.String(
+		"alert-additional-info", cfg.Alerting.Additional,
+		"Additional info to include in alerts (e.g., cluster name)",
+	)
+	fs.Bool(
+		"alert-structured", cfg.Alerting.Structured,
+		"For raw sink: send structured JSON instead of plain text",
+	)
 
 	// Bind pflags to viper
 	_ = v.BindPFlags(fs)
@@ -231,11 +313,6 @@ func ApplyFlags(cfg *Config) error {
 	}
 
 	return nil
-}
-
-// GetViper returns the viper instance for testing or advanced configuration.
-func GetViper() *viper.Viper {
-	return v
 }
 
 // parseBoolString parses a string as a boolean, defaulting to false.
