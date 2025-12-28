@@ -72,8 +72,19 @@ func SecretPredicates(cfg *config.Config, hasher *Hasher) predicate.Predicate {
 	}
 }
 
+// NamespaceChecker defines the interface for checking if a namespace is allowed.
+type NamespaceChecker interface {
+	Contains(name string) bool
+}
+
 // NamespaceFilterPredicate returns a predicate that filters resources by namespace.
 func NamespaceFilterPredicate(cfg *config.Config) predicate.Predicate {
+	return NamespaceFilterPredicateWithCache(cfg, nil)
+}
+
+// NamespaceFilterPredicateWithCache returns a predicate that filters resources by namespace,
+// using the provided NamespaceChecker for namespace selector filtering.
+func NamespaceFilterPredicateWithCache(cfg *config.Config, nsCache NamespaceChecker) predicate.Predicate {
 	return predicate.NewPredicateFuncs(func(obj client.Object) bool {
 		namespace := obj.GetNamespace()
 
@@ -82,9 +93,11 @@ func NamespaceFilterPredicate(cfg *config.Config) predicate.Predicate {
 			return false
 		}
 
-		// Check namespace selectors
-		// Note: For now, we pass through and let the controller handle selector matching
-		// A more efficient implementation would check labels here
+		// Check namespace selector cache if provided
+		if nsCache != nil && !nsCache.Contains(namespace) {
+			return false
+		}
+
 		return true
 	})
 }

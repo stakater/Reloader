@@ -500,3 +500,110 @@ func TestExistsLabelSelector(t *testing.T) {
 		})
 	}
 }
+
+// mockNamespaceChecker implements NamespaceChecker for testing.
+type mockNamespaceChecker struct {
+	allowed map[string]bool
+}
+
+func (m *mockNamespaceChecker) Contains(name string) bool {
+	return m.allowed[name]
+}
+
+func TestNamespaceFilterPredicateWithCache(t *testing.T) {
+	tests := []struct {
+		name              string
+		ignoredNamespaces []string
+		cacheAllowed      map[string]bool
+		eventNamespace    string
+		wantAllow         bool
+	}{
+		{
+			name:              "allowed by cache and not ignored",
+			ignoredNamespaces: []string{"kube-system"},
+			cacheAllowed:      map[string]bool{"production": true},
+			eventNamespace:    "production",
+			wantAllow:         true,
+		},
+		{
+			name:              "blocked by cache",
+			ignoredNamespaces: []string{},
+			cacheAllowed:      map[string]bool{"production": true},
+			eventNamespace:    "staging",
+			wantAllow:         false,
+		},
+		{
+			name:              "blocked by ignore list even if in cache",
+			ignoredNamespaces: []string{"kube-system"},
+			cacheAllowed:      map[string]bool{"kube-system": true},
+			eventNamespace:    "kube-system",
+			wantAllow:         false,
+		},
+		{
+			name:              "ignore list checked before cache",
+			ignoredNamespaces: []string{"blocked-ns"},
+			cacheAllowed:      map[string]bool{"blocked-ns": true},
+			eventNamespace:    "blocked-ns",
+			wantAllow:         false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cfg := config.NewDefault()
+			cfg.IgnoredNamespaces = tt.ignoredNamespaces
+
+			cache := &mockNamespaceChecker{allowed: tt.cacheAllowed}
+			predicate := NamespaceFilterPredicateWithCache(cfg, cache)
+
+			cm := &corev1.ConfigMap{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-cm",
+					Namespace: tt.eventNamespace,
+				},
+			}
+
+			e := event.CreateEvent{Object: cm}
+			got := predicate.Create(e)
+
+			if got != tt.wantAllow {
+				t.Errorf("Create() = %v, want %v", got, tt.wantAllow)
+			}
+		})
+	}
+}
+
+func TestNamespaceFilterPredicateWithCache_NilCache(t *testing.T) {
+	cfg := config.NewDefault()
+	cfg.IgnoredNamespaces = []string{"kube-system"}
+
+	// Nil cache should allow all namespaces (only check ignore list)
+	predicate := NamespaceFilterPredicateWithCache(cfg, nil)
+
+	tests := []struct {
+		namespace string
+		wantAllow bool
+	}{
+		{"default", true},
+		{"production", true},
+		{"kube-system", false}, // Should still respect ignore list
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.namespace, func(t *testing.T) {
+			cm := &corev1.ConfigMap{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-cm",
+					Namespace: tt.namespace,
+				},
+			}
+
+			e := event.CreateEvent{Object: cm}
+			got := predicate.Create(e)
+
+			if got != tt.wantAllow {
+				t.Errorf("Create() = %v, want %v for namespace %s", got, tt.wantAllow, tt.namespace)
+			}
+		})
+	}
+}
