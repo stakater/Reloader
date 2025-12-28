@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"fmt"
+	"strings"
 	"time"
 
 	openshiftv1 "github.com/openshift/api/apps/v1"
@@ -55,6 +56,23 @@ func CreateConfigMap(client kubernetes.Interface, namespace, name, data string) 
 	return client.CoreV1().ConfigMaps(namespace).Create(context.Background(), cm, metav1.CreateOptions{})
 }
 
+// CreateConfigMapWithAnnotations creates a ConfigMap with the given name, data, and annotations.
+func CreateConfigMapWithAnnotations(client kubernetes.Interface, namespace, name, data string, annotations map[string]string) (
+	*corev1.ConfigMap, error,
+) {
+	cm := &corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:        name,
+			Namespace:   namespace,
+			Annotations: annotations,
+		},
+		Data: map[string]string{
+			"url": data,
+		},
+	}
+	return client.CoreV1().ConfigMaps(namespace).Create(context.Background(), cm, metav1.CreateOptions{})
+}
+
 // UpdateConfigMap updates the ConfigMap with new label and/or data.
 func UpdateConfigMap(cm *corev1.ConfigMap, namespace, name, label, data string) error {
 	if label != "" {
@@ -66,7 +84,6 @@ func UpdateConfigMap(cm *corev1.ConfigMap, namespace, name, label, data string) 
 	if data != "" {
 		cm.Data["url"] = data
 	}
-	// Note: caller must have a client to update
 	return nil
 }
 
@@ -155,6 +172,19 @@ func CreateDeployment(client kubernetes.Interface, name, namespace string, useCo
 // DeleteDeployment deletes the Deployment with the given name.
 func DeleteDeployment(client kubernetes.Interface, namespace, name string) error {
 	return client.AppsV1().Deployments(namespace).Delete(context.Background(), name, metav1.DeleteOptions{})
+}
+
+// CreateDeploymentWithBoth creates a Deployment that references both a ConfigMap and a Secret.
+func CreateDeploymentWithBoth(client kubernetes.Interface, name, namespace, configMapName, secretName string, annotations map[string]string) (
+	*appsv1.Deployment, error,
+) {
+	deployment := NewDeploymentWithEnvFrom(name, namespace, configMapName, secretName)
+	deployment.Annotations = annotations
+	// Override image for integration tests
+	deployment.Spec.Template.Spec.Containers[0].Image = "busybox:1.36"
+	deployment.Spec.Template.Spec.Containers[0].Command = []string{"sh", "-c", "while true; do sleep 3600; done"}
+
+	return client.AppsV1().Deployments(namespace).Create(context.Background(), deployment, metav1.CreateOptions{})
 }
 
 // CreateDaemonSet creates a DaemonSet that references a ConfigMap/Secret.
@@ -477,4 +507,124 @@ func WaitForDeploymentUnpaused(client kubernetes.Interface, namespace, name stri
 		return unpaused, nil
 	}
 	return unpaused, err
+}
+
+// WaitForCronJobTriggeredJob waits for a Job to be created by a CronJob (triggered by Reloader).
+func WaitForCronJobTriggeredJob(client kubernetes.Interface, namespace, cronJobName string, timeout time.Duration) (bool, error) {
+	var found bool
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+	err := wait.PollUntilContextTimeout(
+		ctx, time.Second, timeout, true, func(ctx context.Context) (bool, error) {
+			jobs, err := client.BatchV1().Jobs(namespace).List(ctx, metav1.ListOptions{})
+			if err != nil {
+				return false, nil // Keep waiting
+			}
+			for _, job := range jobs.Items {
+				if strings.HasPrefix(job.Name, cronJobName+"-") {
+					if job.Annotations != nil {
+						if _, ok := job.Annotations["cronjob.kubernetes.io/instantiate"]; ok {
+							found = true
+							return true, nil
+						}
+					}
+				}
+			}
+			return false, nil
+		},
+	)
+	if wait.Interrupted(err) {
+		return found, nil
+	}
+	return found, err
+}
+
+// WaitForDeploymentEnvVar waits for a deployment's containers to have the specified env var with a non-empty value.
+func WaitForDeploymentEnvVar(client kubernetes.Interface, namespace, name, envVarPrefix string, timeout time.Duration) (
+	bool, error,
+) {
+	var found bool
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+	err := wait.PollUntilContextTimeout(
+		ctx, time.Second, timeout, true, func(ctx context.Context) (bool, error) {
+			deployment, err := client.AppsV1().Deployments(namespace).Get(ctx, name, metav1.GetOptions{})
+			if err != nil {
+				return false, nil
+			}
+			for _, container := range deployment.Spec.Template.Spec.Containers {
+				for _, env := range container.Env {
+					if strings.HasPrefix(env.Name, envVarPrefix) && env.Value != "" {
+						found = true
+						return true, nil
+					}
+				}
+			}
+			return false, nil
+		},
+	)
+	if wait.Interrupted(err) {
+		return found, nil
+	}
+	return found, err
+}
+
+// WaitForDaemonSetEnvVar waits for a daemonset's containers to have the specified env var with a non-empty value.
+func WaitForDaemonSetEnvVar(client kubernetes.Interface, namespace, name, envVarPrefix string, timeout time.Duration) (
+	bool, error,
+) {
+	var found bool
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+	err := wait.PollUntilContextTimeout(
+		ctx, time.Second, timeout, true, func(ctx context.Context) (bool, error) {
+			daemonset, err := client.AppsV1().DaemonSets(namespace).Get(ctx, name, metav1.GetOptions{})
+			if err != nil {
+				return false, nil
+			}
+			for _, container := range daemonset.Spec.Template.Spec.Containers {
+				for _, env := range container.Env {
+					if strings.HasPrefix(env.Name, envVarPrefix) && env.Value != "" {
+						found = true
+						return true, nil
+					}
+				}
+			}
+			return false, nil
+		},
+	)
+	if wait.Interrupted(err) {
+		return found, nil
+	}
+	return found, err
+}
+
+// WaitForStatefulSetEnvVar waits for a statefulset's containers to have the specified env var with a non-empty value.
+func WaitForStatefulSetEnvVar(client kubernetes.Interface, namespace, name, envVarPrefix string, timeout time.Duration) (
+	bool, error,
+) {
+	var found bool
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+	err := wait.PollUntilContextTimeout(
+		ctx, time.Second, timeout, true, func(ctx context.Context) (bool, error) {
+			statefulset, err := client.AppsV1().StatefulSets(namespace).Get(ctx, name, metav1.GetOptions{})
+			if err != nil {
+				return false, nil
+			}
+			for _, container := range statefulset.Spec.Template.Spec.Containers {
+				for _, env := range container.Env {
+					if strings.HasPrefix(env.Name, envVarPrefix) && env.Value != "" {
+						found = true
+						return true, nil
+					}
+				}
+			}
+			return false, nil
+		},
+	)
+	if wait.Interrupted(err) {
+		return found, nil
+	}
+	return found, err
 }

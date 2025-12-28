@@ -1,5 +1,5 @@
-// Package e2e contains end-to-end tests for Reloader.
-package e2e
+// Package annotations contains end-to-end tests for Reloader's Annotations Reload Strategy.
+package annotations
 
 import (
 	"context"
@@ -56,7 +56,7 @@ type testFixture struct {
 
 type workloadInfo struct {
 	name string
-	kind string // "deployment", "daemonset", "statefulset"
+	kind string // "deployment", "daemonset", "statefulset", "cronjob"
 }
 
 // newFixture creates a new test fixture with a unique name prefix.
@@ -154,6 +154,24 @@ func (f *testFixture) updateSecret(name, data string) {
 	}
 }
 
+// updateSecretLabel updates only a Secret's label (not data).
+func (f *testFixture) updateSecretLabel(name, label string) {
+	f.t.Helper()
+	secret, err := k8sClient.CoreV1().Secrets(namespace).Get(context.Background(), name, metav1.GetOptions{})
+	if err != nil {
+		f.t.Fatalf("Failed to get Secret %s: %v", name, err)
+	}
+	var data string
+	if secret.Data != nil {
+		if d, ok := secret.Data["test"]; ok {
+			data = string(d)
+		}
+	}
+	if err := testutil.UpdateSecretWithClient(k8sClient, namespace, name, label, data); err != nil {
+		f.t.Fatalf("Failed to update Secret label %s: %v", name, err)
+	}
+}
+
 // assertDeploymentReloaded asserts that a deployment was reloaded.
 func (f *testFixture) assertDeploymentReloaded(name string, testCfg *config.Config) {
 	f.t.Helper()
@@ -194,6 +212,16 @@ func (f *testFixture) assertDaemonSetReloaded(name string) {
 	}
 }
 
+// assertDaemonSetNotReloaded asserts that a daemonset was NOT reloaded.
+func (f *testFixture) assertDaemonSetNotReloaded(name string) {
+	f.t.Helper()
+	time.Sleep(negativeTestTimeout)
+	updated, _ := testutil.WaitForDaemonSetReloadedAnnotation(k8sClient, namespace, name, cfg.Annotations.LastReloadedFrom, negativeTestTimeout)
+	if updated {
+		f.t.Errorf("DaemonSet %s should not have been updated", name)
+	}
+}
+
 // assertStatefulSetReloaded asserts that a statefulset was reloaded.
 func (f *testFixture) assertStatefulSetReloaded(name string) {
 	f.t.Helper()
@@ -203,6 +231,16 @@ func (f *testFixture) assertStatefulSetReloaded(name string) {
 	}
 	if !updated {
 		f.t.Errorf("StatefulSet %s was not updated after resource change", name)
+	}
+}
+
+// assertStatefulSetNotReloaded asserts that a statefulset was NOT reloaded.
+func (f *testFixture) assertStatefulSetNotReloaded(name string) {
+	f.t.Helper()
+	time.Sleep(negativeTestTimeout)
+	updated, _ := testutil.WaitForStatefulSetReloadedAnnotation(k8sClient, namespace, name, cfg.Annotations.LastReloadedFrom, negativeTestTimeout)
+	if updated {
+		f.t.Errorf("StatefulSet %s should not have been updated", name)
 	}
 }
 
@@ -282,6 +320,8 @@ func (f *testFixture) cleanup() {
 			if osClient != nil {
 				_ = testutil.DeleteDeploymentConfig(osClient, namespace, w.name)
 			}
+		case "cronjob":
+			_ = testutil.DeleteCronJob(k8sClient, namespace, w.name)
 		}
 	}
 	for _, name := range f.configMaps {
@@ -337,16 +377,13 @@ func TestMain(m *testing.M) {
 	cfg = config.NewDefault()
 	cfg.AutoReloadAll = false
 
-	// Check if cluster supports DeploymentConfig
 	discoveryClient, err := discovery.NewDiscoveryClientForConfig(restCfg)
 	if err != nil {
 		skipDeploymentConfigTests = true
 	} else {
-		// Use a nop logger for detection
 		nopLog := ctrl.Log.WithName("dc-detection")
 		if openshift.HasDeploymentConfigSupport(discoveryClient, nopLog) {
 			cfg.DeploymentConfigEnabled = true
-			// Create OpenShift client for DeploymentConfig tests
 			osClient, err = testutil.NewOpenshiftClient(restCfg)
 			if err != nil {
 				skipDeploymentConfigTests = true
@@ -724,6 +761,330 @@ func TestDeploymentNoPauseWithoutAnnotation(t *testing.T) {
 	if deploy.Spec.Paused {
 		t.Errorf("Deployment should NOT be paused without pause-period annotation")
 	}
+}
+
+// TestDaemonSetSecretReload tests that DaemonSets are reloaded when Secrets change.
+func TestDaemonSetSecretReload(t *testing.T) {
+	f := newFixture(t, "ds-secret-reload")
+	defer f.cleanup()
+
+	f.createSecret(f.name, "initial-secret")
+	f.createDaemonSet(
+		f.name, false, map[string]string{
+			cfg.Annotations.SecretReload: f.name,
+		},
+	)
+	f.waitForReady()
+
+	f.updateSecret(f.name, "updated-secret")
+	f.assertDaemonSetReloaded(f.name)
+}
+
+// TestStatefulSetConfigMapReload tests that StatefulSets are reloaded when ConfigMaps change.
+func TestStatefulSetConfigMapReload(t *testing.T) {
+	f := newFixture(t, "sts-cm-reload")
+	defer f.cleanup()
+
+	f.createConfigMap(f.name, "initial-data")
+	f.createStatefulSet(
+		f.name, true, map[string]string{
+			cfg.Annotations.ConfigmapReload: f.name,
+		},
+	)
+	f.waitForReady()
+
+	f.updateConfigMap(f.name, "updated-data")
+	f.assertStatefulSetReloaded(f.name)
+}
+
+// TestSecretLabelOnlyChange tests that Secret label-only changes don't trigger reloads.
+func TestSecretLabelOnlyChange(t *testing.T) {
+	f := newFixture(t, "secret-label-only")
+	defer f.cleanup()
+
+	f.createSecret(f.name, "initial-secret")
+	f.createDeployment(
+		f.name, false, map[string]string{
+			cfg.Annotations.SecretReload: f.name,
+		},
+	)
+	f.waitForReady()
+
+	f.updateSecretLabel(f.name, "new-label")
+	f.assertDeploymentNotReloaded(f.name, nil)
+}
+
+// TestDaemonSetLabelOnlyChange tests that ConfigMap label-only changes don't trigger DaemonSet reloads.
+func TestDaemonSetLabelOnlyChange(t *testing.T) {
+	f := newFixture(t, "ds-label-only")
+	defer f.cleanup()
+
+	f.createConfigMap(f.name, "initial-data")
+	f.createDaemonSet(
+		f.name, true, map[string]string{
+			cfg.Annotations.ConfigmapReload: f.name,
+		},
+	)
+	f.waitForReady()
+
+	f.updateConfigMapLabel(f.name, "new-label")
+	f.assertDaemonSetNotReloaded(f.name)
+}
+
+// TestStatefulSetLabelOnlyChange tests that Secret label-only changes don't trigger StatefulSet reloads.
+func TestStatefulSetLabelOnlyChange(t *testing.T) {
+	f := newFixture(t, "sts-label-only")
+	defer f.cleanup()
+
+	f.createSecret(f.name, "initial-secret")
+	f.createStatefulSet(
+		f.name, false, map[string]string{
+			cfg.Annotations.SecretReload: f.name,
+		},
+	)
+	f.waitForReady()
+
+	f.updateSecretLabel(f.name, "new-label")
+	f.assertStatefulSetNotReloaded(f.name)
+}
+
+// TestMultipleConfigMapUpdates tests that multiple updates to a ConfigMap all trigger reloads correctly.
+func TestMultipleConfigMapUpdates(t *testing.T) {
+	f := newFixture(t, "multi-update")
+	defer f.cleanup()
+
+	f.createConfigMap(f.name, "initial-data")
+	f.createDeployment(
+		f.name, true, map[string]string{
+			cfg.Annotations.ConfigmapReload: f.name,
+		},
+	)
+	f.waitForReady()
+
+	f.updateConfigMap(f.name, "updated-data-1")
+	f.assertDeploymentReloaded(f.name, nil)
+
+	time.Sleep(2 * time.Second)
+
+	f.updateConfigMap(f.name, "updated-data-2")
+	f.assertDeploymentReloaded(f.name, nil)
+}
+
+// TestMultipleSecretUpdates tests that multiple updates to a Secret all trigger reloads correctly.
+func TestMultipleSecretUpdates(t *testing.T) {
+	f := newFixture(t, "multi-secret-update")
+	defer f.cleanup()
+
+	f.createSecret(f.name, "initial-secret")
+	f.createDeployment(
+		f.name, false, map[string]string{
+			cfg.Annotations.SecretReload: f.name,
+		},
+	)
+	f.waitForReady()
+
+	f.updateSecret(f.name, "updated-secret-1")
+	f.assertDeploymentReloaded(f.name, nil)
+
+	time.Sleep(2 * time.Second)
+
+	f.updateSecret(f.name, "updated-secret-2")
+	f.assertDeploymentReloaded(f.name, nil)
+}
+
+// TestSecretOnlyAuto tests the secret-only auto annotation (secret.reloader.stakater.com/auto).
+func TestSecretOnlyAuto(t *testing.T) {
+	f := newFixture(t, "secret-auto")
+	defer f.cleanup()
+
+	secretName := f.name + "-secret"
+	cmName := f.name + "-cm"
+
+	f.createSecret(secretName, "initial-secret")
+	f.createConfigMap(cmName, "initial-data")
+
+	_, err := testutil.CreateDeploymentWithBoth(
+		k8sClient, f.name, namespace, cmName, secretName, map[string]string{
+			cfg.Annotations.SecretAuto: "true",
+		},
+	)
+	if err != nil {
+		t.Fatalf("Failed to create deployment: %v", err)
+	}
+	f.workloads = append(f.workloads, workloadInfo{name: f.name, kind: "deployment"})
+	f.waitForReady()
+
+	f.updateSecret(secretName, "updated-secret")
+	f.assertDeploymentReloaded(f.name, nil)
+}
+
+// TestConfigMapOnlyAuto tests the configmap-only auto annotation (configmap.reloader.stakater.com/auto).
+func TestConfigMapOnlyAuto(t *testing.T) {
+	f := newFixture(t, "cm-auto")
+	defer f.cleanup()
+
+	secretName := f.name + "-secret"
+	cmName := f.name + "-cm"
+
+	f.createSecret(secretName, "initial-secret")
+	f.createConfigMap(cmName, "initial-data")
+
+	_, err := testutil.CreateDeploymentWithBoth(
+		k8sClient, f.name, namespace, cmName, secretName, map[string]string{
+			cfg.Annotations.ConfigmapAuto: "true",
+		},
+	)
+	if err != nil {
+		t.Fatalf("Failed to create deployment: %v", err)
+	}
+	f.workloads = append(f.workloads, workloadInfo{name: f.name, kind: "deployment"})
+	f.waitForReady()
+
+	f.updateConfigMap(cmName, "updated-data")
+	f.assertDeploymentReloaded(f.name, nil)
+}
+
+// TestSearchMatchAnnotations tests the search + match annotation pattern.
+func TestSearchMatchAnnotations(t *testing.T) {
+	f := newFixture(t, "search-match")
+	defer f.cleanup()
+
+	cm, err := testutil.CreateConfigMapWithAnnotations(
+		k8sClient, namespace, f.name, "initial-data", map[string]string{
+			cfg.Annotations.Match: "true",
+		},
+	)
+	if err != nil {
+		t.Fatalf("Failed to create ConfigMap: %v", err)
+	}
+	f.configMaps = append(f.configMaps, cm.Name)
+
+	f.createDeployment(
+		f.name, true, map[string]string{
+			cfg.Annotations.Search: "true",
+		},
+	)
+	f.waitForReady()
+
+	f.updateConfigMap(f.name, "updated-data")
+	f.assertDeploymentReloaded(f.name, nil)
+}
+
+// TestSearchWithoutMatch tests that search annotation without match doesn't trigger reload.
+func TestSearchWithoutMatch(t *testing.T) {
+	f := newFixture(t, "search-no-match")
+	defer f.cleanup()
+
+	f.createConfigMap(f.name, "initial-data")
+
+	f.createDeployment(
+		f.name, true, map[string]string{
+			cfg.Annotations.Search: "true",
+		},
+	)
+	f.waitForReady()
+
+	f.updateConfigMap(f.name, "updated-data")
+	f.assertDeploymentNotReloaded(f.name, nil)
+}
+
+// TestResourceIgnore tests the ignore annotation on ConfigMap/Secret.
+func TestResourceIgnore(t *testing.T) {
+	f := newFixture(t, "ignore")
+	defer f.cleanup()
+
+	cm, err := testutil.CreateConfigMapWithAnnotations(
+		k8sClient, namespace, f.name, "initial-data", map[string]string{
+			cfg.Annotations.Ignore: "true",
+		},
+	)
+	if err != nil {
+		t.Fatalf("Failed to create ConfigMap: %v", err)
+	}
+	f.configMaps = append(f.configMaps, cm.Name)
+
+	f.createDeployment(
+		f.name, true, map[string]string{
+			cfg.Annotations.ConfigmapReload: f.name,
+		},
+	)
+	f.waitForReady()
+
+	f.updateConfigMap(f.name, "updated-data")
+	f.assertDeploymentNotReloaded(f.name, nil)
+}
+
+// createCronJob creates a CronJob and registers it for cleanup.
+func (f *testFixture) createCronJob(name string, useConfigMap bool, annotations map[string]string) {
+	f.t.Helper()
+	_, err := testutil.CreateCronJob(k8sClient, name, namespace, useConfigMap, annotations)
+	if err != nil {
+		f.t.Fatalf("Failed to create CronJob %s: %v", name, err)
+	}
+	f.workloads = append(f.workloads, workloadInfo{name: name, kind: "cronjob"})
+}
+
+// assertCronJobTriggeredJob asserts that a CronJob triggered a new Job.
+func (f *testFixture) assertCronJobTriggeredJob(name string) {
+	f.t.Helper()
+	triggered, err := testutil.WaitForCronJobTriggeredJob(k8sClient, namespace, name, waitTimeout)
+	if err != nil {
+		f.t.Fatalf("Error waiting for CronJob %s to trigger Job: %v", name, err)
+	}
+	if !triggered {
+		f.t.Errorf("CronJob %s did not trigger a Job after resource change", name)
+	}
+}
+
+// TestCronJobConfigMapReload tests that updating a ConfigMap triggers a CronJob to create a new Job.
+func TestCronJobConfigMapReload(t *testing.T) {
+	f := newFixture(t, "cj-cm")
+	defer f.cleanup()
+
+	f.createConfigMap(f.name, "initial-data")
+	f.createCronJob(
+		f.name, true, map[string]string{
+			cfg.Annotations.ConfigmapReload: f.name,
+		},
+	)
+	f.waitForReady()
+
+	f.updateConfigMap(f.name, "updated-data")
+	f.assertCronJobTriggeredJob(f.name)
+}
+
+// TestCronJobSecretReload tests that updating a Secret triggers a CronJob to create a new Job.
+func TestCronJobSecretReload(t *testing.T) {
+	f := newFixture(t, "cj-secret")
+	defer f.cleanup()
+
+	f.createSecret(f.name, "initial-secret")
+	f.createCronJob(
+		f.name, false, map[string]string{
+			cfg.Annotations.SecretReload: f.name,
+		},
+	)
+	f.waitForReady()
+
+	f.updateSecret(f.name, "updated-secret")
+	f.assertCronJobTriggeredJob(f.name)
+}
+
+// TestCronJobAutoReload tests that CronJob with auto annotation triggers a Job on ConfigMap update.
+func TestCronJobAutoReload(t *testing.T) {
+	f := newFixture(t, "cj-auto")
+	defer f.cleanup()
+
+	f.createConfigMap(f.name, "initial-data")
+	f.createCronJob(
+		f.name, true, map[string]string{
+			cfg.Annotations.Auto: "true",
+		},
+	)
+	f.waitForReady()
+
+	f.updateConfigMap(f.name, "updated-data")
+	f.assertCronJobTriggeredJob(f.name)
 }
 
 // startManagerWithConfig creates and starts a controller-runtime manager for e2e testing.
