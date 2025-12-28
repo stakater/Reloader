@@ -73,7 +73,7 @@ func (r *Registry) FromObject(obj client.Object) (WorkloadAccessor, error) {
 		return NewCronJobWorkload(o), nil
 	case *argorolloutv1alpha1.Rollout:
 		if !r.argoRolloutsEnabled {
-			return nil, fmt.Errorf("Argo Rollouts support is not enabled")
+			return nil, fmt.Errorf("argo Rollouts support is not enabled")
 		}
 		return NewRolloutWorkload(o), nil
 	default:

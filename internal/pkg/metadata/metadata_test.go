@@ -3,7 +3,6 @@ package metadata
 import (
 	"context"
 	"encoding/json"
-	"os"
 	"testing"
 
 	"github.com/go-logr/logr"
@@ -112,12 +111,8 @@ func TestNewReloaderOptions(t *testing.T) {
 
 func TestMetaInfo_ToConfigMap(t *testing.T) {
 	// Set environment variables
-	os.Setenv(EnvReloaderNamespace, "reloader-ns")
-	os.Setenv(EnvReloaderDeploymentName, "reloader-deploy")
-	defer func() {
-		os.Unsetenv(EnvReloaderNamespace)
-		os.Unsetenv(EnvReloaderDeploymentName)
-	}()
+	t.Setenv(EnvReloaderNamespace, "reloader-ns")
+	t.Setenv(EnvReloaderDeploymentName, "reloader-deploy")
 
 	cfg := config.NewDefault()
 	metaInfo := NewMetaInfo(cfg)
@@ -164,8 +159,8 @@ func TestMetaInfo_ToConfigMap(t *testing.T) {
 }
 
 func TestPublisher_Publish_NoNamespace(t *testing.T) {
-	// Ensure RELOADER_NAMESPACE is not set
-	os.Unsetenv(EnvReloaderNamespace)
+	// Ensure RELOADER_NAMESPACE is not set (empty value)
+	t.Setenv(EnvReloaderNamespace, "")
 
 	scheme := runtime.NewScheme()
 	_ = corev1.AddToScheme(scheme)
@@ -182,12 +177,8 @@ func TestPublisher_Publish_NoNamespace(t *testing.T) {
 
 func TestPublisher_Publish_CreateNew(t *testing.T) {
 	// Set environment variables
-	os.Setenv(EnvReloaderNamespace, "test-ns")
-	os.Setenv(EnvReloaderDeploymentName, "test-deploy")
-	defer func() {
-		os.Unsetenv(EnvReloaderNamespace)
-		os.Unsetenv(EnvReloaderDeploymentName)
-	}()
+	t.Setenv(EnvReloaderNamespace, "test-ns")
+	t.Setenv(EnvReloaderDeploymentName, "test-deploy")
 
 	scheme := runtime.NewScheme()
 	_ = corev1.AddToScheme(scheme)
@@ -215,12 +206,8 @@ func TestPublisher_Publish_CreateNew(t *testing.T) {
 
 func TestPublisher_Publish_UpdateExisting(t *testing.T) {
 	// Set environment variables
-	os.Setenv(EnvReloaderNamespace, "test-ns")
-	os.Setenv(EnvReloaderDeploymentName, "test-deploy")
-	defer func() {
-		os.Unsetenv(EnvReloaderNamespace)
-		os.Unsetenv(EnvReloaderDeploymentName)
-	}()
+	t.Setenv(EnvReloaderNamespace, "test-ns")
+	t.Setenv(EnvReloaderDeploymentName, "test-deploy")
 
 	scheme := runtime.NewScheme()
 	_ = corev1.AddToScheme(scheme)
@@ -273,8 +260,7 @@ func TestPublisher_Publish_UpdateExisting(t *testing.T) {
 
 func TestPublishMetaInfoConfigMap(t *testing.T) {
 	// Set environment variables
-	os.Setenv(EnvReloaderNamespace, "test-ns")
-	defer os.Unsetenv(EnvReloaderNamespace)
+	t.Setenv(EnvReloaderNamespace, "test-ns")
 
 	scheme := runtime.NewScheme()
 	_ = corev1.AddToScheme(scheme)

@@ -1,7 +1,6 @@
 package metrics
 
 import (
-	"os"
 	"testing"
 
 	"github.com/prometheus/client_golang/prometheus"
@@ -97,8 +96,7 @@ func TestRecordReload_MultipleIncrements(t *testing.T) {
 
 func TestRecordReload_WithNamespaceTracking(t *testing.T) {
 	// Enable namespace tracking
-	os.Setenv("METRICS_COUNT_BY_NAMESPACE", "enabled")
-	defer os.Unsetenv("METRICS_COUNT_BY_NAMESPACE")
+	t.Setenv("METRICS_COUNT_BY_NAMESPACE", "enabled")
 
 	collectors := NewCollectors()
 	collectors.RecordReload(true, "kube-system")
@@ -117,8 +115,8 @@ func TestRecordReload_WithNamespaceTracking(t *testing.T) {
 }
 
 func TestRecordReload_WithoutNamespaceTracking(t *testing.T) {
-	// Ensure namespace tracking is disabled
-	os.Unsetenv("METRICS_COUNT_BY_NAMESPACE")
+	// Ensure namespace tracking is disabled (t.Setenv to empty resets it)
+	t.Setenv("METRICS_COUNT_BY_NAMESPACE", "")
 
 	collectors := NewCollectors()
 	collectors.RecordReload(true, "kube-system")
@@ -139,8 +137,7 @@ func TestNilCollectors_NoPanic(t *testing.T) {
 }
 
 func TestRecordReload_DifferentNamespaces(t *testing.T) {
-	os.Setenv("METRICS_COUNT_BY_NAMESPACE", "enabled")
-	defer os.Unsetenv("METRICS_COUNT_BY_NAMESPACE")
+	t.Setenv("METRICS_COUNT_BY_NAMESPACE", "enabled")
 
 	collectors := NewCollectors()
 	collectors.RecordReload(true, "namespace-a")

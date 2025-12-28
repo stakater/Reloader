@@ -20,9 +20,16 @@ BUILD=
 
 GOCMD = go
 GOFLAGS ?= $(GOFLAGS:)
-LDFLAGS =
 GOPROXY   ?=
 GOPRIVATE ?=
+
+# Version information for ldflags
+GIT_COMMIT ?= $(shell git rev-parse --short HEAD 2>/dev/null || echo "unknown")
+BUILD_DATE ?= $(shell date -u +"%Y-%m-%dT%H:%M:%SZ")
+LDFLAGS = -s -w \
+	-X github.com/stakater/Reloader/internal/pkg/metadata.Version=$(VERSION) \
+	-X github.com/stakater/Reloader/internal/pkg/metadata.Commit=$(GIT_COMMIT) \
+	-X github.com/stakater/Reloader/internal/pkg/metadata.BuildDate=$(BUILD_DATE)
 
 ## Location to install dependencies to
 LOCALBIN ?= $(shell pwd)/bin
@@ -97,10 +104,10 @@ install:
 	"$(GOCMD)" mod download
 
 run:
-	go run ./main.go
+	go run ./cmd/reloader
 
 build:
-	"$(GOCMD)" build ${GOFLAGS} ${LDFLAGS} -o "${BINARY}"
+	"$(GOCMD)" build ${GOFLAGS} -ldflags '${LDFLAGS}' -o "${BINARY}" ./cmd/reloader
 
 lint: golangci-lint ## Run golangci-lint on the codebase
 	$(GOLANGCI_LINT) run ./...
@@ -140,7 +147,7 @@ manifest:
 	docker manifest annotate --arch $(ARCH) $(REPOSITORY_GENERIC)  $(REPOSITORY_ARCH)
 
 test:
-	"$(GOCMD)" test -timeout 1800s -v ./...
+	"$(GOCMD)" test -timeout 1800s -v ./cmd/... ./internal/...
 
 stop:
 	@docker stop "${BINARY}"
