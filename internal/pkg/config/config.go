@@ -71,6 +71,10 @@ type Config struct {
 	NamespaceSelectors []labels.Selector
 	ResourceSelectors  []labels.Selector
 
+	// Raw selector strings (for backward compatibility with old code)
+	NamespaceSelectorStrings []string
+	ResourceSelectorStrings  []string
+
 	// Logging configuration
 	LogFormat string // "json" or "" for default
 	LogLevel  string // trace, debug, info, warning, error, fatal, panic

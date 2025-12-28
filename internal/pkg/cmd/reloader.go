@@ -2,13 +2,12 @@ package cmd
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"net/http"
 	_ "net/http/pprof"
 	"os"
-	"strings"
 
+	"github.com/stakater/Reloader/internal/pkg/config"
 	"github.com/stakater/Reloader/internal/pkg/constants"
 	"github.com/stakater/Reloader/internal/pkg/leadership"
 
@@ -24,8 +23,15 @@ import (
 	"github.com/stakater/Reloader/pkg/kube"
 )
 
+// cfg holds the configuration for this reloader instance.
+// It is populated by flag parsing and used throughout the application.
+var cfg *config.Config
+
 // NewReloaderCommand starts the reloader controller
 func NewReloaderCommand() *cobra.Command {
+	// Create config with defaults
+	cfg = config.NewDefault()
+
 	cmd := &cobra.Command{
 		Use:     "reloader",
 		Short:   "A watcher for your Kubernetes cluster",
@@ -33,35 +39,87 @@ func NewReloaderCommand() *cobra.Command {
 		Run:     startReloader,
 	}
 
-	// options
-	util.ConfigureReloaderFlags(cmd)
+	// Bind flags to the new config package
+	config.BindFlags(cmd.PersistentFlags(), cfg)
 
 	return cmd
 }
 
 func validateFlags(*cobra.Command, []string) error {
-	// Ensure the reload strategy is one of the following...
-	var validReloadStrategy bool
-	valid := []string{constants.EnvVarsReloadStrategy, constants.AnnotationsReloadStrategy}
-	for _, s := range valid {
-		if s == options.ReloadStrategy {
-			validReloadStrategy = true
-		}
+	// Apply post-parse flag processing (converts string flags to proper types)
+	if err := config.ApplyFlags(cfg); err != nil {
+		return fmt.Errorf("applying flags: %w", err)
 	}
 
-	if !validReloadStrategy {
-		err := fmt.Sprintf("%s must be one of: %s", constants.ReloadStrategyFlag, strings.Join(valid, ", "))
-		return errors.New(err)
+	// Validate the configuration
+	if err := cfg.Validate(); err != nil {
+		return fmt.Errorf("validating config: %w", err)
 	}
+
+	// Sync new config to old options package for backward compatibility
+	// This bridge allows existing code to keep working during migration
+	syncConfigToOptions(cfg)
 
 	// Validate that HA options are correct
-	if options.EnableHA {
+	if cfg.EnableHA {
 		if err := validateHAEnvs(); err != nil {
 			return err
 		}
 	}
 
 	return nil
+}
+
+// syncConfigToOptions bridges the new Config struct to the old options package.
+// This allows existing code to continue working during the migration period.
+// TODO: Remove this once all code is migrated to use Config directly.
+func syncConfigToOptions(cfg *config.Config) {
+	options.AutoReloadAll = cfg.AutoReloadAll
+	options.ConfigmapUpdateOnChangeAnnotation = cfg.Annotations.ConfigmapReload
+	options.SecretUpdateOnChangeAnnotation = cfg.Annotations.SecretReload
+	options.ReloaderAutoAnnotation = cfg.Annotations.Auto
+	options.ConfigmapReloaderAutoAnnotation = cfg.Annotations.ConfigmapAuto
+	options.SecretReloaderAutoAnnotation = cfg.Annotations.SecretAuto
+	options.IgnoreResourceAnnotation = cfg.Annotations.Ignore
+	options.ConfigmapExcludeReloaderAnnotation = cfg.Annotations.ConfigmapExclude
+	options.SecretExcludeReloaderAnnotation = cfg.Annotations.SecretExclude
+	options.AutoSearchAnnotation = cfg.Annotations.Search
+	options.SearchMatchAnnotation = cfg.Annotations.Match
+	options.RolloutStrategyAnnotation = cfg.Annotations.RolloutStrategy
+	options.PauseDeploymentAnnotation = cfg.Annotations.PausePeriod
+	options.PauseDeploymentTimeAnnotation = cfg.Annotations.PausedAt
+	options.LogFormat = cfg.LogFormat
+	options.LogLevel = cfg.LogLevel
+	options.WebhookUrl = cfg.WebhookURL
+	options.ResourcesToIgnore = cfg.IgnoredResources
+	options.WorkloadTypesToIgnore = cfg.IgnoredWorkloads
+	options.NamespacesToIgnore = cfg.IgnoredNamespaces
+	options.NamespaceSelectors = cfg.NamespaceSelectorStrings
+	options.ResourceSelectors = cfg.ResourceSelectorStrings
+	options.EnableHA = cfg.EnableHA
+	options.SyncAfterRestart = cfg.SyncAfterRestart
+	options.EnablePProf = cfg.EnablePProf
+	options.PProfAddr = cfg.PProfAddr
+
+	// Convert ReloadStrategy to string for old options
+	options.ReloadStrategy = string(cfg.ReloadStrategy)
+
+	// Convert bool flags to string for old options (IsArgoRollouts, ReloadOnCreate, ReloadOnDelete)
+	if cfg.ArgoRolloutsEnabled {
+		options.IsArgoRollouts = "true"
+	} else {
+		options.IsArgoRollouts = "false"
+	}
+	if cfg.ReloadOnCreate {
+		options.ReloadOnCreate = "true"
+	} else {
+		options.ReloadOnCreate = "false"
+	}
+	if cfg.ReloadOnDelete {
+		options.ReloadOnDelete = "true"
+	} else {
+		options.ReloadOnDelete = "false"
+	}
 }
 
 func configureLogging(logFormat, logLevel string) error {
@@ -104,7 +162,7 @@ func getHAEnvs() (string, string) {
 
 func startReloader(cmd *cobra.Command, args []string) {
 	common.GetCommandLineOptions()
-	err := configureLogging(options.LogFormat, options.LogLevel)
+	err := configureLogging(cfg.LogFormat, cfg.LogLevel)
 	if err != nil {
 		logrus.Warn(err)
 	}
@@ -124,12 +182,10 @@ func startReloader(cmd *cobra.Command, args []string) {
 		logrus.Fatal(err)
 	}
 
-	ignoredResourcesList, err := util.GetIgnoredResourcesList()
-	if err != nil {
-		logrus.Fatal(err)
-	}
+	// Use config's IgnoredResources (already validated and normalized to lowercase)
+	ignoredResourcesList := util.List(cfg.IgnoredResources)
 
-	ignoredNamespacesList := options.NamespacesToIgnore
+	ignoredNamespacesList := cfg.IgnoredNamespaces
 	namespaceLabelSelector := ""
 
 	if isGlobal {
@@ -152,7 +208,7 @@ func startReloader(cmd *cobra.Command, args []string) {
 		logrus.Warnf("resource-label-selector is set, will only detect changes on resources with these labels: %s.", resourceLabelSelector)
 	}
 
-	if options.WebhookUrl != "" {
+	if cfg.WebhookURL != "" {
 		logrus.Warnf("webhook-url is set, will only send webhook, no resources will be reloaded")
 	}
 
@@ -171,8 +227,8 @@ func startReloader(cmd *cobra.Command, args []string) {
 
 		controllers = append(controllers, c)
 
-		// If HA is enabled we only run the controller when
-		if options.EnableHA {
+		// If HA is enabled we only run the controller when we're the leader
+		if cfg.EnableHA {
 			continue
 		}
 		// Now let's start the controller
@@ -183,7 +239,7 @@ func startReloader(cmd *cobra.Command, args []string) {
 	}
 
 	// Run leadership election
-	if options.EnableHA {
+	if cfg.EnableHA {
 		podName, podNamespace := getHAEnvs()
 		lock := leadership.GetNewLock(clientset.CoordinationV1(), constants.LockName, podName, podNamespace)
 		ctx, cancel := context.WithCancel(context.Background())
@@ -193,17 +249,17 @@ func startReloader(cmd *cobra.Command, args []string) {
 
 	common.PublishMetaInfoConfigmap(clientset)
 
-	if options.EnablePProf {
+	if cfg.EnablePProf {
 		go startPProfServer()
 	}
 
 	leadership.SetupLivenessEndpoint()
-	logrus.Fatal(http.ListenAndServe(constants.DefaultHttpListenAddr, nil))
+	logrus.Fatal(http.ListenAndServe(cfg.MetricsAddr, nil))
 }
 
 func startPProfServer() {
-	logrus.Infof("Starting pprof server on %s", options.PProfAddr)
-	if err := http.ListenAndServe(options.PProfAddr, nil); err != nil {
+	logrus.Infof("Starting pprof server on %s", cfg.PProfAddr)
+	if err := http.ListenAndServe(cfg.PProfAddr, nil); err != nil {
 		logrus.Errorf("Failed to start pprof server: %v", err)
 	}
 }

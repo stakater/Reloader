@@ -32,8 +32,8 @@ func BindFlags(fs *pflag.FlagSet, cfg *Config) {
 	fs.StringVar((*string)(&cfg.ReloadStrategy), "reload-strategy", string(cfg.ReloadStrategy),
 		"Strategy for triggering workload restart: 'env-vars' (default, GitOps friendly) or 'annotations'")
 
-	// Argo Rollouts
-	fs.StringVar(&fv.isArgoRollouts, "is-argo-rollouts", "false",
+	// Argo Rollouts (note: capital A in Argo for backward compatibility)
+	fs.StringVar(&fv.isArgoRollouts, "is-Argo-Rollouts", "false",
 		"Enable Argo Rollouts support (true/false)")
 
 	// Event watching
@@ -54,11 +54,11 @@ func BindFlags(fs *pflag.FlagSet, cfg *Config) {
 	fs.StringVar(&cfg.WebhookURL, "webhook-url", cfg.WebhookURL,
 		"URL to send notification instead of triggering reload")
 
-	// Filtering - resources
+	// Filtering - resources (use StringVar not StringSliceVar for simpler parsing)
 	fs.StringVar(&fv.ignoredResources, "resources-to-ignore", "",
-		"Comma-separated list of configmap/secret names to ignore (case-insensitive)")
-	fs.StringVar(&fv.ignoredWorkloads, "workload-types-to-ignore", "",
-		"Comma-separated list of workload types to ignore (Deployment, DaemonSet, StatefulSet)")
+		"Comma-separated list of resources to ignore (valid options: 'configMaps' or 'secrets')")
+	fs.StringVar(&fv.ignoredWorkloads, "ignored-workload-types", "",
+		"Comma-separated list of workload types to ignore (valid options: 'jobs', 'cronjobs', or both)")
 	fs.StringVar(&fv.ignoredNamespaces, "namespaces-to-ignore", "",
 		"Comma-separated list of namespaces to ignore")
 
@@ -84,23 +84,25 @@ func BindFlags(fs *pflag.FlagSet, cfg *Config) {
 	fs.StringVar(&cfg.PProfAddr, "pprof-addr", cfg.PProfAddr,
 		"Address for pprof server")
 
-	// Annotation customization
+	// Annotation customization (flag names match v1 for backward compatibility)
 	fs.StringVar(&cfg.Annotations.Auto, "auto-annotation", cfg.Annotations.Auto,
-		"Custom annotation for auto-reload")
+		"Annotation to detect changes in secrets/configmaps")
 	fs.StringVar(&cfg.Annotations.ConfigmapAuto, "configmap-auto-annotation", cfg.Annotations.ConfigmapAuto,
-		"Custom annotation for configmap auto-reload")
+		"Annotation to detect changes in configmaps")
 	fs.StringVar(&cfg.Annotations.SecretAuto, "secret-auto-annotation", cfg.Annotations.SecretAuto,
-		"Custom annotation for secret auto-reload")
-	fs.StringVar(&cfg.Annotations.ConfigmapReload, "configmap-reload-annotation", cfg.Annotations.ConfigmapReload,
-		"Custom annotation for configmap reload")
-	fs.StringVar(&cfg.Annotations.SecretReload, "secret-reload-annotation", cfg.Annotations.SecretReload,
-		"Custom annotation for secret reload")
-	fs.StringVar(&cfg.Annotations.Ignore, "ignore-annotation", cfg.Annotations.Ignore,
-		"Custom annotation for ignoring resources")
-	fs.StringVar(&cfg.Annotations.Search, "search-annotation", cfg.Annotations.Search,
-		"Custom annotation for search-based matching")
-	fs.StringVar(&cfg.Annotations.Match, "match-annotation", cfg.Annotations.Match,
-		"Custom annotation for match-based matching")
+		"Annotation to detect changes in secrets")
+	fs.StringVar(&cfg.Annotations.ConfigmapReload, "configmap-annotation", cfg.Annotations.ConfigmapReload,
+		"Annotation to detect changes in configmaps, specified by name")
+	fs.StringVar(&cfg.Annotations.SecretReload, "secret-annotation", cfg.Annotations.SecretReload,
+		"Annotation to detect changes in secrets, specified by name")
+	fs.StringVar(&cfg.Annotations.Search, "auto-search-annotation", cfg.Annotations.Search,
+		"Annotation to detect changes in configmaps or secrets tagged with special match annotation")
+	fs.StringVar(&cfg.Annotations.Match, "search-match-annotation", cfg.Annotations.Match,
+		"Annotation to mark secrets or configmaps to match the search")
+	fs.StringVar(&cfg.Annotations.PausePeriod, "pause-deployment-annotation", cfg.Annotations.PausePeriod,
+		"Annotation to define the time period to pause a deployment after a configmap/secret change")
+	fs.StringVar(&cfg.Annotations.PausedAt, "pause-deployment-time-annotation", cfg.Annotations.PausedAt,
+		"Annotation to indicate when a deployment was paused by Reloader")
 
 	// Watched namespace (for single-namespace mode)
 	fs.StringVar(&cfg.WatchedNamespace, "watch-namespace", cfg.WatchedNamespace,
@@ -120,13 +122,17 @@ func ApplyFlags(cfg *Config) error {
 	cfg.IgnoredWorkloads = splitAndTrim(fv.ignoredWorkloads)
 	cfg.IgnoredNamespaces = splitAndTrim(fv.ignoredNamespaces)
 
-	// Parse selectors
+	// Store raw selector strings (for backward compatibility)
+	cfg.NamespaceSelectorStrings = splitAndTrim(fv.namespaceSelectors)
+	cfg.ResourceSelectorStrings = splitAndTrim(fv.resourceSelectors)
+
+	// Parse selectors into labels.Selector
 	var err error
-	cfg.NamespaceSelectors, err = ParseSelectors(splitAndTrim(fv.namespaceSelectors))
+	cfg.NamespaceSelectors, err = ParseSelectors(cfg.NamespaceSelectorStrings)
 	if err != nil {
 		return err
 	}
-	cfg.ResourceSelectors, err = ParseSelectors(splitAndTrim(fv.resourceSelectors))
+	cfg.ResourceSelectors, err = ParseSelectors(cfg.ResourceSelectorStrings)
 	if err != nil {
 		return err
 	}
