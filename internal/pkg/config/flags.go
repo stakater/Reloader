@@ -39,6 +39,12 @@ func BindFlags(fs *pflag.FlagSet, cfg *Config) {
 		"Enable Argo Rollouts support (true/false)",
 	)
 
+	// OpenShift DeploymentConfig
+	fs.String(
+		"is-openshift", "",
+		"Enable OpenShift DeploymentConfig support (true/false/auto). Empty or 'auto' enables auto-detection",
+	)
+
 	// Event watching
 	fs.String(
 		"reload-on-create", "false",
@@ -239,6 +245,14 @@ func ApplyFlags(cfg *Config) error {
 	cfg.ReloadOnCreate = parseBoolString(v.GetString("reload-on-create"))
 	cfg.ReloadOnDelete = parseBoolString(v.GetString("reload-on-delete"))
 
+	switch strings.ToLower(strings.TrimSpace(v.GetString("is-openshift"))) {
+	case "true":
+		cfg.DeploymentConfigEnabled = true
+	case "false":
+		cfg.DeploymentConfigEnabled = false
+	default:
+	}
+
 	// String flags
 	cfg.ReloadStrategy = ReloadStrategy(v.GetString("reload-strategy"))
 	cfg.WebhookURL = v.GetString("webhook-url")
@@ -319,6 +333,13 @@ func ApplyFlags(cfg *Config) error {
 func parseBoolString(s string) bool {
 	s = strings.ToLower(strings.TrimSpace(s))
 	return s == "true" || s == "1" || s == "yes"
+}
+
+// ShouldAutoDetectOpenShift returns true if OpenShift DeploymentConfig support
+// should be auto-detected (i.e., the --is-openshift flag was not explicitly set).
+func ShouldAutoDetectOpenShift() bool {
+	val := strings.ToLower(strings.TrimSpace(v.GetString("is-openshift")))
+	return val == "" || val == "auto"
 }
 
 // splitAndTrim splits a comma-separated string and trims whitespace.

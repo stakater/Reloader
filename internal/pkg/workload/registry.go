@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	argorolloutv1alpha1 "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
+	openshiftv1 "github.com/openshift/api/apps/v1"
 	appsv1 "k8s.io/api/apps/v1"
 	batchv1 "k8s.io/api/batch/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -14,16 +15,24 @@ import (
 // WorkloadLister is a function that lists workloads of a specific kind.
 type WorkloadLister func(ctx context.Context, c client.Client, namespace string) ([]WorkloadAccessor, error)
 
+// RegistryOptions configures the workload registry.
+type RegistryOptions struct {
+	ArgoRolloutsEnabled     bool
+	DeploymentConfigEnabled bool
+}
+
 // Registry provides factory methods for creating Workload instances.
 type Registry struct {
-	argoRolloutsEnabled bool
-	listers             map[Kind]WorkloadLister
+	argoRolloutsEnabled     bool
+	deploymentConfigEnabled bool
+	listers                 map[Kind]WorkloadLister
 }
 
 // NewRegistry creates a new workload registry.
-func NewRegistry(argoRolloutsEnabled bool) *Registry {
+func NewRegistry(opts RegistryOptions) *Registry {
 	r := &Registry{
-		argoRolloutsEnabled: argoRolloutsEnabled,
+		argoRolloutsEnabled:     opts.ArgoRolloutsEnabled,
+		deploymentConfigEnabled: opts.DeploymentConfigEnabled,
 		listers: map[Kind]WorkloadLister{
 			KindDeployment:  listDeployments,
 			KindDaemonSet:   listDaemonSets,
@@ -32,8 +41,11 @@ func NewRegistry(argoRolloutsEnabled bool) *Registry {
 			KindCronJob:     listCronJobs,
 		},
 	}
-	if argoRolloutsEnabled {
+	if opts.ArgoRolloutsEnabled {
 		r.listers[KindArgoRollout] = listRollouts
+	}
+	if opts.DeploymentConfigEnabled {
+		r.listers[KindDeploymentConfig] = listDeploymentConfigs
 	}
 	return r
 }
@@ -54,6 +66,9 @@ func (r *Registry) SupportedKinds() []Kind {
 	}
 	if r.argoRolloutsEnabled {
 		kinds = append(kinds, KindArgoRollout)
+	}
+	if r.deploymentConfigEnabled {
+		kinds = append(kinds, KindDeploymentConfig)
 	}
 	return kinds
 }
@@ -76,6 +91,11 @@ func (r *Registry) FromObject(obj client.Object) (WorkloadAccessor, error) {
 			return nil, fmt.Errorf("argo Rollouts support is not enabled")
 		}
 		return NewRolloutWorkload(o), nil
+	case *openshiftv1.DeploymentConfig:
+		if !r.deploymentConfigEnabled {
+			return nil, fmt.Errorf("openShift DeploymentConfig support is not enabled")
+		}
+		return NewDeploymentConfigWorkload(o), nil
 	default:
 		return nil, fmt.Errorf("unsupported object type: %T", obj)
 	}
@@ -84,18 +104,20 @@ func (r *Registry) FromObject(obj client.Object) (WorkloadAccessor, error) {
 // kindAliases maps string representations to Kind constants.
 // Supports lowercase, title case, and plural forms for user convenience.
 var kindAliases = map[string]Kind{
-	"deployment":   KindDeployment,
-	"deployments":  KindDeployment,
-	"daemonset":    KindDaemonSet,
-	"daemonsets":   KindDaemonSet,
-	"statefulset":  KindStatefulSet,
-	"statefulsets": KindStatefulSet,
-	"rollout":      KindArgoRollout,
-	"rollouts":     KindArgoRollout,
-	"job":          KindJob,
-	"jobs":         KindJob,
-	"cronjob":      KindCronJob,
-	"cronjobs":     KindCronJob,
+	"deployment":        KindDeployment,
+	"deployments":       KindDeployment,
+	"daemonset":         KindDaemonSet,
+	"daemonsets":        KindDaemonSet,
+	"statefulset":       KindStatefulSet,
+	"statefulsets":      KindStatefulSet,
+	"rollout":           KindArgoRollout,
+	"rollouts":          KindArgoRollout,
+	"job":               KindJob,
+	"jobs":              KindJob,
+	"cronjob":           KindCronJob,
+	"cronjobs":          KindCronJob,
+	"deploymentconfig":  KindDeploymentConfig,
+	"deploymentconfigs": KindDeploymentConfig,
 }
 
 // KindFromString converts a string to a Kind.

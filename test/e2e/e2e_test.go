@@ -10,12 +10,15 @@ import (
 	"time"
 
 	"github.com/go-logr/zerologr"
+	openshiftclient "github.com/openshift/client-go/apps/clientset/versioned"
 	"github.com/rs/zerolog"
 	"github.com/stakater/Reloader/internal/pkg/config"
 	"github.com/stakater/Reloader/internal/pkg/controller"
 	"github.com/stakater/Reloader/internal/pkg/metrics"
+	"github.com/stakater/Reloader/internal/pkg/openshift"
 	"github.com/stakater/Reloader/internal/pkg/testutil"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
@@ -32,12 +35,14 @@ const (
 )
 
 var (
-	k8sClient     kubernetes.Interface
-	cfg           *config.Config
-	namespace     string
-	skipE2ETests  bool
-	cancelManager context.CancelFunc
-	restCfg       *rest.Config
+	k8sClient                 kubernetes.Interface
+	osClient                  openshiftclient.Interface
+	cfg                       *config.Config
+	namespace                 string
+	skipE2ETests              bool
+	skipDeploymentConfigTests bool
+	cancelManager             context.CancelFunc
+	restCfg                   *rest.Config
 )
 
 // testFixture provides a clean way to set up and tear down test resources.
@@ -155,7 +160,7 @@ func (f *testFixture) assertDeploymentReloaded(name string, testCfg *config.Conf
 	if testCfg == nil {
 		testCfg = cfg
 	}
-	updated, err := testutil.WaitForDeploymentReloadedAnnotation(k8sClient, namespace, name, testCfg, waitTimeout)
+	updated, err := testutil.WaitForDeploymentReloadedAnnotation(k8sClient, namespace, name, testCfg.Annotations.LastReloadedFrom, waitTimeout)
 	if err != nil {
 		f.t.Fatalf("Error waiting for deployment %s update: %v", name, err)
 	}
@@ -171,7 +176,7 @@ func (f *testFixture) assertDeploymentNotReloaded(name string, testCfg *config.C
 		testCfg = cfg
 	}
 	time.Sleep(negativeTestTimeout)
-	updated, _ := testutil.WaitForDeploymentReloadedAnnotation(k8sClient, namespace, name, testCfg, negativeTestTimeout)
+	updated, _ := testutil.WaitForDeploymentReloadedAnnotation(k8sClient, namespace, name, testCfg.Annotations.LastReloadedFrom, negativeTestTimeout)
 	if updated {
 		f.t.Errorf("Deployment %s should not have been updated", name)
 	}
@@ -180,7 +185,7 @@ func (f *testFixture) assertDeploymentNotReloaded(name string, testCfg *config.C
 // assertDaemonSetReloaded asserts that a daemonset was reloaded.
 func (f *testFixture) assertDaemonSetReloaded(name string) {
 	f.t.Helper()
-	updated, err := testutil.WaitForDaemonSetReloadedAnnotation(k8sClient, namespace, name, cfg, waitTimeout)
+	updated, err := testutil.WaitForDaemonSetReloadedAnnotation(k8sClient, namespace, name, cfg.Annotations.LastReloadedFrom, waitTimeout)
 	if err != nil {
 		f.t.Fatalf("Error waiting for daemonset %s update: %v", name, err)
 	}
@@ -192,12 +197,34 @@ func (f *testFixture) assertDaemonSetReloaded(name string) {
 // assertStatefulSetReloaded asserts that a statefulset was reloaded.
 func (f *testFixture) assertStatefulSetReloaded(name string) {
 	f.t.Helper()
-	updated, err := testutil.WaitForStatefulSetReloadedAnnotation(k8sClient, namespace, name, cfg, waitTimeout)
+	updated, err := testutil.WaitForStatefulSetReloadedAnnotation(k8sClient, namespace, name, cfg.Annotations.LastReloadedFrom, waitTimeout)
 	if err != nil {
 		f.t.Fatalf("Error waiting for statefulset %s update: %v", name, err)
 	}
 	if !updated {
 		f.t.Errorf("StatefulSet %s was not updated after resource change", name)
+	}
+}
+
+// createDeploymentConfig creates a DeploymentConfig and registers it for cleanup.
+func (f *testFixture) createDeploymentConfig(name string, useConfigMap bool, annotations map[string]string) {
+	f.t.Helper()
+	_, err := testutil.CreateDeploymentConfig(osClient, name, namespace, useConfigMap, annotations)
+	if err != nil {
+		f.t.Fatalf("Failed to create DeploymentConfig %s: %v", name, err)
+	}
+	f.workloads = append(f.workloads, workloadInfo{name: name, kind: "deploymentconfig"})
+}
+
+// assertDeploymentConfigReloaded asserts that a DeploymentConfig was reloaded.
+func (f *testFixture) assertDeploymentConfigReloaded(name string) {
+	f.t.Helper()
+	updated, err := testutil.WaitForDeploymentConfigReloadedAnnotation(osClient, namespace, name, cfg.Annotations.LastReloadedFrom, waitTimeout)
+	if err != nil {
+		f.t.Fatalf("Error waiting for DeploymentConfig %s update: %v", name, err)
+	}
+	if !updated {
+		f.t.Errorf("DeploymentConfig %s was not updated after resource change", name)
 	}
 }
 
@@ -211,6 +238,10 @@ func (f *testFixture) cleanup() {
 			_ = testutil.DeleteDaemonSet(k8sClient, namespace, w.name)
 		case "statefulset":
 			_ = testutil.DeleteStatefulSet(k8sClient, namespace, w.name)
+		case "deploymentconfig":
+			if osClient != nil {
+				_ = testutil.DeleteDeploymentConfig(osClient, namespace, w.name)
+			}
 		}
 	}
 	for _, name := range f.configMaps {
@@ -266,6 +297,25 @@ func TestMain(m *testing.M) {
 	cfg = config.NewDefault()
 	cfg.AutoReloadAll = false
 
+	// Check if cluster supports DeploymentConfig
+	discoveryClient, err := discovery.NewDiscoveryClientForConfig(restCfg)
+	if err != nil {
+		skipDeploymentConfigTests = true
+	} else {
+		// Use a nop logger for detection
+		nopLog := ctrl.Log.WithName("dc-detection")
+		if openshift.HasDeploymentConfigSupport(discoveryClient, nopLog) {
+			cfg.DeploymentConfigEnabled = true
+			// Create OpenShift client for DeploymentConfig tests
+			osClient, err = testutil.NewOpenshiftClient(restCfg)
+			if err != nil {
+				skipDeploymentConfigTests = true
+			}
+		} else {
+			skipDeploymentConfigTests = true
+		}
+	}
+
 	_, cancelManager = startManagerWithConfig(cfg, restCfg)
 
 	code := m.Run()
@@ -282,6 +332,13 @@ func TestMain(m *testing.M) {
 func skipIfNoCluster(t *testing.T) {
 	if skipE2ETests {
 		t.Skip("Skipping e2e test: no Kubernetes cluster available")
+	}
+}
+
+func skipIfNoDeploymentConfig(t *testing.T) {
+	skipIfNoCluster(t)
+	if skipDeploymentConfigTests {
+		t.Skip("Skipping DeploymentConfig test: cluster does not support DeploymentConfig API")
 	}
 }
 
@@ -495,6 +552,67 @@ func TestAutoWithBothExplicitAndReferencedChange(t *testing.T) {
 
 	f.updateConfigMap(referencedCM, "updated-referenced-data")
 	f.assertDeploymentReloaded(referencedCM, nil)
+}
+
+// newFixtureForDeploymentConfig creates a new test fixture for DeploymentConfig tests.
+func newFixtureForDeploymentConfig(t *testing.T, prefix string) *testFixture {
+	t.Helper()
+	skipIfNoDeploymentConfig(t)
+	return &testFixture{
+		t:    t,
+		name: prefix + "-" + testutil.RandSeq(5),
+	}
+}
+
+// TestDeploymentConfigReloadConfigMap tests that updating a ConfigMap triggers a DeploymentConfig reload.
+func TestDeploymentConfigReloadConfigMap(t *testing.T) {
+	f := newFixtureForDeploymentConfig(t, "dc-cm-reload")
+	defer f.cleanup()
+
+	f.createConfigMap(f.name, "initial-data")
+	f.createDeploymentConfig(
+		f.name, true, map[string]string{
+			cfg.Annotations.ConfigmapReload: f.name,
+		},
+	)
+	f.waitForReady()
+
+	f.updateConfigMap(f.name, "updated-data")
+	f.assertDeploymentConfigReloaded(f.name)
+}
+
+// TestDeploymentConfigReloadSecret tests that updating a Secret triggers a DeploymentConfig reload.
+func TestDeploymentConfigReloadSecret(t *testing.T) {
+	f := newFixtureForDeploymentConfig(t, "dc-secret-reload")
+	defer f.cleanup()
+
+	f.createSecret(f.name, "initial-secret")
+	f.createDeploymentConfig(
+		f.name, false, map[string]string{
+			cfg.Annotations.SecretReload: f.name,
+		},
+	)
+	f.waitForReady()
+
+	f.updateSecret(f.name, "updated-secret")
+	f.assertDeploymentConfigReloaded(f.name)
+}
+
+// TestDeploymentConfigAutoReload tests the auto-reload annotation on DeploymentConfig.
+func TestDeploymentConfigAutoReload(t *testing.T) {
+	f := newFixtureForDeploymentConfig(t, "dc-auto-reload")
+	defer f.cleanup()
+
+	f.createConfigMap(f.name, "initial-data")
+	f.createDeploymentConfig(
+		f.name, true, map[string]string{
+			cfg.Annotations.Auto: "true",
+		},
+	)
+	f.waitForReady()
+
+	f.updateConfigMap(f.name, "updated-data")
+	f.assertDeploymentConfigReloaded(f.name)
 }
 
 // startManagerWithConfig creates and starts a controller-runtime manager for e2e testing.

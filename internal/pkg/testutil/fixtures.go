@@ -1,6 +1,7 @@
 package testutil
 
 import (
+	openshiftv1 "github.com/openshift/api/apps/v1"
 	appsv1 "k8s.io/api/apps/v1"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -8,12 +9,69 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 )
 
+// NewDeploymentConfig creates a minimal DeploymentConfig for unit testing.
+func NewDeploymentConfig(name, namespace string, annotations map[string]string) *openshiftv1.DeploymentConfig {
+	replicas := int32(1)
+	return &openshiftv1.DeploymentConfig{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:        name,
+			Namespace:   namespace,
+			Annotations: annotations,
+		},
+		Spec: openshiftv1.DeploymentConfigSpec{
+			Replicas: replicas,
+			Selector: map[string]string{"app": name},
+			Template: &corev1.PodTemplateSpec{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels:      map[string]string{"app": name},
+					Annotations: map[string]string{},
+				},
+				Spec: corev1.PodSpec{
+					Containers: []corev1.Container{
+						{
+							Name:  "main",
+							Image: "nginx",
+						},
+					},
+				},
+			},
+		},
+	}
+}
+
+// NewDeploymentConfigWithEnvFrom creates a DeploymentConfig with EnvFrom referencing a ConfigMap or Secret.
+func NewDeploymentConfigWithEnvFrom(name, namespace string, configMapName, secretName string) *openshiftv1.DeploymentConfig {
+	dc := NewDeploymentConfig(name, namespace, nil)
+	if configMapName != "" {
+		dc.Spec.Template.Spec.Containers[0].EnvFrom = append(
+			dc.Spec.Template.Spec.Containers[0].EnvFrom,
+			corev1.EnvFromSource{
+				ConfigMapRef: &corev1.ConfigMapEnvSource{
+					LocalObjectReference: corev1.LocalObjectReference{Name: configMapName},
+				},
+			},
+		)
+	}
+	if secretName != "" {
+		dc.Spec.Template.Spec.Containers[0].EnvFrom = append(
+			dc.Spec.Template.Spec.Containers[0].EnvFrom,
+			corev1.EnvFromSource{
+				SecretRef: &corev1.SecretEnvSource{
+					LocalObjectReference: corev1.LocalObjectReference{Name: secretName},
+				},
+			},
+		)
+	}
+	return dc
+}
+
 // NewScheme creates a scheme with common types for testing.
 func NewScheme() *runtime.Scheme {
 	scheme := runtime.NewScheme()
 	_ = corev1.AddToScheme(scheme)
 	_ = appsv1.AddToScheme(scheme)
 	_ = batchv1.AddToScheme(scheme)
+	_ = openshiftv1.AddToScheme(scheme)
 	return scheme
 }
 
@@ -35,10 +93,12 @@ func NewDeployment(name, namespace string, annotations map[string]string) *appsv
 					Annotations: map[string]string{},
 				},
 				Spec: corev1.PodSpec{
-					Containers: []corev1.Container{{
-						Name:  "main",
-						Image: "nginx",
-					}},
+					Containers: []corev1.Container{
+						{
+							Name:  "main",
+							Image: "nginx",
+						},
+					},
 				},
 			},
 		},
@@ -74,30 +134,36 @@ func NewDeploymentWithEnvFrom(name, namespace string, configMapName, secretName 
 // NewDeploymentWithVolume creates a Deployment with a volume from ConfigMap or Secret.
 func NewDeploymentWithVolume(name, namespace string, configMapName, secretName string) *appsv1.Deployment {
 	d := NewDeployment(name, namespace, nil)
-	d.Spec.Template.Spec.Containers[0].VolumeMounts = []corev1.VolumeMount{{
-		Name:      "config",
-		MountPath: "/etc/config",
-	}}
+	d.Spec.Template.Spec.Containers[0].VolumeMounts = []corev1.VolumeMount{
+		{
+			Name:      "config",
+			MountPath: "/etc/config",
+		},
+	}
 
 	if configMapName != "" {
-		d.Spec.Template.Spec.Volumes = []corev1.Volume{{
-			Name: "config",
-			VolumeSource: corev1.VolumeSource{
-				ConfigMap: &corev1.ConfigMapVolumeSource{
-					LocalObjectReference: corev1.LocalObjectReference{Name: configMapName},
+		d.Spec.Template.Spec.Volumes = []corev1.Volume{
+			{
+				Name: "config",
+				VolumeSource: corev1.VolumeSource{
+					ConfigMap: &corev1.ConfigMapVolumeSource{
+						LocalObjectReference: corev1.LocalObjectReference{Name: configMapName},
+					},
 				},
 			},
-		}}
+		}
 	}
 	if secretName != "" {
-		d.Spec.Template.Spec.Volumes = []corev1.Volume{{
-			Name: "config",
-			VolumeSource: corev1.VolumeSource{
-				Secret: &corev1.SecretVolumeSource{
-					SecretName: secretName,
+		d.Spec.Template.Spec.Volumes = []corev1.Volume{
+			{
+				Name: "config",
+				VolumeSource: corev1.VolumeSource{
+					Secret: &corev1.SecretVolumeSource{
+						SecretName: secretName,
+					},
 				},
 			},
-		}}
+		}
 	}
 	return d
 }
@@ -105,33 +171,41 @@ func NewDeploymentWithVolume(name, namespace string, configMapName, secretName s
 // NewDeploymentWithProjectedVolume creates a Deployment with a projected volume.
 func NewDeploymentWithProjectedVolume(name, namespace string, configMapName, secretName string) *appsv1.Deployment {
 	d := NewDeployment(name, namespace, nil)
-	d.Spec.Template.Spec.Containers[0].VolumeMounts = []corev1.VolumeMount{{
-		Name:      "config",
-		MountPath: "/etc/config",
-	}}
+	d.Spec.Template.Spec.Containers[0].VolumeMounts = []corev1.VolumeMount{
+		{
+			Name:      "config",
+			MountPath: "/etc/config",
+		},
+	}
 
 	sources := []corev1.VolumeProjection{}
 	if configMapName != "" {
-		sources = append(sources, corev1.VolumeProjection{
-			ConfigMap: &corev1.ConfigMapProjection{
-				LocalObjectReference: corev1.LocalObjectReference{Name: configMapName},
+		sources = append(
+			sources, corev1.VolumeProjection{
+				ConfigMap: &corev1.ConfigMapProjection{
+					LocalObjectReference: corev1.LocalObjectReference{Name: configMapName},
+				},
 			},
-		})
+		)
 	}
 	if secretName != "" {
-		sources = append(sources, corev1.VolumeProjection{
-			Secret: &corev1.SecretProjection{
-				LocalObjectReference: corev1.LocalObjectReference{Name: secretName},
+		sources = append(
+			sources, corev1.VolumeProjection{
+				Secret: &corev1.SecretProjection{
+					LocalObjectReference: corev1.LocalObjectReference{Name: secretName},
+				},
 			},
-		})
+		)
 	}
 
-	d.Spec.Template.Spec.Volumes = []corev1.Volume{{
-		Name: "config",
-		VolumeSource: corev1.VolumeSource{
-			Projected: &corev1.ProjectedVolumeSource{Sources: sources},
+	d.Spec.Template.Spec.Volumes = []corev1.Volume{
+		{
+			Name: "config",
+			VolumeSource: corev1.VolumeSource{
+				Projected: &corev1.ProjectedVolumeSource{Sources: sources},
+			},
 		},
-	}}
+	}
 	return d
 }
 
@@ -153,10 +227,12 @@ func NewDaemonSet(name, namespace string, annotations map[string]string) *appsv1
 					Annotations: map[string]string{},
 				},
 				Spec: corev1.PodSpec{
-					Containers: []corev1.Container{{
-						Name:  "main",
-						Image: "nginx",
-					}},
+					Containers: []corev1.Container{
+						{
+							Name:  "main",
+							Image: "nginx",
+						},
+					},
 				},
 			},
 		},
@@ -181,10 +257,12 @@ func NewStatefulSet(name, namespace string, annotations map[string]string) *apps
 					Annotations: map[string]string{},
 				},
 				Spec: corev1.PodSpec{
-					Containers: []corev1.Container{{
-						Name:  "main",
-						Image: "nginx",
-					}},
+					Containers: []corev1.Container{
+						{
+							Name:  "main",
+							Image: "nginx",
+						},
+					},
 				},
 			},
 		},
@@ -200,16 +278,28 @@ func NewJob(name, namespace string) *batchv1.Job {
 		},
 		Spec: batchv1.JobSpec{
 			Template: corev1.PodTemplateSpec{
+				ObjectMeta: metav1.ObjectMeta{
+					Annotations: map[string]string{},
+				},
 				Spec: corev1.PodSpec{
 					RestartPolicy: corev1.RestartPolicyNever,
-					Containers: []corev1.Container{{
-						Name:  "main",
-						Image: "busybox",
-					}},
+					Containers: []corev1.Container{
+						{
+							Name:  "main",
+							Image: "busybox",
+						},
+					},
 				},
 			},
 		},
 	}
+}
+
+// NewJobWithAnnotations creates a Job with annotations.
+func NewJobWithAnnotations(name, namespace string, annotations map[string]string) *batchv1.Job {
+	job := NewJob(name, namespace)
+	job.Annotations = annotations
+	return job
 }
 
 // NewCronJob creates a minimal CronJob for unit testing.
@@ -225,18 +315,30 @@ func NewCronJob(name, namespace string) *batchv1.CronJob {
 			JobTemplate: batchv1.JobTemplateSpec{
 				Spec: batchv1.JobSpec{
 					Template: corev1.PodTemplateSpec{
+						ObjectMeta: metav1.ObjectMeta{
+							Annotations: map[string]string{},
+						},
 						Spec: corev1.PodSpec{
 							RestartPolicy: corev1.RestartPolicyNever,
-							Containers: []corev1.Container{{
-								Name:  "main",
-								Image: "busybox",
-							}},
+							Containers: []corev1.Container{
+								{
+									Name:  "main",
+									Image: "busybox",
+								},
+							},
 						},
 					},
 				},
 			},
 		},
 	}
+}
+
+// NewCronJobWithAnnotations creates a CronJob with annotations.
+func NewCronJobWithAnnotations(name, namespace string, annotations map[string]string) *batchv1.CronJob {
+	cj := NewCronJob(name, namespace)
+	cj.Annotations = annotations
+	return cj
 }
 
 // NewConfigMap creates a ConfigMap for unit testing.

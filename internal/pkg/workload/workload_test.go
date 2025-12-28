@@ -4,22 +4,43 @@ import (
 	"testing"
 
 	argorolloutv1alpha1 "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
-	appsv1 "k8s.io/api/apps/v1"
-	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
+	"github.com/stakater/Reloader/internal/pkg/testutil"
 )
 
-func TestDeploymentWorkload_BasicGetters(t *testing.T) {
-	deploy := &appsv1.Deployment{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "test-deploy",
-			Namespace: "test-ns",
-			Annotations: map[string]string{
-				"key": "value",
+// addEnvVar adds an environment variable with a ConfigMapKeyRef or SecretKeyRef to a container.
+func addEnvVarConfigMapRef(containers []corev1.Container, envName, configMapName, key string) {
+	if len(containers) > 0 {
+		containers[0].Env = append(containers[0].Env, corev1.EnvVar{
+			Name: envName,
+			ValueFrom: &corev1.EnvVarSource{
+				ConfigMapKeyRef: &corev1.ConfigMapKeySelector{
+					LocalObjectReference: corev1.LocalObjectReference{Name: configMapName},
+					Key:                  key,
+				},
 			},
-		},
+		})
 	}
+}
+
+func addEnvVarSecretRef(containers []corev1.Container, envName, secretName, key string) {
+	if len(containers) > 0 {
+		containers[0].Env = append(containers[0].Env, corev1.EnvVar{
+			Name: envName,
+			ValueFrom: &corev1.EnvVarSource{
+				SecretKeyRef: &corev1.SecretKeySelector{
+					LocalObjectReference: corev1.LocalObjectReference{Name: secretName},
+					Key:                  key,
+				},
+			},
+		})
+	}
+}
+
+func TestDeploymentWorkload_BasicGetters(t *testing.T) {
+	deploy := testutil.NewDeployment("test-deploy", "test-ns", map[string]string{"key": "value"})
 
 	w := NewDeploymentWorkload(deploy)
 
@@ -41,18 +62,8 @@ func TestDeploymentWorkload_BasicGetters(t *testing.T) {
 }
 
 func TestDeploymentWorkload_PodTemplateAnnotations(t *testing.T) {
-	deploy := &appsv1.Deployment{
-		ObjectMeta: metav1.ObjectMeta{Name: "test"},
-		Spec: appsv1.DeploymentSpec{
-			Template: corev1.PodTemplateSpec{
-				ObjectMeta: metav1.ObjectMeta{
-					Annotations: map[string]string{
-						"existing": "annotation",
-					},
-				},
-			},
-		},
-	}
+	deploy := testutil.NewDeployment("test", "default", nil)
+	deploy.Spec.Template.Annotations["existing"] = "annotation"
 
 	w := NewDeploymentWorkload(deploy)
 
@@ -70,14 +81,8 @@ func TestDeploymentWorkload_PodTemplateAnnotations(t *testing.T) {
 }
 
 func TestDeploymentWorkload_PodTemplateAnnotations_NilInit(t *testing.T) {
-	deploy := &appsv1.Deployment{
-		ObjectMeta: metav1.ObjectMeta{Name: "test"},
-		Spec: appsv1.DeploymentSpec{
-			Template: corev1.PodTemplateSpec{
-				// No annotations set
-			},
-		},
-	}
+	deploy := testutil.NewDeployment("test", "default", nil)
+	deploy.Spec.Template.Annotations = nil
 
 	w := NewDeploymentWorkload(deploy)
 
@@ -95,21 +100,8 @@ func TestDeploymentWorkload_PodTemplateAnnotations_NilInit(t *testing.T) {
 }
 
 func TestDeploymentWorkload_Containers(t *testing.T) {
-	deploy := &appsv1.Deployment{
-		ObjectMeta: metav1.ObjectMeta{Name: "test"},
-		Spec: appsv1.DeploymentSpec{
-			Template: corev1.PodTemplateSpec{
-				Spec: corev1.PodSpec{
-					Containers: []corev1.Container{
-						{Name: "main", Image: "nginx"},
-					},
-					InitContainers: []corev1.Container{
-						{Name: "init", Image: "busybox"},
-					},
-				},
-			},
-		},
-	}
+	deploy := testutil.NewDeployment("test", "default", nil)
+	deploy.Spec.Template.Spec.InitContainers = []corev1.Container{{Name: "init", Image: "busybox"}}
 
 	w := NewDeploymentWorkload(deploy)
 
@@ -141,18 +133,10 @@ func TestDeploymentWorkload_Containers(t *testing.T) {
 }
 
 func TestDeploymentWorkload_Volumes(t *testing.T) {
-	deploy := &appsv1.Deployment{
-		ObjectMeta: metav1.ObjectMeta{Name: "test"},
-		Spec: appsv1.DeploymentSpec{
-			Template: corev1.PodTemplateSpec{
-				Spec: corev1.PodSpec{
-					Volumes: []corev1.Volume{
-						{Name: "config-vol"},
-						{Name: "secret-vol"},
-					},
-				},
-			},
-		},
+	deploy := testutil.NewDeployment("test", "default", nil)
+	deploy.Spec.Template.Spec.Volumes = []corev1.Volume{
+		{Name: "config-vol"},
+		{Name: "secret-vol"},
 	}
 
 	w := NewDeploymentWorkload(deploy)
@@ -164,27 +148,7 @@ func TestDeploymentWorkload_Volumes(t *testing.T) {
 }
 
 func TestDeploymentWorkload_UsesConfigMap_Volume(t *testing.T) {
-	deploy := &appsv1.Deployment{
-		ObjectMeta: metav1.ObjectMeta{Name: "test"},
-		Spec: appsv1.DeploymentSpec{
-			Template: corev1.PodTemplateSpec{
-				Spec: corev1.PodSpec{
-					Volumes: []corev1.Volume{
-						{
-							Name: "config-vol",
-							VolumeSource: corev1.VolumeSource{
-								ConfigMap: &corev1.ConfigMapVolumeSource{
-									LocalObjectReference: corev1.LocalObjectReference{
-										Name: "my-config",
-									},
-								},
-							},
-						},
-					},
-				},
-			},
-		},
-	}
+	deploy := testutil.NewDeploymentWithVolume("test", "default", "my-config", "")
 
 	w := NewDeploymentWorkload(deploy)
 
@@ -197,33 +161,7 @@ func TestDeploymentWorkload_UsesConfigMap_Volume(t *testing.T) {
 }
 
 func TestDeploymentWorkload_UsesConfigMap_ProjectedVolume(t *testing.T) {
-	deploy := &appsv1.Deployment{
-		ObjectMeta: metav1.ObjectMeta{Name: "test"},
-		Spec: appsv1.DeploymentSpec{
-			Template: corev1.PodTemplateSpec{
-				Spec: corev1.PodSpec{
-					Volumes: []corev1.Volume{
-						{
-							Name: "projected-vol",
-							VolumeSource: corev1.VolumeSource{
-								Projected: &corev1.ProjectedVolumeSource{
-									Sources: []corev1.VolumeProjection{
-										{
-											ConfigMap: &corev1.ConfigMapProjection{
-												LocalObjectReference: corev1.LocalObjectReference{
-													Name: "projected-config",
-												},
-											},
-										},
-									},
-								},
-							},
-						},
-					},
-				},
-			},
-		},
-	}
+	deploy := testutil.NewDeploymentWithProjectedVolume("test", "default", "projected-config", "")
 
 	w := NewDeploymentWorkload(deploy)
 
@@ -233,29 +171,7 @@ func TestDeploymentWorkload_UsesConfigMap_ProjectedVolume(t *testing.T) {
 }
 
 func TestDeploymentWorkload_UsesConfigMap_EnvFrom(t *testing.T) {
-	deploy := &appsv1.Deployment{
-		ObjectMeta: metav1.ObjectMeta{Name: "test"},
-		Spec: appsv1.DeploymentSpec{
-			Template: corev1.PodTemplateSpec{
-				Spec: corev1.PodSpec{
-					Containers: []corev1.Container{
-						{
-							Name: "main",
-							EnvFrom: []corev1.EnvFromSource{
-								{
-									ConfigMapRef: &corev1.ConfigMapEnvSource{
-										LocalObjectReference: corev1.LocalObjectReference{
-											Name: "env-config",
-										},
-									},
-								},
-							},
-						},
-					},
-				},
-			},
-		},
-	}
+	deploy := testutil.NewDeploymentWithEnvFrom("test", "default", "env-config", "")
 
 	w := NewDeploymentWorkload(deploy)
 
@@ -265,33 +181,8 @@ func TestDeploymentWorkload_UsesConfigMap_EnvFrom(t *testing.T) {
 }
 
 func TestDeploymentWorkload_UsesConfigMap_EnvVar(t *testing.T) {
-	deploy := &appsv1.Deployment{
-		ObjectMeta: metav1.ObjectMeta{Name: "test"},
-		Spec: appsv1.DeploymentSpec{
-			Template: corev1.PodTemplateSpec{
-				Spec: corev1.PodSpec{
-					Containers: []corev1.Container{
-						{
-							Name: "main",
-							Env: []corev1.EnvVar{
-								{
-									Name: "CONFIG_VALUE",
-									ValueFrom: &corev1.EnvVarSource{
-										ConfigMapKeyRef: &corev1.ConfigMapKeySelector{
-											LocalObjectReference: corev1.LocalObjectReference{
-												Name: "var-config",
-											},
-											Key: "some-key",
-										},
-									},
-								},
-							},
-						},
-					},
-				},
-			},
-		},
-	}
+	deploy := testutil.NewDeployment("test", "default", nil)
+	addEnvVarConfigMapRef(deploy.Spec.Template.Spec.Containers, "CONFIG_VALUE", "var-config", "some-key")
 
 	w := NewDeploymentWorkload(deploy)
 
@@ -301,24 +192,14 @@ func TestDeploymentWorkload_UsesConfigMap_EnvVar(t *testing.T) {
 }
 
 func TestDeploymentWorkload_UsesConfigMap_InitContainer(t *testing.T) {
-	deploy := &appsv1.Deployment{
-		ObjectMeta: metav1.ObjectMeta{Name: "test"},
-		Spec: appsv1.DeploymentSpec{
-			Template: corev1.PodTemplateSpec{
-				Spec: corev1.PodSpec{
-					InitContainers: []corev1.Container{
-						{
-							Name: "init",
-							EnvFrom: []corev1.EnvFromSource{
-								{
-									ConfigMapRef: &corev1.ConfigMapEnvSource{
-										LocalObjectReference: corev1.LocalObjectReference{
-											Name: "init-config",
-										},
-									},
-								},
-							},
-						},
+	deploy := testutil.NewDeployment("test", "default", nil)
+	deploy.Spec.Template.Spec.InitContainers = []corev1.Container{
+		{
+			Name: "init",
+			EnvFrom: []corev1.EnvFromSource{
+				{
+					ConfigMapRef: &corev1.ConfigMapEnvSource{
+						LocalObjectReference: corev1.LocalObjectReference{Name: "init-config"},
 					},
 				},
 			},
@@ -333,25 +214,7 @@ func TestDeploymentWorkload_UsesConfigMap_InitContainer(t *testing.T) {
 }
 
 func TestDeploymentWorkload_UsesSecret_Volume(t *testing.T) {
-	deploy := &appsv1.Deployment{
-		ObjectMeta: metav1.ObjectMeta{Name: "test"},
-		Spec: appsv1.DeploymentSpec{
-			Template: corev1.PodTemplateSpec{
-				Spec: corev1.PodSpec{
-					Volumes: []corev1.Volume{
-						{
-							Name: "secret-vol",
-							VolumeSource: corev1.VolumeSource{
-								Secret: &corev1.SecretVolumeSource{
-									SecretName: "my-secret",
-								},
-							},
-						},
-					},
-				},
-			},
-		},
-	}
+	deploy := testutil.NewDeploymentWithVolume("test", "default", "", "my-secret")
 
 	w := NewDeploymentWorkload(deploy)
 
@@ -364,33 +227,7 @@ func TestDeploymentWorkload_UsesSecret_Volume(t *testing.T) {
 }
 
 func TestDeploymentWorkload_UsesSecret_ProjectedVolume(t *testing.T) {
-	deploy := &appsv1.Deployment{
-		ObjectMeta: metav1.ObjectMeta{Name: "test"},
-		Spec: appsv1.DeploymentSpec{
-			Template: corev1.PodTemplateSpec{
-				Spec: corev1.PodSpec{
-					Volumes: []corev1.Volume{
-						{
-							Name: "projected-vol",
-							VolumeSource: corev1.VolumeSource{
-								Projected: &corev1.ProjectedVolumeSource{
-									Sources: []corev1.VolumeProjection{
-										{
-											Secret: &corev1.SecretProjection{
-												LocalObjectReference: corev1.LocalObjectReference{
-													Name: "projected-secret",
-												},
-											},
-										},
-									},
-								},
-							},
-						},
-					},
-				},
-			},
-		},
-	}
+	deploy := testutil.NewDeploymentWithProjectedVolume("test", "default", "", "projected-secret")
 
 	w := NewDeploymentWorkload(deploy)
 
@@ -400,29 +237,7 @@ func TestDeploymentWorkload_UsesSecret_ProjectedVolume(t *testing.T) {
 }
 
 func TestDeploymentWorkload_UsesSecret_EnvFrom(t *testing.T) {
-	deploy := &appsv1.Deployment{
-		ObjectMeta: metav1.ObjectMeta{Name: "test"},
-		Spec: appsv1.DeploymentSpec{
-			Template: corev1.PodTemplateSpec{
-				Spec: corev1.PodSpec{
-					Containers: []corev1.Container{
-						{
-							Name: "main",
-							EnvFrom: []corev1.EnvFromSource{
-								{
-									SecretRef: &corev1.SecretEnvSource{
-										LocalObjectReference: corev1.LocalObjectReference{
-											Name: "env-secret",
-										},
-									},
-								},
-							},
-						},
-					},
-				},
-			},
-		},
-	}
+	deploy := testutil.NewDeploymentWithEnvFrom("test", "default", "", "env-secret")
 
 	w := NewDeploymentWorkload(deploy)
 
@@ -432,33 +247,8 @@ func TestDeploymentWorkload_UsesSecret_EnvFrom(t *testing.T) {
 }
 
 func TestDeploymentWorkload_UsesSecret_EnvVar(t *testing.T) {
-	deploy := &appsv1.Deployment{
-		ObjectMeta: metav1.ObjectMeta{Name: "test"},
-		Spec: appsv1.DeploymentSpec{
-			Template: corev1.PodTemplateSpec{
-				Spec: corev1.PodSpec{
-					Containers: []corev1.Container{
-						{
-							Name: "main",
-							Env: []corev1.EnvVar{
-								{
-									Name: "SECRET_VALUE",
-									ValueFrom: &corev1.EnvVarSource{
-										SecretKeyRef: &corev1.SecretKeySelector{
-											LocalObjectReference: corev1.LocalObjectReference{
-												Name: "var-secret",
-											},
-											Key: "some-key",
-										},
-									},
-								},
-							},
-						},
-					},
-				},
-			},
-		},
-	}
+	deploy := testutil.NewDeployment("test", "default", nil)
+	addEnvVarSecretRef(deploy.Spec.Template.Spec.Containers, "SECRET_VALUE", "var-secret", "some-key")
 
 	w := NewDeploymentWorkload(deploy)
 
@@ -468,24 +258,14 @@ func TestDeploymentWorkload_UsesSecret_EnvVar(t *testing.T) {
 }
 
 func TestDeploymentWorkload_UsesSecret_InitContainer(t *testing.T) {
-	deploy := &appsv1.Deployment{
-		ObjectMeta: metav1.ObjectMeta{Name: "test"},
-		Spec: appsv1.DeploymentSpec{
-			Template: corev1.PodTemplateSpec{
-				Spec: corev1.PodSpec{
-					InitContainers: []corev1.Container{
-						{
-							Name: "init",
-							EnvFrom: []corev1.EnvFromSource{
-								{
-									SecretRef: &corev1.SecretEnvSource{
-										LocalObjectReference: corev1.LocalObjectReference{
-											Name: "init-secret",
-										},
-									},
-								},
-							},
-						},
+	deploy := testutil.NewDeployment("test", "default", nil)
+	deploy.Spec.Template.Spec.InitContainers = []corev1.Container{
+		{
+			Name: "init",
+			EnvFrom: []corev1.EnvFromSource{
+				{
+					SecretRef: &corev1.SecretEnvSource{
+						LocalObjectReference: corev1.LocalObjectReference{Name: "init-secret"},
 					},
 				},
 			},
@@ -500,35 +280,21 @@ func TestDeploymentWorkload_UsesSecret_InitContainer(t *testing.T) {
 }
 
 func TestDeploymentWorkload_GetEnvFromSources(t *testing.T) {
-	deploy := &appsv1.Deployment{
-		ObjectMeta: metav1.ObjectMeta{Name: "test"},
-		Spec: appsv1.DeploymentSpec{
-			Template: corev1.PodTemplateSpec{
-				Spec: corev1.PodSpec{
-					Containers: []corev1.Container{
-						{
-							Name: "main",
-							EnvFrom: []corev1.EnvFromSource{
-								{ConfigMapRef: &corev1.ConfigMapEnvSource{LocalObjectReference: corev1.LocalObjectReference{Name: "cm1"}}},
-							},
-						},
-						{
-							Name: "sidecar",
-							EnvFrom: []corev1.EnvFromSource{
-								{SecretRef: &corev1.SecretEnvSource{LocalObjectReference: corev1.LocalObjectReference{Name: "secret1"}}},
-							},
-						},
-					},
-					InitContainers: []corev1.Container{
-						{
-							Name: "init",
-							EnvFrom: []corev1.EnvFromSource{
-								{ConfigMapRef: &corev1.ConfigMapEnvSource{LocalObjectReference: corev1.LocalObjectReference{Name: "init-cm"}}},
-							},
-						},
-					},
-				},
-			},
+	deploy := testutil.NewDeployment("test", "default", nil)
+	deploy.Spec.Template.Spec.Containers = []corev1.Container{
+		{
+			Name:    "main",
+			EnvFrom: []corev1.EnvFromSource{{ConfigMapRef: &corev1.ConfigMapEnvSource{LocalObjectReference: corev1.LocalObjectReference{Name: "cm1"}}}},
+		},
+		{
+			Name:    "sidecar",
+			EnvFrom: []corev1.EnvFromSource{{SecretRef: &corev1.SecretEnvSource{LocalObjectReference: corev1.LocalObjectReference{Name: "secret1"}}}},
+		},
+	}
+	deploy.Spec.Template.Spec.InitContainers = []corev1.Container{
+		{
+			Name:    "init",
+			EnvFrom: []corev1.EnvFromSource{{ConfigMapRef: &corev1.ConfigMapEnvSource{LocalObjectReference: corev1.LocalObjectReference{Name: "init-cm"}}}},
 		},
 	}
 
@@ -541,21 +307,7 @@ func TestDeploymentWorkload_GetEnvFromSources(t *testing.T) {
 }
 
 func TestDeploymentWorkload_DeepCopy(t *testing.T) {
-	deploy := &appsv1.Deployment{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "test",
-			Namespace: "default",
-		},
-		Spec: appsv1.DeploymentSpec{
-			Template: corev1.PodTemplateSpec{
-				Spec: corev1.PodSpec{
-					Containers: []corev1.Container{
-						{Name: "main", Image: "nginx"},
-					},
-				},
-			},
-		},
-	}
+	deploy := testutil.NewDeployment("test", "default", nil)
 
 	w := NewDeploymentWorkload(deploy)
 	copy := w.DeepCopy()
@@ -571,17 +323,9 @@ func TestDeploymentWorkload_DeepCopy(t *testing.T) {
 }
 
 func TestDeploymentWorkload_GetOwnerReferences(t *testing.T) {
-	deploy := &appsv1.Deployment{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: "test",
-			OwnerReferences: []metav1.OwnerReference{
-				{
-					APIVersion: "apps/v1",
-					Kind:       "ReplicaSet",
-					Name:       "test-rs",
-				},
-			},
-		},
+	deploy := testutil.NewDeployment("test", "default", nil)
+	deploy.OwnerReferences = []metav1.OwnerReference{
+		{APIVersion: "apps/v1", Kind: "ReplicaSet", Name: "test-rs"},
 	}
 
 	w := NewDeploymentWorkload(deploy)
@@ -594,15 +338,7 @@ func TestDeploymentWorkload_GetOwnerReferences(t *testing.T) {
 
 // DaemonSet tests
 func TestDaemonSetWorkload_BasicGetters(t *testing.T) {
-	ds := &appsv1.DaemonSet{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "test-ds",
-			Namespace: "test-ns",
-			Annotations: map[string]string{
-				"key": "value",
-			},
-		},
-	}
+	ds := testutil.NewDaemonSet("test-ds", "test-ns", map[string]string{"key": "value"})
 
 	w := NewDaemonSetWorkload(ds)
 
@@ -624,18 +360,8 @@ func TestDaemonSetWorkload_BasicGetters(t *testing.T) {
 }
 
 func TestDaemonSetWorkload_PodTemplateAnnotations(t *testing.T) {
-	ds := &appsv1.DaemonSet{
-		ObjectMeta: metav1.ObjectMeta{Name: "test"},
-		Spec: appsv1.DaemonSetSpec{
-			Template: corev1.PodTemplateSpec{
-				ObjectMeta: metav1.ObjectMeta{
-					Annotations: map[string]string{
-						"existing": "annotation",
-					},
-				},
-			},
-		},
-	}
+	ds := testutil.NewDaemonSet("test", "default", nil)
+	ds.Spec.Template.Annotations["existing"] = "annotation"
 
 	w := NewDaemonSetWorkload(ds)
 
@@ -651,12 +377,8 @@ func TestDaemonSetWorkload_PodTemplateAnnotations(t *testing.T) {
 }
 
 func TestDaemonSetWorkload_PodTemplateAnnotations_NilInit(t *testing.T) {
-	ds := &appsv1.DaemonSet{
-		ObjectMeta: metav1.ObjectMeta{Name: "test"},
-		Spec: appsv1.DaemonSetSpec{
-			Template: corev1.PodTemplateSpec{},
-		},
-	}
+	ds := testutil.NewDaemonSet("test", "default", nil)
+	ds.Spec.Template.Annotations = nil
 
 	w := NewDaemonSetWorkload(ds)
 
@@ -672,21 +394,8 @@ func TestDaemonSetWorkload_PodTemplateAnnotations_NilInit(t *testing.T) {
 }
 
 func TestDaemonSetWorkload_Containers(t *testing.T) {
-	ds := &appsv1.DaemonSet{
-		ObjectMeta: metav1.ObjectMeta{Name: "test"},
-		Spec: appsv1.DaemonSetSpec{
-			Template: corev1.PodTemplateSpec{
-				Spec: corev1.PodSpec{
-					Containers: []corev1.Container{
-						{Name: "main", Image: "nginx"},
-					},
-					InitContainers: []corev1.Container{
-						{Name: "init", Image: "busybox"},
-					},
-				},
-			},
-		},
-	}
+	ds := testutil.NewDaemonSet("test", "default", nil)
+	ds.Spec.Template.Spec.InitContainers = []corev1.Container{{Name: "init", Image: "busybox"}}
 
 	w := NewDaemonSetWorkload(ds)
 
@@ -714,18 +423,10 @@ func TestDaemonSetWorkload_Containers(t *testing.T) {
 }
 
 func TestDaemonSetWorkload_Volumes(t *testing.T) {
-	ds := &appsv1.DaemonSet{
-		ObjectMeta: metav1.ObjectMeta{Name: "test"},
-		Spec: appsv1.DaemonSetSpec{
-			Template: corev1.PodTemplateSpec{
-				Spec: corev1.PodSpec{
-					Volumes: []corev1.Volume{
-						{Name: "config-vol"},
-						{Name: "secret-vol"},
-					},
-				},
-			},
-		},
+	ds := testutil.NewDaemonSet("test", "default", nil)
+	ds.Spec.Template.Spec.Volumes = []corev1.Volume{
+		{Name: "config-vol"},
+		{Name: "secret-vol"},
 	}
 
 	w := NewDaemonSetWorkload(ds)
@@ -737,23 +438,13 @@ func TestDaemonSetWorkload_Volumes(t *testing.T) {
 }
 
 func TestDaemonSetWorkload_UsesConfigMap(t *testing.T) {
-	ds := &appsv1.DaemonSet{
-		ObjectMeta: metav1.ObjectMeta{Name: "test"},
-		Spec: appsv1.DaemonSetSpec{
-			Template: corev1.PodTemplateSpec{
-				Spec: corev1.PodSpec{
-					Volumes: []corev1.Volume{
-						{
-							Name: "config-vol",
-							VolumeSource: corev1.VolumeSource{
-								ConfigMap: &corev1.ConfigMapVolumeSource{
-									LocalObjectReference: corev1.LocalObjectReference{
-										Name: "ds-config",
-									},
-								},
-							},
-						},
-					},
+	ds := testutil.NewDaemonSet("test", "default", nil)
+	ds.Spec.Template.Spec.Volumes = []corev1.Volume{
+		{
+			Name: "config-vol",
+			VolumeSource: corev1.VolumeSource{
+				ConfigMap: &corev1.ConfigMapVolumeSource{
+					LocalObjectReference: corev1.LocalObjectReference{Name: "ds-config"},
 				},
 			},
 		},
@@ -770,28 +461,9 @@ func TestDaemonSetWorkload_UsesConfigMap(t *testing.T) {
 }
 
 func TestDaemonSetWorkload_UsesConfigMap_EnvFrom(t *testing.T) {
-	ds := &appsv1.DaemonSet{
-		ObjectMeta: metav1.ObjectMeta{Name: "test"},
-		Spec: appsv1.DaemonSetSpec{
-			Template: corev1.PodTemplateSpec{
-				Spec: corev1.PodSpec{
-					Containers: []corev1.Container{
-						{
-							Name: "main",
-							EnvFrom: []corev1.EnvFromSource{
-								{
-									ConfigMapRef: &corev1.ConfigMapEnvSource{
-										LocalObjectReference: corev1.LocalObjectReference{
-											Name: "ds-env-config",
-										},
-									},
-								},
-							},
-						},
-					},
-				},
-			},
-		},
+	ds := testutil.NewDaemonSet("test", "default", nil)
+	ds.Spec.Template.Spec.Containers[0].EnvFrom = []corev1.EnvFromSource{
+		{ConfigMapRef: &corev1.ConfigMapEnvSource{LocalObjectReference: corev1.LocalObjectReference{Name: "ds-env-config"}}},
 	}
 
 	w := NewDaemonSetWorkload(ds)
@@ -802,22 +474,12 @@ func TestDaemonSetWorkload_UsesConfigMap_EnvFrom(t *testing.T) {
 }
 
 func TestDaemonSetWorkload_UsesSecret(t *testing.T) {
-	ds := &appsv1.DaemonSet{
-		ObjectMeta: metav1.ObjectMeta{Name: "test"},
-		Spec: appsv1.DaemonSetSpec{
-			Template: corev1.PodTemplateSpec{
-				Spec: corev1.PodSpec{
-					Volumes: []corev1.Volume{
-						{
-							Name: "secret-vol",
-							VolumeSource: corev1.VolumeSource{
-								Secret: &corev1.SecretVolumeSource{
-									SecretName: "ds-secret",
-								},
-							},
-						},
-					},
-				},
+	ds := testutil.NewDaemonSet("test", "default", nil)
+	ds.Spec.Template.Spec.Volumes = []corev1.Volume{
+		{
+			Name: "secret-vol",
+			VolumeSource: corev1.VolumeSource{
+				Secret: &corev1.SecretVolumeSource{SecretName: "ds-secret"},
 			},
 		},
 	}
@@ -833,29 +495,14 @@ func TestDaemonSetWorkload_UsesSecret(t *testing.T) {
 }
 
 func TestDaemonSetWorkload_GetEnvFromSources(t *testing.T) {
-	ds := &appsv1.DaemonSet{
-		ObjectMeta: metav1.ObjectMeta{Name: "test"},
-		Spec: appsv1.DaemonSetSpec{
-			Template: corev1.PodTemplateSpec{
-				Spec: corev1.PodSpec{
-					Containers: []corev1.Container{
-						{
-							Name: "main",
-							EnvFrom: []corev1.EnvFromSource{
-								{ConfigMapRef: &corev1.ConfigMapEnvSource{LocalObjectReference: corev1.LocalObjectReference{Name: "cm1"}}},
-							},
-						},
-					},
-					InitContainers: []corev1.Container{
-						{
-							Name: "init",
-							EnvFrom: []corev1.EnvFromSource{
-								{SecretRef: &corev1.SecretEnvSource{LocalObjectReference: corev1.LocalObjectReference{Name: "secret1"}}},
-							},
-						},
-					},
-				},
-			},
+	ds := testutil.NewDaemonSet("test", "default", nil)
+	ds.Spec.Template.Spec.Containers[0].EnvFrom = []corev1.EnvFromSource{
+		{ConfigMapRef: &corev1.ConfigMapEnvSource{LocalObjectReference: corev1.LocalObjectReference{Name: "cm1"}}},
+	}
+	ds.Spec.Template.Spec.InitContainers = []corev1.Container{
+		{
+			Name:    "init",
+			EnvFrom: []corev1.EnvFromSource{{SecretRef: &corev1.SecretEnvSource{LocalObjectReference: corev1.LocalObjectReference{Name: "secret1"}}}},
 		},
 	}
 
@@ -868,21 +515,7 @@ func TestDaemonSetWorkload_GetEnvFromSources(t *testing.T) {
 }
 
 func TestDaemonSetWorkload_DeepCopy(t *testing.T) {
-	ds := &appsv1.DaemonSet{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "test",
-			Namespace: "default",
-		},
-		Spec: appsv1.DaemonSetSpec{
-			Template: corev1.PodTemplateSpec{
-				Spec: corev1.PodSpec{
-					Containers: []corev1.Container{
-						{Name: "main", Image: "nginx"},
-					},
-				},
-			},
-		},
-	}
+	ds := testutil.NewDaemonSet("test", "default", nil)
 
 	w := NewDaemonSetWorkload(ds)
 	copy := w.DeepCopy()
@@ -896,17 +529,9 @@ func TestDaemonSetWorkload_DeepCopy(t *testing.T) {
 }
 
 func TestDaemonSetWorkload_GetOwnerReferences(t *testing.T) {
-	ds := &appsv1.DaemonSet{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: "test",
-			OwnerReferences: []metav1.OwnerReference{
-				{
-					APIVersion: "apps/v1",
-					Kind:       "DaemonSet",
-					Name:       "test-owner",
-				},
-			},
-		},
+	ds := testutil.NewDaemonSet("test", "default", nil)
+	ds.OwnerReferences = []metav1.OwnerReference{
+		{APIVersion: "apps/v1", Kind: "DaemonSet", Name: "test-owner"},
 	}
 
 	w := NewDaemonSetWorkload(ds)
@@ -919,15 +544,7 @@ func TestDaemonSetWorkload_GetOwnerReferences(t *testing.T) {
 
 // StatefulSet tests
 func TestStatefulSetWorkload_BasicGetters(t *testing.T) {
-	sts := &appsv1.StatefulSet{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "test-sts",
-			Namespace: "test-ns",
-			Annotations: map[string]string{
-				"key": "value",
-			},
-		},
-	}
+	sts := testutil.NewStatefulSet("test-sts", "test-ns", map[string]string{"key": "value"})
 
 	w := NewStatefulSetWorkload(sts)
 
@@ -949,18 +566,8 @@ func TestStatefulSetWorkload_BasicGetters(t *testing.T) {
 }
 
 func TestStatefulSetWorkload_PodTemplateAnnotations(t *testing.T) {
-	sts := &appsv1.StatefulSet{
-		ObjectMeta: metav1.ObjectMeta{Name: "test"},
-		Spec: appsv1.StatefulSetSpec{
-			Template: corev1.PodTemplateSpec{
-				ObjectMeta: metav1.ObjectMeta{
-					Annotations: map[string]string{
-						"existing": "annotation",
-					},
-				},
-			},
-		},
-	}
+	sts := testutil.NewStatefulSet("test", "default", nil)
+	sts.Spec.Template.Annotations["existing"] = "annotation"
 
 	w := NewStatefulSetWorkload(sts)
 
@@ -976,12 +583,8 @@ func TestStatefulSetWorkload_PodTemplateAnnotations(t *testing.T) {
 }
 
 func TestStatefulSetWorkload_PodTemplateAnnotations_NilInit(t *testing.T) {
-	sts := &appsv1.StatefulSet{
-		ObjectMeta: metav1.ObjectMeta{Name: "test"},
-		Spec: appsv1.StatefulSetSpec{
-			Template: corev1.PodTemplateSpec{},
-		},
-	}
+	sts := testutil.NewStatefulSet("test", "default", nil)
+	sts.Spec.Template.Annotations = nil
 
 	w := NewStatefulSetWorkload(sts)
 
@@ -997,21 +600,8 @@ func TestStatefulSetWorkload_PodTemplateAnnotations_NilInit(t *testing.T) {
 }
 
 func TestStatefulSetWorkload_Containers(t *testing.T) {
-	sts := &appsv1.StatefulSet{
-		ObjectMeta: metav1.ObjectMeta{Name: "test"},
-		Spec: appsv1.StatefulSetSpec{
-			Template: corev1.PodTemplateSpec{
-				Spec: corev1.PodSpec{
-					Containers: []corev1.Container{
-						{Name: "main", Image: "nginx"},
-					},
-					InitContainers: []corev1.Container{
-						{Name: "init", Image: "busybox"},
-					},
-				},
-			},
-		},
-	}
+	sts := testutil.NewStatefulSet("test", "default", nil)
+	sts.Spec.Template.Spec.InitContainers = []corev1.Container{{Name: "init", Image: "busybox"}}
 
 	w := NewStatefulSetWorkload(sts)
 
@@ -1039,18 +629,10 @@ func TestStatefulSetWorkload_Containers(t *testing.T) {
 }
 
 func TestStatefulSetWorkload_Volumes(t *testing.T) {
-	sts := &appsv1.StatefulSet{
-		ObjectMeta: metav1.ObjectMeta{Name: "test"},
-		Spec: appsv1.StatefulSetSpec{
-			Template: corev1.PodTemplateSpec{
-				Spec: corev1.PodSpec{
-					Volumes: []corev1.Volume{
-						{Name: "config-vol"},
-						{Name: "secret-vol"},
-					},
-				},
-			},
-		},
+	sts := testutil.NewStatefulSet("test", "default", nil)
+	sts.Spec.Template.Spec.Volumes = []corev1.Volume{
+		{Name: "config-vol"},
+		{Name: "secret-vol"},
 	}
 
 	w := NewStatefulSetWorkload(sts)
@@ -1062,23 +644,13 @@ func TestStatefulSetWorkload_Volumes(t *testing.T) {
 }
 
 func TestStatefulSetWorkload_UsesConfigMap(t *testing.T) {
-	sts := &appsv1.StatefulSet{
-		ObjectMeta: metav1.ObjectMeta{Name: "test"},
-		Spec: appsv1.StatefulSetSpec{
-			Template: corev1.PodTemplateSpec{
-				Spec: corev1.PodSpec{
-					Volumes: []corev1.Volume{
-						{
-							Name: "config-vol",
-							VolumeSource: corev1.VolumeSource{
-								ConfigMap: &corev1.ConfigMapVolumeSource{
-									LocalObjectReference: corev1.LocalObjectReference{
-										Name: "sts-config",
-									},
-								},
-							},
-						},
-					},
+	sts := testutil.NewStatefulSet("test", "default", nil)
+	sts.Spec.Template.Spec.Volumes = []corev1.Volume{
+		{
+			Name: "config-vol",
+			VolumeSource: corev1.VolumeSource{
+				ConfigMap: &corev1.ConfigMapVolumeSource{
+					LocalObjectReference: corev1.LocalObjectReference{Name: "sts-config"},
 				},
 			},
 		},
@@ -1095,28 +667,9 @@ func TestStatefulSetWorkload_UsesConfigMap(t *testing.T) {
 }
 
 func TestStatefulSetWorkload_UsesConfigMap_EnvFrom(t *testing.T) {
-	sts := &appsv1.StatefulSet{
-		ObjectMeta: metav1.ObjectMeta{Name: "test"},
-		Spec: appsv1.StatefulSetSpec{
-			Template: corev1.PodTemplateSpec{
-				Spec: corev1.PodSpec{
-					Containers: []corev1.Container{
-						{
-							Name: "main",
-							EnvFrom: []corev1.EnvFromSource{
-								{
-									ConfigMapRef: &corev1.ConfigMapEnvSource{
-										LocalObjectReference: corev1.LocalObjectReference{
-											Name: "sts-env-config",
-										},
-									},
-								},
-							},
-						},
-					},
-				},
-			},
-		},
+	sts := testutil.NewStatefulSet("test", "default", nil)
+	sts.Spec.Template.Spec.Containers[0].EnvFrom = []corev1.EnvFromSource{
+		{ConfigMapRef: &corev1.ConfigMapEnvSource{LocalObjectReference: corev1.LocalObjectReference{Name: "sts-env-config"}}},
 	}
 
 	w := NewStatefulSetWorkload(sts)
@@ -1127,22 +680,12 @@ func TestStatefulSetWorkload_UsesConfigMap_EnvFrom(t *testing.T) {
 }
 
 func TestStatefulSetWorkload_UsesSecret(t *testing.T) {
-	sts := &appsv1.StatefulSet{
-		ObjectMeta: metav1.ObjectMeta{Name: "test"},
-		Spec: appsv1.StatefulSetSpec{
-			Template: corev1.PodTemplateSpec{
-				Spec: corev1.PodSpec{
-					Volumes: []corev1.Volume{
-						{
-							Name: "secret-vol",
-							VolumeSource: corev1.VolumeSource{
-								Secret: &corev1.SecretVolumeSource{
-									SecretName: "sts-secret",
-								},
-							},
-						},
-					},
-				},
+	sts := testutil.NewStatefulSet("test", "default", nil)
+	sts.Spec.Template.Spec.Volumes = []corev1.Volume{
+		{
+			Name: "secret-vol",
+			VolumeSource: corev1.VolumeSource{
+				Secret: &corev1.SecretVolumeSource{SecretName: "sts-secret"},
 			},
 		},
 	}
@@ -1158,28 +701,9 @@ func TestStatefulSetWorkload_UsesSecret(t *testing.T) {
 }
 
 func TestStatefulSetWorkload_UsesSecret_EnvFrom(t *testing.T) {
-	sts := &appsv1.StatefulSet{
-		ObjectMeta: metav1.ObjectMeta{Name: "test"},
-		Spec: appsv1.StatefulSetSpec{
-			Template: corev1.PodTemplateSpec{
-				Spec: corev1.PodSpec{
-					Containers: []corev1.Container{
-						{
-							Name: "main",
-							EnvFrom: []corev1.EnvFromSource{
-								{
-									SecretRef: &corev1.SecretEnvSource{
-										LocalObjectReference: corev1.LocalObjectReference{
-											Name: "sts-env-secret",
-										},
-									},
-								},
-							},
-						},
-					},
-				},
-			},
-		},
+	sts := testutil.NewStatefulSet("test", "default", nil)
+	sts.Spec.Template.Spec.Containers[0].EnvFrom = []corev1.EnvFromSource{
+		{SecretRef: &corev1.SecretEnvSource{LocalObjectReference: corev1.LocalObjectReference{Name: "sts-env-secret"}}},
 	}
 
 	w := NewStatefulSetWorkload(sts)
@@ -1190,29 +714,14 @@ func TestStatefulSetWorkload_UsesSecret_EnvFrom(t *testing.T) {
 }
 
 func TestStatefulSetWorkload_GetEnvFromSources(t *testing.T) {
-	sts := &appsv1.StatefulSet{
-		ObjectMeta: metav1.ObjectMeta{Name: "test"},
-		Spec: appsv1.StatefulSetSpec{
-			Template: corev1.PodTemplateSpec{
-				Spec: corev1.PodSpec{
-					Containers: []corev1.Container{
-						{
-							Name: "main",
-							EnvFrom: []corev1.EnvFromSource{
-								{ConfigMapRef: &corev1.ConfigMapEnvSource{LocalObjectReference: corev1.LocalObjectReference{Name: "cm1"}}},
-							},
-						},
-					},
-					InitContainers: []corev1.Container{
-						{
-							Name: "init",
-							EnvFrom: []corev1.EnvFromSource{
-								{SecretRef: &corev1.SecretEnvSource{LocalObjectReference: corev1.LocalObjectReference{Name: "secret1"}}},
-							},
-						},
-					},
-				},
-			},
+	sts := testutil.NewStatefulSet("test", "default", nil)
+	sts.Spec.Template.Spec.Containers[0].EnvFrom = []corev1.EnvFromSource{
+		{ConfigMapRef: &corev1.ConfigMapEnvSource{LocalObjectReference: corev1.LocalObjectReference{Name: "cm1"}}},
+	}
+	sts.Spec.Template.Spec.InitContainers = []corev1.Container{
+		{
+			Name:    "init",
+			EnvFrom: []corev1.EnvFromSource{{SecretRef: &corev1.SecretEnvSource{LocalObjectReference: corev1.LocalObjectReference{Name: "secret1"}}}},
 		},
 	}
 
@@ -1225,21 +734,7 @@ func TestStatefulSetWorkload_GetEnvFromSources(t *testing.T) {
 }
 
 func TestStatefulSetWorkload_DeepCopy(t *testing.T) {
-	sts := &appsv1.StatefulSet{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "test",
-			Namespace: "default",
-		},
-		Spec: appsv1.StatefulSetSpec{
-			Template: corev1.PodTemplateSpec{
-				Spec: corev1.PodSpec{
-					Containers: []corev1.Container{
-						{Name: "main", Image: "nginx"},
-					},
-				},
-			},
-		},
-	}
+	sts := testutil.NewStatefulSet("test", "default", nil)
 
 	w := NewStatefulSetWorkload(sts)
 	copy := w.DeepCopy()
@@ -1253,17 +748,9 @@ func TestStatefulSetWorkload_DeepCopy(t *testing.T) {
 }
 
 func TestStatefulSetWorkload_GetOwnerReferences(t *testing.T) {
-	sts := &appsv1.StatefulSet{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: "test",
-			OwnerReferences: []metav1.OwnerReference{
-				{
-					APIVersion: "apps/v1",
-					Kind:       "StatefulSet",
-					Name:       "test-owner",
-				},
-			},
-		},
+	sts := testutil.NewStatefulSet("test", "default", nil)
+	sts.OwnerReferences = []metav1.OwnerReference{
+		{APIVersion: "apps/v1", Kind: "StatefulSet", Name: "test-owner"},
 	}
 
 	w := NewStatefulSetWorkload(sts)
@@ -1505,15 +992,7 @@ func TestToRolloutStrategy(t *testing.T) {
 
 // Job tests
 func TestJobWorkload_BasicGetters(t *testing.T) {
-	job := &batchv1.Job{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "test-job",
-			Namespace: "test-ns",
-			Annotations: map[string]string{
-				"key": "value",
-			},
-		},
-	}
+	job := testutil.NewJobWithAnnotations("test-job", "test-ns", map[string]string{"key": "value"})
 
 	w := NewJobWorkload(job)
 
@@ -1535,18 +1014,8 @@ func TestJobWorkload_BasicGetters(t *testing.T) {
 }
 
 func TestJobWorkload_PodTemplateAnnotations(t *testing.T) {
-	job := &batchv1.Job{
-		ObjectMeta: metav1.ObjectMeta{Name: "test"},
-		Spec: batchv1.JobSpec{
-			Template: corev1.PodTemplateSpec{
-				ObjectMeta: metav1.ObjectMeta{
-					Annotations: map[string]string{
-						"existing": "annotation",
-					},
-				},
-			},
-		},
-	}
+	job := testutil.NewJob("test", "default")
+	job.Spec.Template.Annotations["existing"] = "annotation"
 
 	w := NewJobWorkload(job)
 
@@ -1562,23 +1031,13 @@ func TestJobWorkload_PodTemplateAnnotations(t *testing.T) {
 }
 
 func TestJobWorkload_UsesConfigMap(t *testing.T) {
-	job := &batchv1.Job{
-		ObjectMeta: metav1.ObjectMeta{Name: "test"},
-		Spec: batchv1.JobSpec{
-			Template: corev1.PodTemplateSpec{
-				Spec: corev1.PodSpec{
-					Volumes: []corev1.Volume{
-						{
-							Name: "config-vol",
-							VolumeSource: corev1.VolumeSource{
-								ConfigMap: &corev1.ConfigMapVolumeSource{
-									LocalObjectReference: corev1.LocalObjectReference{
-										Name: "job-config",
-									},
-								},
-							},
-						},
-					},
+	job := testutil.NewJob("test", "default")
+	job.Spec.Template.Spec.Volumes = []corev1.Volume{
+		{
+			Name: "config-vol",
+			VolumeSource: corev1.VolumeSource{
+				ConfigMap: &corev1.ConfigMapVolumeSource{
+					LocalObjectReference: corev1.LocalObjectReference{Name: "job-config"},
 				},
 			},
 		},
@@ -1595,26 +1054,11 @@ func TestJobWorkload_UsesConfigMap(t *testing.T) {
 }
 
 func TestJobWorkload_UsesSecret(t *testing.T) {
-	job := &batchv1.Job{
-		ObjectMeta: metav1.ObjectMeta{Name: "test"},
-		Spec: batchv1.JobSpec{
-			Template: corev1.PodTemplateSpec{
-				Spec: corev1.PodSpec{
-					Containers: []corev1.Container{
-						{
-							Name: "main",
-							EnvFrom: []corev1.EnvFromSource{
-								{
-									SecretRef: &corev1.SecretEnvSource{
-										LocalObjectReference: corev1.LocalObjectReference{
-											Name: "job-secret",
-										},
-									},
-								},
-							},
-						},
-					},
-				},
+	job := testutil.NewJob("test", "default")
+	job.Spec.Template.Spec.Containers[0].EnvFrom = []corev1.EnvFromSource{
+		{
+			SecretRef: &corev1.SecretEnvSource{
+				LocalObjectReference: corev1.LocalObjectReference{Name: "job-secret"},
 			},
 		},
 	}
@@ -1627,18 +1071,8 @@ func TestJobWorkload_UsesSecret(t *testing.T) {
 }
 
 func TestJobWorkload_DeepCopy(t *testing.T) {
-	job := &batchv1.Job{
-		ObjectMeta: metav1.ObjectMeta{Name: "test"},
-		Spec: batchv1.JobSpec{
-			Template: corev1.PodTemplateSpec{
-				ObjectMeta: metav1.ObjectMeta{
-					Annotations: map[string]string{
-						"original": "value",
-					},
-				},
-			},
-		},
-	}
+	job := testutil.NewJob("test", "default")
+	job.Spec.Template.Annotations["original"] = "value"
 
 	w := NewJobWorkload(job)
 	copy := w.DeepCopy()
@@ -1653,15 +1087,7 @@ func TestJobWorkload_DeepCopy(t *testing.T) {
 
 // CronJob tests
 func TestCronJobWorkload_BasicGetters(t *testing.T) {
-	cj := &batchv1.CronJob{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "test-cronjob",
-			Namespace: "test-ns",
-			Annotations: map[string]string{
-				"key": "value",
-			},
-		},
-	}
+	cj := testutil.NewCronJobWithAnnotations("test-cronjob", "test-ns", map[string]string{"key": "value"})
 
 	w := NewCronJobWorkload(cj)
 
@@ -1683,22 +1109,8 @@ func TestCronJobWorkload_BasicGetters(t *testing.T) {
 }
 
 func TestCronJobWorkload_PodTemplateAnnotations(t *testing.T) {
-	cj := &batchv1.CronJob{
-		ObjectMeta: metav1.ObjectMeta{Name: "test"},
-		Spec: batchv1.CronJobSpec{
-			JobTemplate: batchv1.JobTemplateSpec{
-				Spec: batchv1.JobSpec{
-					Template: corev1.PodTemplateSpec{
-						ObjectMeta: metav1.ObjectMeta{
-							Annotations: map[string]string{
-								"existing": "annotation",
-							},
-						},
-					},
-				},
-			},
-		},
-	}
+	cj := testutil.NewCronJob("test", "default")
+	cj.Spec.JobTemplate.Spec.Template.Annotations["existing"] = "annotation"
 
 	w := NewCronJobWorkload(cj)
 
@@ -1714,27 +1126,13 @@ func TestCronJobWorkload_PodTemplateAnnotations(t *testing.T) {
 }
 
 func TestCronJobWorkload_UsesConfigMap(t *testing.T) {
-	cj := &batchv1.CronJob{
-		ObjectMeta: metav1.ObjectMeta{Name: "test"},
-		Spec: batchv1.CronJobSpec{
-			JobTemplate: batchv1.JobTemplateSpec{
-				Spec: batchv1.JobSpec{
-					Template: corev1.PodTemplateSpec{
-						Spec: corev1.PodSpec{
-							Volumes: []corev1.Volume{
-								{
-									Name: "config-vol",
-									VolumeSource: corev1.VolumeSource{
-										ConfigMap: &corev1.ConfigMapVolumeSource{
-											LocalObjectReference: corev1.LocalObjectReference{
-												Name: "cronjob-config",
-											},
-										},
-									},
-								},
-							},
-						},
-					},
+	cj := testutil.NewCronJob("test", "default")
+	cj.Spec.JobTemplate.Spec.Template.Spec.Volumes = []corev1.Volume{
+		{
+			Name: "config-vol",
+			VolumeSource: corev1.VolumeSource{
+				ConfigMap: &corev1.ConfigMapVolumeSource{
+					LocalObjectReference: corev1.LocalObjectReference{Name: "cronjob-config"},
 				},
 			},
 		},
@@ -1751,37 +1149,8 @@ func TestCronJobWorkload_UsesConfigMap(t *testing.T) {
 }
 
 func TestCronJobWorkload_UsesSecret(t *testing.T) {
-	cj := &batchv1.CronJob{
-		ObjectMeta: metav1.ObjectMeta{Name: "test"},
-		Spec: batchv1.CronJobSpec{
-			JobTemplate: batchv1.JobTemplateSpec{
-				Spec: batchv1.JobSpec{
-					Template: corev1.PodTemplateSpec{
-						Spec: corev1.PodSpec{
-							Containers: []corev1.Container{
-								{
-									Name: "main",
-									Env: []corev1.EnvVar{
-										{
-											Name: "SECRET_VALUE",
-											ValueFrom: &corev1.EnvVarSource{
-												SecretKeyRef: &corev1.SecretKeySelector{
-													LocalObjectReference: corev1.LocalObjectReference{
-														Name: "cronjob-secret",
-													},
-													Key: "key",
-												},
-											},
-										},
-									},
-								},
-							},
-						},
-					},
-				},
-			},
-		},
-	}
+	cj := testutil.NewCronJob("test", "default")
+	addEnvVarSecretRef(cj.Spec.JobTemplate.Spec.Template.Spec.Containers, "SECRET_VALUE", "cronjob-secret", "key")
 
 	w := NewCronJobWorkload(cj)
 
@@ -1791,22 +1160,8 @@ func TestCronJobWorkload_UsesSecret(t *testing.T) {
 }
 
 func TestCronJobWorkload_DeepCopy(t *testing.T) {
-	cj := &batchv1.CronJob{
-		ObjectMeta: metav1.ObjectMeta{Name: "test"},
-		Spec: batchv1.CronJobSpec{
-			JobTemplate: batchv1.JobTemplateSpec{
-				Spec: batchv1.JobSpec{
-					Template: corev1.PodTemplateSpec{
-						ObjectMeta: metav1.ObjectMeta{
-							Annotations: map[string]string{
-								"original": "value",
-							},
-						},
-					},
-				},
-			},
-		},
-	}
+	cj := testutil.NewCronJob("test", "default")
+	cj.Spec.JobTemplate.Spec.Template.Annotations["original"] = "value"
 
 	w := NewCronJobWorkload(cj)
 	copy := w.DeepCopy()
@@ -1823,4 +1178,365 @@ func TestCronJobWorkload_DeepCopy(t *testing.T) {
 func TestJobCronJobWorkloadInterface(t *testing.T) {
 	var _ WorkloadAccessor = (*JobWorkload)(nil)
 	var _ WorkloadAccessor = (*CronJobWorkload)(nil)
+}
+
+// DeploymentConfig tests
+func TestDeploymentConfigWorkload_BasicGetters(t *testing.T) {
+	dc := testutil.NewDeploymentConfig("test-dc", "test-ns", map[string]string{"key": "value"})
+
+	w := NewDeploymentConfigWorkload(dc)
+
+	if w.Kind() != KindDeploymentConfig {
+		t.Errorf("Kind() = %v, want %v", w.Kind(), KindDeploymentConfig)
+	}
+	if w.GetName() != "test-dc" {
+		t.Errorf("GetName() = %v, want test-dc", w.GetName())
+	}
+	if w.GetNamespace() != "test-ns" {
+		t.Errorf("GetNamespace() = %v, want test-ns", w.GetNamespace())
+	}
+	if w.GetAnnotations()["key"] != "value" {
+		t.Errorf("GetAnnotations()[key] = %v, want value", w.GetAnnotations()["key"])
+	}
+	if w.GetObject() != dc {
+		t.Error("GetObject() should return the underlying deploymentconfig")
+	}
+}
+
+func TestDeploymentConfigWorkload_PodTemplateAnnotations(t *testing.T) {
+	dc := testutil.NewDeploymentConfig("test", "default", nil)
+	dc.Spec.Template.Annotations = map[string]string{"existing": "annotation"}
+
+	w := NewDeploymentConfigWorkload(dc)
+
+	annotations := w.GetPodTemplateAnnotations()
+	if annotations["existing"] != "annotation" {
+		t.Errorf("GetPodTemplateAnnotations()[existing] = %v, want annotation", annotations["existing"])
+	}
+
+	w.SetPodTemplateAnnotation("new-key", "new-value")
+	if w.GetPodTemplateAnnotations()["new-key"] != "new-value" {
+		t.Error("SetPodTemplateAnnotation should add new annotation")
+	}
+}
+
+func TestDeploymentConfigWorkload_PodTemplateAnnotations_NilTemplate(t *testing.T) {
+	dc := testutil.NewDeploymentConfig("test", "default", nil)
+	dc.Spec.Template = nil
+
+	w := NewDeploymentConfigWorkload(dc)
+
+	// Should handle nil template gracefully
+	annotations := w.GetPodTemplateAnnotations()
+	if annotations != nil {
+		t.Error("GetPodTemplateAnnotations should return nil for nil template")
+	}
+
+	// SetPodTemplateAnnotation should initialize template
+	w.SetPodTemplateAnnotation("key", "value")
+	if w.GetPodTemplateAnnotations()["key"] != "value" {
+		t.Error("SetPodTemplateAnnotation should work with nil template")
+	}
+}
+
+func TestDeploymentConfigWorkload_PodTemplateAnnotations_NilInit(t *testing.T) {
+	dc := testutil.NewDeploymentConfig("test", "default", nil)
+	dc.Spec.Template.Annotations = nil
+
+	w := NewDeploymentConfigWorkload(dc)
+
+	// Should initialize nil map
+	annotations := w.GetPodTemplateAnnotations()
+	if annotations == nil {
+		t.Error("GetPodTemplateAnnotations should initialize nil map")
+	}
+
+	w.SetPodTemplateAnnotation("key", "value")
+	if w.GetPodTemplateAnnotations()["key"] != "value" {
+		t.Error("SetPodTemplateAnnotation should work with nil initial map")
+	}
+}
+
+func TestDeploymentConfigWorkload_Containers(t *testing.T) {
+	dc := testutil.NewDeploymentConfig("test", "default", nil)
+	dc.Spec.Template.Spec.Containers = []corev1.Container{
+		{Name: "main", Image: "nginx"},
+	}
+	dc.Spec.Template.Spec.InitContainers = []corev1.Container{
+		{Name: "init", Image: "busybox"},
+	}
+
+	w := NewDeploymentConfigWorkload(dc)
+
+	containers := w.GetContainers()
+	if len(containers) != 1 || containers[0].Name != "main" {
+		t.Errorf("GetContainers() = %v, want [main]", containers)
+	}
+
+	initContainers := w.GetInitContainers()
+	if len(initContainers) != 1 || initContainers[0].Name != "init" {
+		t.Errorf("GetInitContainers() = %v, want [init]", initContainers)
+	}
+
+	newContainers := []corev1.Container{{Name: "new-main", Image: "alpine"}}
+	w.SetContainers(newContainers)
+	if w.GetContainers()[0].Name != "new-main" {
+		t.Error("SetContainers should update containers")
+	}
+
+	newInitContainers := []corev1.Container{{Name: "new-init", Image: "alpine"}}
+	w.SetInitContainers(newInitContainers)
+	if w.GetInitContainers()[0].Name != "new-init" {
+		t.Error("SetInitContainers should update init containers")
+	}
+}
+
+func TestDeploymentConfigWorkload_Containers_NilTemplate(t *testing.T) {
+	dc := testutil.NewDeploymentConfig("test", "default", nil)
+	dc.Spec.Template = nil
+
+	w := NewDeploymentConfigWorkload(dc)
+
+	if w.GetContainers() != nil {
+		t.Error("GetContainers should return nil for nil template")
+	}
+	if w.GetInitContainers() != nil {
+		t.Error("GetInitContainers should return nil for nil template")
+	}
+
+	// SetContainers should initialize template
+	w.SetContainers([]corev1.Container{{Name: "main"}})
+	if len(w.GetContainers()) != 1 {
+		t.Error("SetContainers should work with nil template")
+	}
+}
+
+func TestDeploymentConfigWorkload_Volumes(t *testing.T) {
+	dc := testutil.NewDeploymentConfig("test", "default", nil)
+	dc.Spec.Template.Spec.Volumes = []corev1.Volume{
+		{Name: "config-vol"},
+		{Name: "secret-vol"},
+	}
+
+	w := NewDeploymentConfigWorkload(dc)
+
+	volumes := w.GetVolumes()
+	if len(volumes) != 2 {
+		t.Errorf("GetVolumes() length = %d, want 2", len(volumes))
+	}
+}
+
+func TestDeploymentConfigWorkload_Volumes_NilTemplate(t *testing.T) {
+	dc := testutil.NewDeploymentConfig("test", "default", nil)
+	dc.Spec.Template = nil
+
+	w := NewDeploymentConfigWorkload(dc)
+
+	if w.GetVolumes() != nil {
+		t.Error("GetVolumes should return nil for nil template")
+	}
+}
+
+func TestDeploymentConfigWorkload_UsesConfigMap_Volume(t *testing.T) {
+	dc := testutil.NewDeploymentConfig("test", "default", nil)
+	dc.Spec.Template.Spec.Volumes = []corev1.Volume{
+		{
+			Name: "config-vol",
+			VolumeSource: corev1.VolumeSource{
+				ConfigMap: &corev1.ConfigMapVolumeSource{
+					LocalObjectReference: corev1.LocalObjectReference{
+						Name: "dc-config",
+					},
+				},
+			},
+		},
+	}
+
+	w := NewDeploymentConfigWorkload(dc)
+
+	if !w.UsesConfigMap("dc-config") {
+		t.Error("DeploymentConfig UsesConfigMap should return true for ConfigMap volume")
+	}
+	if w.UsesConfigMap("other-config") {
+		t.Error("UsesConfigMap should return false for non-existent ConfigMap")
+	}
+}
+
+func TestDeploymentConfigWorkload_UsesConfigMap_EnvFrom(t *testing.T) {
+	dc := testutil.NewDeploymentConfig("test", "default", nil)
+	dc.Spec.Template.Spec.Containers = []corev1.Container{
+		{
+			Name: "main",
+			EnvFrom: []corev1.EnvFromSource{
+				{
+					ConfigMapRef: &corev1.ConfigMapEnvSource{
+						LocalObjectReference: corev1.LocalObjectReference{
+							Name: "dc-env-config",
+						},
+					},
+				},
+			},
+		},
+	}
+
+	w := NewDeploymentConfigWorkload(dc)
+
+	if !w.UsesConfigMap("dc-env-config") {
+		t.Error("DeploymentConfig UsesConfigMap should return true for envFrom ConfigMap")
+	}
+}
+
+func TestDeploymentConfigWorkload_UsesConfigMap_NilTemplate(t *testing.T) {
+	dc := testutil.NewDeploymentConfig("test", "default", nil)
+	dc.Spec.Template = nil
+
+	w := NewDeploymentConfigWorkload(dc)
+
+	if w.UsesConfigMap("any-config") {
+		t.Error("UsesConfigMap should return false for nil template")
+	}
+}
+
+func TestDeploymentConfigWorkload_UsesSecret_Volume(t *testing.T) {
+	dc := testutil.NewDeploymentConfig("test", "default", nil)
+	dc.Spec.Template.Spec.Volumes = []corev1.Volume{
+		{
+			Name: "secret-vol",
+			VolumeSource: corev1.VolumeSource{
+				Secret: &corev1.SecretVolumeSource{
+					SecretName: "dc-secret",
+				},
+			},
+		},
+	}
+
+	w := NewDeploymentConfigWorkload(dc)
+
+	if !w.UsesSecret("dc-secret") {
+		t.Error("DeploymentConfig UsesSecret should return true for Secret volume")
+	}
+	if w.UsesSecret("other-secret") {
+		t.Error("UsesSecret should return false for non-existent Secret")
+	}
+}
+
+func TestDeploymentConfigWorkload_UsesSecret_EnvFrom(t *testing.T) {
+	dc := testutil.NewDeploymentConfig("test", "default", nil)
+	dc.Spec.Template.Spec.Containers = []corev1.Container{
+		{
+			Name: "main",
+			EnvFrom: []corev1.EnvFromSource{
+				{
+					SecretRef: &corev1.SecretEnvSource{
+						LocalObjectReference: corev1.LocalObjectReference{
+							Name: "dc-env-secret",
+						},
+					},
+				},
+			},
+		},
+	}
+
+	w := NewDeploymentConfigWorkload(dc)
+
+	if !w.UsesSecret("dc-env-secret") {
+		t.Error("DeploymentConfig UsesSecret should return true for envFrom Secret")
+	}
+}
+
+func TestDeploymentConfigWorkload_UsesSecret_NilTemplate(t *testing.T) {
+	dc := testutil.NewDeploymentConfig("test", "default", nil)
+	dc.Spec.Template = nil
+
+	w := NewDeploymentConfigWorkload(dc)
+
+	if w.UsesSecret("any-secret") {
+		t.Error("UsesSecret should return false for nil template")
+	}
+}
+
+func TestDeploymentConfigWorkload_GetEnvFromSources(t *testing.T) {
+	dc := testutil.NewDeploymentConfig("test", "default", nil)
+	dc.Spec.Template.Spec.Containers = []corev1.Container{
+		{
+			Name: "main",
+			EnvFrom: []corev1.EnvFromSource{
+				{ConfigMapRef: &corev1.ConfigMapEnvSource{LocalObjectReference: corev1.LocalObjectReference{Name: "cm1"}}},
+			},
+		},
+	}
+	dc.Spec.Template.Spec.InitContainers = []corev1.Container{
+		{
+			Name: "init",
+			EnvFrom: []corev1.EnvFromSource{
+				{SecretRef: &corev1.SecretEnvSource{LocalObjectReference: corev1.LocalObjectReference{Name: "secret1"}}},
+			},
+		},
+	}
+
+	w := NewDeploymentConfigWorkload(dc)
+
+	sources := w.GetEnvFromSources()
+	if len(sources) != 2 {
+		t.Errorf("GetEnvFromSources() returned %d sources, want 2", len(sources))
+	}
+}
+
+func TestDeploymentConfigWorkload_GetEnvFromSources_NilTemplate(t *testing.T) {
+	dc := testutil.NewDeploymentConfig("test", "default", nil)
+	dc.Spec.Template = nil
+
+	w := NewDeploymentConfigWorkload(dc)
+
+	if w.GetEnvFromSources() != nil {
+		t.Error("GetEnvFromSources should return nil for nil template")
+	}
+}
+
+func TestDeploymentConfigWorkload_DeepCopy(t *testing.T) {
+	dc := testutil.NewDeploymentConfig("test", "default", nil)
+	dc.Spec.Template.Annotations = map[string]string{"original": "value"}
+
+	w := NewDeploymentConfigWorkload(dc)
+	copy := w.DeepCopy()
+
+	w.SetPodTemplateAnnotation("modified", "true")
+
+	copyAnnotations := copy.GetPodTemplateAnnotations()
+	if copyAnnotations["modified"] == "true" {
+		t.Error("DeepCopy should create independent copy")
+	}
+}
+
+func TestDeploymentConfigWorkload_GetOwnerReferences(t *testing.T) {
+	dc := testutil.NewDeploymentConfig("test", "default", nil)
+	dc.OwnerReferences = []metav1.OwnerReference{
+		{
+			APIVersion: "apps.openshift.io/v1",
+			Kind:       "DeploymentConfig",
+			Name:       "test-owner",
+		},
+	}
+
+	w := NewDeploymentConfigWorkload(dc)
+
+	refs := w.GetOwnerReferences()
+	if len(refs) != 1 || refs[0].Name != "test-owner" {
+		t.Errorf("GetOwnerReferences() = %v, want owner ref to test-owner", refs)
+	}
+}
+
+func TestDeploymentConfigWorkload_GetDeploymentConfig(t *testing.T) {
+	dc := testutil.NewDeploymentConfig("test", "default", nil)
+
+	w := NewDeploymentConfigWorkload(dc)
+
+	if w.GetDeploymentConfig() != dc {
+		t.Error("GetDeploymentConfig should return the underlying DeploymentConfig")
+	}
+}
+
+// Test that DeploymentConfig implements the interface
+func TestDeploymentConfigWorkloadInterface(t *testing.T) {
+	var _ WorkloadAccessor = (*DeploymentConfigWorkload)(nil)
 }

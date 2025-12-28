@@ -14,12 +14,14 @@ import (
 	"github.com/go-logr/zerologr"
 	"github.com/rs/zerolog"
 	"github.com/spf13/cobra"
+	"k8s.io/client-go/discovery"
 	controllerruntime "sigs.k8s.io/controller-runtime"
 
 	"github.com/stakater/Reloader/internal/pkg/config"
 	"github.com/stakater/Reloader/internal/pkg/controller"
 	"github.com/stakater/Reloader/internal/pkg/metadata"
 	"github.com/stakater/Reloader/internal/pkg/metrics"
+	"github.com/stakater/Reloader/internal/pkg/openshift"
 )
 
 // Environment variable names for pod identity in HA mode.
@@ -113,6 +115,16 @@ func run(cmd *cobra.Command, args []string) error {
 	)
 	if err != nil {
 		return fmt.Errorf("creating manager: %w", err)
+	}
+
+	if config.ShouldAutoDetectOpenShift() {
+		restConfig := controllerruntime.GetConfigOrDie()
+		discoveryClient, err := discovery.NewDiscoveryClientForConfig(restConfig)
+		if err != nil {
+			log.V(1).Info("Failed to create discovery client for DeploymentConfig detection", "error", err)
+		} else if openshift.HasDeploymentConfigSupport(discoveryClient, log) {
+			cfg.DeploymentConfigEnabled = true
+		}
 	}
 
 	if err := controller.SetupReconcilers(mgr, cfg, log, &collectors); err != nil {

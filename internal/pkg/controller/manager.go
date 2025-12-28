@@ -6,6 +6,7 @@ import (
 
 	argorolloutsv1alpha1 "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/go-logr/logr"
+	openshiftv1 "github.com/openshift/api/apps/v1"
 	"github.com/stakater/Reloader/internal/pkg/alerting"
 	"github.com/stakater/Reloader/internal/pkg/config"
 	"github.com/stakater/Reloader/internal/pkg/events"
@@ -27,6 +28,7 @@ var runtimeScheme = runtime.NewScheme()
 func init() {
 	utilruntime.Must(clientgoscheme.AddToScheme(runtimeScheme))
 	utilruntime.Must(argorolloutsv1alpha1.AddToScheme(runtimeScheme))
+	utilruntime.Must(openshiftv1.AddToScheme(runtimeScheme))
 }
 
 // ManagerOptions contains options for creating a new Manager.
@@ -115,7 +117,10 @@ func NewManagerWithRestConfig(opts ManagerOptions, restConfig *rest.Config) (ctr
 
 // SetupReconcilers sets up all reconcilers with the manager.
 func SetupReconcilers(mgr ctrl.Manager, cfg *config.Config, log logr.Logger, collectors *metrics.Collectors) error {
-	registry := workload.NewRegistry(cfg.ArgoRolloutsEnabled)
+	registry := workload.NewRegistry(workload.RegistryOptions{
+		ArgoRolloutsEnabled:     cfg.ArgoRolloutsEnabled,
+		DeploymentConfigEnabled: cfg.DeploymentConfigEnabled,
+	})
 	reloadService := reload.NewService(cfg)
 	eventRecorder := events.NewRecorder(mgr.GetEventRecorderFor("reloader"))
 	pauseHandler := reload.NewPauseHandler(cfg)

@@ -4,6 +4,7 @@ import (
 	"context"
 
 	argorolloutv1alpha1 "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
+	openshiftv1 "github.com/openshift/api/apps/v1"
 	appsv1 "k8s.io/api/apps/v1"
 	batchv1 "k8s.io/api/batch/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -125,6 +126,18 @@ func listRollouts(ctx context.Context, c client.Client, namespace string) ([]Wor
 	result := make([]WorkloadAccessor, len(list.Items))
 	for i := range list.Items {
 		result[i] = NewRolloutWorkload(&list.Items[i])
+	}
+	return result, nil
+}
+
+func listDeploymentConfigs(ctx context.Context, c client.Client, namespace string) ([]WorkloadAccessor, error) {
+	var list openshiftv1.DeploymentConfigList
+	if err := c.List(ctx, &list, client.InNamespace(namespace)); err != nil {
+		return nil, err
+	}
+	result := make([]WorkloadAccessor, len(list.Items))
+	for i := range list.Items {
+		result[i] = NewDeploymentConfigWorkload(&list.Items[i])
 	}
 	return result, nil
 }

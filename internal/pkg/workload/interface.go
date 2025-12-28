@@ -18,12 +18,13 @@ import (
 type Kind string
 
 const (
-	KindDeployment  Kind = "Deployment"
-	KindDaemonSet   Kind = "DaemonSet"
-	KindStatefulSet Kind = "StatefulSet"
-	KindArgoRollout Kind = "Rollout"
-	KindJob         Kind = "Job"
-	KindCronJob     Kind = "CronJob"
+	KindDeployment       Kind = "Deployment"
+	KindDaemonSet        Kind = "DaemonSet"
+	KindStatefulSet      Kind = "StatefulSet"
+	KindArgoRollout      Kind = "Rollout"
+	KindJob              Kind = "Job"
+	KindCronJob          Kind = "CronJob"
+	KindDeploymentConfig Kind = "DeploymentConfig"
 )
 
 // Workload provides a uniform interface for managing Kubernetes workloads.

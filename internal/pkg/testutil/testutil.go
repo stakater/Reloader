@@ -7,13 +7,15 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/stakater/Reloader/internal/pkg/config"
+	openshiftv1 "github.com/openshift/api/apps/v1"
+	openshiftclient "github.com/openshift/client-go/apps/clientset/versioned"
 	appsv1 "k8s.io/api/apps/v1"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/rest"
 )
 
 const (
@@ -133,7 +135,9 @@ func DeleteSecret(client kubernetes.Interface, namespace, name string) error {
 }
 
 // CreateDeployment creates a Deployment that references a ConfigMap/Secret.
-func CreateDeployment(client kubernetes.Interface, name, namespace string, useConfigMap bool, annotations map[string]string) (*appsv1.Deployment, error) {
+func CreateDeployment(client kubernetes.Interface, name, namespace string, useConfigMap bool, annotations map[string]string) (
+	*appsv1.Deployment, error,
+) {
 	var deployment *appsv1.Deployment
 	if useConfigMap {
 		deployment = NewDeploymentWithEnvFrom(name, namespace, name, "")
@@ -154,7 +158,9 @@ func DeleteDeployment(client kubernetes.Interface, namespace, name string) error
 }
 
 // CreateDaemonSet creates a DaemonSet that references a ConfigMap/Secret.
-func CreateDaemonSet(client kubernetes.Interface, name, namespace string, useConfigMap bool, annotations map[string]string) (*appsv1.DaemonSet, error) {
+func CreateDaemonSet(client kubernetes.Interface, name, namespace string, useConfigMap bool, annotations map[string]string) (
+	*appsv1.DaemonSet, error,
+) {
 	daemonset := NewDaemonSet(name, namespace, annotations)
 	// Override image for integration tests
 	daemonset.Spec.Template.Spec.Containers[0].Image = "busybox:1.36"
@@ -187,7 +193,9 @@ func DeleteDaemonSet(client kubernetes.Interface, namespace, name string) error 
 }
 
 // CreateStatefulSet creates a StatefulSet that references a ConfigMap/Secret.
-func CreateStatefulSet(client kubernetes.Interface, name, namespace string, useConfigMap bool, annotations map[string]string) (*appsv1.StatefulSet, error) {
+func CreateStatefulSet(client kubernetes.Interface, name, namespace string, useConfigMap bool, annotations map[string]string) (
+	*appsv1.StatefulSet, error,
+) {
 	statefulset := NewStatefulSet(name, namespace, annotations)
 	statefulset.Spec.ServiceName = name
 	// Override image for integration tests
@@ -266,88 +274,157 @@ func ConvertResourceToSHA(resourceType, namespace, name, data string) string {
 func WaitForDeploymentAnnotation(client kubernetes.Interface, namespace, name, annotation, expectedValue string, timeout time.Duration) error {
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
-	return wait.PollUntilContextTimeout(ctx, time.Second, timeout, true, func(ctx context.Context) (bool, error) {
-		deployment, err := client.AppsV1().Deployments(namespace).Get(ctx, name, metav1.GetOptions{})
-		if err != nil {
-			return false, nil // Keep waiting
-		}
-		value, ok := deployment.Spec.Template.Annotations[annotation]
-		if !ok {
-			return false, nil // Keep waiting
-		}
-		return value == expectedValue, nil
-	})
+	return wait.PollUntilContextTimeout(
+		ctx, time.Second, timeout, true, func(ctx context.Context) (bool, error) {
+			deployment, err := client.AppsV1().Deployments(namespace).Get(ctx, name, metav1.GetOptions{})
+			if err != nil {
+				return false, nil // Keep waiting
+			}
+			value, ok := deployment.Spec.Template.Annotations[annotation]
+			if !ok {
+				return false, nil // Keep waiting
+			}
+			return value == expectedValue, nil
+		},
+	)
 }
 
-// WaitForDeploymentReloadedAnnotation waits for a deployment to have any reloaded annotation.
-func WaitForDeploymentReloadedAnnotation(client kubernetes.Interface, namespace, name string, cfg *config.Config, timeout time.Duration) (bool, error) {
+// WaitForDeploymentReloadedAnnotation waits for a deployment to have the specified reloaded annotation.
+func WaitForDeploymentReloadedAnnotation(client kubernetes.Interface, namespace, name, annotationName string, timeout time.Duration) (
+	bool, error,
+) {
 	var found bool
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
-	err := wait.PollUntilContextTimeout(ctx, time.Second, timeout, true, func(ctx context.Context) (bool, error) {
-		deployment, err := client.AppsV1().Deployments(namespace).Get(ctx, name, metav1.GetOptions{})
-		if err != nil {
-			return false, nil // Keep waiting
-		}
-		// Check for the last-reloaded-from annotation in pod template
-		if deployment.Spec.Template.Annotations != nil {
-			if _, ok := deployment.Spec.Template.Annotations[cfg.Annotations.LastReloadedFrom]; ok {
-				found = true
-				return true, nil
+	err := wait.PollUntilContextTimeout(
+		ctx, time.Second, timeout, true, func(ctx context.Context) (bool, error) {
+			deployment, err := client.AppsV1().Deployments(namespace).Get(ctx, name, metav1.GetOptions{})
+			if err != nil {
+				return false, nil // Keep waiting
 			}
-		}
-		return false, nil
-	})
+			// Check for the last-reloaded-from annotation in pod template
+			if deployment.Spec.Template.Annotations != nil {
+				if _, ok := deployment.Spec.Template.Annotations[annotationName]; ok {
+					found = true
+					return true, nil
+				}
+			}
+			return false, nil
+		},
+	)
 	if wait.Interrupted(err) {
 		return found, nil
 	}
 	return found, err
 }
 
-// WaitForDaemonSetReloadedAnnotation waits for a daemonset to have any reloaded annotation.
-func WaitForDaemonSetReloadedAnnotation(client kubernetes.Interface, namespace, name string, cfg *config.Config, timeout time.Duration) (bool, error) {
+// WaitForDaemonSetReloadedAnnotation waits for a daemonset to have the specified reloaded annotation.
+func WaitForDaemonSetReloadedAnnotation(client kubernetes.Interface, namespace, name, annotationName string, timeout time.Duration) (
+	bool, error,
+) {
 	var found bool
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
-	err := wait.PollUntilContextTimeout(ctx, time.Second, timeout, true, func(ctx context.Context) (bool, error) {
-		daemonset, err := client.AppsV1().DaemonSets(namespace).Get(ctx, name, metav1.GetOptions{})
-		if err != nil {
-			return false, nil // Keep waiting
-		}
-		// Check for the last-reloaded-from annotation in pod template
-		if daemonset.Spec.Template.Annotations != nil {
-			if _, ok := daemonset.Spec.Template.Annotations[cfg.Annotations.LastReloadedFrom]; ok {
-				found = true
-				return true, nil
+	err := wait.PollUntilContextTimeout(
+		ctx, time.Second, timeout, true, func(ctx context.Context) (bool, error) {
+			daemonset, err := client.AppsV1().DaemonSets(namespace).Get(ctx, name, metav1.GetOptions{})
+			if err != nil {
+				return false, nil // Keep waiting
 			}
-		}
-		return false, nil
-	})
+			// Check for the last-reloaded-from annotation in pod template
+			if daemonset.Spec.Template.Annotations != nil {
+				if _, ok := daemonset.Spec.Template.Annotations[annotationName]; ok {
+					found = true
+					return true, nil
+				}
+			}
+			return false, nil
+		},
+	)
 	if wait.Interrupted(err) {
 		return found, nil
 	}
 	return found, err
 }
 
-// WaitForStatefulSetReloadedAnnotation waits for a statefulset to have any reloaded annotation.
-func WaitForStatefulSetReloadedAnnotation(client kubernetes.Interface, namespace, name string, cfg *config.Config, timeout time.Duration) (bool, error) {
+// WaitForStatefulSetReloadedAnnotation waits for a statefulset to have the specified reloaded annotation.
+func WaitForStatefulSetReloadedAnnotation(client kubernetes.Interface, namespace, name, annotationName string, timeout time.Duration) (
+	bool, error,
+) {
 	var found bool
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
-	err := wait.PollUntilContextTimeout(ctx, time.Second, timeout, true, func(ctx context.Context) (bool, error) {
-		statefulset, err := client.AppsV1().StatefulSets(namespace).Get(ctx, name, metav1.GetOptions{})
-		if err != nil {
-			return false, nil // Keep waiting
-		}
-		// Check for the last-reloaded-from annotation in pod template
-		if statefulset.Spec.Template.Annotations != nil {
-			if _, ok := statefulset.Spec.Template.Annotations[cfg.Annotations.LastReloadedFrom]; ok {
-				found = true
-				return true, nil
+	err := wait.PollUntilContextTimeout(
+		ctx, time.Second, timeout, true, func(ctx context.Context) (bool, error) {
+			statefulset, err := client.AppsV1().StatefulSets(namespace).Get(ctx, name, metav1.GetOptions{})
+			if err != nil {
+				return false, nil // Keep waiting
 			}
-		}
-		return false, nil
-	})
+			// Check for the last-reloaded-from annotation in pod template
+			if statefulset.Spec.Template.Annotations != nil {
+				if _, ok := statefulset.Spec.Template.Annotations[annotationName]; ok {
+					found = true
+					return true, nil
+				}
+			}
+			return false, nil
+		},
+	)
+	if wait.Interrupted(err) {
+		return found, nil
+	}
+	return found, err
+}
+
+// NewOpenshiftClient creates an OpenShift client from the given rest config.
+func NewOpenshiftClient(restCfg *rest.Config) (openshiftclient.Interface, error) {
+	return openshiftclient.NewForConfig(restCfg)
+}
+
+// CreateDeploymentConfig creates a DeploymentConfig that references a ConfigMap/Secret.
+func CreateDeploymentConfig(client openshiftclient.Interface, name, namespace string, useConfigMap bool, annotations map[string]string) (
+	*openshiftv1.DeploymentConfig, error,
+) {
+	var dc *openshiftv1.DeploymentConfig
+	if useConfigMap {
+		dc = NewDeploymentConfigWithEnvFrom(name, namespace, name, "")
+	} else {
+		dc = NewDeploymentConfigWithEnvFrom(name, namespace, "", name)
+	}
+	dc.Annotations = annotations
+	dc.Spec.Template.Spec.Containers[0].Image = "busybox:1.36"
+	dc.Spec.Template.Spec.Containers[0].Command = []string{"sh", "-c", "while true; do sleep 3600; done"}
+
+	return client.AppsV1().DeploymentConfigs(namespace).Create(context.Background(), dc, metav1.CreateOptions{})
+}
+
+// DeleteDeploymentConfig deletes the DeploymentConfig with the given name.
+func DeleteDeploymentConfig(client openshiftclient.Interface, namespace, name string) error {
+	return client.AppsV1().DeploymentConfigs(namespace).Delete(context.Background(), name, metav1.DeleteOptions{})
+}
+
+// WaitForDeploymentConfigReloadedAnnotation waits for a DeploymentConfig to have the specified reloaded annotation.
+func WaitForDeploymentConfigReloadedAnnotation(client openshiftclient.Interface, namespace, name, annotationName string, timeout time.Duration) (
+	bool, error,
+) {
+	var found bool
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+	err := wait.PollUntilContextTimeout(
+		ctx, time.Second, timeout, true, func(ctx context.Context) (bool, error) {
+			dc, err := client.AppsV1().DeploymentConfigs(namespace).Get(ctx, name, metav1.GetOptions{})
+			if err != nil {
+				return false, nil // Keep waiting
+			}
+			if dc.Spec.Template != nil && dc.Spec.Template.Annotations != nil {
+				if _, ok := dc.Spec.Template.Annotations[annotationName]; ok {
+					found = true
+					return true, nil
+				}
+			}
+			return false, nil
+		},
+	)
 	if wait.Interrupted(err) {
 		return found, nil
 	}

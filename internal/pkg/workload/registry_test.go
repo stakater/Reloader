@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	argorolloutv1alpha1 "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
+	openshiftv1 "github.com/openshift/api/apps/v1"
 	appsv1 "k8s.io/api/apps/v1"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -11,7 +12,7 @@ import (
 )
 
 func TestNewRegistry_WithoutArgoRollouts(t *testing.T) {
-	r := NewRegistry(false)
+	r := NewRegistry(RegistryOptions{ArgoRolloutsEnabled: false})
 
 	kinds := r.SupportedKinds()
 	if len(kinds) != 5 {
@@ -30,7 +31,7 @@ func TestNewRegistry_WithoutArgoRollouts(t *testing.T) {
 }
 
 func TestNewRegistry_WithArgoRollouts(t *testing.T) {
-	r := NewRegistry(true)
+	r := NewRegistry(RegistryOptions{ArgoRolloutsEnabled: true})
 
 	kinds := r.SupportedKinds()
 	if len(kinds) != 6 {
@@ -54,7 +55,7 @@ func TestNewRegistry_WithArgoRollouts(t *testing.T) {
 }
 
 func TestRegistry_ListerFor_AllKinds(t *testing.T) {
-	r := NewRegistry(true)
+	r := NewRegistry(RegistryOptions{ArgoRolloutsEnabled: true})
 
 	tests := []struct {
 		kind    Kind
@@ -78,7 +79,7 @@ func TestRegistry_ListerFor_AllKinds(t *testing.T) {
 }
 
 func TestRegistry_FromObject_Deployment(t *testing.T) {
-	r := NewRegistry(false)
+	r := NewRegistry(RegistryOptions{})
 	deploy := &appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{Name: "test", Namespace: "default"},
 	}
@@ -93,7 +94,7 @@ func TestRegistry_FromObject_Deployment(t *testing.T) {
 }
 
 func TestRegistry_FromObject_DaemonSet(t *testing.T) {
-	r := NewRegistry(false)
+	r := NewRegistry(RegistryOptions{})
 	ds := &appsv1.DaemonSet{
 		ObjectMeta: metav1.ObjectMeta{Name: "test", Namespace: "default"},
 	}
@@ -108,7 +109,7 @@ func TestRegistry_FromObject_DaemonSet(t *testing.T) {
 }
 
 func TestRegistry_FromObject_StatefulSet(t *testing.T) {
-	r := NewRegistry(false)
+	r := NewRegistry(RegistryOptions{})
 	sts := &appsv1.StatefulSet{
 		ObjectMeta: metav1.ObjectMeta{Name: "test", Namespace: "default"},
 	}
@@ -123,7 +124,7 @@ func TestRegistry_FromObject_StatefulSet(t *testing.T) {
 }
 
 func TestRegistry_FromObject_Job(t *testing.T) {
-	r := NewRegistry(false)
+	r := NewRegistry(RegistryOptions{})
 	job := &batchv1.Job{
 		ObjectMeta: metav1.ObjectMeta{Name: "test", Namespace: "default"},
 	}
@@ -138,7 +139,7 @@ func TestRegistry_FromObject_Job(t *testing.T) {
 }
 
 func TestRegistry_FromObject_CronJob(t *testing.T) {
-	r := NewRegistry(false)
+	r := NewRegistry(RegistryOptions{})
 	cj := &batchv1.CronJob{
 		ObjectMeta: metav1.ObjectMeta{Name: "test", Namespace: "default"},
 	}
@@ -153,7 +154,7 @@ func TestRegistry_FromObject_CronJob(t *testing.T) {
 }
 
 func TestRegistry_FromObject_Rollout_Enabled(t *testing.T) {
-	r := NewRegistry(true)
+	r := NewRegistry(RegistryOptions{ArgoRolloutsEnabled: true})
 	rollout := &argorolloutv1alpha1.Rollout{
 		ObjectMeta: metav1.ObjectMeta{Name: "test", Namespace: "default"},
 	}
@@ -168,7 +169,7 @@ func TestRegistry_FromObject_Rollout_Enabled(t *testing.T) {
 }
 
 func TestRegistry_FromObject_Rollout_Disabled(t *testing.T) {
-	r := NewRegistry(false)
+	r := NewRegistry(RegistryOptions{})
 	rollout := &argorolloutv1alpha1.Rollout{
 		ObjectMeta: metav1.ObjectMeta{Name: "test", Namespace: "default"},
 	}
@@ -180,7 +181,7 @@ func TestRegistry_FromObject_Rollout_Disabled(t *testing.T) {
 }
 
 func TestRegistry_FromObject_UnsupportedType(t *testing.T) {
-	r := NewRegistry(false)
+	r := NewRegistry(RegistryOptions{})
 	cm := &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{Name: "test", Namespace: "default"},
 	}
@@ -234,7 +235,7 @@ func TestKindFromString(t *testing.T) {
 }
 
 func TestNewLister(t *testing.T) {
-	r := NewRegistry(false)
+	r := NewRegistry(RegistryOptions{})
 	l := NewLister(nil, r, nil)
 
 	if l == nil {
@@ -242,5 +243,124 @@ func TestNewLister(t *testing.T) {
 	}
 	if l.Registry != r {
 		t.Error("NewLister should set Registry")
+	}
+}
+
+// DeploymentConfig registry tests
+func TestNewRegistry_WithDeploymentConfig(t *testing.T) {
+	r := NewRegistry(RegistryOptions{DeploymentConfigEnabled: true})
+
+	kinds := r.SupportedKinds()
+	if len(kinds) != 6 {
+		t.Errorf("SupportedKinds() = %d kinds, want 6", len(kinds))
+	}
+
+	found := false
+	for _, k := range kinds {
+		if k == KindDeploymentConfig {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Error("SupportedKinds() should include DeploymentConfig when enabled")
+	}
+
+	if r.ListerFor(KindDeploymentConfig) == nil {
+		t.Error("ListerFor(KindDeploymentConfig) should return a function when enabled")
+	}
+}
+
+func TestNewRegistry_WithoutDeploymentConfig(t *testing.T) {
+	r := NewRegistry(RegistryOptions{DeploymentConfigEnabled: false})
+
+	for _, k := range r.SupportedKinds() {
+		if k == KindDeploymentConfig {
+			t.Error("SupportedKinds() should not include DeploymentConfig when disabled")
+		}
+	}
+
+	if r.ListerFor(KindDeploymentConfig) != nil {
+		t.Error("ListerFor(KindDeploymentConfig) should return nil when disabled")
+	}
+}
+
+func TestNewRegistry_WithBothOptionalWorkloads(t *testing.T) {
+	r := NewRegistry(RegistryOptions{
+		ArgoRolloutsEnabled:     true,
+		DeploymentConfigEnabled: true,
+	})
+
+	kinds := r.SupportedKinds()
+	if len(kinds) != 7 {
+		t.Errorf("SupportedKinds() = %d kinds, want 7 (5 base + ArgoRollout + DeploymentConfig)", len(kinds))
+	}
+
+	foundRollout := false
+	foundDC := false
+	for _, k := range kinds {
+		if k == KindArgoRollout {
+			foundRollout = true
+		}
+		if k == KindDeploymentConfig {
+			foundDC = true
+		}
+	}
+	if !foundRollout {
+		t.Error("SupportedKinds() should include ArgoRollout")
+	}
+	if !foundDC {
+		t.Error("SupportedKinds() should include DeploymentConfig")
+	}
+}
+
+func TestRegistry_FromObject_DeploymentConfig_Enabled(t *testing.T) {
+	r := NewRegistry(RegistryOptions{DeploymentConfigEnabled: true})
+	dc := &openshiftv1.DeploymentConfig{
+		ObjectMeta: metav1.ObjectMeta{Name: "test", Namespace: "default"},
+	}
+
+	w, err := r.FromObject(dc)
+	if err != nil {
+		t.Fatalf("FromObject(DeploymentConfig) error = %v", err)
+	}
+	if w.Kind() != KindDeploymentConfig {
+		t.Errorf("FromObject(DeploymentConfig).Kind() = %v, want %v", w.Kind(), KindDeploymentConfig)
+	}
+}
+
+func TestRegistry_FromObject_DeploymentConfig_Disabled(t *testing.T) {
+	r := NewRegistry(RegistryOptions{DeploymentConfigEnabled: false})
+	dc := &openshiftv1.DeploymentConfig{
+		ObjectMeta: metav1.ObjectMeta{Name: "test", Namespace: "default"},
+	}
+
+	_, err := r.FromObject(dc)
+	if err == nil {
+		t.Error("FromObject(DeploymentConfig) should return error when DeploymentConfig disabled")
+	}
+}
+
+func TestKindFromString_DeploymentConfig(t *testing.T) {
+	tests := []struct {
+		input   string
+		want    Kind
+		wantErr bool
+	}{
+		{"deploymentconfig", KindDeploymentConfig, false},
+		{"deploymentconfigs", KindDeploymentConfig, false},
+		{"DeploymentConfig", KindDeploymentConfig, false},
+		{"DEPLOYMENTCONFIG", KindDeploymentConfig, false},
+	}
+
+	for _, tt := range tests {
+		got, err := KindFromString(tt.input)
+		if (err != nil) != tt.wantErr {
+			t.Errorf("KindFromString(%q) error = %v, wantErr %v", tt.input, err, tt.wantErr)
+			continue
+		}
+		if got != tt.want {
+			t.Errorf("KindFromString(%q) = %v, want %v", tt.input, got, tt.want)
+		}
 	}
 }

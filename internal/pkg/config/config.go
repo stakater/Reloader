@@ -26,16 +26,17 @@ const (
 
 // Config holds all configuration for Reloader.
 type Config struct {
-	Annotations         AnnotationConfig    `json:"annotations"`
-	AutoReloadAll       bool                `json:"autoReloadAll"`
-	ReloadStrategy      ReloadStrategy      `json:"reloadStrategy"`
-	ArgoRolloutsEnabled bool                `json:"argoRolloutsEnabled"`
-	ArgoRolloutStrategy ArgoRolloutStrategy `json:"argoRolloutStrategy"`
-	ReloadOnCreate      bool                `json:"reloadOnCreate"`
-	ReloadOnDelete      bool                `json:"reloadOnDelete"`
-	SyncAfterRestart    bool                `json:"syncAfterRestart"`
-	EnableHA            bool                `json:"enableHA"`
-	WebhookURL          string              `json:"webhookUrl,omitempty"`
+	Annotations             AnnotationConfig    `json:"annotations"`
+	AutoReloadAll           bool                `json:"autoReloadAll"`
+	ReloadStrategy          ReloadStrategy      `json:"reloadStrategy"`
+	ArgoRolloutsEnabled     bool                `json:"argoRolloutsEnabled"`
+	ArgoRolloutStrategy     ArgoRolloutStrategy `json:"argoRolloutStrategy"`
+	DeploymentConfigEnabled bool                `json:"deploymentConfigEnabled"`
+	ReloadOnCreate          bool                `json:"reloadOnCreate"`
+	ReloadOnDelete          bool                `json:"reloadOnDelete"`
+	SyncAfterRestart        bool                `json:"syncAfterRestart"`
+	EnableHA                bool                `json:"enableHA"`
+	WebhookURL              string              `json:"webhookUrl,omitempty"`
 
 	IgnoredResources         []string          `json:"ignoredResources,omitempty"`
 	IgnoredWorkloads         []string          `json:"ignoredWorkloads,omitempty"`
@@ -101,28 +102,29 @@ type LeaderElectionConfig struct {
 // NewDefault creates a Config with default values.
 func NewDefault() *Config {
 	return &Config{
-		Annotations:         DefaultAnnotations(),
-		AutoReloadAll:       false,
-		ReloadStrategy:      ReloadStrategyEnvVars,
-		ArgoRolloutsEnabled: false,
-		ArgoRolloutStrategy: ArgoRolloutStrategyRollout,
-		ReloadOnCreate:      false,
-		ReloadOnDelete:      false,
-		SyncAfterRestart:    false,
-		EnableHA:            false,
-		WebhookURL:          "",
-		IgnoredResources:    []string{},
-		IgnoredWorkloads:    []string{},
-		IgnoredNamespaces:   []string{},
-		NamespaceSelectors:  []labels.Selector{},
-		ResourceSelectors:   []labels.Selector{},
-		LogFormat:           "",
-		LogLevel:            "info",
-		MetricsAddr:         ":9090",
-		HealthAddr:          ":8081",
-		EnablePProf:         false,
-		PProfAddr:           ":6060",
-		Alerting:            AlertingConfig{},
+		Annotations:             DefaultAnnotations(),
+		AutoReloadAll:           false,
+		ReloadStrategy:          ReloadStrategyEnvVars,
+		ArgoRolloutsEnabled:     false,
+		ArgoRolloutStrategy:     ArgoRolloutStrategyRollout,
+		DeploymentConfigEnabled: false,
+		ReloadOnCreate:          false,
+		ReloadOnDelete:          false,
+		SyncAfterRestart:        false,
+		EnableHA:                false,
+		WebhookURL:              "",
+		IgnoredResources:        []string{},
+		IgnoredWorkloads:        []string{},
+		IgnoredNamespaces:       []string{},
+		NamespaceSelectors:      []labels.Selector{},
+		ResourceSelectors:       []labels.Selector{},
+		LogFormat:               "",
+		LogLevel:                "info",
+		MetricsAddr:             ":9090",
+		HealthAddr:              ":8081",
+		EnablePProf:             false,
+		PProfAddr:               ":6060",
+		Alerting:                AlertingConfig{},
 		LeaderElection: LeaderElectionConfig{
 			LockName:        "reloader-leader-election",
 			LeaseDuration:   15 * time.Second,

@@ -36,7 +36,10 @@ func newConfigMapReconciler(t *testing.T, cfg *config.Config, objects ...runtime
 		Log:           testr.New(t),
 		Config:        cfg,
 		ReloadService: reload.NewService(cfg),
-		Registry:      workload.NewRegistry(cfg.ArgoRolloutsEnabled),
+		Registry: workload.NewRegistry(workload.RegistryOptions{
+			ArgoRolloutsEnabled:     cfg.ArgoRolloutsEnabled,
+			DeploymentConfigEnabled: cfg.DeploymentConfigEnabled,
+		}),
 		Collectors:    &collectors,
 		EventRecorder: events.NewRecorder(nil),
 		WebhookClient: webhook.NewClient("", testr.New(t)),
@@ -59,7 +62,10 @@ func newSecretReconciler(t *testing.T, cfg *config.Config, objects ...runtime.Ob
 		Log:           testr.New(t),
 		Config:        cfg,
 		ReloadService: reload.NewService(cfg),
-		Registry:      workload.NewRegistry(cfg.ArgoRolloutsEnabled),
+		Registry: workload.NewRegistry(workload.RegistryOptions{
+			ArgoRolloutsEnabled:     cfg.ArgoRolloutsEnabled,
+			DeploymentConfigEnabled: cfg.DeploymentConfigEnabled,
+		}),
 		Collectors:    &collectors,
 		EventRecorder: events.NewRecorder(nil),
 		WebhookClient: webhook.NewClient("", testr.New(t)),
