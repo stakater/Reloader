@@ -19,28 +19,30 @@ func TestConfig_Validate_ReloadStrategy(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			cfg := NewDefault()
-			cfg.ReloadStrategy = tt.strategy
+		t.Run(
+			tt.name, func(t *testing.T) {
+				cfg := NewDefault()
+				cfg.ReloadStrategy = tt.strategy
 
-			err := cfg.Validate()
+				err := cfg.Validate()
 
-			if tt.wantErr {
-				if err == nil {
-					t.Error("Validate() should return error for invalid strategy")
+				if tt.wantErr {
+					if err == nil {
+						t.Error("Validate() should return error for invalid strategy")
+					}
+					return
 				}
-				return
-			}
 
-			if err != nil {
-				t.Errorf("Validate() error = %v", err)
-				return
-			}
+				if err != nil {
+					t.Errorf("Validate() error = %v", err)
+					return
+				}
 
-			if cfg.ReloadStrategy != tt.wantVal {
-				t.Errorf("ReloadStrategy = %v, want %v", cfg.ReloadStrategy, tt.wantVal)
-			}
-		})
+				if cfg.ReloadStrategy != tt.wantVal {
+					t.Errorf("ReloadStrategy = %v, want %v", cfg.ReloadStrategy, tt.wantVal)
+				}
+			},
+		)
 	}
 }
 
@@ -58,51 +60,57 @@ func TestConfig_Validate_ArgoRolloutStrategy(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			cfg := NewDefault()
-			cfg.ArgoRolloutStrategy = tt.strategy
+		t.Run(
+			tt.name, func(t *testing.T) {
+				cfg := NewDefault()
+				cfg.ArgoRolloutStrategy = tt.strategy
 
-			err := cfg.Validate()
+				err := cfg.Validate()
 
-			if tt.wantErr {
-				if err == nil {
-					t.Error("Validate() should return error for invalid strategy")
+				if tt.wantErr {
+					if err == nil {
+						t.Error("Validate() should return error for invalid strategy")
+					}
+					return
 				}
-				return
-			}
 
-			if err != nil {
-				t.Errorf("Validate() error = %v", err)
-				return
-			}
+				if err != nil {
+					t.Errorf("Validate() error = %v", err)
+					return
+				}
 
-			if cfg.ArgoRolloutStrategy != tt.wantVal {
-				t.Errorf("ArgoRolloutStrategy = %v, want %v", cfg.ArgoRolloutStrategy, tt.wantVal)
-			}
-		})
+				if cfg.ArgoRolloutStrategy != tt.wantVal {
+					t.Errorf("ArgoRolloutStrategy = %v, want %v", cfg.ArgoRolloutStrategy, tt.wantVal)
+				}
+			},
+		)
 	}
 }
 
 func TestConfig_Validate_LogLevel(t *testing.T) {
 	validLevels := []string{"trace", "debug", "info", "warn", "warning", "error", "fatal", "panic", ""}
 	for _, level := range validLevels {
-		t.Run("valid_"+level, func(t *testing.T) {
-			cfg := NewDefault()
-			cfg.LogLevel = level
-			if err := cfg.Validate(); err != nil {
-				t.Errorf("Validate() error for level %q: %v", level, err)
-			}
-		})
+		t.Run(
+			"valid_"+level, func(t *testing.T) {
+				cfg := NewDefault()
+				cfg.LogLevel = level
+				if err := cfg.Validate(); err != nil {
+					t.Errorf("Validate() error for level %q: %v", level, err)
+				}
+			},
+		)
 	}
 
-	t.Run("invalid level", func(t *testing.T) {
-		cfg := NewDefault()
-		cfg.LogLevel = "invalid"
-		err := cfg.Validate()
-		if err == nil {
-			t.Error("Validate() should return error for invalid log level")
-		}
-	})
+	t.Run(
+		"invalid level", func(t *testing.T) {
+			cfg := NewDefault()
+			cfg.LogLevel = "invalid"
+			err := cfg.Validate()
+			if err == nil {
+				t.Error("Validate() should return error for invalid log level")
+			}
+		},
+	)
 }
 
 func TestConfig_Validate_LogFormat(t *testing.T) {
@@ -117,14 +125,16 @@ func TestConfig_Validate_LogFormat(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			cfg := NewDefault()
-			cfg.LogFormat = tt.format
-			err := cfg.Validate()
-			if (err != nil) != tt.wantErr {
-				t.Errorf("Validate() error = %v, wantErr %v", err, tt.wantErr)
-			}
-		})
+		t.Run(
+			tt.name, func(t *testing.T) {
+				cfg := NewDefault()
+				cfg.LogFormat = tt.format
+				err := cfg.Validate()
+				if (err != nil) != tt.wantErr {
+					t.Errorf("Validate() error = %v, wantErr %v", err, tt.wantErr)
+				}
+			},
+		)
 	}
 }
 
@@ -203,35 +213,41 @@ func TestValidationError_Error(t *testing.T) {
 }
 
 func TestValidationErrors_Error(t *testing.T) {
-	t.Run("empty", func(t *testing.T) {
-		var errs ValidationErrors
-		if errs.Error() != "" {
-			t.Errorf("Empty errors should return empty string, got %q", errs.Error())
-		}
-	})
+	t.Run(
+		"empty", func(t *testing.T) {
+			var errs ValidationErrors
+			if errs.Error() != "" {
+				t.Errorf("Empty errors should return empty string, got %q", errs.Error())
+			}
+		},
+	)
 
-	t.Run("single error", func(t *testing.T) {
-		errs := ValidationErrors{
-			{Field: "Field1", Message: "error1"},
-		}
-		if !strings.Contains(errs.Error(), "Field1") {
-			t.Errorf("Error() should contain field name, got %q", errs.Error())
-		}
-	})
+	t.Run(
+		"single error", func(t *testing.T) {
+			errs := ValidationErrors{
+				{Field: "Field1", Message: "error1"},
+			}
+			if !strings.Contains(errs.Error(), "Field1") {
+				t.Errorf("Error() should contain field name, got %q", errs.Error())
+			}
+		},
+	)
 
-	t.Run("multiple errors", func(t *testing.T) {
-		errs := ValidationErrors{
-			{Field: "Field1", Message: "error1"},
-			{Field: "Field2", Message: "error2"},
-		}
-		errStr := errs.Error()
-		if !strings.Contains(errStr, "multiple configuration errors") {
-			t.Errorf("Error() should mention multiple errors, got %q", errStr)
-		}
-		if !strings.Contains(errStr, "Field1") || !strings.Contains(errStr, "Field2") {
-			t.Errorf("Error() should contain all field names, got %q", errStr)
-		}
-	})
+	t.Run(
+		"multiple errors", func(t *testing.T) {
+			errs := ValidationErrors{
+				{Field: "Field1", Message: "error1"},
+				{Field: "Field2", Message: "error2"},
+			}
+			errStr := errs.Error()
+			if !strings.Contains(errStr, "multiple configuration errors") {
+				t.Errorf("Error() should mention multiple errors, got %q", errStr)
+			}
+			if !strings.Contains(errStr, "Field1") || !strings.Contains(errStr, "Field2") {
+				t.Errorf("Error() should contain all field names, got %q", errStr)
+			}
+		},
+	)
 }
 
 func TestParseSelectors(t *testing.T) {
@@ -252,35 +268,19 @@ func TestParseSelectors(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			selectors, err := ParseSelectors(tt.selectors)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("ParseSelectors() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
-			if !tt.wantErr && len(selectors) != tt.wantLen {
-				t.Errorf("ParseSelectors() returned %d selectors, want %d", len(selectors), tt.wantLen)
-			}
-		})
+		t.Run(
+			tt.name, func(t *testing.T) {
+				selectors, err := ParseSelectors(tt.selectors)
+				if (err != nil) != tt.wantErr {
+					t.Errorf("ParseSelectors() error = %v, wantErr %v", err, tt.wantErr)
+					return
+				}
+				if !tt.wantErr && len(selectors) != tt.wantLen {
+					t.Errorf("ParseSelectors() returned %d selectors, want %d", len(selectors), tt.wantLen)
+				}
+			},
+		)
 	}
-}
-
-func TestMustParseSelectors(t *testing.T) {
-	t.Run("valid selectors", func(t *testing.T) {
-		selectors := MustParseSelectors([]string{"env=production"})
-		if len(selectors) != 1 {
-			t.Errorf("MustParseSelectors() returned %d selectors, want 1", len(selectors))
-		}
-	})
-
-	t.Run("panics on invalid", func(t *testing.T) {
-		defer func() {
-			if r := recover(); r == nil {
-				t.Error("MustParseSelectors() should panic on invalid selector")
-			}
-		}()
-		MustParseSelectors([]string{"env in (prod,staging"}) // missing closing paren
-	})
 }
 
 func TestNormalizeToLower(t *testing.T) {
@@ -300,21 +300,23 @@ func TestNormalizeToLower(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got := normalizeToLower(tt.input)
-			if tt.want == nil && got != nil {
-				t.Errorf("normalizeToLower() = %v, want nil", got)
-				return
-			}
-			if len(got) != len(tt.want) {
-				t.Errorf("normalizeToLower() length = %d, want %d", len(got), len(tt.want))
-				return
-			}
-			for i := range got {
-				if got[i] != tt.want[i] {
-					t.Errorf("normalizeToLower()[%d] = %q, want %q", i, got[i], tt.want[i])
+		t.Run(
+			tt.name, func(t *testing.T) {
+				got := normalizeToLower(tt.input)
+				if tt.want == nil && got != nil {
+					t.Errorf("normalizeToLower() = %v, want nil", got)
+					return
 				}
-			}
-		})
+				if len(got) != len(tt.want) {
+					t.Errorf("normalizeToLower() length = %d, want %d", len(got), len(tt.want))
+					return
+				}
+				for i := range got {
+					if got[i] != tt.want[i] {
+						t.Errorf("normalizeToLower()[%d] = %q, want %q", i, got[i], tt.want[i])
+					}
+				}
+			},
+		)
 	}
 }

@@ -3,6 +3,7 @@ package alerting
 import (
 	"context"
 	"encoding/json"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -11,97 +12,11 @@ import (
 	"github.com/stakater/Reloader/internal/pkg/config"
 )
 
-func TestNewAlerter_Disabled(t *testing.T) {
-	cfg := config.NewDefault()
-	cfg.Alerting.Enabled = false
-
-	alerter := NewAlerter(cfg)
-	if _, ok := alerter.(*NoOpAlerter); !ok {
-		t.Error("Expected NoOpAlerter when alerting is disabled")
-	}
-}
-
-func TestNewAlerter_NoWebhookURL(t *testing.T) {
-	cfg := config.NewDefault()
-	cfg.Alerting.Enabled = true
-	cfg.Alerting.WebhookURL = ""
-
-	alerter := NewAlerter(cfg)
-	if _, ok := alerter.(*NoOpAlerter); !ok {
-		t.Error("Expected NoOpAlerter when webhook URL is empty")
-	}
-}
-
-func TestNewAlerter_Slack(t *testing.T) {
-	cfg := config.NewDefault()
-	cfg.Alerting.Enabled = true
-	cfg.Alerting.WebhookURL = "http://example.com/webhook"
-	cfg.Alerting.Sink = "slack"
-
-	alerter := NewAlerter(cfg)
-	if _, ok := alerter.(*SlackAlerter); !ok {
-		t.Error("Expected SlackAlerter for sink=slack")
-	}
-}
-
-func TestNewAlerter_Teams(t *testing.T) {
-	cfg := config.NewDefault()
-	cfg.Alerting.Enabled = true
-	cfg.Alerting.WebhookURL = "http://example.com/webhook"
-	cfg.Alerting.Sink = "teams"
-
-	alerter := NewAlerter(cfg)
-	if _, ok := alerter.(*TeamsAlerter); !ok {
-		t.Error("Expected TeamsAlerter for sink=teams")
-	}
-}
-
-func TestNewAlerter_GChat(t *testing.T) {
-	cfg := config.NewDefault()
-	cfg.Alerting.Enabled = true
-	cfg.Alerting.WebhookURL = "http://example.com/webhook"
-	cfg.Alerting.Sink = "gchat"
-
-	alerter := NewAlerter(cfg)
-	if _, ok := alerter.(*GChatAlerter); !ok {
-		t.Error("Expected GChatAlerter for sink=gchat")
-	}
-}
-
-func TestNewAlerter_Raw(t *testing.T) {
-	cfg := config.NewDefault()
-	cfg.Alerting.Enabled = true
-	cfg.Alerting.WebhookURL = "http://example.com/webhook"
-	cfg.Alerting.Sink = "raw"
-
-	alerter := NewAlerter(cfg)
-	if _, ok := alerter.(*RawAlerter); !ok {
-		t.Error("Expected RawAlerter for sink=raw")
-	}
-}
-
-func TestNewAlerter_DefaultIsRaw(t *testing.T) {
-	cfg := config.NewDefault()
-	cfg.Alerting.Enabled = true
-	cfg.Alerting.WebhookURL = "http://example.com/webhook"
-	cfg.Alerting.Sink = "" // Empty sink should default to raw
-
-	alerter := NewAlerter(cfg)
-	if _, ok := alerter.(*RawAlerter); !ok {
-		t.Error("Expected RawAlerter for empty sink")
-	}
-}
-
-func TestNoOpAlerter_Send(t *testing.T) {
-	alerter := &NoOpAlerter{}
-	err := alerter.Send(context.Background(), AlertMessage{})
-	if err != nil {
-		t.Errorf("NoOpAlerter.Send() error = %v, want nil", err)
-	}
-}
-
-func TestSlackAlerter_Send(t *testing.T) {
-	var receivedBody []byte
+// testServer creates a test HTTP server that captures the request body.
+// Returns the server and a function to retrieve the captured body.
+func testServer(t *testing.T) (*httptest.Server, func() []byte) {
+	t.Helper()
+	var body []byte
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
 			t.Errorf("Expected POST request, got %s", r.Method)
@@ -109,14 +24,15 @@ func TestSlackAlerter_Send(t *testing.T) {
 		if r.Header.Get("Content-Type") != "application/json" {
 			t.Errorf("Expected Content-Type application/json, got %s", r.Header.Get("Content-Type"))
 		}
-		receivedBody = make([]byte, r.ContentLength)
-		r.Body.Read(receivedBody)
+		body, _ = io.ReadAll(r.Body)
 		w.WriteHeader(http.StatusOK)
 	}))
-	defer server.Close()
+	return server, func() []byte { return body }
+}
 
-	alerter := NewSlackAlerter(server.URL, "", "Test Cluster")
-	msg := AlertMessage{
+// testAlertMessage returns a standard AlertMessage for testing.
+func testAlertMessage() AlertMessage {
+	return AlertMessage{
 		WorkloadKind:      "Deployment",
 		WorkloadName:      "nginx",
 		WorkloadNamespace: "default",
@@ -124,144 +40,202 @@ func TestSlackAlerter_Send(t *testing.T) {
 		ResourceName:      "nginx-config",
 		ResourceNamespace: "default",
 		Timestamp:         time.Now(),
-	}
-
-	err := alerter.Send(context.Background(), msg)
-	if err != nil {
-		t.Fatalf("SlackAlerter.Send() error = %v", err)
-	}
-
-	var slackMsg slackMessage
-	if err := json.Unmarshal(receivedBody, &slackMsg); err != nil {
-		t.Fatalf("Failed to unmarshal slack message: %v", err)
-	}
-
-	if slackMsg.Text == "" {
-		t.Error("Expected non-empty text in slack message")
 	}
 }
 
-func TestTeamsAlerter_Send(t *testing.T) {
-	var receivedBody []byte
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		receivedBody = make([]byte, r.ContentLength)
-		r.Body.Read(receivedBody)
-		w.WriteHeader(http.StatusOK)
-	}))
-	defer server.Close()
-
-	alerter := NewTeamsAlerter(server.URL, "", "")
-	msg := AlertMessage{
-		WorkloadKind:      "Deployment",
-		WorkloadName:      "nginx",
-		WorkloadNamespace: "default",
-		ResourceKind:      "ConfigMap",
-		ResourceName:      "nginx-config",
-		ResourceNamespace: "default",
-		Timestamp:         time.Now(),
+func TestNewAlerter(t *testing.T) {
+	tests := []struct {
+		name       string
+		setup      func(*config.Config)
+		wantType   string
+	}{
+		{
+			name: "disabled",
+			setup: func(cfg *config.Config) {
+				cfg.Alerting.Enabled = false
+			},
+			wantType: "*alerting.NoOpAlerter",
+		},
+		{
+			name: "no webhook URL",
+			setup: func(cfg *config.Config) {
+				cfg.Alerting.Enabled = true
+				cfg.Alerting.WebhookURL = ""
+			},
+			wantType: "*alerting.NoOpAlerter",
+		},
+		{
+			name: "slack",
+			setup: func(cfg *config.Config) {
+				cfg.Alerting.Enabled = true
+				cfg.Alerting.WebhookURL = "http://example.com/webhook"
+				cfg.Alerting.Sink = "slack"
+			},
+			wantType: "*alerting.SlackAlerter",
+		},
+		{
+			name: "teams",
+			setup: func(cfg *config.Config) {
+				cfg.Alerting.Enabled = true
+				cfg.Alerting.WebhookURL = "http://example.com/webhook"
+				cfg.Alerting.Sink = "teams"
+			},
+			wantType: "*alerting.TeamsAlerter",
+		},
+		{
+			name: "gchat",
+			setup: func(cfg *config.Config) {
+				cfg.Alerting.Enabled = true
+				cfg.Alerting.WebhookURL = "http://example.com/webhook"
+				cfg.Alerting.Sink = "gchat"
+			},
+			wantType: "*alerting.GChatAlerter",
+		},
+		{
+			name: "raw",
+			setup: func(cfg *config.Config) {
+				cfg.Alerting.Enabled = true
+				cfg.Alerting.WebhookURL = "http://example.com/webhook"
+				cfg.Alerting.Sink = "raw"
+			},
+			wantType: "*alerting.RawAlerter",
+		},
+		{
+			name: "empty sink defaults to raw",
+			setup: func(cfg *config.Config) {
+				cfg.Alerting.Enabled = true
+				cfg.Alerting.WebhookURL = "http://example.com/webhook"
+				cfg.Alerting.Sink = ""
+			},
+			wantType: "*alerting.RawAlerter",
+		},
 	}
 
-	err := alerter.Send(context.Background(), msg)
-	if err != nil {
-		t.Fatalf("TeamsAlerter.Send() error = %v", err)
-	}
-
-	var teamsMsg teamsMessage
-	if err := json.Unmarshal(receivedBody, &teamsMsg); err != nil {
-		t.Fatalf("Failed to unmarshal teams message: %v", err)
-	}
-
-	if teamsMsg.Type != "MessageCard" {
-		t.Errorf("Expected @type=MessageCard, got %s", teamsMsg.Type)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cfg := config.NewDefault()
+			tt.setup(cfg)
+			alerter := NewAlerter(cfg)
+			gotType := getTypeName(alerter)
+			if gotType != tt.wantType {
+				t.Errorf("NewAlerter() type = %s, want %s", gotType, tt.wantType)
+			}
+		})
 	}
 }
 
-func TestGChatAlerter_Send(t *testing.T) {
-	var receivedBody []byte
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		receivedBody = make([]byte, r.ContentLength)
-		r.Body.Read(receivedBody)
-		w.WriteHeader(http.StatusOK)
-	}))
-	defer server.Close()
-
-	alerter := NewGChatAlerter(server.URL, "", "")
-	msg := AlertMessage{
-		WorkloadKind:      "Deployment",
-		WorkloadName:      "nginx",
-		WorkloadNamespace: "default",
-		ResourceKind:      "ConfigMap",
-		ResourceName:      "nginx-config",
-		ResourceNamespace: "default",
-		Timestamp:         time.Now(),
-	}
-
-	err := alerter.Send(context.Background(), msg)
-	if err != nil {
-		t.Fatalf("GChatAlerter.Send() error = %v", err)
-	}
-
-	var gchatMsg gchatMessage
-	if err := json.Unmarshal(receivedBody, &gchatMsg); err != nil {
-		t.Fatalf("Failed to unmarshal gchat message: %v", err)
-	}
-
-	if len(gchatMsg.Cards) != 1 {
-		t.Errorf("Expected 1 card, got %d", len(gchatMsg.Cards))
+func getTypeName(a Alerter) string {
+	switch a.(type) {
+	case *NoOpAlerter:
+		return "*alerting.NoOpAlerter"
+	case *SlackAlerter:
+		return "*alerting.SlackAlerter"
+	case *TeamsAlerter:
+		return "*alerting.TeamsAlerter"
+	case *GChatAlerter:
+		return "*alerting.GChatAlerter"
+	case *RawAlerter:
+		return "*alerting.RawAlerter"
+	default:
+		return "unknown"
 	}
 }
 
-func TestRawAlerter_Send(t *testing.T) {
-	var receivedBody []byte
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		receivedBody = make([]byte, r.ContentLength)
-		r.Body.Read(receivedBody)
-		w.WriteHeader(http.StatusOK)
-	}))
-	defer server.Close()
+func TestNoOpAlerter_Send(t *testing.T) {
+	alerter := &NoOpAlerter{}
+	if err := alerter.Send(context.Background(), AlertMessage{}); err != nil {
+		t.Errorf("NoOpAlerter.Send() error = %v, want nil", err)
+	}
+}
 
-	alerter := NewRawAlerter(server.URL, "", "custom-info")
-	msg := AlertMessage{
-		WorkloadKind:      "Deployment",
-		WorkloadName:      "nginx",
-		WorkloadNamespace: "default",
-		ResourceKind:      "ConfigMap",
-		ResourceName:      "nginx-config",
-		ResourceNamespace: "default",
-		Timestamp:         time.Now(),
+func TestAlerter_Send(t *testing.T) {
+	tests := []struct {
+		name     string
+		newAlert func(url string) Alerter
+		validate func(t *testing.T, body []byte)
+	}{
+		{
+			name:     "slack",
+			newAlert: func(url string) Alerter { return NewSlackAlerter(url, "", "Test Cluster") },
+			validate: func(t *testing.T, body []byte) {
+				var msg slackMessage
+				if err := json.Unmarshal(body, &msg); err != nil {
+					t.Fatalf("Failed to unmarshal: %v", err)
+				}
+				if msg.Text == "" {
+					t.Error("Expected non-empty text")
+				}
+			},
+		},
+		{
+			name:     "teams",
+			newAlert: func(url string) Alerter { return NewTeamsAlerter(url, "", "") },
+			validate: func(t *testing.T, body []byte) {
+				var msg teamsMessage
+				if err := json.Unmarshal(body, &msg); err != nil {
+					t.Fatalf("Failed to unmarshal: %v", err)
+				}
+				if msg.Type != "MessageCard" {
+					t.Errorf("@type = %s, want MessageCard", msg.Type)
+				}
+			},
+		},
+		{
+			name:     "gchat",
+			newAlert: func(url string) Alerter { return NewGChatAlerter(url, "", "") },
+			validate: func(t *testing.T, body []byte) {
+				var msg gchatMessage
+				if err := json.Unmarshal(body, &msg); err != nil {
+					t.Fatalf("Failed to unmarshal: %v", err)
+				}
+				if len(msg.Cards) != 1 {
+					t.Errorf("cards = %d, want 1", len(msg.Cards))
+				}
+			},
+		},
+		{
+			name:     "raw",
+			newAlert: func(url string) Alerter { return NewRawAlerter(url, "", "custom-info") },
+			validate: func(t *testing.T, body []byte) {
+				var msg rawMessage
+				if err := json.Unmarshal(body, &msg); err != nil {
+					t.Fatalf("Failed to unmarshal: %v", err)
+				}
+				if msg.Event != "reload" {
+					t.Errorf("event = %s, want reload", msg.Event)
+				}
+				if msg.WorkloadName != "nginx" {
+					t.Errorf("workloadName = %s, want nginx", msg.WorkloadName)
+				}
+				if msg.Additional != "custom-info" {
+					t.Errorf("additional = %s, want custom-info", msg.Additional)
+				}
+			},
+		},
 	}
 
-	err := alerter.Send(context.Background(), msg)
-	if err != nil {
-		t.Fatalf("RawAlerter.Send() error = %v", err)
-	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			server, getBody := testServer(t)
+			defer server.Close()
 
-	var rawMsg rawMessage
-	if err := json.Unmarshal(receivedBody, &rawMsg); err != nil {
-		t.Fatalf("Failed to unmarshal raw message: %v", err)
-	}
-
-	if rawMsg.Event != "reload" {
-		t.Errorf("Expected event=reload, got %s", rawMsg.Event)
-	}
-	if rawMsg.WorkloadName != "nginx" {
-		t.Errorf("Expected workloadName=nginx, got %s", rawMsg.WorkloadName)
-	}
-	if rawMsg.Additional != "custom-info" {
-		t.Errorf("Expected additional=custom-info, got %s", rawMsg.Additional)
+			alerter := tt.newAlert(server.URL)
+			if err := alerter.Send(context.Background(), testAlertMessage()); err != nil {
+				t.Fatalf("Send() error = %v", err)
+			}
+			tt.validate(t, getBody())
+		})
 	}
 }
 
 func TestAlerter_WebhookError(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)
-		w.Write([]byte("Internal Server Error"))
 	}))
 	defer server.Close()
 
 	alerter := NewRawAlerter(server.URL, "", "")
-	err := alerter.Send(context.Background(), AlertMessage{})
-	if err == nil {
+	if err := alerter.Send(context.Background(), AlertMessage{}); err == nil {
 		t.Error("Expected error for non-2xx response")
 	}
 }

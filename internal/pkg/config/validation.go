@@ -48,10 +48,12 @@ func (c *Config) Validate() error {
 	case "":
 		c.ReloadStrategy = ReloadStrategyEnvVars
 	default:
-		errs = append(errs, ValidationError{
-			Field:   "ReloadStrategy",
-			Message: fmt.Sprintf("invalid value %q, must be %q or %q", c.ReloadStrategy, ReloadStrategyEnvVars, ReloadStrategyAnnotations),
-		})
+		errs = append(
+			errs, ValidationError{
+				Field:   "ReloadStrategy",
+				Message: fmt.Sprintf("invalid value %q, must be %q or %q", c.ReloadStrategy, ReloadStrategyEnvVars, ReloadStrategyAnnotations),
+			},
+		)
 	}
 
 	// Validate ArgoRolloutStrategy
@@ -61,10 +63,14 @@ func (c *Config) Validate() error {
 	case "":
 		c.ArgoRolloutStrategy = ArgoRolloutStrategyRollout
 	default:
-		errs = append(errs, ValidationError{
-			Field:   "ArgoRolloutStrategy",
-			Message: fmt.Sprintf("invalid value %q, must be %q or %q", c.ArgoRolloutStrategy, ArgoRolloutStrategyRestart, ArgoRolloutStrategyRollout),
-		})
+		errs = append(
+			errs, ValidationError{
+				Field:   "ArgoRolloutStrategy",
+				Message: fmt.Sprintf(
+					"invalid value %q, must be %q or %q", c.ArgoRolloutStrategy, ArgoRolloutStrategyRestart, ArgoRolloutStrategyRollout,
+				),
+			},
+		)
 	}
 
 	// Validate LogLevel
@@ -72,10 +78,12 @@ func (c *Config) Validate() error {
 	case "trace", "debug", "info", "warn", "warning", "error", "fatal", "panic", "":
 		// valid
 	default:
-		errs = append(errs, ValidationError{
-			Field:   "LogLevel",
-			Message: fmt.Sprintf("invalid log level %q", c.LogLevel),
-		})
+		errs = append(
+			errs, ValidationError{
+				Field:   "LogLevel",
+				Message: fmt.Sprintf("invalid log level %q", c.LogLevel),
+			},
+		)
 	}
 
 	// Validate LogFormat
@@ -83,10 +91,12 @@ func (c *Config) Validate() error {
 	case "json", "":
 		// valid
 	default:
-		errs = append(errs, ValidationError{
-			Field:   "LogFormat",
-			Message: fmt.Sprintf("invalid log format %q, must be \"json\" or empty", c.LogFormat),
-		})
+		errs = append(
+			errs, ValidationError{
+				Field:   "LogFormat",
+				Message: fmt.Sprintf("invalid log format %q, must be \"json\" or empty", c.LogFormat),
+			},
+		)
 	}
 
 	// Normalize IgnoredResources to lowercase for consistent comparison
@@ -135,14 +145,4 @@ func ParseSelectors(selectorStrings []string) ([]labels.Selector, error) {
 		selectors = append(selectors, selector)
 	}
 	return selectors, nil
-}
-
-// MustParseSelectors parses selectors and panics on error.
-// Use only when selectors are known to be valid (e.g., from validated config).
-func MustParseSelectors(selectorStrings []string) []labels.Selector {
-	selectors, err := ParseSelectors(selectorStrings)
-	if err != nil {
-		panic(err)
-	}
-	return selectors
 }

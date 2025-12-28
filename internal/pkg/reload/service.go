@@ -66,6 +66,17 @@ type ReloadDecision struct {
 	Hash string
 }
 
+// FilterDecisions returns only decisions where ShouldReload is true.
+func FilterDecisions(decisions []ReloadDecision) []ReloadDecision {
+	var result []ReloadDecision
+	for _, d := range decisions {
+		if d.ShouldReload {
+			result = append(result, d)
+		}
+	}
+	return result
+}
+
 // ProcessConfigMap evaluates all workloads to determine which should be reloaded.
 func (s *Service) ProcessConfigMap(change ConfigMapChange, workloads []workload.WorkloadAccessor) []ReloadDecision {
 	if change.ConfigMap == nil {

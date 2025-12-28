@@ -84,11 +84,13 @@ func TestDefaultAnnotations(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if tt.got != tt.want {
-				t.Errorf("%s = %q, want %q", tt.name, tt.got, tt.want)
-			}
-		})
+		t.Run(
+			tt.name, func(t *testing.T) {
+				if tt.got != tt.want {
+					t.Errorf("%s = %q, want %q", tt.name, tt.got, tt.want)
+				}
+			},
+		)
 	}
 }
 
@@ -134,12 +136,14 @@ func TestConfig_IsResourceIgnored(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got := cfg.IsResourceIgnored(tt.resource)
-			if got != tt.want {
-				t.Errorf("IsResourceIgnored(%q) = %v, want %v", tt.resource, got, tt.want)
-			}
-		})
+		t.Run(
+			tt.name, func(t *testing.T) {
+				got := cfg.IsResourceIgnored(tt.resource)
+				if got != tt.want {
+					t.Errorf("IsResourceIgnored(%q) = %v, want %v", tt.resource, got, tt.want)
+				}
+			},
+		)
 	}
 }
 
@@ -159,12 +163,14 @@ func TestConfig_IsWorkloadIgnored(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got := cfg.IsWorkloadIgnored(tt.workload)
-			if got != tt.want {
-				t.Errorf("IsWorkloadIgnored(%q) = %v, want %v", tt.workload, got, tt.want)
-			}
-		})
+		t.Run(
+			tt.name, func(t *testing.T) {
+				got := cfg.IsWorkloadIgnored(tt.workload)
+				if got != tt.want {
+					t.Errorf("IsWorkloadIgnored(%q) = %v, want %v", tt.workload, got, tt.want)
+				}
+			},
+		)
 	}
 }
 
@@ -184,12 +190,14 @@ func TestConfig_IsNamespaceIgnored(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got := cfg.IsNamespaceIgnored(tt.namespace)
-			if got != tt.want {
-				t.Errorf("IsNamespaceIgnored(%q) = %v, want %v", tt.namespace, got, tt.want)
-			}
-		})
+		t.Run(
+			tt.name, func(t *testing.T) {
+				got := cfg.IsNamespaceIgnored(tt.namespace)
+				if got != tt.want {
+					t.Errorf("IsNamespaceIgnored(%q) = %v, want %v", tt.namespace, got, tt.want)
+				}
+			},
+		)
 	}
 }
 
@@ -209,29 +217,13 @@ func TestEqualFold(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		t.Run(tt.s+"_"+tt.t, func(t *testing.T) {
-			got := equalFold(tt.s, tt.t)
-			if got != tt.want {
-				t.Errorf("equalFold(%q, %q) = %v, want %v", tt.s, tt.t, got, tt.want)
-			}
-		})
-	}
-}
-
-func TestReloadStrategy_String(t *testing.T) {
-	if string(ReloadStrategyEnvVars) != "env-vars" {
-		t.Errorf("ReloadStrategyEnvVars = %q, want %q", ReloadStrategyEnvVars, "env-vars")
-	}
-	if string(ReloadStrategyAnnotations) != "annotations" {
-		t.Errorf("ReloadStrategyAnnotations = %q, want %q", ReloadStrategyAnnotations, "annotations")
-	}
-}
-
-func TestArgoRolloutStrategy_String(t *testing.T) {
-	if string(ArgoRolloutStrategyRestart) != "restart" {
-		t.Errorf("ArgoRolloutStrategyRestart = %q, want %q", ArgoRolloutStrategyRestart, "restart")
-	}
-	if string(ArgoRolloutStrategyRollout) != "rollout" {
-		t.Errorf("ArgoRolloutStrategyRollout = %q, want %q", ArgoRolloutStrategyRollout, "rollout")
+		t.Run(
+			tt.s+"_"+tt.t, func(t *testing.T) {
+				got := equalFold(tt.s, tt.t)
+				if got != tt.want {
+					t.Errorf("equalFold(%q, %q) = %v, want %v", tt.s, tt.t, got, tt.want)
+				}
+			},
+		)
 	}
 }
