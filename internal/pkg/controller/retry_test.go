@@ -7,6 +7,7 @@ import (
 	"github.com/stakater/Reloader/internal/pkg/config"
 	"github.com/stakater/Reloader/internal/pkg/controller"
 	"github.com/stakater/Reloader/internal/pkg/reload"
+	"github.com/stakater/Reloader/internal/pkg/testutil"
 	"github.com/stakater/Reloader/internal/pkg/workload"
 	appsv1 "k8s.io/api/apps/v1"
 	batchv1 "k8s.io/api/batch/v1"
@@ -27,7 +28,7 @@ func TestUpdateWorkloadWithRetry_WorkloadTypes(t *testing.T) {
 	}{
 		{
 			name:   "Deployment",
-			object: testDeployment("test-deployment", "default", nil),
+			object: testutil.NewDeployment("test-deployment", "default", nil),
 			workload: func(o runtime.Object) workload.WorkloadAccessor {
 				return workload.NewDeploymentWorkload(o.(*appsv1.Deployment))
 			},
@@ -44,7 +45,7 @@ func TestUpdateWorkloadWithRetry_WorkloadTypes(t *testing.T) {
 		},
 		{
 			name:   "DaemonSet",
-			object: testDaemonSet("test-daemonset", "default", nil),
+			object: testutil.NewDaemonSet("test-daemonset", "default", nil),
 			workload: func(o runtime.Object) workload.WorkloadAccessor {
 				return workload.NewDaemonSetWorkload(o.(*appsv1.DaemonSet))
 			},
@@ -61,7 +62,7 @@ func TestUpdateWorkloadWithRetry_WorkloadTypes(t *testing.T) {
 		},
 		{
 			name:   "StatefulSet",
-			object: testStatefulSet("test-statefulset", "default", nil),
+			object: testutil.NewStatefulSet("test-statefulset", "default", nil),
 			workload: func(o runtime.Object) workload.WorkloadAccessor {
 				return workload.NewStatefulSetWorkload(o.(*appsv1.StatefulSet))
 			},
@@ -78,7 +79,7 @@ func TestUpdateWorkloadWithRetry_WorkloadTypes(t *testing.T) {
 		},
 		{
 			name:   "Job",
-			object: testJob("test-job", "default"),
+			object: testutil.NewJob("test-job", "default"),
 			workload: func(o runtime.Object) workload.WorkloadAccessor {
 				return workload.NewJobWorkload(o.(*batchv1.Job))
 			},
@@ -95,7 +96,7 @@ func TestUpdateWorkloadWithRetry_WorkloadTypes(t *testing.T) {
 		},
 		{
 			name:   "CronJob",
-			object: testCronJob("test-cronjob", "default"),
+			object: testutil.NewCronJob("test-cronjob", "default"),
 			workload: func(o runtime.Object) workload.WorkloadAccessor {
 				return workload.NewCronJobWorkload(o.(*batchv1.CronJob))
 			},
@@ -122,7 +123,7 @@ func TestUpdateWorkloadWithRetry_WorkloadTypes(t *testing.T) {
 				reloadService := reload.NewService(cfg)
 
 				fakeClient := fake.NewClientBuilder().
-					WithScheme(testScheme()).
+					WithScheme(testutil.NewScheme()).
 					WithRuntimeObjects(tt.object).
 					Build()
 
@@ -201,9 +202,9 @@ func TestUpdateWorkloadWithRetry_Strategies(t *testing.T) {
 				cfg.ReloadStrategy = tt.strategy
 				reloadService := reload.NewService(cfg)
 
-				deployment := testDeployment("test-deployment", "default", nil)
+				deployment := testutil.NewDeployment("test-deployment", "default", nil)
 				fakeClient := fake.NewClientBuilder().
-					WithScheme(testScheme()).
+					WithScheme(testutil.NewScheme()).
 					WithObjects(deployment).
 					Build()
 
@@ -245,7 +246,7 @@ func TestUpdateWorkloadWithRetry_NoUpdate(t *testing.T) {
 	cfg := config.NewDefault()
 	reloadService := reload.NewService(cfg)
 
-	deployment := testDeployment("test-deployment", "default", nil)
+	deployment := testutil.NewDeployment("test-deployment", "default", nil)
 	deployment.Spec.Template.Spec.Containers[0].Env = []corev1.EnvVar{
 		{
 			Name:  "STAKATER_TEST_CM_CONFIGMAP",
@@ -254,7 +255,7 @@ func TestUpdateWorkloadWithRetry_NoUpdate(t *testing.T) {
 	}
 
 	fakeClient := fake.NewClientBuilder().
-		WithScheme(testScheme()).
+		WithScheme(testutil.NewScheme()).
 		WithObjects(deployment).
 		Build()
 

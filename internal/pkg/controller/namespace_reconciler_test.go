@@ -5,6 +5,7 @@ import (
 
 	"github.com/stakater/Reloader/internal/pkg/config"
 	"github.com/stakater/Reloader/internal/pkg/controller"
+	"github.com/stakater/Reloader/internal/pkg/testutil"
 	"k8s.io/apimachinery/pkg/labels"
 )
 
@@ -70,7 +71,7 @@ func TestNamespaceReconciler_Add(t *testing.T) {
 	cfg.NamespaceSelectors = []labels.Selector{selector}
 
 	cache := controller.NewNamespaceCache(true)
-	ns := testNamespace("test-ns", map[string]string{"env": "production"})
+	ns := testutil.NewNamespace("test-ns", map[string]string{"env": "production"})
 	reconciler := newNamespaceReconciler(t, cfg, cache, ns)
 
 	assertReconcileSuccess(t, reconciler, namespaceRequest("test-ns"))
@@ -88,7 +89,7 @@ func TestNamespaceReconciler_Remove_LabelChange(t *testing.T) {
 	cache := controller.NewNamespaceCache(true)
 	cache.Add("test-ns") // Pre-populate
 
-	ns := testNamespace("test-ns", map[string]string{"env": "staging"}) // Non-matching
+	ns := testutil.NewNamespace("test-ns", map[string]string{"env": "staging"}) // Non-matching
 	reconciler := newNamespaceReconciler(t, cfg, cache, ns)
 
 	assertReconcileSuccess(t, reconciler, namespaceRequest("test-ns"))
@@ -122,7 +123,7 @@ func TestNamespaceReconciler_MultipleSelectors(t *testing.T) {
 	cfg.NamespaceSelectors = []labels.Selector{selector1, selector2}
 
 	cache := controller.NewNamespaceCache(true)
-	ns := testNamespace("test-ns", map[string]string{"team": "platform"})
+	ns := testutil.NewNamespace("test-ns", map[string]string{"team": "platform"})
 	reconciler := newNamespaceReconciler(t, cfg, cache, ns)
 
 	assertReconcileSuccess(t, reconciler, namespaceRequest("test-ns"))
@@ -138,7 +139,7 @@ func TestNamespaceReconciler_NoLabels(t *testing.T) {
 	cfg.NamespaceSelectors = []labels.Selector{selector}
 
 	cache := controller.NewNamespaceCache(true)
-	ns := testNamespace("test-ns", nil) // No labels
+	ns := testutil.NewNamespace("test-ns", nil) // No labels
 	reconciler := newNamespaceReconciler(t, cfg, cache, ns)
 
 	assertReconcileSuccess(t, reconciler, namespaceRequest("test-ns"))

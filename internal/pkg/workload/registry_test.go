@@ -18,14 +18,12 @@ func TestNewRegistry_WithoutArgoRollouts(t *testing.T) {
 		t.Errorf("SupportedKinds() = %d kinds, want 5", len(kinds))
 	}
 
-	// Should not include ArgoRollout
 	for _, k := range kinds {
 		if k == KindArgoRollout {
 			t.Error("SupportedKinds() should not include ArgoRollout when disabled")
 		}
 	}
 
-	// ListerFor should return nil for ArgoRollout
 	if r.ListerFor(KindArgoRollout) != nil {
 		t.Error("ListerFor(KindArgoRollout) should return nil when disabled")
 	}
@@ -39,7 +37,6 @@ func TestNewRegistry_WithArgoRollouts(t *testing.T) {
 		t.Errorf("SupportedKinds() = %d kinds, want 6", len(kinds))
 	}
 
-	// Should include ArgoRollout
 	found := false
 	for _, k := range kinds {
 		if k == KindArgoRollout {
@@ -51,7 +48,6 @@ func TestNewRegistry_WithArgoRollouts(t *testing.T) {
 		t.Error("SupportedKinds() should include ArgoRollout when enabled")
 	}
 
-	// ListerFor should return a function for ArgoRollout
 	if r.ListerFor(KindArgoRollout) == nil {
 		t.Error("ListerFor(KindArgoRollout) should return a function when enabled")
 	}

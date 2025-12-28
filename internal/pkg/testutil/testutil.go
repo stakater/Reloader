@@ -134,56 +134,16 @@ func DeleteSecret(client kubernetes.Interface, namespace, name string) error {
 
 // CreateDeployment creates a Deployment that references a ConfigMap/Secret.
 func CreateDeployment(client kubernetes.Interface, name, namespace string, useConfigMap bool, annotations map[string]string) (*appsv1.Deployment, error) {
-	replicas := int32(1)
-	deployment := &appsv1.Deployment{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:        name,
-			Namespace:   namespace,
-			Annotations: annotations,
-		},
-		Spec: appsv1.DeploymentSpec{
-			Replicas: &replicas,
-			Selector: &metav1.LabelSelector{
-				MatchLabels: map[string]string{"app": name},
-			},
-			Template: corev1.PodTemplateSpec{
-				ObjectMeta: metav1.ObjectMeta{
-					Labels: map[string]string{"app": name},
-				},
-				Spec: corev1.PodSpec{
-					Containers: []corev1.Container{
-						{
-							Name:    "main",
-							Image:   "busybox:1.36",
-							Command: []string{"sh", "-c", "while true; do sleep 3600; done"},
-						},
-					},
-				},
-			},
-		},
-	}
-
+	var deployment *appsv1.Deployment
 	if useConfigMap {
-		deployment.Spec.Template.Spec.Containers[0].EnvFrom = []corev1.EnvFromSource{
-			{
-				ConfigMapRef: &corev1.ConfigMapEnvSource{
-					LocalObjectReference: corev1.LocalObjectReference{
-						Name: name,
-					},
-				},
-			},
-		}
+		deployment = NewDeploymentWithEnvFrom(name, namespace, name, "")
 	} else {
-		deployment.Spec.Template.Spec.Containers[0].EnvFrom = []corev1.EnvFromSource{
-			{
-				SecretRef: &corev1.SecretEnvSource{
-					LocalObjectReference: corev1.LocalObjectReference{
-						Name: name,
-					},
-				},
-			},
-		}
+		deployment = NewDeploymentWithEnvFrom(name, namespace, "", name)
 	}
+	deployment.Annotations = annotations
+	// Override image for integration tests
+	deployment.Spec.Template.Spec.Containers[0].Image = "busybox:1.36"
+	deployment.Spec.Template.Spec.Containers[0].Command = []string{"sh", "-c", "while true; do sleep 3600; done"}
 
 	return client.AppsV1().Deployments(namespace).Create(context.Background(), deployment, metav1.CreateOptions{})
 }
@@ -195,40 +155,16 @@ func DeleteDeployment(client kubernetes.Interface, namespace, name string) error
 
 // CreateDaemonSet creates a DaemonSet that references a ConfigMap/Secret.
 func CreateDaemonSet(client kubernetes.Interface, name, namespace string, useConfigMap bool, annotations map[string]string) (*appsv1.DaemonSet, error) {
-	daemonset := &appsv1.DaemonSet{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:        name,
-			Namespace:   namespace,
-			Annotations: annotations,
-		},
-		Spec: appsv1.DaemonSetSpec{
-			Selector: &metav1.LabelSelector{
-				MatchLabels: map[string]string{"app": name},
-			},
-			Template: corev1.PodTemplateSpec{
-				ObjectMeta: metav1.ObjectMeta{
-					Labels: map[string]string{"app": name},
-				},
-				Spec: corev1.PodSpec{
-					Containers: []corev1.Container{
-						{
-							Name:    "main",
-							Image:   "busybox:1.36",
-							Command: []string{"sh", "-c", "while true; do sleep 3600; done"},
-						},
-					},
-				},
-			},
-		},
-	}
+	daemonset := NewDaemonSet(name, namespace, annotations)
+	// Override image for integration tests
+	daemonset.Spec.Template.Spec.Containers[0].Image = "busybox:1.36"
+	daemonset.Spec.Template.Spec.Containers[0].Command = []string{"sh", "-c", "while true; do sleep 3600; done"}
 
 	if useConfigMap {
 		daemonset.Spec.Template.Spec.Containers[0].EnvFrom = []corev1.EnvFromSource{
 			{
 				ConfigMapRef: &corev1.ConfigMapEnvSource{
-					LocalObjectReference: corev1.LocalObjectReference{
-						Name: name,
-					},
+					LocalObjectReference: corev1.LocalObjectReference{Name: name},
 				},
 			},
 		}
@@ -236,9 +172,7 @@ func CreateDaemonSet(client kubernetes.Interface, name, namespace string, useCon
 		daemonset.Spec.Template.Spec.Containers[0].EnvFrom = []corev1.EnvFromSource{
 			{
 				SecretRef: &corev1.SecretEnvSource{
-					LocalObjectReference: corev1.LocalObjectReference{
-						Name: name,
-					},
+					LocalObjectReference: corev1.LocalObjectReference{Name: name},
 				},
 			},
 		}
@@ -254,43 +188,17 @@ func DeleteDaemonSet(client kubernetes.Interface, namespace, name string) error 
 
 // CreateStatefulSet creates a StatefulSet that references a ConfigMap/Secret.
 func CreateStatefulSet(client kubernetes.Interface, name, namespace string, useConfigMap bool, annotations map[string]string) (*appsv1.StatefulSet, error) {
-	replicas := int32(1)
-	statefulset := &appsv1.StatefulSet{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:        name,
-			Namespace:   namespace,
-			Annotations: annotations,
-		},
-		Spec: appsv1.StatefulSetSpec{
-			Replicas: &replicas,
-			Selector: &metav1.LabelSelector{
-				MatchLabels: map[string]string{"app": name},
-			},
-			ServiceName: name,
-			Template: corev1.PodTemplateSpec{
-				ObjectMeta: metav1.ObjectMeta{
-					Labels: map[string]string{"app": name},
-				},
-				Spec: corev1.PodSpec{
-					Containers: []corev1.Container{
-						{
-							Name:    "main",
-							Image:   "busybox:1.36",
-							Command: []string{"sh", "-c", "while true; do sleep 3600; done"},
-						},
-					},
-				},
-			},
-		},
-	}
+	statefulset := NewStatefulSet(name, namespace, annotations)
+	statefulset.Spec.ServiceName = name
+	// Override image for integration tests
+	statefulset.Spec.Template.Spec.Containers[0].Image = "busybox:1.36"
+	statefulset.Spec.Template.Spec.Containers[0].Command = []string{"sh", "-c", "while true; do sleep 3600; done"}
 
 	if useConfigMap {
 		statefulset.Spec.Template.Spec.Containers[0].EnvFrom = []corev1.EnvFromSource{
 			{
 				ConfigMapRef: &corev1.ConfigMapEnvSource{
-					LocalObjectReference: corev1.LocalObjectReference{
-						Name: name,
-					},
+					LocalObjectReference: corev1.LocalObjectReference{Name: name},
 				},
 			},
 		}
@@ -298,9 +206,7 @@ func CreateStatefulSet(client kubernetes.Interface, name, namespace string, useC
 		statefulset.Spec.Template.Spec.Containers[0].EnvFrom = []corev1.EnvFromSource{
 			{
 				SecretRef: &corev1.SecretEnvSource{
-					LocalObjectReference: corev1.LocalObjectReference{
-						Name: name,
-					},
+					LocalObjectReference: corev1.LocalObjectReference{Name: name},
 				},
 			},
 		}
@@ -316,40 +222,18 @@ func DeleteStatefulSet(client kubernetes.Interface, namespace, name string) erro
 
 // CreateCronJob creates a CronJob that references a ConfigMap/Secret.
 func CreateCronJob(client kubernetes.Interface, name, namespace string, useConfigMap bool, annotations map[string]string) (*batchv1.CronJob, error) {
-	cronjob := &batchv1.CronJob{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:        name,
-			Namespace:   namespace,
-			Annotations: annotations,
-		},
-		Spec: batchv1.CronJobSpec{
-			Schedule: "*/5 * * * *",
-			JobTemplate: batchv1.JobTemplateSpec{
-				Spec: batchv1.JobSpec{
-					Template: corev1.PodTemplateSpec{
-						Spec: corev1.PodSpec{
-							RestartPolicy: corev1.RestartPolicyOnFailure,
-							Containers: []corev1.Container{
-								{
-									Name:    "main",
-									Image:   "busybox:1.36",
-									Command: []string{"sh", "-c", "echo hello"},
-								},
-							},
-						},
-					},
-				},
-			},
-		},
-	}
+	cronjob := NewCronJob(name, namespace)
+	cronjob.Annotations = annotations
+	// Override image for integration tests
+	cronjob.Spec.JobTemplate.Spec.Template.Spec.Containers[0].Image = "busybox:1.36"
+	cronjob.Spec.JobTemplate.Spec.Template.Spec.Containers[0].Command = []string{"sh", "-c", "echo hello"}
+	cronjob.Spec.JobTemplate.Spec.Template.Spec.RestartPolicy = corev1.RestartPolicyOnFailure
 
 	if useConfigMap {
 		cronjob.Spec.JobTemplate.Spec.Template.Spec.Containers[0].EnvFrom = []corev1.EnvFromSource{
 			{
 				ConfigMapRef: &corev1.ConfigMapEnvSource{
-					LocalObjectReference: corev1.LocalObjectReference{
-						Name: name,
-					},
+					LocalObjectReference: corev1.LocalObjectReference{Name: name},
 				},
 			},
 		}
@@ -357,9 +241,7 @@ func CreateCronJob(client kubernetes.Interface, name, namespace string, useConfi
 		cronjob.Spec.JobTemplate.Spec.Template.Spec.Containers[0].EnvFrom = []corev1.EnvFromSource{
 			{
 				SecretRef: &corev1.SecretEnvSource{
-					LocalObjectReference: corev1.LocalObjectReference{
-						Name: name,
-					},
+					LocalObjectReference: corev1.LocalObjectReference{Name: name},
 				},
 			},
 		}

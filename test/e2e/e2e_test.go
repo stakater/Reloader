@@ -1,13 +1,4 @@
 // Package e2e contains end-to-end tests for Reloader.
-// These tests run against a real Kubernetes cluster (or envtest).
-//
-// To run these tests against a real cluster:
-//
-//	KUBECONFIG=~/.kube/config go test -v ./test/e2e/... -count=1
-//
-// To skip these tests when running unit tests:
-//
-//	go test -v ./... -short
 package e2e
 
 import (
@@ -237,7 +228,6 @@ func TestMain(m *testing.M) {
 		os.Exit(0)
 	}
 
-	// Set up zerolog as the controller-runtime logger
 	zl := zerolog.New(zerolog.ConsoleWriter{Out: os.Stderr, TimeFormat: time.RFC3339}).
 		Level(zerolog.WarnLevel).
 		With().
@@ -301,9 +291,11 @@ func TestConfigMapUpdate(t *testing.T) {
 	defer f.cleanup()
 
 	f.createConfigMap(f.name, "initial-data")
-	f.createDeployment(f.name, true, map[string]string{
-		cfg.Annotations.ConfigmapReload: f.name,
-	})
+	f.createDeployment(
+		f.name, true, map[string]string{
+			cfg.Annotations.ConfigmapReload: f.name,
+		},
+	)
 	f.waitForReady()
 
 	f.updateConfigMap(f.name, "updated-data")
@@ -316,9 +308,11 @@ func TestSecretUpdate(t *testing.T) {
 	defer f.cleanup()
 
 	f.createSecret(f.name, "initial-secret")
-	f.createDeployment(f.name, false, map[string]string{
-		cfg.Annotations.SecretReload: f.name,
-	})
+	f.createDeployment(
+		f.name, false, map[string]string{
+			cfg.Annotations.SecretReload: f.name,
+		},
+	)
 	f.waitForReady()
 
 	f.updateSecret(f.name, "updated-secret")
@@ -331,9 +325,11 @@ func TestAutoReloadAll(t *testing.T) {
 	defer f.cleanup()
 
 	f.createConfigMap(f.name, "initial-data")
-	f.createDeployment(f.name, true, map[string]string{
-		cfg.Annotations.Auto: "true",
-	})
+	f.createDeployment(
+		f.name, true, map[string]string{
+			cfg.Annotations.Auto: "true",
+		},
+	)
 	f.waitForReady()
 
 	f.updateConfigMap(f.name, "updated-data")
@@ -346,9 +342,11 @@ func TestDaemonSetReload(t *testing.T) {
 	defer f.cleanup()
 
 	f.createConfigMap(f.name, "initial-data")
-	f.createDaemonSet(f.name, true, map[string]string{
-		cfg.Annotations.ConfigmapReload: f.name,
-	})
+	f.createDaemonSet(
+		f.name, true, map[string]string{
+			cfg.Annotations.ConfigmapReload: f.name,
+		},
+	)
 	f.waitForReady()
 
 	f.updateConfigMap(f.name, "updated-data")
@@ -361,9 +359,11 @@ func TestStatefulSetReload(t *testing.T) {
 	defer f.cleanup()
 
 	f.createSecret(f.name, "initial-secret")
-	f.createStatefulSet(f.name, false, map[string]string{
-		cfg.Annotations.SecretReload: f.name,
-	})
+	f.createStatefulSet(
+		f.name, false, map[string]string{
+			cfg.Annotations.SecretReload: f.name,
+		},
+	)
 	f.waitForReady()
 
 	f.updateSecret(f.name, "updated-secret")
@@ -376,9 +376,11 @@ func TestLabelOnlyChange(t *testing.T) {
 	defer f.cleanup()
 
 	f.createConfigMap(f.name, "initial-data")
-	f.createDeployment(f.name, true, map[string]string{
-		cfg.Annotations.ConfigmapReload: f.name,
-	})
+	f.createDeployment(
+		f.name, true, map[string]string{
+			cfg.Annotations.ConfigmapReload: f.name,
+		},
+	)
 	f.waitForReady()
 
 	f.updateConfigMapLabel(f.name, "new-label")
@@ -395,9 +397,11 @@ func TestMultipleConfigMaps(t *testing.T) {
 
 	f.createConfigMap(cm1, "data-a")
 	f.createConfigMap(cm2, "data-b")
-	f.createDeployment(f.name, true, map[string]string{
-		cfg.Annotations.ConfigmapReload: cm1 + "," + cm2,
-	})
+	f.createDeployment(
+		f.name, true, map[string]string{
+			cfg.Annotations.ConfigmapReload: cm1 + "," + cm2,
+		},
+	)
 	f.waitForReady()
 
 	f.updateConfigMap(cm1, "updated-data-a")
@@ -413,9 +417,11 @@ func TestAutoAnnotationDisabled(t *testing.T) {
 	testCfg.AutoReloadAll = true
 
 	f.createConfigMap(f.name, "initial-data")
-	f.createDeployment(f.name, true, map[string]string{
-		testCfg.Annotations.Auto: "false",
-	})
+	f.createDeployment(
+		f.name, true, map[string]string{
+			testCfg.Annotations.Auto: "false",
+		},
+	)
 	f.waitForReady()
 
 	f.updateConfigMap(f.name, "updated-data")
@@ -433,13 +439,14 @@ func TestAutoWithExplicitConfigMapAnnotation(t *testing.T) {
 
 	f.createConfigMap(referencedCM, "referenced-data")
 	f.createConfigMap(explicitCM, "explicit-data")
-	f.createDeployment(referencedCM, true, map[string]string{
-		cfg.Annotations.Auto:            "true",
-		cfg.Annotations.ConfigmapReload: explicitCM,
-	})
+	f.createDeployment(
+		referencedCM, true, map[string]string{
+			cfg.Annotations.Auto:            "true",
+			cfg.Annotations.ConfigmapReload: explicitCM,
+		},
+	)
 	f.waitForReady()
 
-	// Update the EXPLICIT ConfigMap (not the referenced one)
 	f.updateConfigMap(explicitCM, "updated-explicit-data")
 	f.assertDeploymentReloaded(referencedCM, nil)
 }
@@ -455,13 +462,14 @@ func TestAutoWithExplicitSecretAnnotation(t *testing.T) {
 
 	f.createSecret(referencedSecret, "referenced-secret")
 	f.createSecret(explicitSecret, "explicit-secret")
-	f.createDeployment(referencedSecret, false, map[string]string{
-		cfg.Annotations.Auto:         "true",
-		cfg.Annotations.SecretReload: explicitSecret,
-	})
+	f.createDeployment(
+		referencedSecret, false, map[string]string{
+			cfg.Annotations.Auto:         "true",
+			cfg.Annotations.SecretReload: explicitSecret,
+		},
+	)
 	f.waitForReady()
 
-	// Update the EXPLICIT Secret (not the referenced one)
 	f.updateSecret(explicitSecret, "updated-explicit-secret")
 	f.assertDeploymentReloaded(referencedSecret, nil)
 }
@@ -477,13 +485,14 @@ func TestAutoWithBothExplicitAndReferencedChange(t *testing.T) {
 
 	f.createConfigMap(referencedCM, "referenced-data")
 	f.createConfigMap(explicitCM, "explicit-data")
-	f.createDeployment(referencedCM, true, map[string]string{
-		cfg.Annotations.Auto:            "true",
-		cfg.Annotations.ConfigmapReload: explicitCM,
-	})
+	f.createDeployment(
+		referencedCM, true, map[string]string{
+			cfg.Annotations.Auto:            "true",
+			cfg.Annotations.ConfigmapReload: explicitCM,
+		},
+	)
 	f.waitForReady()
 
-	// Update the REFERENCED ConfigMap - should trigger reload via auto
 	f.updateConfigMap(referencedCM, "updated-referenced-data")
 	f.assertDeploymentReloaded(referencedCM, nil)
 }

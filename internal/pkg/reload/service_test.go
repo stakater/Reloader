@@ -5,8 +5,8 @@ import (
 	"testing"
 
 	"github.com/stakater/Reloader/internal/pkg/config"
+	"github.com/stakater/Reloader/internal/pkg/testutil"
 	"github.com/stakater/Reloader/internal/pkg/workload"
-	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -16,7 +16,7 @@ func TestService_ProcessConfigMap_AutoReload(t *testing.T) {
 	svc := NewService(cfg)
 
 	// Create a deployment with auto annotation that uses the configmap
-	deploy := createTestDeployment(
+	deploy := testutil.NewDeployment(
 		"test-deploy", "default", map[string]string{
 			"reloader.stakater.com/auto": "true",
 		},
@@ -76,7 +76,7 @@ func TestService_ProcessConfigMap_ExplicitAnnotation(t *testing.T) {
 	cfg := config.NewDefault()
 	svc := NewService(cfg)
 
-	deploy := createTestDeployment(
+	deploy := testutil.NewDeployment(
 		"test-deploy", "default", map[string]string{
 			"configmap.reloader.stakater.com/reload": "test-cm",
 		},
@@ -121,7 +121,7 @@ func TestService_ProcessConfigMap_IgnoredResource(t *testing.T) {
 	svc := NewService(cfg)
 
 	// Create a deployment with auto annotation
-	deploy := createTestDeployment(
+	deploy := testutil.NewDeployment(
 		"test-deploy", "default", map[string]string{
 			"reloader.stakater.com/auto": "true",
 		},
@@ -177,7 +177,7 @@ func TestService_ProcessSecret_AutoReload(t *testing.T) {
 	svc := NewService(cfg)
 
 	// Create a deployment with auto annotation that uses the secret
-	deploy := createTestDeployment(
+	deploy := testutil.NewDeployment(
 		"test-deploy", "default", map[string]string{
 			"reloader.stakater.com/auto": "true",
 		},
@@ -233,7 +233,7 @@ func TestService_ProcessConfigMap_DeleteEvent(t *testing.T) {
 	svc := NewService(cfg)
 
 	// Create a deployment with explicit configmap annotation
-	deploy := createTestDeployment(
+	deploy := testutil.NewDeployment(
 		"test-deploy", "default", map[string]string{
 			"configmap.reloader.stakater.com/reload": "test-cm",
 		},
@@ -276,7 +276,7 @@ func TestService_ProcessConfigMap_DeleteEventDisabled(t *testing.T) {
 	cfg.ReloadOnDelete = false // Disabled by default
 	svc := NewService(cfg)
 
-	deploy := createTestDeployment(
+	deploy := testutil.NewDeployment(
 		"test-deploy", "default", map[string]string{
 			"configmap.reloader.stakater.com/reload": "test-cm",
 		},
@@ -311,7 +311,7 @@ func TestService_ApplyReload_EnvVarStrategy(t *testing.T) {
 	cfg.ReloadStrategy = config.ReloadStrategyEnvVars
 	svc := NewService(cfg)
 
-	deploy := createTestDeployment("test-deploy", "default", nil)
+	deploy := testutil.NewDeployment("test-deploy", "default", nil)
 	accessor := workload.NewDeploymentWorkload(deploy)
 
 	ctx := context.Background()
@@ -355,7 +355,7 @@ func TestService_ApplyReload_AnnotationStrategy(t *testing.T) {
 	cfg.ReloadStrategy = config.ReloadStrategyAnnotations
 	svc := NewService(cfg)
 
-	deploy := createTestDeployment("test-deploy", "default", nil)
+	deploy := testutil.NewDeployment("test-deploy", "default", nil)
 	accessor := workload.NewDeploymentWorkload(deploy)
 
 	ctx := context.Background()
@@ -381,7 +381,7 @@ func TestService_ApplyReload_EnvVarDeletion(t *testing.T) {
 	cfg.ReloadStrategy = config.ReloadStrategyEnvVars
 	svc := NewService(cfg)
 
-	deploy := createTestDeployment("test-deploy", "default", nil)
+	deploy := testutil.NewDeployment("test-deploy", "default", nil)
 	// Pre-add an env var
 	deploy.Spec.Template.Spec.Containers[0].Env = []corev1.EnvVar{
 		{Name: "STAKATER_TEST_CM_CONFIGMAP", Value: "oldhash"},
@@ -427,7 +427,7 @@ func TestService_ApplyReload_NoChangeIfSameHash(t *testing.T) {
 	cfg.ReloadStrategy = config.ReloadStrategyEnvVars
 	svc := NewService(cfg)
 
-	deploy := createTestDeployment("test-deploy", "default", nil)
+	deploy := testutil.NewDeployment("test-deploy", "default", nil)
 	// Pre-add env var with same hash
 	deploy.Spec.Template.Spec.Containers[0].Env = []corev1.EnvVar{
 		{Name: "STAKATER_TEST_CM_CONFIGMAP", Value: "abc123hash"},
@@ -451,7 +451,7 @@ func TestService_ProcessConfigMap_MultipleWorkloads(t *testing.T) {
 	svc := NewService(cfg)
 
 	// Create multiple workloads
-	deploy1 := createTestDeployment(
+	deploy1 := testutil.NewDeployment(
 		"deploy1", "default", map[string]string{
 			"reloader.stakater.com/auto": "true",
 		},
@@ -469,7 +469,7 @@ func TestService_ProcessConfigMap_MultipleWorkloads(t *testing.T) {
 		},
 	}
 
-	deploy2 := createTestDeployment(
+	deploy2 := testutil.NewDeployment(
 		"deploy2", "default", map[string]string{
 			"reloader.stakater.com/auto": "true",
 		},
@@ -488,7 +488,7 @@ func TestService_ProcessConfigMap_MultipleWorkloads(t *testing.T) {
 	}
 
 	// Deploy3 doesn't use the configmap
-	deploy3 := createTestDeployment(
+	deploy3 := testutil.NewDeployment(
 		"deploy3", "default", map[string]string{
 			"reloader.stakater.com/auto": "true",
 		},
@@ -538,7 +538,7 @@ func TestService_ProcessConfigMap_DifferentNamespaces(t *testing.T) {
 	svc := NewService(cfg)
 
 	// Create deployments in different namespaces
-	deploy1 := createTestDeployment(
+	deploy1 := testutil.NewDeployment(
 		"deploy1", "namespace-a", map[string]string{
 			"reloader.stakater.com/auto": "true",
 		},
@@ -556,7 +556,7 @@ func TestService_ProcessConfigMap_DifferentNamespaces(t *testing.T) {
 		},
 	}
 
-	deploy2 := createTestDeployment(
+	deploy2 := testutil.NewDeployment(
 		"deploy2", "namespace-b", map[string]string{
 			"reloader.stakater.com/auto": "true",
 		},
@@ -1102,7 +1102,7 @@ func TestService_findTargetContainer_AutoReload(t *testing.T) {
 	svc := NewService(cfg)
 
 	// Test with autoReload=true and volume mount
-	deploy := createTestDeployment("test", "default", nil)
+	deploy := testutil.NewDeployment("test", "default", nil)
 	deploy.Spec.Template.Spec.Volumes = []corev1.Volume{
 		{
 			Name: "config-vol",
@@ -1138,7 +1138,7 @@ func TestService_findTargetContainer_AutoReload_EnvRef(t *testing.T) {
 	svc := NewService(cfg)
 
 	// Test with autoReload=true and env ref (no volume)
-	deploy := createTestDeployment("test", "default", nil)
+	deploy := testutil.NewDeployment("test", "default", nil)
 	deploy.Spec.Template.Spec.Containers = []corev1.Container{
 		{
 			Name:  "sidecar",
@@ -1176,7 +1176,7 @@ func TestService_findTargetContainer_AutoReload_InitContainer(t *testing.T) {
 	svc := NewService(cfg)
 
 	// Test with autoReload=true where init container uses the volume
-	deploy := createTestDeployment("test", "default", nil)
+	deploy := testutil.NewDeployment("test", "default", nil)
 	deploy.Spec.Template.Spec.Volumes = []corev1.Volume{
 		{
 			Name: "config-vol",
@@ -1219,7 +1219,7 @@ func TestService_findTargetContainer_AutoReload_InitContainerEnvRef(t *testing.T
 	svc := NewService(cfg)
 
 	// Test with autoReload=true where init container has env ref
-	deploy := createTestDeployment("test", "default", nil)
+	deploy := testutil.NewDeployment("test", "default", nil)
 	deploy.Spec.Template.Spec.InitContainers = []corev1.Container{
 		{
 			Name:  "init",
@@ -1259,7 +1259,7 @@ func TestService_findTargetContainer_NoContainers(t *testing.T) {
 	cfg := config.NewDefault()
 	svc := NewService(cfg)
 
-	deploy := createTestDeployment("test", "default", nil)
+	deploy := testutil.NewDeployment("test", "default", nil)
 	deploy.Spec.Template.Spec.Containers = []corev1.Container{}
 	accessor := workload.NewDeploymentWorkload(deploy)
 
@@ -1273,7 +1273,7 @@ func TestService_findTargetContainer_NonAutoReload(t *testing.T) {
 	cfg := config.NewDefault()
 	svc := NewService(cfg)
 
-	deploy := createTestDeployment("test", "default", nil)
+	deploy := testutil.NewDeployment("test", "default", nil)
 	deploy.Spec.Template.Spec.Containers = []corev1.Container{
 		{Name: "first", Image: "nginx"},
 		{Name: "second", Image: "busybox"},
@@ -1295,7 +1295,7 @@ func TestService_findTargetContainer_AutoReload_FallbackToFirst(t *testing.T) {
 	svc := NewService(cfg)
 
 	// autoReload=true but no matching volume or env ref - should fallback to first container
-	deploy := createTestDeployment("test", "default", nil)
+	deploy := testutil.NewDeployment("test", "default", nil)
 	deploy.Spec.Template.Spec.Containers = []corev1.Container{
 		{Name: "first", Image: "nginx"},
 		{Name: "second", Image: "busybox"},
@@ -1315,7 +1315,7 @@ func TestService_ProcessNilChange(t *testing.T) {
 	cfg := config.NewDefault()
 	svc := NewService(cfg)
 
-	deploy := createTestDeployment("test", "default", nil)
+	deploy := testutil.NewDeployment("test", "default", nil)
 	workloads := []workload.WorkloadAccessor{workload.NewDeploymentWorkload(deploy)}
 
 	// Test with nil ConfigMap
@@ -1335,7 +1335,7 @@ func TestService_ProcessCreateEventDisabled(t *testing.T) {
 	cfg.ReloadOnCreate = false
 	svc := NewService(cfg)
 
-	deploy := createTestDeployment(
+	deploy := testutil.NewDeployment(
 		"test", "default", map[string]string{
 			"reloader.stakater.com/auto": "true",
 		},
@@ -1355,37 +1355,5 @@ func TestService_ProcessCreateEventDisabled(t *testing.T) {
 	decisions := svc.Process(change, workloads)
 	if decisions != nil {
 		t.Errorf("Expected nil decisions when create events disabled, got %v", decisions)
-	}
-}
-
-// Helper function to create a test deployment
-func createTestDeployment(name, namespace string, annotations map[string]string) *appsv1.Deployment {
-	replicas := int32(1)
-	return &appsv1.Deployment{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:        name,
-			Namespace:   namespace,
-			Annotations: annotations,
-		},
-		Spec: appsv1.DeploymentSpec{
-			Replicas: &replicas,
-			Selector: &metav1.LabelSelector{
-				MatchLabels: map[string]string{"app": name},
-			},
-			Template: corev1.PodTemplateSpec{
-				ObjectMeta: metav1.ObjectMeta{
-					Labels:      map[string]string{"app": name},
-					Annotations: map[string]string{},
-				},
-				Spec: corev1.PodSpec{
-					Containers: []corev1.Container{
-						{
-							Name:  "main",
-							Image: "nginx:latest",
-						},
-					},
-				},
-			},
-		},
 	}
 }

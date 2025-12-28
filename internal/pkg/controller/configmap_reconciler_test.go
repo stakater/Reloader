@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/stakater/Reloader/internal/pkg/config"
+	"github.com/stakater/Reloader/internal/pkg/testutil"
 )
 
 func TestConfigMapReconciler_NotFound(t *testing.T) {
@@ -16,7 +17,7 @@ func TestConfigMapReconciler_NotFound_ReloadOnDelete(t *testing.T) {
 	cfg := config.NewDefault()
 	cfg.ReloadOnDelete = true
 
-	deployment := testDeployment("test-deployment", "default", map[string]string{
+	deployment := testutil.NewDeployment("test-deployment", "default", map[string]string{
 		cfg.Annotations.ConfigmapReload: "deleted-cm",
 	})
 	reconciler := newConfigMapReconciler(t, cfg, deployment)
@@ -27,7 +28,7 @@ func TestConfigMapReconciler_IgnoredNamespace(t *testing.T) {
 	cfg := config.NewDefault()
 	cfg.IgnoredNamespaces = []string{"kube-system"}
 
-	cm := testConfigMap("test-cm", "kube-system")
+	cm := testutil.NewConfigMap("test-cm", "kube-system")
 	reconciler := newConfigMapReconciler(t, cfg, cm)
 	assertReconcileSuccess(t, reconciler, reconcileRequest("test-cm", "kube-system"))
 }
@@ -35,8 +36,8 @@ func TestConfigMapReconciler_IgnoredNamespace(t *testing.T) {
 func TestConfigMapReconciler_NoMatchingWorkloads(t *testing.T) {
 	cfg := config.NewDefault()
 
-	cm := testConfigMap("test-cm", "default")
-	deployment := testDeployment("test-deployment", "default", nil)
+	cm := testutil.NewConfigMap("test-cm", "default")
+	deployment := testutil.NewDeployment("test-deployment", "default", nil)
 	reconciler := newConfigMapReconciler(t, cfg, cm, deployment)
 	assertReconcileSuccess(t, reconciler, reconcileRequest("test-cm", "default"))
 }
@@ -45,8 +46,8 @@ func TestConfigMapReconciler_MatchingDeployment_AutoAnnotation(t *testing.T) {
 	cfg := config.NewDefault()
 	cfg.AutoReloadAll = true
 
-	cm := testConfigMap("test-cm", "default")
-	deployment := testDeploymentWithEnvFrom("test-deployment", "default", "test-cm", "")
+	cm := testutil.NewConfigMap("test-cm", "default")
+	deployment := testutil.NewDeploymentWithEnvFrom("test-deployment", "default", "test-cm", "")
 	reconciler := newConfigMapReconciler(t, cfg, cm, deployment)
 	assertReconcileSuccess(t, reconciler, reconcileRequest("test-cm", "default"))
 }
@@ -54,8 +55,8 @@ func TestConfigMapReconciler_MatchingDeployment_AutoAnnotation(t *testing.T) {
 func TestConfigMapReconciler_MatchingDeployment_ExplicitAnnotation(t *testing.T) {
 	cfg := config.NewDefault()
 
-	cm := testConfigMap("test-cm", "default")
-	deployment := testDeployment("test-deployment", "default", map[string]string{
+	cm := testutil.NewConfigMap("test-cm", "default")
+	deployment := testutil.NewDeployment("test-deployment", "default", map[string]string{
 		cfg.Annotations.ConfigmapReload: "test-cm",
 	})
 	reconciler := newConfigMapReconciler(t, cfg, cm, deployment)
@@ -65,8 +66,8 @@ func TestConfigMapReconciler_MatchingDeployment_ExplicitAnnotation(t *testing.T)
 func TestConfigMapReconciler_WorkloadInDifferentNamespace(t *testing.T) {
 	cfg := config.NewDefault()
 
-	cm := testConfigMap("test-cm", "namespace-a")
-	deployment := testDeployment("test-deployment", "namespace-b", map[string]string{
+	cm := testutil.NewConfigMap("test-cm", "namespace-a")
+	deployment := testutil.NewDeployment("test-deployment", "namespace-b", map[string]string{
 		cfg.Annotations.ConfigmapReload: "test-cm",
 	})
 	reconciler := newConfigMapReconciler(t, cfg, cm, deployment)
@@ -77,8 +78,8 @@ func TestConfigMapReconciler_IgnoredWorkloadType(t *testing.T) {
 	cfg := config.NewDefault()
 	cfg.IgnoredWorkloads = []string{"deployment"}
 
-	cm := testConfigMap("test-cm", "default")
-	deployment := testDeployment("test-deployment", "default", map[string]string{
+	cm := testutil.NewConfigMap("test-cm", "default")
+	deployment := testutil.NewDeployment("test-deployment", "default", map[string]string{
 		cfg.Annotations.ConfigmapReload: "test-cm",
 	})
 	reconciler := newConfigMapReconciler(t, cfg, cm, deployment)
@@ -88,8 +89,8 @@ func TestConfigMapReconciler_IgnoredWorkloadType(t *testing.T) {
 func TestConfigMapReconciler_DaemonSet(t *testing.T) {
 	cfg := config.NewDefault()
 
-	cm := testConfigMap("test-cm", "default")
-	daemonset := testDaemonSet("test-daemonset", "default", map[string]string{
+	cm := testutil.NewConfigMap("test-cm", "default")
+	daemonset := testutil.NewDaemonSet("test-daemonset", "default", map[string]string{
 		cfg.Annotations.ConfigmapReload: "test-cm",
 	})
 	reconciler := newConfigMapReconciler(t, cfg, cm, daemonset)
@@ -99,8 +100,8 @@ func TestConfigMapReconciler_DaemonSet(t *testing.T) {
 func TestConfigMapReconciler_StatefulSet(t *testing.T) {
 	cfg := config.NewDefault()
 
-	cm := testConfigMap("test-cm", "default")
-	statefulset := testStatefulSet("test-statefulset", "default", map[string]string{
+	cm := testutil.NewConfigMap("test-cm", "default")
+	statefulset := testutil.NewStatefulSet("test-statefulset", "default", map[string]string{
 		cfg.Annotations.ConfigmapReload: "test-cm",
 	})
 	reconciler := newConfigMapReconciler(t, cfg, cm, statefulset)
@@ -110,14 +111,14 @@ func TestConfigMapReconciler_StatefulSet(t *testing.T) {
 func TestConfigMapReconciler_MultipleWorkloads(t *testing.T) {
 	cfg := config.NewDefault()
 
-	cm := testConfigMap("shared-cm", "default")
-	deployment1 := testDeployment("deployment-1", "default", map[string]string{
+	cm := testutil.NewConfigMap("shared-cm", "default")
+	deployment1 := testutil.NewDeployment("deployment-1", "default", map[string]string{
 		cfg.Annotations.ConfigmapReload: "shared-cm",
 	})
-	deployment2 := testDeployment("deployment-2", "default", map[string]string{
+	deployment2 := testutil.NewDeployment("deployment-2", "default", map[string]string{
 		cfg.Annotations.ConfigmapReload: "shared-cm",
 	})
-	daemonset := testDaemonSet("daemonset-1", "default", map[string]string{
+	daemonset := testutil.NewDaemonSet("daemonset-1", "default", map[string]string{
 		cfg.Annotations.ConfigmapReload: "shared-cm",
 	})
 
@@ -129,8 +130,8 @@ func TestConfigMapReconciler_VolumeMount(t *testing.T) {
 	cfg := config.NewDefault()
 	cfg.AutoReloadAll = true
 
-	cm := testConfigMap("volume-cm", "default")
-	deployment := testDeploymentWithVolume("test-deployment", "default", "volume-cm", "")
+	cm := testutil.NewConfigMap("volume-cm", "default")
+	deployment := testutil.NewDeploymentWithVolume("test-deployment", "default", "volume-cm", "")
 	reconciler := newConfigMapReconciler(t, cfg, cm, deployment)
 	assertReconcileSuccess(t, reconciler, reconcileRequest("volume-cm", "default"))
 }
@@ -139,8 +140,8 @@ func TestConfigMapReconciler_ProjectedVolume(t *testing.T) {
 	cfg := config.NewDefault()
 	cfg.AutoReloadAll = true
 
-	cm := testConfigMap("projected-cm", "default")
-	deployment := testDeploymentWithProjectedVolume("test-deployment", "default", "projected-cm", "")
+	cm := testutil.NewConfigMap("projected-cm", "default")
+	deployment := testutil.NewDeploymentWithProjectedVolume("test-deployment", "default", "projected-cm", "")
 	reconciler := newConfigMapReconciler(t, cfg, cm, deployment)
 	assertReconcileSuccess(t, reconciler, reconcileRequest("projected-cm", "default"))
 }
@@ -148,10 +149,10 @@ func TestConfigMapReconciler_ProjectedVolume(t *testing.T) {
 func TestConfigMapReconciler_SearchAnnotation(t *testing.T) {
 	cfg := config.NewDefault()
 
-	cm := testConfigMapWithAnnotations("test-cm", "default", map[string]string{
+	cm := testutil.NewConfigMapWithAnnotations("test-cm", "default", map[string]string{
 		cfg.Annotations.Match: "true",
 	})
-	deployment := testDeployment("test-deployment", "default", map[string]string{
+	deployment := testutil.NewDeployment("test-deployment", "default", map[string]string{
 		cfg.Annotations.Search: "true",
 	})
 	reconciler := newConfigMapReconciler(t, cfg, cm, deployment)
