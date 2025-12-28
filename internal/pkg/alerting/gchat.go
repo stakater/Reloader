@@ -24,8 +24,8 @@ func NewGChatAlerter(webhookURL, proxyURL, additional string) *GChatAlerter {
 
 // gchatMessage represents a Google Chat message.
 type gchatMessage struct {
-	Text  string       `json:"text,omitempty"`
-	Cards []gchatCard  `json:"cards,omitempty"`
+	Text  string      `json:"text,omitempty"`
+	Cards []gchatCard `json:"cards,omitempty"`
 }
 
 type gchatCard struct {
