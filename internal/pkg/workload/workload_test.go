@@ -5,6 +5,7 @@ import (
 
 	argorolloutv1alpha1 "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	appsv1 "k8s.io/api/apps/v1"
+	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -597,6 +598,9 @@ func TestDaemonSetWorkload_BasicGetters(t *testing.T) {
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "test-ds",
 			Namespace: "test-ns",
+			Annotations: map[string]string{
+				"key": "value",
+			},
 		},
 	}
 
@@ -607,6 +611,128 @@ func TestDaemonSetWorkload_BasicGetters(t *testing.T) {
 	}
 	if w.GetName() != "test-ds" {
 		t.Errorf("GetName() = %v, want test-ds", w.GetName())
+	}
+	if w.GetNamespace() != "test-ns" {
+		t.Errorf("GetNamespace() = %v, want test-ns", w.GetNamespace())
+	}
+	if w.GetAnnotations()["key"] != "value" {
+		t.Errorf("GetAnnotations()[key] = %v, want value", w.GetAnnotations()["key"])
+	}
+	if w.GetObject() != ds {
+		t.Error("GetObject() should return the underlying daemonset")
+	}
+}
+
+func TestDaemonSetWorkload_PodTemplateAnnotations(t *testing.T) {
+	ds := &appsv1.DaemonSet{
+		ObjectMeta: metav1.ObjectMeta{Name: "test"},
+		Spec: appsv1.DaemonSetSpec{
+			Template: corev1.PodTemplateSpec{
+				ObjectMeta: metav1.ObjectMeta{
+					Annotations: map[string]string{
+						"existing": "annotation",
+					},
+				},
+			},
+		},
+	}
+
+	w := NewDaemonSetWorkload(ds)
+
+	annotations := w.GetPodTemplateAnnotations()
+	if annotations["existing"] != "annotation" {
+		t.Errorf("GetPodTemplateAnnotations()[existing] = %v, want annotation", annotations["existing"])
+	}
+
+	w.SetPodTemplateAnnotation("new-key", "new-value")
+	if w.GetPodTemplateAnnotations()["new-key"] != "new-value" {
+		t.Error("SetPodTemplateAnnotation should add new annotation")
+	}
+}
+
+func TestDaemonSetWorkload_PodTemplateAnnotations_NilInit(t *testing.T) {
+	ds := &appsv1.DaemonSet{
+		ObjectMeta: metav1.ObjectMeta{Name: "test"},
+		Spec: appsv1.DaemonSetSpec{
+			Template: corev1.PodTemplateSpec{},
+		},
+	}
+
+	w := NewDaemonSetWorkload(ds)
+
+	annotations := w.GetPodTemplateAnnotations()
+	if annotations == nil {
+		t.Error("GetPodTemplateAnnotations should initialize nil map")
+	}
+
+	w.SetPodTemplateAnnotation("key", "value")
+	if w.GetPodTemplateAnnotations()["key"] != "value" {
+		t.Error("SetPodTemplateAnnotation should work with nil initial map")
+	}
+}
+
+func TestDaemonSetWorkload_Containers(t *testing.T) {
+	ds := &appsv1.DaemonSet{
+		ObjectMeta: metav1.ObjectMeta{Name: "test"},
+		Spec: appsv1.DaemonSetSpec{
+			Template: corev1.PodTemplateSpec{
+				Spec: corev1.PodSpec{
+					Containers: []corev1.Container{
+						{Name: "main", Image: "nginx"},
+					},
+					InitContainers: []corev1.Container{
+						{Name: "init", Image: "busybox"},
+					},
+				},
+			},
+		},
+	}
+
+	w := NewDaemonSetWorkload(ds)
+
+	containers := w.GetContainers()
+	if len(containers) != 1 || containers[0].Name != "main" {
+		t.Errorf("GetContainers() = %v, want [main]", containers)
+	}
+
+	initContainers := w.GetInitContainers()
+	if len(initContainers) != 1 || initContainers[0].Name != "init" {
+		t.Errorf("GetInitContainers() = %v, want [init]", initContainers)
+	}
+
+	newContainers := []corev1.Container{{Name: "new-main", Image: "alpine"}}
+	w.SetContainers(newContainers)
+	if w.GetContainers()[0].Name != "new-main" {
+		t.Error("SetContainers should update containers")
+	}
+
+	newInitContainers := []corev1.Container{{Name: "new-init", Image: "alpine"}}
+	w.SetInitContainers(newInitContainers)
+	if w.GetInitContainers()[0].Name != "new-init" {
+		t.Error("SetInitContainers should update init containers")
+	}
+}
+
+func TestDaemonSetWorkload_Volumes(t *testing.T) {
+	ds := &appsv1.DaemonSet{
+		ObjectMeta: metav1.ObjectMeta{Name: "test"},
+		Spec: appsv1.DaemonSetSpec{
+			Template: corev1.PodTemplateSpec{
+				Spec: corev1.PodSpec{
+					Volumes: []corev1.Volume{
+						{Name: "config-vol"},
+						{Name: "secret-vol"},
+					},
+				},
+			},
+		},
+	}
+
+	w := NewDaemonSetWorkload(ds)
+
+	volumes := w.GetVolumes()
+	if len(volumes) != 2 {
+		t.Errorf("GetVolumes() length = %d, want 2", len(volumes))
 	}
 }
 
@@ -638,6 +764,157 @@ func TestDaemonSetWorkload_UsesConfigMap(t *testing.T) {
 	if !w.UsesConfigMap("ds-config") {
 		t.Error("DaemonSet UsesConfigMap should return true for ConfigMap volume")
 	}
+	if w.UsesConfigMap("other-config") {
+		t.Error("UsesConfigMap should return false for non-existent ConfigMap")
+	}
+}
+
+func TestDaemonSetWorkload_UsesConfigMap_EnvFrom(t *testing.T) {
+	ds := &appsv1.DaemonSet{
+		ObjectMeta: metav1.ObjectMeta{Name: "test"},
+		Spec: appsv1.DaemonSetSpec{
+			Template: corev1.PodTemplateSpec{
+				Spec: corev1.PodSpec{
+					Containers: []corev1.Container{
+						{
+							Name: "main",
+							EnvFrom: []corev1.EnvFromSource{
+								{
+									ConfigMapRef: &corev1.ConfigMapEnvSource{
+										LocalObjectReference: corev1.LocalObjectReference{
+											Name: "ds-env-config",
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	w := NewDaemonSetWorkload(ds)
+
+	if !w.UsesConfigMap("ds-env-config") {
+		t.Error("DaemonSet UsesConfigMap should return true for envFrom ConfigMap")
+	}
+}
+
+func TestDaemonSetWorkload_UsesSecret(t *testing.T) {
+	ds := &appsv1.DaemonSet{
+		ObjectMeta: metav1.ObjectMeta{Name: "test"},
+		Spec: appsv1.DaemonSetSpec{
+			Template: corev1.PodTemplateSpec{
+				Spec: corev1.PodSpec{
+					Volumes: []corev1.Volume{
+						{
+							Name: "secret-vol",
+							VolumeSource: corev1.VolumeSource{
+								Secret: &corev1.SecretVolumeSource{
+									SecretName: "ds-secret",
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	w := NewDaemonSetWorkload(ds)
+
+	if !w.UsesSecret("ds-secret") {
+		t.Error("DaemonSet UsesSecret should return true for Secret volume")
+	}
+	if w.UsesSecret("other-secret") {
+		t.Error("UsesSecret should return false for non-existent Secret")
+	}
+}
+
+func TestDaemonSetWorkload_GetEnvFromSources(t *testing.T) {
+	ds := &appsv1.DaemonSet{
+		ObjectMeta: metav1.ObjectMeta{Name: "test"},
+		Spec: appsv1.DaemonSetSpec{
+			Template: corev1.PodTemplateSpec{
+				Spec: corev1.PodSpec{
+					Containers: []corev1.Container{
+						{
+							Name: "main",
+							EnvFrom: []corev1.EnvFromSource{
+								{ConfigMapRef: &corev1.ConfigMapEnvSource{LocalObjectReference: corev1.LocalObjectReference{Name: "cm1"}}},
+							},
+						},
+					},
+					InitContainers: []corev1.Container{
+						{
+							Name: "init",
+							EnvFrom: []corev1.EnvFromSource{
+								{SecretRef: &corev1.SecretEnvSource{LocalObjectReference: corev1.LocalObjectReference{Name: "secret1"}}},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	w := NewDaemonSetWorkload(ds)
+
+	sources := w.GetEnvFromSources()
+	if len(sources) != 2 {
+		t.Errorf("GetEnvFromSources() returned %d sources, want 2", len(sources))
+	}
+}
+
+func TestDaemonSetWorkload_DeepCopy(t *testing.T) {
+	ds := &appsv1.DaemonSet{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test",
+			Namespace: "default",
+		},
+		Spec: appsv1.DaemonSetSpec{
+			Template: corev1.PodTemplateSpec{
+				Spec: corev1.PodSpec{
+					Containers: []corev1.Container{
+						{Name: "main", Image: "nginx"},
+					},
+				},
+			},
+		},
+	}
+
+	w := NewDaemonSetWorkload(ds)
+	copy := w.DeepCopy()
+
+	w.SetPodTemplateAnnotation("modified", "true")
+
+	copyAnnotations := copy.GetPodTemplateAnnotations()
+	if copyAnnotations["modified"] == "true" {
+		t.Error("DeepCopy should create independent copy")
+	}
+}
+
+func TestDaemonSetWorkload_GetOwnerReferences(t *testing.T) {
+	ds := &appsv1.DaemonSet{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "test",
+			OwnerReferences: []metav1.OwnerReference{
+				{
+					APIVersion: "apps/v1",
+					Kind:       "DaemonSet",
+					Name:       "test-owner",
+				},
+			},
+		},
+	}
+
+	w := NewDaemonSetWorkload(ds)
+
+	refs := w.GetOwnerReferences()
+	if len(refs) != 1 || refs[0].Name != "test-owner" {
+		t.Errorf("GetOwnerReferences() = %v, want owner ref to test-owner", refs)
+	}
 }
 
 // StatefulSet tests
@@ -646,6 +923,9 @@ func TestStatefulSetWorkload_BasicGetters(t *testing.T) {
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "test-sts",
 			Namespace: "test-ns",
+			Annotations: map[string]string{
+				"key": "value",
+			},
 		},
 	}
 
@@ -656,6 +936,193 @@ func TestStatefulSetWorkload_BasicGetters(t *testing.T) {
 	}
 	if w.GetName() != "test-sts" {
 		t.Errorf("GetName() = %v, want test-sts", w.GetName())
+	}
+	if w.GetNamespace() != "test-ns" {
+		t.Errorf("GetNamespace() = %v, want test-ns", w.GetNamespace())
+	}
+	if w.GetAnnotations()["key"] != "value" {
+		t.Errorf("GetAnnotations()[key] = %v, want value", w.GetAnnotations()["key"])
+	}
+	if w.GetObject() != sts {
+		t.Error("GetObject() should return the underlying statefulset")
+	}
+}
+
+func TestStatefulSetWorkload_PodTemplateAnnotations(t *testing.T) {
+	sts := &appsv1.StatefulSet{
+		ObjectMeta: metav1.ObjectMeta{Name: "test"},
+		Spec: appsv1.StatefulSetSpec{
+			Template: corev1.PodTemplateSpec{
+				ObjectMeta: metav1.ObjectMeta{
+					Annotations: map[string]string{
+						"existing": "annotation",
+					},
+				},
+			},
+		},
+	}
+
+	w := NewStatefulSetWorkload(sts)
+
+	annotations := w.GetPodTemplateAnnotations()
+	if annotations["existing"] != "annotation" {
+		t.Errorf("GetPodTemplateAnnotations()[existing] = %v, want annotation", annotations["existing"])
+	}
+
+	w.SetPodTemplateAnnotation("new-key", "new-value")
+	if w.GetPodTemplateAnnotations()["new-key"] != "new-value" {
+		t.Error("SetPodTemplateAnnotation should add new annotation")
+	}
+}
+
+func TestStatefulSetWorkload_PodTemplateAnnotations_NilInit(t *testing.T) {
+	sts := &appsv1.StatefulSet{
+		ObjectMeta: metav1.ObjectMeta{Name: "test"},
+		Spec: appsv1.StatefulSetSpec{
+			Template: corev1.PodTemplateSpec{},
+		},
+	}
+
+	w := NewStatefulSetWorkload(sts)
+
+	annotations := w.GetPodTemplateAnnotations()
+	if annotations == nil {
+		t.Error("GetPodTemplateAnnotations should initialize nil map")
+	}
+
+	w.SetPodTemplateAnnotation("key", "value")
+	if w.GetPodTemplateAnnotations()["key"] != "value" {
+		t.Error("SetPodTemplateAnnotation should work with nil initial map")
+	}
+}
+
+func TestStatefulSetWorkload_Containers(t *testing.T) {
+	sts := &appsv1.StatefulSet{
+		ObjectMeta: metav1.ObjectMeta{Name: "test"},
+		Spec: appsv1.StatefulSetSpec{
+			Template: corev1.PodTemplateSpec{
+				Spec: corev1.PodSpec{
+					Containers: []corev1.Container{
+						{Name: "main", Image: "nginx"},
+					},
+					InitContainers: []corev1.Container{
+						{Name: "init", Image: "busybox"},
+					},
+				},
+			},
+		},
+	}
+
+	w := NewStatefulSetWorkload(sts)
+
+	containers := w.GetContainers()
+	if len(containers) != 1 || containers[0].Name != "main" {
+		t.Errorf("GetContainers() = %v, want [main]", containers)
+	}
+
+	initContainers := w.GetInitContainers()
+	if len(initContainers) != 1 || initContainers[0].Name != "init" {
+		t.Errorf("GetInitContainers() = %v, want [init]", initContainers)
+	}
+
+	newContainers := []corev1.Container{{Name: "new-main", Image: "alpine"}}
+	w.SetContainers(newContainers)
+	if w.GetContainers()[0].Name != "new-main" {
+		t.Error("SetContainers should update containers")
+	}
+
+	newInitContainers := []corev1.Container{{Name: "new-init", Image: "alpine"}}
+	w.SetInitContainers(newInitContainers)
+	if w.GetInitContainers()[0].Name != "new-init" {
+		t.Error("SetInitContainers should update init containers")
+	}
+}
+
+func TestStatefulSetWorkload_Volumes(t *testing.T) {
+	sts := &appsv1.StatefulSet{
+		ObjectMeta: metav1.ObjectMeta{Name: "test"},
+		Spec: appsv1.StatefulSetSpec{
+			Template: corev1.PodTemplateSpec{
+				Spec: corev1.PodSpec{
+					Volumes: []corev1.Volume{
+						{Name: "config-vol"},
+						{Name: "secret-vol"},
+					},
+				},
+			},
+		},
+	}
+
+	w := NewStatefulSetWorkload(sts)
+
+	volumes := w.GetVolumes()
+	if len(volumes) != 2 {
+		t.Errorf("GetVolumes() length = %d, want 2", len(volumes))
+	}
+}
+
+func TestStatefulSetWorkload_UsesConfigMap(t *testing.T) {
+	sts := &appsv1.StatefulSet{
+		ObjectMeta: metav1.ObjectMeta{Name: "test"},
+		Spec: appsv1.StatefulSetSpec{
+			Template: corev1.PodTemplateSpec{
+				Spec: corev1.PodSpec{
+					Volumes: []corev1.Volume{
+						{
+							Name: "config-vol",
+							VolumeSource: corev1.VolumeSource{
+								ConfigMap: &corev1.ConfigMapVolumeSource{
+									LocalObjectReference: corev1.LocalObjectReference{
+										Name: "sts-config",
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	w := NewStatefulSetWorkload(sts)
+
+	if !w.UsesConfigMap("sts-config") {
+		t.Error("StatefulSet UsesConfigMap should return true for ConfigMap volume")
+	}
+	if w.UsesConfigMap("other-config") {
+		t.Error("UsesConfigMap should return false for non-existent ConfigMap")
+	}
+}
+
+func TestStatefulSetWorkload_UsesConfigMap_EnvFrom(t *testing.T) {
+	sts := &appsv1.StatefulSet{
+		ObjectMeta: metav1.ObjectMeta{Name: "test"},
+		Spec: appsv1.StatefulSetSpec{
+			Template: corev1.PodTemplateSpec{
+				Spec: corev1.PodSpec{
+					Containers: []corev1.Container{
+						{
+							Name: "main",
+							EnvFrom: []corev1.EnvFromSource{
+								{
+									ConfigMapRef: &corev1.ConfigMapEnvSource{
+										LocalObjectReference: corev1.LocalObjectReference{
+											Name: "sts-env-config",
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	w := NewStatefulSetWorkload(sts)
+
+	if !w.UsesConfigMap("sts-env-config") {
+		t.Error("StatefulSet UsesConfigMap should return true for envFrom ConfigMap")
 	}
 }
 
@@ -684,6 +1151,126 @@ func TestStatefulSetWorkload_UsesSecret(t *testing.T) {
 
 	if !w.UsesSecret("sts-secret") {
 		t.Error("StatefulSet UsesSecret should return true for Secret volume")
+	}
+	if w.UsesSecret("other-secret") {
+		t.Error("UsesSecret should return false for non-existent Secret")
+	}
+}
+
+func TestStatefulSetWorkload_UsesSecret_EnvFrom(t *testing.T) {
+	sts := &appsv1.StatefulSet{
+		ObjectMeta: metav1.ObjectMeta{Name: "test"},
+		Spec: appsv1.StatefulSetSpec{
+			Template: corev1.PodTemplateSpec{
+				Spec: corev1.PodSpec{
+					Containers: []corev1.Container{
+						{
+							Name: "main",
+							EnvFrom: []corev1.EnvFromSource{
+								{
+									SecretRef: &corev1.SecretEnvSource{
+										LocalObjectReference: corev1.LocalObjectReference{
+											Name: "sts-env-secret",
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	w := NewStatefulSetWorkload(sts)
+
+	if !w.UsesSecret("sts-env-secret") {
+		t.Error("StatefulSet UsesSecret should return true for envFrom Secret")
+	}
+}
+
+func TestStatefulSetWorkload_GetEnvFromSources(t *testing.T) {
+	sts := &appsv1.StatefulSet{
+		ObjectMeta: metav1.ObjectMeta{Name: "test"},
+		Spec: appsv1.StatefulSetSpec{
+			Template: corev1.PodTemplateSpec{
+				Spec: corev1.PodSpec{
+					Containers: []corev1.Container{
+						{
+							Name: "main",
+							EnvFrom: []corev1.EnvFromSource{
+								{ConfigMapRef: &corev1.ConfigMapEnvSource{LocalObjectReference: corev1.LocalObjectReference{Name: "cm1"}}},
+							},
+						},
+					},
+					InitContainers: []corev1.Container{
+						{
+							Name: "init",
+							EnvFrom: []corev1.EnvFromSource{
+								{SecretRef: &corev1.SecretEnvSource{LocalObjectReference: corev1.LocalObjectReference{Name: "secret1"}}},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	w := NewStatefulSetWorkload(sts)
+
+	sources := w.GetEnvFromSources()
+	if len(sources) != 2 {
+		t.Errorf("GetEnvFromSources() returned %d sources, want 2", len(sources))
+	}
+}
+
+func TestStatefulSetWorkload_DeepCopy(t *testing.T) {
+	sts := &appsv1.StatefulSet{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test",
+			Namespace: "default",
+		},
+		Spec: appsv1.StatefulSetSpec{
+			Template: corev1.PodTemplateSpec{
+				Spec: corev1.PodSpec{
+					Containers: []corev1.Container{
+						{Name: "main", Image: "nginx"},
+					},
+				},
+			},
+		},
+	}
+
+	w := NewStatefulSetWorkload(sts)
+	copy := w.DeepCopy()
+
+	w.SetPodTemplateAnnotation("modified", "true")
+
+	copyAnnotations := copy.GetPodTemplateAnnotations()
+	if copyAnnotations["modified"] == "true" {
+		t.Error("DeepCopy should create independent copy")
+	}
+}
+
+func TestStatefulSetWorkload_GetOwnerReferences(t *testing.T) {
+	sts := &appsv1.StatefulSet{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "test",
+			OwnerReferences: []metav1.OwnerReference{
+				{
+					APIVersion: "apps/v1",
+					Kind:       "StatefulSet",
+					Name:       "test-owner",
+				},
+			},
+		},
+	}
+
+	w := NewStatefulSetWorkload(sts)
+
+	refs := w.GetOwnerReferences()
+	if len(refs) != 1 || refs[0].Name != "test-owner" {
+		t.Errorf("GetOwnerReferences() = %v, want owner ref to test-owner", refs)
 	}
 }
 
@@ -914,4 +1501,326 @@ func TestToRolloutStrategy(t *testing.T) {
 			t.Errorf("ToRolloutStrategy(%s) = %v, want %v", tt.input, result, tt.expected)
 		}
 	}
+}
+
+// Job tests
+func TestJobWorkload_BasicGetters(t *testing.T) {
+	job := &batchv1.Job{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-job",
+			Namespace: "test-ns",
+			Annotations: map[string]string{
+				"key": "value",
+			},
+		},
+	}
+
+	w := NewJobWorkload(job)
+
+	if w.Kind() != KindJob {
+		t.Errorf("Kind() = %v, want %v", w.Kind(), KindJob)
+	}
+	if w.GetName() != "test-job" {
+		t.Errorf("GetName() = %v, want test-job", w.GetName())
+	}
+	if w.GetNamespace() != "test-ns" {
+		t.Errorf("GetNamespace() = %v, want test-ns", w.GetNamespace())
+	}
+	if w.GetAnnotations()["key"] != "value" {
+		t.Errorf("GetAnnotations()[key] = %v, want value", w.GetAnnotations()["key"])
+	}
+	if w.GetObject() != job {
+		t.Error("GetObject() should return the underlying job")
+	}
+}
+
+func TestJobWorkload_PodTemplateAnnotations(t *testing.T) {
+	job := &batchv1.Job{
+		ObjectMeta: metav1.ObjectMeta{Name: "test"},
+		Spec: batchv1.JobSpec{
+			Template: corev1.PodTemplateSpec{
+				ObjectMeta: metav1.ObjectMeta{
+					Annotations: map[string]string{
+						"existing": "annotation",
+					},
+				},
+			},
+		},
+	}
+
+	w := NewJobWorkload(job)
+
+	annotations := w.GetPodTemplateAnnotations()
+	if annotations["existing"] != "annotation" {
+		t.Errorf("GetPodTemplateAnnotations()[existing] = %v, want annotation", annotations["existing"])
+	}
+
+	w.SetPodTemplateAnnotation("new-key", "new-value")
+	if w.GetPodTemplateAnnotations()["new-key"] != "new-value" {
+		t.Error("SetPodTemplateAnnotation should add new annotation")
+	}
+}
+
+func TestJobWorkload_UsesConfigMap(t *testing.T) {
+	job := &batchv1.Job{
+		ObjectMeta: metav1.ObjectMeta{Name: "test"},
+		Spec: batchv1.JobSpec{
+			Template: corev1.PodTemplateSpec{
+				Spec: corev1.PodSpec{
+					Volumes: []corev1.Volume{
+						{
+							Name: "config-vol",
+							VolumeSource: corev1.VolumeSource{
+								ConfigMap: &corev1.ConfigMapVolumeSource{
+									LocalObjectReference: corev1.LocalObjectReference{
+										Name: "job-config",
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	w := NewJobWorkload(job)
+
+	if !w.UsesConfigMap("job-config") {
+		t.Error("Job UsesConfigMap should return true for ConfigMap volume")
+	}
+	if w.UsesConfigMap("other-config") {
+		t.Error("Job UsesConfigMap should return false for non-existent ConfigMap")
+	}
+}
+
+func TestJobWorkload_UsesSecret(t *testing.T) {
+	job := &batchv1.Job{
+		ObjectMeta: metav1.ObjectMeta{Name: "test"},
+		Spec: batchv1.JobSpec{
+			Template: corev1.PodTemplateSpec{
+				Spec: corev1.PodSpec{
+					Containers: []corev1.Container{
+						{
+							Name: "main",
+							EnvFrom: []corev1.EnvFromSource{
+								{
+									SecretRef: &corev1.SecretEnvSource{
+										LocalObjectReference: corev1.LocalObjectReference{
+											Name: "job-secret",
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	w := NewJobWorkload(job)
+
+	if !w.UsesSecret("job-secret") {
+		t.Error("Job UsesSecret should return true for Secret envFrom")
+	}
+}
+
+func TestJobWorkload_DeepCopy(t *testing.T) {
+	job := &batchv1.Job{
+		ObjectMeta: metav1.ObjectMeta{Name: "test"},
+		Spec: batchv1.JobSpec{
+			Template: corev1.PodTemplateSpec{
+				ObjectMeta: metav1.ObjectMeta{
+					Annotations: map[string]string{
+						"original": "value",
+					},
+				},
+			},
+		},
+	}
+
+	w := NewJobWorkload(job)
+	copy := w.DeepCopy()
+
+	w.SetPodTemplateAnnotation("modified", "true")
+
+	copyAnnotations := copy.GetPodTemplateAnnotations()
+	if copyAnnotations["modified"] == "true" {
+		t.Error("DeepCopy should create independent copy")
+	}
+}
+
+// CronJob tests
+func TestCronJobWorkload_BasicGetters(t *testing.T) {
+	cj := &batchv1.CronJob{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-cronjob",
+			Namespace: "test-ns",
+			Annotations: map[string]string{
+				"key": "value",
+			},
+		},
+	}
+
+	w := NewCronJobWorkload(cj)
+
+	if w.Kind() != KindCronJob {
+		t.Errorf("Kind() = %v, want %v", w.Kind(), KindCronJob)
+	}
+	if w.GetName() != "test-cronjob" {
+		t.Errorf("GetName() = %v, want test-cronjob", w.GetName())
+	}
+	if w.GetNamespace() != "test-ns" {
+		t.Errorf("GetNamespace() = %v, want test-ns", w.GetNamespace())
+	}
+	if w.GetAnnotations()["key"] != "value" {
+		t.Errorf("GetAnnotations()[key] = %v, want value", w.GetAnnotations()["key"])
+	}
+	if w.GetObject() != cj {
+		t.Error("GetObject() should return the underlying cronjob")
+	}
+}
+
+func TestCronJobWorkload_PodTemplateAnnotations(t *testing.T) {
+	cj := &batchv1.CronJob{
+		ObjectMeta: metav1.ObjectMeta{Name: "test"},
+		Spec: batchv1.CronJobSpec{
+			JobTemplate: batchv1.JobTemplateSpec{
+				Spec: batchv1.JobSpec{
+					Template: corev1.PodTemplateSpec{
+						ObjectMeta: metav1.ObjectMeta{
+							Annotations: map[string]string{
+								"existing": "annotation",
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	w := NewCronJobWorkload(cj)
+
+	annotations := w.GetPodTemplateAnnotations()
+	if annotations["existing"] != "annotation" {
+		t.Errorf("GetPodTemplateAnnotations()[existing] = %v, want annotation", annotations["existing"])
+	}
+
+	w.SetPodTemplateAnnotation("new-key", "new-value")
+	if w.GetPodTemplateAnnotations()["new-key"] != "new-value" {
+		t.Error("SetPodTemplateAnnotation should add new annotation")
+	}
+}
+
+func TestCronJobWorkload_UsesConfigMap(t *testing.T) {
+	cj := &batchv1.CronJob{
+		ObjectMeta: metav1.ObjectMeta{Name: "test"},
+		Spec: batchv1.CronJobSpec{
+			JobTemplate: batchv1.JobTemplateSpec{
+				Spec: batchv1.JobSpec{
+					Template: corev1.PodTemplateSpec{
+						Spec: corev1.PodSpec{
+							Volumes: []corev1.Volume{
+								{
+									Name: "config-vol",
+									VolumeSource: corev1.VolumeSource{
+										ConfigMap: &corev1.ConfigMapVolumeSource{
+											LocalObjectReference: corev1.LocalObjectReference{
+												Name: "cronjob-config",
+											},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	w := NewCronJobWorkload(cj)
+
+	if !w.UsesConfigMap("cronjob-config") {
+		t.Error("CronJob UsesConfigMap should return true for ConfigMap volume")
+	}
+	if w.UsesConfigMap("other-config") {
+		t.Error("CronJob UsesConfigMap should return false for non-existent ConfigMap")
+	}
+}
+
+func TestCronJobWorkload_UsesSecret(t *testing.T) {
+	cj := &batchv1.CronJob{
+		ObjectMeta: metav1.ObjectMeta{Name: "test"},
+		Spec: batchv1.CronJobSpec{
+			JobTemplate: batchv1.JobTemplateSpec{
+				Spec: batchv1.JobSpec{
+					Template: corev1.PodTemplateSpec{
+						Spec: corev1.PodSpec{
+							Containers: []corev1.Container{
+								{
+									Name: "main",
+									Env: []corev1.EnvVar{
+										{
+											Name: "SECRET_VALUE",
+											ValueFrom: &corev1.EnvVarSource{
+												SecretKeyRef: &corev1.SecretKeySelector{
+													LocalObjectReference: corev1.LocalObjectReference{
+														Name: "cronjob-secret",
+													},
+													Key: "key",
+												},
+											},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	w := NewCronJobWorkload(cj)
+
+	if !w.UsesSecret("cronjob-secret") {
+		t.Error("CronJob UsesSecret should return true for Secret envVar")
+	}
+}
+
+func TestCronJobWorkload_DeepCopy(t *testing.T) {
+	cj := &batchv1.CronJob{
+		ObjectMeta: metav1.ObjectMeta{Name: "test"},
+		Spec: batchv1.CronJobSpec{
+			JobTemplate: batchv1.JobTemplateSpec{
+				Spec: batchv1.JobSpec{
+					Template: corev1.PodTemplateSpec{
+						ObjectMeta: metav1.ObjectMeta{
+							Annotations: map[string]string{
+								"original": "value",
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	w := NewCronJobWorkload(cj)
+	copy := w.DeepCopy()
+
+	w.SetPodTemplateAnnotation("modified", "true")
+
+	copyAnnotations := copy.GetPodTemplateAnnotations()
+	if copyAnnotations["modified"] == "true" {
+		t.Error("DeepCopy should create independent copy")
+	}
+}
+
+// Test that Job and CronJob implement the interface
+func TestJobCronJobWorkloadInterface(t *testing.T) {
+	var _ WorkloadAccessor = (*JobWorkload)(nil)
+	var _ WorkloadAccessor = (*CronJobWorkload)(nil)
 }

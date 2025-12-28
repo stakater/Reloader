@@ -607,3 +607,333 @@ func TestNamespaceFilterPredicateWithCache_NilCache(t *testing.T) {
 		})
 	}
 }
+
+func TestIgnoreAnnotationPredicate_Create(t *testing.T) {
+	cfg := config.NewDefault()
+	predicate := IgnoreAnnotationPredicate(cfg)
+
+	tests := []struct {
+		name        string
+		annotations map[string]string
+		wantAllow   bool
+	}{
+		{
+			name:        "no annotations",
+			annotations: nil,
+			wantAllow:   true,
+		},
+		{
+			name:        "empty annotations",
+			annotations: map[string]string{},
+			wantAllow:   true,
+		},
+		{
+			name:        "other annotations only",
+			annotations: map[string]string{"other": "value"},
+			wantAllow:   true,
+		},
+		{
+			name:        "ignore annotation true",
+			annotations: map[string]string{cfg.Annotations.Ignore: "true"},
+			wantAllow:   false,
+		},
+		{
+			name:        "ignore annotation false",
+			annotations: map[string]string{cfg.Annotations.Ignore: "false"},
+			wantAllow:   true,
+		},
+		{
+			name:        "ignore annotation with other value",
+			annotations: map[string]string{cfg.Annotations.Ignore: "yes"},
+			wantAllow:   true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cm := &corev1.ConfigMap{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:        "test-cm",
+					Namespace:   "default",
+					Annotations: tt.annotations,
+				},
+			}
+
+			e := event.CreateEvent{Object: cm}
+			got := predicate.Create(e)
+
+			if got != tt.wantAllow {
+				t.Errorf("Create() = %v, want %v", got, tt.wantAllow)
+			}
+		})
+	}
+}
+
+func TestIgnoreAnnotationPredicate_AllEventTypes(t *testing.T) {
+	cfg := config.NewDefault()
+	predicate := IgnoreAnnotationPredicate(cfg)
+
+	ignoredCM := &corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:        "ignored-cm",
+			Namespace:   "default",
+			Annotations: map[string]string{cfg.Annotations.Ignore: "true"},
+		},
+	}
+
+	allowedCM := &corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "allowed-cm",
+			Namespace: "default",
+		},
+	}
+
+	// Test Update
+	if predicate.Update(event.UpdateEvent{ObjectNew: ignoredCM}) {
+		t.Error("Update() should block ignored resource")
+	}
+	if !predicate.Update(event.UpdateEvent{ObjectNew: allowedCM}) {
+		t.Error("Update() should allow non-ignored resource")
+	}
+
+	// Test Delete
+	if predicate.Delete(event.DeleteEvent{Object: ignoredCM}) {
+		t.Error("Delete() should block ignored resource")
+	}
+	if !predicate.Delete(event.DeleteEvent{Object: allowedCM}) {
+		t.Error("Delete() should allow non-ignored resource")
+	}
+
+	// Test Generic
+	if predicate.Generic(event.GenericEvent{Object: ignoredCM}) {
+		t.Error("Generic() should block ignored resource")
+	}
+	if !predicate.Generic(event.GenericEvent{Object: allowedCM}) {
+		t.Error("Generic() should allow non-ignored resource")
+	}
+}
+
+func TestCombinedPredicates(t *testing.T) {
+	cfg := config.NewDefault()
+	cfg.IgnoredNamespaces = []string{"kube-system"}
+
+	nsPredicate := NamespaceFilterPredicate(cfg)
+	ignorePredicate := IgnoreAnnotationPredicate(cfg)
+
+	combined := CombinedPredicates(nsPredicate, ignorePredicate)
+
+	tests := []struct {
+		name        string
+		namespace   string
+		annotations map[string]string
+		wantAllow   bool
+	}{
+		{
+			name:        "both predicates pass",
+			namespace:   "default",
+			annotations: nil,
+			wantAllow:   true,
+		},
+		{
+			name:        "namespace predicate fails",
+			namespace:   "kube-system",
+			annotations: nil,
+			wantAllow:   false,
+		},
+		{
+			name:        "ignore predicate fails",
+			namespace:   "default",
+			annotations: map[string]string{cfg.Annotations.Ignore: "true"},
+			wantAllow:   false,
+		},
+		{
+			name:        "both predicates fail",
+			namespace:   "kube-system",
+			annotations: map[string]string{cfg.Annotations.Ignore: "true"},
+			wantAllow:   false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cm := &corev1.ConfigMap{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:        "test-cm",
+					Namespace:   tt.namespace,
+					Annotations: tt.annotations,
+				},
+			}
+
+			e := event.CreateEvent{Object: cm}
+			got := combined.Create(e)
+
+			if got != tt.wantAllow {
+				t.Errorf("Create() = %v, want %v", got, tt.wantAllow)
+			}
+		})
+	}
+}
+
+func TestConfigMapPredicates_Update(t *testing.T) {
+	cfg := config.NewDefault()
+	hasher := NewHasher()
+	predicate := ConfigMapPredicates(cfg, hasher)
+
+	oldCM := &corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{Name: "test", Namespace: "default"},
+		Data:       map[string]string{"key": "value1"},
+	}
+	newCMSameContent := &corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{Name: "test", Namespace: "default"},
+		Data:       map[string]string{"key": "value1"},
+	}
+	newCMDifferentContent := &corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{Name: "test", Namespace: "default"},
+		Data:       map[string]string{"key": "value2"},
+	}
+
+	// Same content should not trigger update
+	e := event.UpdateEvent{ObjectOld: oldCM, ObjectNew: newCMSameContent}
+	if predicate.Update(e) {
+		t.Error("Update() should return false when content is the same")
+	}
+
+	// Different content should trigger update
+	e = event.UpdateEvent{ObjectOld: oldCM, ObjectNew: newCMDifferentContent}
+	if !predicate.Update(e) {
+		t.Error("Update() should return true when content changed")
+	}
+}
+
+func TestConfigMapPredicates_InvalidTypes(t *testing.T) {
+	cfg := config.NewDefault()
+	hasher := NewHasher()
+	predicate := ConfigMapPredicates(cfg, hasher)
+
+	// Test with non-ConfigMap types
+	secret := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{Name: "test", Namespace: "default"},
+	}
+	cm := &corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{Name: "test", Namespace: "default"},
+	}
+
+	// Old is secret, new is configmap - should return false
+	e := event.UpdateEvent{ObjectOld: secret, ObjectNew: cm}
+	if predicate.Update(e) {
+		t.Error("Update() should return false for mismatched types")
+	}
+
+	// Both are secrets - should return false
+	e = event.UpdateEvent{ObjectOld: secret, ObjectNew: secret}
+	if predicate.Update(e) {
+		t.Error("Update() should return false for non-ConfigMap types")
+	}
+}
+
+func TestConfigMapPredicates_CreateDeleteGeneric(t *testing.T) {
+	cfg := config.NewDefault()
+	cfg.ReloadOnCreate = true
+	cfg.ReloadOnDelete = true
+	hasher := NewHasher()
+	predicate := ConfigMapPredicates(cfg, hasher)
+
+	cm := &corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{Name: "test", Namespace: "default"},
+	}
+
+	// Test Create
+	if !predicate.Create(event.CreateEvent{Object: cm}) {
+		t.Error("Create() should return true when ReloadOnCreate is true")
+	}
+
+	// Test Delete
+	if !predicate.Delete(event.DeleteEvent{Object: cm}) {
+		t.Error("Delete() should return true when ReloadOnDelete is true")
+	}
+
+	// Test Generic (should always return false)
+	if predicate.Generic(event.GenericEvent{Object: cm}) {
+		t.Error("Generic() should always return false")
+	}
+}
+
+func TestSecretPredicates_Update(t *testing.T) {
+	cfg := config.NewDefault()
+	hasher := NewHasher()
+	predicate := SecretPredicates(cfg, hasher)
+
+	oldSecret := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{Name: "test", Namespace: "default"},
+		Data:       map[string][]byte{"key": []byte("value1")},
+	}
+	newSecretSameContent := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{Name: "test", Namespace: "default"},
+		Data:       map[string][]byte{"key": []byte("value1")},
+	}
+	newSecretDifferentContent := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{Name: "test", Namespace: "default"},
+		Data:       map[string][]byte{"key": []byte("value2")},
+	}
+
+	// Same content should not trigger update
+	e := event.UpdateEvent{ObjectOld: oldSecret, ObjectNew: newSecretSameContent}
+	if predicate.Update(e) {
+		t.Error("Update() should return false when content is the same")
+	}
+
+	// Different content should trigger update
+	e = event.UpdateEvent{ObjectOld: oldSecret, ObjectNew: newSecretDifferentContent}
+	if !predicate.Update(e) {
+		t.Error("Update() should return true when content changed")
+	}
+}
+
+func TestSecretPredicates_InvalidTypes(t *testing.T) {
+	cfg := config.NewDefault()
+	hasher := NewHasher()
+	predicate := SecretPredicates(cfg, hasher)
+
+	// Test with non-Secret types
+	cm := &corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{Name: "test", Namespace: "default"},
+	}
+	secret := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{Name: "test", Namespace: "default"},
+	}
+
+	// Old is configmap, new is secret - should return false
+	e := event.UpdateEvent{ObjectOld: cm, ObjectNew: secret}
+	if predicate.Update(e) {
+		t.Error("Update() should return false for mismatched types")
+	}
+
+	// Both are configmaps - should return false
+	e = event.UpdateEvent{ObjectOld: cm, ObjectNew: cm}
+	if predicate.Update(e) {
+		t.Error("Update() should return false for non-Secret types")
+	}
+}
+
+func TestLabelsSet(t *testing.T) {
+	ls := LabelsSet{"app": "test", "env": "prod"}
+
+	// Test Has
+	if !ls.Has("app") {
+		t.Error("Has(app) should return true")
+	}
+	if ls.Has("nonexistent") {
+		t.Error("Has(nonexistent) should return false")
+	}
+
+	// Test Get
+	if ls.Get("app") != "test" {
+		t.Errorf("Get(app) = %v, want test", ls.Get("app"))
+	}
+	if ls.Get("env") != "prod" {
+		t.Errorf("Get(env) = %v, want prod", ls.Get("env"))
+	}
+	if ls.Get("nonexistent") != "" {
+		t.Errorf("Get(nonexistent) = %v, want empty string", ls.Get("nonexistent"))
+	}
+}
