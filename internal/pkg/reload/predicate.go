@@ -102,7 +102,7 @@ func LabelSelectorPredicate(cfg *config.Config) predicate.Predicate {
 
 		// Check if any selector matches
 		for _, selector := range cfg.ResourceSelectors {
-			if selector.Matches(labelsSet(labels)) {
+			if selector.Matches(LabelsSet(labels)) {
 				return true
 			}
 		}
@@ -111,15 +111,18 @@ func LabelSelectorPredicate(cfg *config.Config) predicate.Predicate {
 	})
 }
 
-// labelsSet implements labels.Labels interface for a map.
-type labelsSet map[string]string
+// LabelsSet implements the k8s.io/apimachinery/pkg/labels.Labels interface
+// for a map[string]string. This allows using label maps with label selectors.
+type LabelsSet map[string]string
 
-func (ls labelsSet) Has(key string) bool {
+// Has returns whether the provided label key exists in the set.
+func (ls LabelsSet) Has(key string) bool {
 	_, ok := ls[key]
 	return ok
 }
 
-func (ls labelsSet) Get(key string) string {
+// Get returns the value for the provided label key.
+func (ls LabelsSet) Get(key string) string {
 	return ls[key]
 }
 

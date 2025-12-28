@@ -6,6 +6,7 @@ import (
 
 	"github.com/go-logr/logr"
 	"github.com/stakater/Reloader/internal/pkg/config"
+	"github.com/stakater/Reloader/internal/pkg/reload"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -124,24 +125,12 @@ func (r *NamespaceReconciler) matchesSelectors(ns *corev1.Namespace) bool {
 	}
 
 	for _, selector := range r.Config.NamespaceSelectors {
-		if selector.Matches(nsLabelsSet(nsLabels)) {
+		if selector.Matches(reload.LabelsSet(nsLabels)) {
 			return true
 		}
 	}
 
 	return false
-}
-
-// nsLabelsSet implements labels.Labels interface for a map.
-type nsLabelsSet map[string]string
-
-func (ls nsLabelsSet) Has(key string) bool {
-	_, ok := ls[key]
-	return ok
-}
-
-func (ls nsLabelsSet) Get(key string) string {
-	return ls[key]
 }
 
 // SetupWithManager sets up the controller with the Manager.
