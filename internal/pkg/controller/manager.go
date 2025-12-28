@@ -16,6 +16,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
+	"k8s.io/client-go/rest"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	ctrlmetrics "sigs.k8s.io/controller-runtime/pkg/metrics/server"
@@ -76,6 +77,37 @@ func NewManager(opts ManagerOptions) (ctrl.Manager, error) {
 	}
 	if err := mgr.AddReadyzCheck("readyz", healthz.Ping); err != nil {
 		return nil, fmt.Errorf("setting up ready check: %w", err)
+	}
+
+	return mgr, nil
+}
+
+// NewManagerWithRestConfig creates a new controller-runtime manager with the given rest.Config.
+// This is useful for testing where you have a pre-existing cluster configuration.
+func NewManagerWithRestConfig(opts ManagerOptions, restConfig *rest.Config) (ctrl.Manager, error) {
+	cfg := opts.Config
+	le := cfg.LeaderElection
+
+	mgrOpts := ctrl.Options{
+		Scheme: runtimeScheme,
+		Metrics: ctrlmetrics.Options{
+			BindAddress: "0", // Disable metrics server in tests
+		},
+		HealthProbeBindAddress: "0", // Disable health probes in tests
+
+		// Leader election configuration
+		LeaderElection:                cfg.EnableHA,
+		LeaderElectionID:              le.LockName,
+		LeaderElectionNamespace:       le.Namespace,
+		LeaderElectionReleaseOnCancel: le.ReleaseOnCancel,
+		LeaseDuration:                 &le.LeaseDuration,
+		RenewDeadline:                 &le.RenewDeadline,
+		RetryPeriod:                   &le.RetryPeriod,
+	}
+
+	mgr, err := ctrl.NewManager(restConfig, mgrOpts)
+	if err != nil {
+		return nil, fmt.Errorf("creating manager: %w", err)
 	}
 
 	return mgr, nil

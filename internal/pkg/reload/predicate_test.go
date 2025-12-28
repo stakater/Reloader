@@ -44,25 +44,27 @@ func TestNamespaceFilterPredicate_Create(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			cfg := config.NewDefault()
-			cfg.IgnoredNamespaces = tt.ignoredNamespaces
-			predicate := NamespaceFilterPredicate(cfg)
+		t.Run(
+			tt.name, func(t *testing.T) {
+				cfg := config.NewDefault()
+				cfg.IgnoredNamespaces = tt.ignoredNamespaces
+				predicate := NamespaceFilterPredicate(cfg)
 
-			cm := &corev1.ConfigMap{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "test-cm",
-					Namespace: tt.eventNamespace,
-				},
-			}
+				cm := &corev1.ConfigMap{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "test-cm",
+						Namespace: tt.eventNamespace,
+					},
+				}
 
-			e := event.CreateEvent{Object: cm}
-			got := predicate.Create(e)
+				e := event.CreateEvent{Object: cm}
+				got := predicate.Create(e)
 
-			if got != tt.wantAllow {
-				t.Errorf("Create() = %v, want %v", got, tt.wantAllow)
-			}
-		})
+				if got != tt.wantAllow {
+					t.Errorf("Create() = %v, want %v", got, tt.wantAllow)
+				}
+			},
+		)
 	}
 }
 
@@ -172,36 +174,37 @@ func TestLabelSelectorPredicate_Create(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			cfg := config.NewDefault()
-			selector, err := labels.Parse(tt.selector)
-			if err != nil {
-				t.Fatalf("Failed to parse selector: %v", err)
-			}
-			cfg.ResourceSelectors = []labels.Selector{selector}
-			predicate := LabelSelectorPredicate(cfg)
+		t.Run(
+			tt.name, func(t *testing.T) {
+				cfg := config.NewDefault()
+				selector, err := labels.Parse(tt.selector)
+				if err != nil {
+					t.Fatalf("Failed to parse selector: %v", err)
+				}
+				cfg.ResourceSelectors = []labels.Selector{selector}
+				predicate := LabelSelectorPredicate(cfg)
 
-			cm := &corev1.ConfigMap{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "test-cm",
-					Namespace: "default",
-					Labels:    tt.objectLabels,
-				},
-			}
+				cm := &corev1.ConfigMap{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "test-cm",
+						Namespace: "default",
+						Labels:    tt.objectLabels,
+					},
+				}
 
-			e := event.CreateEvent{Object: cm}
-			got := predicate.Create(e)
+				e := event.CreateEvent{Object: cm}
+				got := predicate.Create(e)
 
-			if got != tt.wantAllow {
-				t.Errorf("Create() = %v, want %v", got, tt.wantAllow)
-			}
-		})
+				if got != tt.wantAllow {
+					t.Errorf("Create() = %v, want %v", got, tt.wantAllow)
+				}
+			},
+		)
 	}
 }
 
 func TestLabelSelectorPredicate_NoSelectors(t *testing.T) {
 	cfg := config.NewDefault()
-	// No selectors configured
 	predicate := LabelSelectorPredicate(cfg)
 
 	cm := &corev1.ConfigMap{
@@ -253,22 +256,24 @@ func TestLabelSelectorPredicate_MultipleSelectors(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			cm := &corev1.ConfigMap{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "test-cm",
-					Namespace: "default",
-					Labels:    tt.labels,
-				},
-			}
+		t.Run(
+			tt.name, func(t *testing.T) {
+				cm := &corev1.ConfigMap{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "test-cm",
+						Namespace: "default",
+						Labels:    tt.labels,
+					},
+				}
 
-			e := event.CreateEvent{Object: cm}
-			got := predicate.Create(e)
+				e := event.CreateEvent{Object: cm}
+				got := predicate.Create(e)
 
-			if got != tt.wantAllow {
-				t.Errorf("Create() = %v, want %v", got, tt.wantAllow)
-			}
-		})
+				if got != tt.wantAllow {
+					t.Errorf("Create() = %v, want %v", got, tt.wantAllow)
+				}
+			},
+		)
 	}
 }
 
@@ -392,34 +397,35 @@ func TestCombinedFiltering(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			cm := &corev1.ConfigMap{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "test-cm",
-					Namespace: tt.namespace,
-					Labels:    tt.labels,
-				},
-			}
+		t.Run(
+			tt.name, func(t *testing.T) {
+				cm := &corev1.ConfigMap{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "test-cm",
+						Namespace: tt.namespace,
+						Labels:    tt.labels,
+					},
+				}
 
-			e := event.CreateEvent{Object: cm}
+				e := event.CreateEvent{Object: cm}
 
-			gotNS := nsPredicate.Create(e)
-			if gotNS != tt.wantNSAllow {
-				t.Errorf("Namespace predicate Create() = %v, want %v", gotNS, tt.wantNSAllow)
-			}
+				gotNS := nsPredicate.Create(e)
+				if gotNS != tt.wantNSAllow {
+					t.Errorf("Namespace predicate Create() = %v, want %v", gotNS, tt.wantNSAllow)
+				}
 
-			gotLabel := labelPredicate.Create(e)
-			if gotLabel != tt.wantLabelAllow {
-				t.Errorf("Label predicate Create() = %v, want %v", gotLabel, tt.wantLabelAllow)
-			}
+				gotLabel := labelPredicate.Create(e)
+				if gotLabel != tt.wantLabelAllow {
+					t.Errorf("Label predicate Create() = %v, want %v", gotLabel, tt.wantLabelAllow)
+				}
 
-			// Both must be true for the event to pass through
-			combinedAllow := gotNS && gotLabel
-			expectedCombined := tt.wantNSAllow && tt.wantLabelAllow
-			if combinedAllow != expectedCombined {
-				t.Errorf("Combined allow = %v, want %v", combinedAllow, expectedCombined)
-			}
-		})
+				combinedAllow := gotNS && gotLabel
+				expectedCombined := tt.wantNSAllow && tt.wantLabelAllow
+				if combinedAllow != expectedCombined {
+					t.Errorf("Combined allow = %v, want %v", combinedAllow, expectedCombined)
+				}
+			},
+		)
 	}
 }
 
@@ -449,7 +455,6 @@ func TestFilteringWithSecrets(t *testing.T) {
 
 func TestExistsLabelSelector(t *testing.T) {
 	cfg := config.NewDefault()
-	// Selector that checks if label exists (any value)
 	selector, _ := labels.Parse("managed")
 	cfg.ResourceSelectors = []labels.Selector{selector}
 	predicate := LabelSelectorPredicate(cfg)
@@ -482,22 +487,24 @@ func TestExistsLabelSelector(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			cm := &corev1.ConfigMap{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "test-cm",
-					Namespace: "default",
-					Labels:    tt.labels,
-				},
-			}
+		t.Run(
+			tt.name, func(t *testing.T) {
+				cm := &corev1.ConfigMap{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "test-cm",
+						Namespace: "default",
+						Labels:    tt.labels,
+					},
+				}
 
-			e := event.CreateEvent{Object: cm}
-			got := predicate.Create(e)
+				e := event.CreateEvent{Object: cm}
+				got := predicate.Create(e)
 
-			if got != tt.wantAllow {
-				t.Errorf("Create() = %v, want %v", got, tt.wantAllow)
-			}
-		})
+				if got != tt.wantAllow {
+					t.Errorf("Create() = %v, want %v", got, tt.wantAllow)
+				}
+			},
+		)
 	}
 }
 
@@ -549,27 +556,29 @@ func TestNamespaceFilterPredicateWithCache(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			cfg := config.NewDefault()
-			cfg.IgnoredNamespaces = tt.ignoredNamespaces
+		t.Run(
+			tt.name, func(t *testing.T) {
+				cfg := config.NewDefault()
+				cfg.IgnoredNamespaces = tt.ignoredNamespaces
 
-			cache := &mockNamespaceChecker{allowed: tt.cacheAllowed}
-			predicate := NamespaceFilterPredicateWithCache(cfg, cache)
+				cache := &mockNamespaceChecker{allowed: tt.cacheAllowed}
+				predicate := NamespaceFilterPredicateWithCache(cfg, cache)
 
-			cm := &corev1.ConfigMap{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "test-cm",
-					Namespace: tt.eventNamespace,
-				},
-			}
+				cm := &corev1.ConfigMap{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "test-cm",
+						Namespace: tt.eventNamespace,
+					},
+				}
 
-			e := event.CreateEvent{Object: cm}
-			got := predicate.Create(e)
+				e := event.CreateEvent{Object: cm}
+				got := predicate.Create(e)
 
-			if got != tt.wantAllow {
-				t.Errorf("Create() = %v, want %v", got, tt.wantAllow)
-			}
-		})
+				if got != tt.wantAllow {
+					t.Errorf("Create() = %v, want %v", got, tt.wantAllow)
+				}
+			},
+		)
 	}
 }
 
@@ -577,7 +586,6 @@ func TestNamespaceFilterPredicateWithCache_NilCache(t *testing.T) {
 	cfg := config.NewDefault()
 	cfg.IgnoredNamespaces = []string{"kube-system"}
 
-	// Nil cache should allow all namespaces (only check ignore list)
 	predicate := NamespaceFilterPredicateWithCache(cfg, nil)
 
 	tests := []struct {
@@ -590,21 +598,23 @@ func TestNamespaceFilterPredicateWithCache_NilCache(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		t.Run(tt.namespace, func(t *testing.T) {
-			cm := &corev1.ConfigMap{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "test-cm",
-					Namespace: tt.namespace,
-				},
-			}
+		t.Run(
+			tt.namespace, func(t *testing.T) {
+				cm := &corev1.ConfigMap{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "test-cm",
+						Namespace: tt.namespace,
+					},
+				}
 
-			e := event.CreateEvent{Object: cm}
-			got := predicate.Create(e)
+				e := event.CreateEvent{Object: cm}
+				got := predicate.Create(e)
 
-			if got != tt.wantAllow {
-				t.Errorf("Create() = %v, want %v for namespace %s", got, tt.wantAllow, tt.namespace)
-			}
-		})
+				if got != tt.wantAllow {
+					t.Errorf("Create() = %v, want %v for namespace %s", got, tt.wantAllow, tt.namespace)
+				}
+			},
+		)
 	}
 }
 
@@ -650,22 +660,24 @@ func TestIgnoreAnnotationPredicate_Create(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			cm := &corev1.ConfigMap{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:        "test-cm",
-					Namespace:   "default",
-					Annotations: tt.annotations,
-				},
-			}
+		t.Run(
+			tt.name, func(t *testing.T) {
+				cm := &corev1.ConfigMap{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:        "test-cm",
+						Namespace:   "default",
+						Annotations: tt.annotations,
+					},
+				}
 
-			e := event.CreateEvent{Object: cm}
-			got := predicate.Create(e)
+				e := event.CreateEvent{Object: cm}
+				got := predicate.Create(e)
 
-			if got != tt.wantAllow {
-				t.Errorf("Create() = %v, want %v", got, tt.wantAllow)
-			}
-		})
+				if got != tt.wantAllow {
+					t.Errorf("Create() = %v, want %v", got, tt.wantAllow)
+				}
+			},
+		)
 	}
 }
 
@@ -688,7 +700,6 @@ func TestIgnoreAnnotationPredicate_AllEventTypes(t *testing.T) {
 		},
 	}
 
-	// Test Update
 	if predicate.Update(event.UpdateEvent{ObjectNew: ignoredCM}) {
 		t.Error("Update() should block ignored resource")
 	}
@@ -696,7 +707,6 @@ func TestIgnoreAnnotationPredicate_AllEventTypes(t *testing.T) {
 		t.Error("Update() should allow non-ignored resource")
 	}
 
-	// Test Delete
 	if predicate.Delete(event.DeleteEvent{Object: ignoredCM}) {
 		t.Error("Delete() should block ignored resource")
 	}
@@ -704,7 +714,6 @@ func TestIgnoreAnnotationPredicate_AllEventTypes(t *testing.T) {
 		t.Error("Delete() should allow non-ignored resource")
 	}
 
-	// Test Generic
 	if predicate.Generic(event.GenericEvent{Object: ignoredCM}) {
 		t.Error("Generic() should block ignored resource")
 	}
@@ -755,22 +764,24 @@ func TestCombinedPredicates(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			cm := &corev1.ConfigMap{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:        "test-cm",
-					Namespace:   tt.namespace,
-					Annotations: tt.annotations,
-				},
-			}
+		t.Run(
+			tt.name, func(t *testing.T) {
+				cm := &corev1.ConfigMap{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:        "test-cm",
+						Namespace:   tt.namespace,
+						Annotations: tt.annotations,
+					},
+				}
 
-			e := event.CreateEvent{Object: cm}
-			got := combined.Create(e)
+				e := event.CreateEvent{Object: cm}
+				got := combined.Create(e)
 
-			if got != tt.wantAllow {
-				t.Errorf("Create() = %v, want %v", got, tt.wantAllow)
-			}
-		})
+				if got != tt.wantAllow {
+					t.Errorf("Create() = %v, want %v", got, tt.wantAllow)
+				}
+			},
+		)
 	}
 }
 
@@ -792,13 +803,11 @@ func TestConfigMapPredicates_Update(t *testing.T) {
 		Data:       map[string]string{"key": "value2"},
 	}
 
-	// Same content should not trigger update
 	e := event.UpdateEvent{ObjectOld: oldCM, ObjectNew: newCMSameContent}
 	if predicate.Update(e) {
 		t.Error("Update() should return false when content is the same")
 	}
 
-	// Different content should trigger update
 	e = event.UpdateEvent{ObjectOld: oldCM, ObjectNew: newCMDifferentContent}
 	if !predicate.Update(e) {
 		t.Error("Update() should return true when content changed")
@@ -810,7 +819,6 @@ func TestConfigMapPredicates_InvalidTypes(t *testing.T) {
 	hasher := NewHasher()
 	predicate := ConfigMapPredicates(cfg, hasher)
 
-	// Test with non-ConfigMap types
 	secret := &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{Name: "test", Namespace: "default"},
 	}
@@ -818,13 +826,11 @@ func TestConfigMapPredicates_InvalidTypes(t *testing.T) {
 		ObjectMeta: metav1.ObjectMeta{Name: "test", Namespace: "default"},
 	}
 
-	// Old is secret, new is configmap - should return false
 	e := event.UpdateEvent{ObjectOld: secret, ObjectNew: cm}
 	if predicate.Update(e) {
 		t.Error("Update() should return false for mismatched types")
 	}
 
-	// Both are secrets - should return false
 	e = event.UpdateEvent{ObjectOld: secret, ObjectNew: secret}
 	if predicate.Update(e) {
 		t.Error("Update() should return false for non-ConfigMap types")
@@ -842,17 +848,14 @@ func TestConfigMapPredicates_CreateDeleteGeneric(t *testing.T) {
 		ObjectMeta: metav1.ObjectMeta{Name: "test", Namespace: "default"},
 	}
 
-	// Test Create
 	if !predicate.Create(event.CreateEvent{Object: cm}) {
 		t.Error("Create() should return true when ReloadOnCreate is true")
 	}
 
-	// Test Delete
 	if !predicate.Delete(event.DeleteEvent{Object: cm}) {
 		t.Error("Delete() should return true when ReloadOnDelete is true")
 	}
 
-	// Test Generic (should always return false)
 	if predicate.Generic(event.GenericEvent{Object: cm}) {
 		t.Error("Generic() should always return false")
 	}
@@ -876,13 +879,11 @@ func TestSecretPredicates_Update(t *testing.T) {
 		Data:       map[string][]byte{"key": []byte("value2")},
 	}
 
-	// Same content should not trigger update
 	e := event.UpdateEvent{ObjectOld: oldSecret, ObjectNew: newSecretSameContent}
 	if predicate.Update(e) {
 		t.Error("Update() should return false when content is the same")
 	}
 
-	// Different content should trigger update
 	e = event.UpdateEvent{ObjectOld: oldSecret, ObjectNew: newSecretDifferentContent}
 	if !predicate.Update(e) {
 		t.Error("Update() should return true when content changed")
@@ -894,7 +895,6 @@ func TestSecretPredicates_InvalidTypes(t *testing.T) {
 	hasher := NewHasher()
 	predicate := SecretPredicates(cfg, hasher)
 
-	// Test with non-Secret types
 	cm := &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{Name: "test", Namespace: "default"},
 	}
@@ -902,13 +902,11 @@ func TestSecretPredicates_InvalidTypes(t *testing.T) {
 		ObjectMeta: metav1.ObjectMeta{Name: "test", Namespace: "default"},
 	}
 
-	// Old is configmap, new is secret - should return false
 	e := event.UpdateEvent{ObjectOld: cm, ObjectNew: secret}
 	if predicate.Update(e) {
 		t.Error("Update() should return false for mismatched types")
 	}
 
-	// Both are configmaps - should return false
 	e = event.UpdateEvent{ObjectOld: cm, ObjectNew: cm}
 	if predicate.Update(e) {
 		t.Error("Update() should return false for non-Secret types")
@@ -918,7 +916,6 @@ func TestSecretPredicates_InvalidTypes(t *testing.T) {
 func TestLabelsSet(t *testing.T) {
 	ls := LabelsSet{"app": "test", "env": "prod"}
 
-	// Test Has
 	if !ls.Has("app") {
 		t.Error("Has(app) should return true")
 	}
@@ -926,7 +923,6 @@ func TestLabelsSet(t *testing.T) {
 		t.Error("Has(nonexistent) should return false")
 	}
 
-	// Test Get
 	if ls.Get("app") != "test" {
 		t.Errorf("Get(app) = %v, want test", ls.Get("app"))
 	}

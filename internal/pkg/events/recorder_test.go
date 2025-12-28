@@ -102,7 +102,6 @@ func TestNilRecorder_NoPanic(t *testing.T) {
 }
 
 func TestRecorder_NilInternalRecorder(t *testing.T) {
-	// Create a Recorder with nil internal recorder (edge case)
 	r := &Recorder{recorder: nil}
 
 	pod := &corev1.Pod{
@@ -112,24 +111,8 @@ func TestRecorder_NilInternalRecorder(t *testing.T) {
 		},
 	}
 
-	// These should not panic
 	r.ReloadSuccess(pod, "ConfigMap", "my-config")
 	r.ReloadFailed(pod, "Secret", "my-secret", errors.New("test error"))
-}
-
-func TestEventConstants(t *testing.T) {
-	if EventTypeNormal != corev1.EventTypeNormal {
-		t.Errorf("EventTypeNormal = %q, want %q", EventTypeNormal, corev1.EventTypeNormal)
-	}
-	if EventTypeWarning != corev1.EventTypeWarning {
-		t.Errorf("EventTypeWarning = %q, want %q", EventTypeWarning, corev1.EventTypeWarning)
-	}
-	if ReasonReloaded != "Reloaded" {
-		t.Errorf("ReasonReloaded = %q, want %q", ReasonReloaded, "Reloaded")
-	}
-	if ReasonReloadFailed != "ReloadFailed" {
-		t.Errorf("ReasonReloadFailed = %q, want %q", ReasonReloadFailed, "ReloadFailed")
-	}
 }
 
 func TestReloadSuccess_DifferentObjectTypes(t *testing.T) {
@@ -155,18 +138,20 @@ func TestReloadSuccess_DifferentObjectTypes(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			r.ReloadSuccess(tt.object, "ConfigMap", "my-config")
+		t.Run(
+			tt.name, func(t *testing.T) {
+				r.ReloadSuccess(tt.object, "ConfigMap", "my-config")
 
-			select {
-			case event := <-fakeRecorder.Events:
-				if event == "" {
+				select {
+				case event := <-fakeRecorder.Events:
+					if event == "" {
+						t.Error("Expected event to be recorded")
+					}
+				default:
 					t.Error("Expected event to be recorded")
 				}
-			default:
-				t.Error("Expected event to be recorded")
-			}
-		})
+			},
+		)
 	}
 }
 

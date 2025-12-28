@@ -16,9 +16,11 @@ func TestService_ProcessConfigMap_AutoReload(t *testing.T) {
 	svc := NewService(cfg)
 
 	// Create a deployment with auto annotation that uses the configmap
-	deploy := createTestDeployment("test-deploy", "default", map[string]string{
-		"reloader.stakater.com/auto": "true",
-	})
+	deploy := createTestDeployment(
+		"test-deploy", "default", map[string]string{
+			"reloader.stakater.com/auto": "true",
+		},
+	)
 	deploy.Spec.Template.Spec.Volumes = []corev1.Volume{
 		{
 			Name: "config-vol",
@@ -74,10 +76,11 @@ func TestService_ProcessConfigMap_ExplicitAnnotation(t *testing.T) {
 	cfg := config.NewDefault()
 	svc := NewService(cfg)
 
-	// Create a deployment with explicit configmap annotation
-	deploy := createTestDeployment("test-deploy", "default", map[string]string{
-		"configmap.reloader.stakater.com/reload": "test-cm",
-	})
+	deploy := createTestDeployment(
+		"test-deploy", "default", map[string]string{
+			"configmap.reloader.stakater.com/reload": "test-cm",
+		},
+	)
 
 	workloads := []workload.WorkloadAccessor{
 		workload.NewDeploymentWorkload(deploy),
@@ -118,9 +121,11 @@ func TestService_ProcessConfigMap_IgnoredResource(t *testing.T) {
 	svc := NewService(cfg)
 
 	// Create a deployment with auto annotation
-	deploy := createTestDeployment("test-deploy", "default", map[string]string{
-		"reloader.stakater.com/auto": "true",
-	})
+	deploy := createTestDeployment(
+		"test-deploy", "default", map[string]string{
+			"reloader.stakater.com/auto": "true",
+		},
+	)
 	deploy.Spec.Template.Spec.Volumes = []corev1.Volume{
 		{
 			Name: "config-vol",
@@ -172,9 +177,11 @@ func TestService_ProcessSecret_AutoReload(t *testing.T) {
 	svc := NewService(cfg)
 
 	// Create a deployment with auto annotation that uses the secret
-	deploy := createTestDeployment("test-deploy", "default", map[string]string{
-		"reloader.stakater.com/auto": "true",
-	})
+	deploy := createTestDeployment(
+		"test-deploy", "default", map[string]string{
+			"reloader.stakater.com/auto": "true",
+		},
+	)
 	deploy.Spec.Template.Spec.Volumes = []corev1.Volume{
 		{
 			Name: "secret-vol",
@@ -226,9 +233,11 @@ func TestService_ProcessConfigMap_DeleteEvent(t *testing.T) {
 	svc := NewService(cfg)
 
 	// Create a deployment with explicit configmap annotation
-	deploy := createTestDeployment("test-deploy", "default", map[string]string{
-		"configmap.reloader.stakater.com/reload": "test-cm",
-	})
+	deploy := createTestDeployment(
+		"test-deploy", "default", map[string]string{
+			"configmap.reloader.stakater.com/reload": "test-cm",
+		},
+	)
 
 	workloads := []workload.WorkloadAccessor{
 		workload.NewDeploymentWorkload(deploy),
@@ -267,9 +276,11 @@ func TestService_ProcessConfigMap_DeleteEventDisabled(t *testing.T) {
 	cfg.ReloadOnDelete = false // Disabled by default
 	svc := NewService(cfg)
 
-	deploy := createTestDeployment("test-deploy", "default", map[string]string{
-		"configmap.reloader.stakater.com/reload": "test-cm",
-	})
+	deploy := createTestDeployment(
+		"test-deploy", "default", map[string]string{
+			"configmap.reloader.stakater.com/reload": "test-cm",
+		},
+	)
 
 	workloads := []workload.WorkloadAccessor{
 		workload.NewDeploymentWorkload(deploy),
@@ -440,9 +451,11 @@ func TestService_ProcessConfigMap_MultipleWorkloads(t *testing.T) {
 	svc := NewService(cfg)
 
 	// Create multiple workloads
-	deploy1 := createTestDeployment("deploy1", "default", map[string]string{
-		"reloader.stakater.com/auto": "true",
-	})
+	deploy1 := createTestDeployment(
+		"deploy1", "default", map[string]string{
+			"reloader.stakater.com/auto": "true",
+		},
+	)
 	deploy1.Spec.Template.Spec.Volumes = []corev1.Volume{
 		{
 			Name: "config-vol",
@@ -456,9 +469,11 @@ func TestService_ProcessConfigMap_MultipleWorkloads(t *testing.T) {
 		},
 	}
 
-	deploy2 := createTestDeployment("deploy2", "default", map[string]string{
-		"reloader.stakater.com/auto": "true",
-	})
+	deploy2 := createTestDeployment(
+		"deploy2", "default", map[string]string{
+			"reloader.stakater.com/auto": "true",
+		},
+	)
 	deploy2.Spec.Template.Spec.Volumes = []corev1.Volume{
 		{
 			Name: "config-vol",
@@ -473,9 +488,11 @@ func TestService_ProcessConfigMap_MultipleWorkloads(t *testing.T) {
 	}
 
 	// Deploy3 doesn't use the configmap
-	deploy3 := createTestDeployment("deploy3", "default", map[string]string{
-		"reloader.stakater.com/auto": "true",
-	})
+	deploy3 := createTestDeployment(
+		"deploy3", "default", map[string]string{
+			"reloader.stakater.com/auto": "true",
+		},
+	)
 
 	workloads := []workload.WorkloadAccessor{
 		workload.NewDeploymentWorkload(deploy1),
@@ -521,9 +538,11 @@ func TestService_ProcessConfigMap_DifferentNamespaces(t *testing.T) {
 	svc := NewService(cfg)
 
 	// Create deployments in different namespaces
-	deploy1 := createTestDeployment("deploy1", "namespace-a", map[string]string{
-		"reloader.stakater.com/auto": "true",
-	})
+	deploy1 := createTestDeployment(
+		"deploy1", "namespace-a", map[string]string{
+			"reloader.stakater.com/auto": "true",
+		},
+	)
 	deploy1.Spec.Template.Spec.Volumes = []corev1.Volume{
 		{
 			Name: "config-vol",
@@ -537,9 +556,11 @@ func TestService_ProcessConfigMap_DifferentNamespaces(t *testing.T) {
 		},
 	}
 
-	deploy2 := createTestDeployment("deploy2", "namespace-b", map[string]string{
-		"reloader.stakater.com/auto": "true",
-	})
+	deploy2 := createTestDeployment(
+		"deploy2", "namespace-b", map[string]string{
+			"reloader.stakater.com/auto": "true",
+		},
+	)
 	deploy2.Spec.Template.Spec.Volumes = []corev1.Volume{
 		{
 			Name: "config-vol",
@@ -624,17 +645,19 @@ func TestService_shouldProcessEvent(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			cfg := config.NewDefault()
-			cfg.ReloadOnCreate = tt.reloadOnCreate
-			cfg.ReloadOnDelete = tt.reloadOnDelete
-			svc := NewService(cfg)
+		t.Run(
+			tt.name, func(t *testing.T) {
+				cfg := config.NewDefault()
+				cfg.ReloadOnCreate = tt.reloadOnCreate
+				cfg.ReloadOnDelete = tt.reloadOnDelete
+				svc := NewService(cfg)
 
-			result := svc.shouldProcessEvent(tt.eventType)
-			if result != tt.expected {
-				t.Errorf("shouldProcessEvent(%s) = %v, want %v", tt.eventType, result, tt.expected)
-			}
-		})
+				result := svc.shouldProcessEvent(tt.eventType)
+				if result != tt.expected {
+					t.Errorf("shouldProcessEvent(%s) = %v, want %v", tt.eventType, result, tt.expected)
+				}
+			},
+		)
 	}
 }
 
@@ -713,12 +736,14 @@ func TestService_findVolumeUsingResource_ConfigMap(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got := svc.findVolumeUsingResource(tt.volumes, tt.resourceName, tt.resourceType)
-			if got != tt.wantVolume {
-				t.Errorf("findVolumeUsingResource() = %q, want %q", got, tt.wantVolume)
-			}
-		})
+		t.Run(
+			tt.name, func(t *testing.T) {
+				got := svc.findVolumeUsingResource(tt.volumes, tt.resourceName, tt.resourceType)
+				if got != tt.wantVolume {
+					t.Errorf("findVolumeUsingResource() = %q, want %q", got, tt.wantVolume)
+				}
+			},
+		)
 	}
 }
 
@@ -786,12 +811,14 @@ func TestService_findVolumeUsingResource_Secret(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got := svc.findVolumeUsingResource(tt.volumes, tt.resourceName, ResourceTypeSecret)
-			if got != tt.wantVolume {
-				t.Errorf("findVolumeUsingResource() = %q, want %q", got, tt.wantVolume)
-			}
-		})
+		t.Run(
+			tt.name, func(t *testing.T) {
+				got := svc.findVolumeUsingResource(tt.volumes, tt.resourceName, ResourceTypeSecret)
+				if got != tt.wantVolume {
+					t.Errorf("findVolumeUsingResource() = %q, want %q", got, tt.wantVolume)
+				}
+			},
+		)
 	}
 }
 
@@ -860,20 +887,22 @@ func TestService_findContainerWithVolumeMount(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got := svc.findContainerWithVolumeMount(tt.containers, tt.volumeName)
-			if tt.shouldMatch {
-				if got == nil {
-					t.Error("Expected to find a container, got nil")
-				} else if got.Name != tt.wantName {
-					t.Errorf("findContainerWithVolumeMount() container name = %q, want %q", got.Name, tt.wantName)
+		t.Run(
+			tt.name, func(t *testing.T) {
+				got := svc.findContainerWithVolumeMount(tt.containers, tt.volumeName)
+				if tt.shouldMatch {
+					if got == nil {
+						t.Error("Expected to find a container, got nil")
+					} else if got.Name != tt.wantName {
+						t.Errorf("findContainerWithVolumeMount() container name = %q, want %q", got.Name, tt.wantName)
+					}
+				} else {
+					if got != nil {
+						t.Errorf("Expected nil, got container %q", got.Name)
+					}
 				}
-			} else {
-				if got != nil {
-					t.Errorf("Expected nil, got container %q", got.Name)
-				}
-			}
-		})
+			},
+		)
 	}
 }
 
@@ -882,11 +911,11 @@ func TestService_findContainerWithEnvRef_ConfigMap(t *testing.T) {
 	svc := NewService(cfg)
 
 	tests := []struct {
-		name        string
-		containers  []corev1.Container
+		name         string
+		containers   []corev1.Container
 		resourceName string
-		wantName    string
-		shouldMatch bool
+		wantName     string
+		shouldMatch  bool
 	}{
 		{
 			name: "container with ConfigMapKeyRef",
@@ -935,7 +964,7 @@ func TestService_findContainerWithEnvRef_ConfigMap(t *testing.T) {
 					Name: "app",
 					Env: []corev1.EnvVar{
 						{
-							Name: "SIMPLE_VAR",
+							Name:  "SIMPLE_VAR",
 							Value: "value",
 						},
 					},
@@ -960,20 +989,22 @@ func TestService_findContainerWithEnvRef_ConfigMap(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got := svc.findContainerWithEnvRef(tt.containers, tt.resourceName, ResourceTypeConfigMap)
-			if tt.shouldMatch {
-				if got == nil {
-					t.Error("Expected to find a container, got nil")
-				} else if got.Name != tt.wantName {
-					t.Errorf("findContainerWithEnvRef() container name = %q, want %q", got.Name, tt.wantName)
+		t.Run(
+			tt.name, func(t *testing.T) {
+				got := svc.findContainerWithEnvRef(tt.containers, tt.resourceName, ResourceTypeConfigMap)
+				if tt.shouldMatch {
+					if got == nil {
+						t.Error("Expected to find a container, got nil")
+					} else if got.Name != tt.wantName {
+						t.Errorf("findContainerWithEnvRef() container name = %q, want %q", got.Name, tt.wantName)
+					}
+				} else {
+					if got != nil {
+						t.Errorf("Expected nil, got container %q", got.Name)
+					}
 				}
-			} else {
-				if got != nil {
-					t.Errorf("Expected nil, got container %q", got.Name)
-				}
-			}
-		})
+			},
+		)
 	}
 }
 
@@ -982,11 +1013,11 @@ func TestService_findContainerWithEnvRef_Secret(t *testing.T) {
 	svc := NewService(cfg)
 
 	tests := []struct {
-		name        string
-		containers  []corev1.Container
+		name         string
+		containers   []corev1.Container
 		resourceName string
-		wantName    string
-		shouldMatch bool
+		wantName     string
+		shouldMatch  bool
 	}{
 		{
 			name: "container with SecretKeyRef",
@@ -1047,20 +1078,22 @@ func TestService_findContainerWithEnvRef_Secret(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got := svc.findContainerWithEnvRef(tt.containers, tt.resourceName, ResourceTypeSecret)
-			if tt.shouldMatch {
-				if got == nil {
-					t.Error("Expected to find a container, got nil")
-				} else if got.Name != tt.wantName {
-					t.Errorf("findContainerWithEnvRef() container name = %q, want %q", got.Name, tt.wantName)
+		t.Run(
+			tt.name, func(t *testing.T) {
+				got := svc.findContainerWithEnvRef(tt.containers, tt.resourceName, ResourceTypeSecret)
+				if tt.shouldMatch {
+					if got == nil {
+						t.Error("Expected to find a container, got nil")
+					} else if got.Name != tt.wantName {
+						t.Errorf("findContainerWithEnvRef() container name = %q, want %q", got.Name, tt.wantName)
+					}
+				} else {
+					if got != nil {
+						t.Errorf("Expected nil, got container %q", got.Name)
+					}
 				}
-			} else {
-				if got != nil {
-					t.Errorf("Expected nil, got container %q", got.Name)
-				}
-			}
-		})
+			},
+		)
 	}
 }
 
@@ -1302,9 +1335,11 @@ func TestService_ProcessCreateEventDisabled(t *testing.T) {
 	cfg.ReloadOnCreate = false
 	svc := NewService(cfg)
 
-	deploy := createTestDeployment("test", "default", map[string]string{
-		"reloader.stakater.com/auto": "true",
-	})
+	deploy := createTestDeployment(
+		"test", "default", map[string]string{
+			"reloader.stakater.com/auto": "true",
+		},
+	)
 	workloads := []workload.WorkloadAccessor{workload.NewDeploymentWorkload(deploy)}
 
 	cm := &corev1.ConfigMap{

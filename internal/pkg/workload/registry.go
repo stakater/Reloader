@@ -84,18 +84,18 @@ func (r *Registry) FromObject(obj client.Object) (WorkloadAccessor, error) {
 // kindAliases maps string representations to Kind constants.
 // Supports lowercase, title case, and plural forms for user convenience.
 var kindAliases = map[string]Kind{
-	"deployment":  KindDeployment,
-	"deployments": KindDeployment,
-	"daemonset":   KindDaemonSet,
-	"daemonsets":  KindDaemonSet,
-	"statefulset": KindStatefulSet,
+	"deployment":   KindDeployment,
+	"deployments":  KindDeployment,
+	"daemonset":    KindDaemonSet,
+	"daemonsets":   KindDaemonSet,
+	"statefulset":  KindStatefulSet,
 	"statefulsets": KindStatefulSet,
-	"rollout":     KindArgoRollout,
-	"rollouts":    KindArgoRollout,
-	"job":         KindJob,
-	"jobs":        KindJob,
-	"cronjob":     KindCronJob,
-	"cronjobs":    KindCronJob,
+	"rollout":      KindArgoRollout,
+	"rollouts":     KindArgoRollout,
+	"job":          KindJob,
+	"jobs":         KindJob,
+	"cronjob":      KindCronJob,
+	"cronjobs":     KindCronJob,
 }
 
 // KindFromString converts a string to a Kind.

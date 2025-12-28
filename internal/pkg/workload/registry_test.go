@@ -61,8 +61,8 @@ func TestRegistry_ListerFor_AllKinds(t *testing.T) {
 	r := NewRegistry(true)
 
 	tests := []struct {
-		kind     Kind
-		wantNil  bool
+		kind    Kind
+		wantNil bool
 	}{
 		{KindDeployment, false},
 		{KindDaemonSet, false},

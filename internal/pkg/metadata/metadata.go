@@ -40,8 +40,8 @@ var (
 type MetaInfo struct {
 	// BuildInfo contains information about the build version, commit, and compilation details.
 	BuildInfo BuildInfo `json:"buildInfo"`
-	// ReloaderOptions contains all the configuration options used by this Reloader instance.
-	ReloaderOptions ReloaderOptions `json:"reloaderOptions"`
+	// Config contains all the configuration options used by this Reloader instance.
+	Config *config.Config `json:"config"`
 	// DeploymentInfo contains metadata about the Kubernetes deployment of this instance.
 	DeploymentInfo DeploymentInfo `json:"deploymentInfo"`
 }
@@ -66,56 +66,6 @@ type DeploymentInfo struct {
 	Namespace string `json:"namespace"`
 }
 
-// ReloaderOptions contains the configuration options for Reloader.
-// This is a subset of config.Config that's relevant for the metadata ConfigMap.
-type ReloaderOptions struct {
-	// AutoReloadAll enables automatic reloading of all resources.
-	AutoReloadAll bool `json:"autoReloadAll"`
-	// ReloadStrategy specifies the strategy used to trigger resource reloads.
-	ReloadStrategy string `json:"reloadStrategy"`
-	// IsArgoRollouts indicates whether support for Argo Rollouts is enabled.
-	IsArgoRollouts bool `json:"isArgoRollouts"`
-	// ReloadOnCreate indicates whether to trigger reloads when resources are created.
-	ReloadOnCreate bool `json:"reloadOnCreate"`
-	// ReloadOnDelete indicates whether to trigger reloads when resources are deleted.
-	ReloadOnDelete bool `json:"reloadOnDelete"`
-	// SyncAfterRestart indicates whether to sync add events after Reloader restarts.
-	SyncAfterRestart bool `json:"syncAfterRestart"`
-	// EnableHA indicates whether High Availability mode is enabled.
-	EnableHA bool `json:"enableHA"`
-	// WebhookURL is the URL to send webhook notifications to.
-	WebhookURL string `json:"webhookUrl"`
-	// LogFormat specifies the log format to use.
-	LogFormat string `json:"logFormat"`
-	// LogLevel specifies the log level to use.
-	LogLevel string `json:"logLevel"`
-	// ResourcesToIgnore is a list of resource types to ignore.
-	ResourcesToIgnore []string `json:"resourcesToIgnore"`
-	// WorkloadTypesToIgnore is a list of workload types to ignore.
-	WorkloadTypesToIgnore []string `json:"workloadTypesToIgnore"`
-	// NamespacesToIgnore is a list of namespaces to ignore.
-	NamespacesToIgnore []string `json:"namespacesToIgnore"`
-	// NamespaceSelectors is a list of namespace label selectors.
-	NamespaceSelectors []string `json:"namespaceSelectors"`
-	// ResourceSelectors is a list of resource label selectors.
-	ResourceSelectors []string `json:"resourceSelectors"`
-
-	// Annotations
-	ConfigmapUpdateOnChangeAnnotation  string `json:"configmapUpdateOnChangeAnnotation"`
-	SecretUpdateOnChangeAnnotation     string `json:"secretUpdateOnChangeAnnotation"`
-	ReloaderAutoAnnotation             string `json:"reloaderAutoAnnotation"`
-	ConfigmapReloaderAutoAnnotation    string `json:"configmapReloaderAutoAnnotation"`
-	SecretReloaderAutoAnnotation       string `json:"secretReloaderAutoAnnotation"`
-	IgnoreResourceAnnotation           string `json:"ignoreResourceAnnotation"`
-	ConfigmapExcludeReloaderAnnotation string `json:"configmapExcludeReloaderAnnotation"`
-	SecretExcludeReloaderAnnotation    string `json:"secretExcludeReloaderAnnotation"`
-	AutoSearchAnnotation               string `json:"autoSearchAnnotation"`
-	SearchMatchAnnotation              string `json:"searchMatchAnnotation"`
-	RolloutStrategyAnnotation          string `json:"rolloutStrategyAnnotation"`
-	PauseDeploymentAnnotation          string `json:"pauseDeploymentAnnotation"`
-	PauseDeploymentTimeAnnotation      string `json:"pauseDeploymentTimeAnnotation"`
-}
-
 // NewBuildInfo creates a new BuildInfo with current build information.
 func NewBuildInfo() BuildInfo {
 	return BuildInfo{
@@ -126,45 +76,11 @@ func NewBuildInfo() BuildInfo {
 	}
 }
 
-// NewReloaderOptions creates ReloaderOptions from a Config.
-func NewReloaderOptions(cfg *config.Config) ReloaderOptions {
-	return ReloaderOptions{
-		AutoReloadAll:                      cfg.AutoReloadAll,
-		ReloadStrategy:                     string(cfg.ReloadStrategy),
-		IsArgoRollouts:                     cfg.ArgoRolloutsEnabled,
-		ReloadOnCreate:                     cfg.ReloadOnCreate,
-		ReloadOnDelete:                     cfg.ReloadOnDelete,
-		SyncAfterRestart:                   cfg.SyncAfterRestart,
-		EnableHA:                           cfg.EnableHA,
-		WebhookURL:                         cfg.WebhookURL,
-		LogFormat:                          cfg.LogFormat,
-		LogLevel:                           cfg.LogLevel,
-		ResourcesToIgnore:                  cfg.IgnoredResources,
-		WorkloadTypesToIgnore:              cfg.IgnoredWorkloads,
-		NamespacesToIgnore:                 cfg.IgnoredNamespaces,
-		NamespaceSelectors:                 cfg.NamespaceSelectorStrings,
-		ResourceSelectors:                  cfg.ResourceSelectorStrings,
-		ConfigmapUpdateOnChangeAnnotation:  cfg.Annotations.ConfigmapReload,
-		SecretUpdateOnChangeAnnotation:     cfg.Annotations.SecretReload,
-		ReloaderAutoAnnotation:             cfg.Annotations.Auto,
-		ConfigmapReloaderAutoAnnotation:    cfg.Annotations.ConfigmapAuto,
-		SecretReloaderAutoAnnotation:       cfg.Annotations.SecretAuto,
-		IgnoreResourceAnnotation:           cfg.Annotations.Ignore,
-		ConfigmapExcludeReloaderAnnotation: cfg.Annotations.ConfigmapExclude,
-		SecretExcludeReloaderAnnotation:    cfg.Annotations.SecretExclude,
-		AutoSearchAnnotation:               cfg.Annotations.Search,
-		SearchMatchAnnotation:              cfg.Annotations.Match,
-		RolloutStrategyAnnotation:          cfg.Annotations.RolloutStrategy,
-		PauseDeploymentAnnotation:          cfg.Annotations.PausePeriod,
-		PauseDeploymentTimeAnnotation:      cfg.Annotations.PausedAt,
-	}
-}
-
 // NewMetaInfo creates a new MetaInfo from configuration.
 func NewMetaInfo(cfg *config.Config) *MetaInfo {
 	return &MetaInfo{
-		BuildInfo:       NewBuildInfo(),
-		ReloaderOptions: NewReloaderOptions(cfg),
+		BuildInfo: NewBuildInfo(),
+		Config:    cfg,
 		DeploymentInfo: DeploymentInfo{
 			Name:      os.Getenv(EnvReloaderDeploymentName),
 			Namespace: os.Getenv(EnvReloaderNamespace),
@@ -183,9 +99,9 @@ func (m *MetaInfo) ToConfigMap() *corev1.ConfigMap {
 			},
 		},
 		Data: map[string]string{
-			"buildInfo":       toJSON(m.BuildInfo),
-			"reloaderOptions": toJSON(m.ReloaderOptions),
-			"deploymentInfo":  toJSON(m.DeploymentInfo),
+			"buildInfo":      toJSON(m.BuildInfo),
+			"config":         toJSON(m.Config),
+			"deploymentInfo": toJSON(m.DeploymentInfo),
 		},
 	}
 }

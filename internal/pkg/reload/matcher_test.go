@@ -17,7 +17,6 @@ func TestMatcher_ShouldReload(t *testing.T) {
 		wantAutoReload bool
 		description    string
 	}{
-		// Ignore annotation tests
 		{
 			name: "ignore annotation on resource skips reload",
 			input: MatchInput{
@@ -46,8 +45,6 @@ func TestMatcher_ShouldReload(t *testing.T) {
 			wantAutoReload: true,
 			description:    "Resources with ignore=false should allow reload",
 		},
-
-		// Exclude annotation tests
 		{
 			name: "exclude annotation skips reload",
 			input: MatchInput{
@@ -82,8 +79,6 @@ func TestMatcher_ShouldReload(t *testing.T) {
 			wantAutoReload: false,
 			description:    "ConfigMaps in comma-separated exclude list should not trigger reload",
 		},
-
-		// BUG FIX: Explicit annotation checked BEFORE auto
 		{
 			name: "explicit reload annotation with auto enabled - should reload",
 			input: MatchInput{
@@ -133,8 +128,6 @@ func TestMatcher_ShouldReload(t *testing.T) {
 			wantAutoReload: false,
 			description:    "ConfigMaps not in reload list should not trigger reload",
 		},
-
-		// Auto annotation tests
 		{
 			name: "auto annotation on workload triggers reload",
 			input: MatchInput{
@@ -205,8 +198,6 @@ func TestMatcher_ShouldReload(t *testing.T) {
 			wantAutoReload: false,
 			description:    "ConfigMap-specific auto annotation should not match secrets",
 		},
-
-		// Search/Match annotation tests
 		{
 			name: "search annotation with matching resource",
 			input: MatchInput{
@@ -235,8 +226,6 @@ func TestMatcher_ShouldReload(t *testing.T) {
 			wantAutoReload: false,
 			description:    "Search annotation without matching resource should not trigger reload",
 		},
-
-		// No annotations - should not reload
 		{
 			name: "no annotations does not trigger reload",
 			input: MatchInput{
@@ -251,8 +240,6 @@ func TestMatcher_ShouldReload(t *testing.T) {
 			wantAutoReload: false,
 			description:    "Without any annotations, should not trigger reload",
 		},
-
-		// Secret tests
 		{
 			name: "secret reload annotation",
 			input: MatchInput{
@@ -289,19 +276,21 @@ func TestMatcher_ShouldReload(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result := matcher.ShouldReload(tt.input)
+		t.Run(
+			tt.name, func(t *testing.T) {
+				result := matcher.ShouldReload(tt.input)
 
-			if result.ShouldReload != tt.wantReload {
-				t.Errorf("ShouldReload = %v, want %v (%s)", result.ShouldReload, tt.wantReload, tt.description)
-			}
+				if result.ShouldReload != tt.wantReload {
+					t.Errorf("ShouldReload = %v, want %v (%s)", result.ShouldReload, tt.wantReload, tt.description)
+				}
 
-			if result.AutoReload != tt.wantAutoReload {
-				t.Errorf("AutoReload = %v, want %v (%s)", result.AutoReload, tt.wantAutoReload, tt.description)
-			}
+				if result.AutoReload != tt.wantAutoReload {
+					t.Errorf("AutoReload = %v, want %v (%s)", result.AutoReload, tt.wantAutoReload, tt.description)
+				}
 
-			t.Logf("✓ %s", tt.description)
-		})
+				t.Logf("✓ %s", tt.description)
+			},
+		)
 	}
 }
 
@@ -364,38 +353,30 @@ func TestMatcher_ShouldReload_AutoReloadAll(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result := matcher.ShouldReload(tt.input)
+		t.Run(
+			tt.name, func(t *testing.T) {
+				result := matcher.ShouldReload(tt.input)
 
-			if result.ShouldReload != tt.wantReload {
-				t.Errorf("ShouldReload = %v, want %v (%s)", result.ShouldReload, tt.wantReload, tt.description)
-			}
+				if result.ShouldReload != tt.wantReload {
+					t.Errorf("ShouldReload = %v, want %v (%s)", result.ShouldReload, tt.wantReload, tt.description)
+				}
 
-			if result.AutoReload != tt.wantAutoReload {
-				t.Errorf("AutoReload = %v, want %v (%s)", result.AutoReload, tt.wantAutoReload, tt.description)
-			}
+				if result.AutoReload != tt.wantAutoReload {
+					t.Errorf("AutoReload = %v, want %v (%s)", result.AutoReload, tt.wantAutoReload, tt.description)
+				}
 
-			t.Logf("✓ %s", tt.description)
-		})
+				t.Logf("✓ %s", tt.description)
+			},
+		)
 	}
 }
 
-// TestMatcher_BugFix_AutoDoesNotIgnoreExplicit tests the fix for the bug where
+// TestMatcher_AutoDoesNotIgnoreExplicit tests the fix for the bug where
 // having reloader.stakater.com/auto: "true" would cause explicit reload annotations
 // to be ignored due to an early return.
-func TestMatcher_BugFix_AutoDoesNotIgnoreExplicit(t *testing.T) {
+func TestMatcher_AutoDoesNotIgnoreExplicit(t *testing.T) {
 	cfg := config.NewDefault()
 	matcher := NewMatcher(cfg)
-
-	// This is the exact scenario from the bug report:
-	// Workload has:
-	//   reloader.stakater.com/auto: "true" (watches all referenced CMs)
-	//   configmap.reloader.stakater.com/reload: "external-config" (ALSO watches this one)
-	// Container references: app-config
-	//
-	// When "external-config" changes:
-	// - Expected: Reload (explicitly listed)
-	// - Bug behavior: No reload (auto annotation causes early return)
 
 	input := MatchInput{
 		ResourceName:        "external-config", // Not referenced by workload
@@ -416,12 +397,11 @@ func TestMatcher_BugFix_AutoDoesNotIgnoreExplicit(t *testing.T) {
 		t.Errorf("Expected ShouldReload=true for explicitly listed ConfigMap, got false")
 	}
 
-	// Should be marked as non-auto since it matched the explicit list
 	if result.AutoReload {
 		t.Errorf("Expected AutoReload=false for explicit match, got true")
 	}
 
-	t.Log("✓ Bug fixed: Explicit reload annotation works even when auto is enabled")
+	t.Log("✓ Explicit reload annotation works even when auto is enabled")
 }
 
 // TestMatcher_PrecedenceOrder verifies the correct order of precedence:
@@ -435,54 +415,60 @@ func TestMatcher_PrecedenceOrder(t *testing.T) {
 	cfg := config.NewDefault()
 	matcher := NewMatcher(cfg)
 
-	t.Run("explicit takes precedence over auto", func(t *testing.T) {
-		input := MatchInput{
-			ResourceName:      "my-config",
-			ResourceNamespace: "default",
-			ResourceType:      ResourceTypeConfigMap,
-			WorkloadAnnotations: map[string]string{
-				"reloader.stakater.com/auto":             "true",
-				"configmap.reloader.stakater.com/reload": "my-config",
-			},
-		}
-		result := matcher.ShouldReload(input)
-		if result.AutoReload {
-			t.Error("Expected explicit match (AutoReload=false), got auto match")
-		}
-		if !result.ShouldReload {
-			t.Error("Expected ShouldReload=true")
-		}
-	})
+	t.Run(
+		"explicit takes precedence over auto", func(t *testing.T) {
+			input := MatchInput{
+				ResourceName:      "my-config",
+				ResourceNamespace: "default",
+				ResourceType:      ResourceTypeConfigMap,
+				WorkloadAnnotations: map[string]string{
+					"reloader.stakater.com/auto":             "true",
+					"configmap.reloader.stakater.com/reload": "my-config",
+				},
+			}
+			result := matcher.ShouldReload(input)
+			if result.AutoReload {
+				t.Error("Expected explicit match (AutoReload=false), got auto match")
+			}
+			if !result.ShouldReload {
+				t.Error("Expected ShouldReload=true")
+			}
+		},
+	)
 
-	t.Run("ignore takes precedence over explicit", func(t *testing.T) {
-		input := MatchInput{
-			ResourceName:        "my-config",
-			ResourceNamespace:   "default",
-			ResourceType:        ResourceTypeConfigMap,
-			ResourceAnnotations: map[string]string{"reloader.stakater.com/ignore": "true"},
-			WorkloadAnnotations: map[string]string{
-				"configmap.reloader.stakater.com/reload": "my-config",
-			},
-		}
-		result := matcher.ShouldReload(input)
-		if result.ShouldReload {
-			t.Error("Expected ignore to take precedence, but got ShouldReload=true")
-		}
-	})
+	t.Run(
+		"ignore takes precedence over explicit", func(t *testing.T) {
+			input := MatchInput{
+				ResourceName:        "my-config",
+				ResourceNamespace:   "default",
+				ResourceType:        ResourceTypeConfigMap,
+				ResourceAnnotations: map[string]string{"reloader.stakater.com/ignore": "true"},
+				WorkloadAnnotations: map[string]string{
+					"configmap.reloader.stakater.com/reload": "my-config",
+				},
+			}
+			result := matcher.ShouldReload(input)
+			if result.ShouldReload {
+				t.Error("Expected ignore to take precedence, but got ShouldReload=true")
+			}
+		},
+	)
 
-	t.Run("exclude takes precedence over explicit", func(t *testing.T) {
-		input := MatchInput{
-			ResourceName:      "my-config",
-			ResourceNamespace: "default",
-			ResourceType:      ResourceTypeConfigMap,
-			WorkloadAnnotations: map[string]string{
-				"configmap.reloader.stakater.com/reload":          "my-config",
-				"configmaps.exclude.reloader.stakater.com/reload": "my-config",
-			},
-		}
-		result := matcher.ShouldReload(input)
-		if result.ShouldReload {
-			t.Error("Expected exclude to take precedence, but got ShouldReload=true")
-		}
-	})
+	t.Run(
+		"exclude takes precedence over explicit", func(t *testing.T) {
+			input := MatchInput{
+				ResourceName:      "my-config",
+				ResourceNamespace: "default",
+				ResourceType:      ResourceTypeConfigMap,
+				WorkloadAnnotations: map[string]string{
+					"configmap.reloader.stakater.com/reload":          "my-config",
+					"configmaps.exclude.reloader.stakater.com/reload": "my-config",
+				},
+			}
+			result := matcher.ShouldReload(input)
+			if result.ShouldReload {
+				t.Error("Expected exclude to take precedence, but got ShouldReload=true")
+			}
+		},
+	)
 }

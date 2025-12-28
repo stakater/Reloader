@@ -58,10 +58,8 @@ func (h *PauseHandler) ApplyPause(wl workload.WorkloadAccessor) error {
 
 	deploy := deployWl.GetDeployment()
 
-	// Set paused flag
 	deploy.Spec.Paused = true
 
-	// Set paused-at annotation
 	if deploy.Annotations == nil {
 		deploy.Annotations = make(map[string]string)
 	}
@@ -109,7 +107,6 @@ func (h *PauseHandler) CheckPauseExpired(deploy *appsv1.Deployment) (expired boo
 func (h *PauseHandler) ClearPause(deploy *appsv1.Deployment) {
 	deploy.Spec.Paused = false
 	delete(deploy.Annotations, h.cfg.Annotations.PausedAt)
-	// Keep pause-period annotation (user's config)
 }
 
 // IsPausedByReloader checks if a deployment was paused by Reloader.

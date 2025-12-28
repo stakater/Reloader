@@ -19,7 +19,6 @@ func testLogger() logr.Logger {
 }
 
 func TestNewBuildInfo(t *testing.T) {
-	// Set build variables for testing
 	oldVersion := Version
 	oldCommit := Commit
 	oldBuildDate := BuildDate
@@ -49,7 +48,10 @@ func TestNewBuildInfo(t *testing.T) {
 	}
 }
 
-func TestNewReloaderOptions(t *testing.T) {
+func TestNewMetaInfo(t *testing.T) {
+	t.Setenv(EnvReloaderNamespace, "test-ns")
+	t.Setenv(EnvReloaderDeploymentName, "test-deploy")
+
 	cfg := config.NewDefault()
 	cfg.AutoReloadAll = true
 	cfg.ReloadStrategy = config.ReloadStrategyAnnotations
@@ -64,53 +66,39 @@ func TestNewReloaderOptions(t *testing.T) {
 	cfg.IgnoredWorkloads = []string{"jobs"}
 	cfg.IgnoredNamespaces = []string{"kube-system"}
 
-	opts := NewReloaderOptions(cfg)
+	metaInfo := NewMetaInfo(cfg)
 
-	if !opts.AutoReloadAll {
+	if !metaInfo.Config.AutoReloadAll {
 		t.Error("AutoReloadAll should be true")
 	}
-	if opts.ReloadStrategy != "annotations" {
-		t.Errorf("ReloadStrategy = %s, want annotations", opts.ReloadStrategy)
+	if metaInfo.Config.ReloadStrategy != config.ReloadStrategyAnnotations {
+		t.Errorf("ReloadStrategy = %s, want annotations", metaInfo.Config.ReloadStrategy)
 	}
-	if !opts.IsArgoRollouts {
-		t.Error("IsArgoRollouts should be true")
+	if !metaInfo.Config.ArgoRolloutsEnabled {
+		t.Error("ArgoRolloutsEnabled should be true")
 	}
-	if !opts.ReloadOnCreate {
+	if !metaInfo.Config.ReloadOnCreate {
 		t.Error("ReloadOnCreate should be true")
 	}
-	if !opts.ReloadOnDelete {
+	if !metaInfo.Config.ReloadOnDelete {
 		t.Error("ReloadOnDelete should be true")
 	}
-	if !opts.EnableHA {
+	if !metaInfo.Config.EnableHA {
 		t.Error("EnableHA should be true")
 	}
-	if opts.WebhookURL != "https://example.com/webhook" {
-		t.Errorf("WebhookURL = %s, want https://example.com/webhook", opts.WebhookURL)
-	}
-	if opts.LogFormat != "json" {
-		t.Errorf("LogFormat = %s, want json", opts.LogFormat)
-	}
-	if opts.LogLevel != "debug" {
-		t.Errorf("LogLevel = %s, want debug", opts.LogLevel)
-	}
-	if len(opts.ResourcesToIgnore) != 1 || opts.ResourcesToIgnore[0] != "configmaps" {
-		t.Errorf("ResourcesToIgnore = %v, want [configmaps]", opts.ResourcesToIgnore)
-	}
-	if len(opts.WorkloadTypesToIgnore) != 1 || opts.WorkloadTypesToIgnore[0] != "jobs" {
-		t.Errorf("WorkloadTypesToIgnore = %v, want [jobs]", opts.WorkloadTypesToIgnore)
-	}
-	if len(opts.NamespacesToIgnore) != 1 || opts.NamespacesToIgnore[0] != "kube-system" {
-		t.Errorf("NamespacesToIgnore = %v, want [kube-system]", opts.NamespacesToIgnore)
+	if metaInfo.Config.WebhookURL != "https://example.com/webhook" {
+		t.Errorf("WebhookURL = %s, want https://example.com/webhook", metaInfo.Config.WebhookURL)
 	}
 
-	// Check annotations
-	if opts.ReloaderAutoAnnotation != "reloader.stakater.com/auto" {
-		t.Errorf("ReloaderAutoAnnotation = %s, want reloader.stakater.com/auto", opts.ReloaderAutoAnnotation)
+	if metaInfo.DeploymentInfo.Namespace != "test-ns" {
+		t.Errorf("DeploymentInfo.Namespace = %s, want test-ns", metaInfo.DeploymentInfo.Namespace)
+	}
+	if metaInfo.DeploymentInfo.Name != "test-deploy" {
+		t.Errorf("DeploymentInfo.Name = %s, want test-deploy", metaInfo.DeploymentInfo.Name)
 	}
 }
 
 func TestMetaInfo_ToConfigMap(t *testing.T) {
-	// Set environment variables
 	t.Setenv(EnvReloaderNamespace, "reloader-ns")
 	t.Setenv(EnvReloaderDeploymentName, "reloader-deploy")
 
@@ -128,12 +116,11 @@ func TestMetaInfo_ToConfigMap(t *testing.T) {
 		t.Errorf("Label = %s, want %s", cm.Labels[ConfigMapLabelKey], ConfigMapLabelValue)
 	}
 
-	// Check data fields exist
 	if _, ok := cm.Data["buildInfo"]; !ok {
 		t.Error("buildInfo data key missing")
 	}
-	if _, ok := cm.Data["reloaderOptions"]; !ok {
-		t.Error("reloaderOptions data key missing")
+	if _, ok := cm.Data["config"]; !ok {
+		t.Error("config data key missing")
 	}
 	if _, ok := cm.Data["deploymentInfo"]; !ok {
 		t.Error("deploymentInfo data key missing")
@@ -143,6 +130,11 @@ func TestMetaInfo_ToConfigMap(t *testing.T) {
 	var buildInfo BuildInfo
 	if err := json.Unmarshal([]byte(cm.Data["buildInfo"]), &buildInfo); err != nil {
 		t.Errorf("buildInfo is not valid JSON: %v", err)
+	}
+
+	var parsedConfig config.Config
+	if err := json.Unmarshal([]byte(cm.Data["config"]), &parsedConfig); err != nil {
+		t.Errorf("config is not valid JSON: %v", err)
 	}
 
 	// Verify deploymentInfo contains expected values
@@ -159,7 +151,6 @@ func TestMetaInfo_ToConfigMap(t *testing.T) {
 }
 
 func TestPublisher_Publish_NoNamespace(t *testing.T) {
-	// Ensure RELOADER_NAMESPACE is not set (empty value)
 	t.Setenv(EnvReloaderNamespace, "")
 
 	scheme := runtime.NewScheme()
@@ -176,7 +167,6 @@ func TestPublisher_Publish_NoNamespace(t *testing.T) {
 }
 
 func TestPublisher_Publish_CreateNew(t *testing.T) {
-	// Set environment variables
 	t.Setenv(EnvReloaderNamespace, "test-ns")
 	t.Setenv(EnvReloaderDeploymentName, "test-deploy")
 
@@ -193,7 +183,6 @@ func TestPublisher_Publish_CreateNew(t *testing.T) {
 		t.Errorf("Publish() error = %v", err)
 	}
 
-	// Verify ConfigMap was created
 	cm := &corev1.ConfigMap{}
 	err = fakeClient.Get(ctx, client.ObjectKey{Name: ConfigMapName, Namespace: "test-ns"}, cm)
 	if err != nil {
@@ -205,14 +194,12 @@ func TestPublisher_Publish_CreateNew(t *testing.T) {
 }
 
 func TestPublisher_Publish_UpdateExisting(t *testing.T) {
-	// Set environment variables
 	t.Setenv(EnvReloaderNamespace, "test-ns")
 	t.Setenv(EnvReloaderDeploymentName, "test-deploy")
 
 	scheme := runtime.NewScheme()
 	_ = corev1.AddToScheme(scheme)
 
-	// Create existing ConfigMap with old data
 	existingCM := &corev1.ConfigMap{}
 	existingCM.Name = ConfigMapName
 	existingCM.Namespace = "test-ns"
@@ -234,32 +221,28 @@ func TestPublisher_Publish_UpdateExisting(t *testing.T) {
 		t.Errorf("Publish() error = %v", err)
 	}
 
-	// Verify ConfigMap was updated
 	cm := &corev1.ConfigMap{}
 	err = fakeClient.Get(ctx, client.ObjectKey{Name: ConfigMapName, Namespace: "test-ns"}, cm)
 	if err != nil {
 		t.Errorf("Failed to get updated ConfigMap: %v", err)
 	}
 
-	// Check that all data keys are present
 	if _, ok := cm.Data["buildInfo"]; !ok {
 		t.Error("buildInfo data key missing after update")
 	}
-	if _, ok := cm.Data["reloaderOptions"]; !ok {
-		t.Error("reloaderOptions data key missing after update")
+	if _, ok := cm.Data["config"]; !ok {
+		t.Error("config data key missing after update")
 	}
 	if _, ok := cm.Data["deploymentInfo"]; !ok {
 		t.Error("deploymentInfo data key missing after update")
 	}
 
-	// Verify labels were added
 	if cm.Labels[ConfigMapLabelKey] != ConfigMapLabelValue {
 		t.Errorf("Label not updated: %s", cm.Labels[ConfigMapLabelKey])
 	}
 }
 
 func TestPublishMetaInfoConfigMap(t *testing.T) {
-	// Set environment variables
 	t.Setenv(EnvReloaderNamespace, "test-ns")
 
 	scheme := runtime.NewScheme()
@@ -274,7 +257,6 @@ func TestPublishMetaInfoConfigMap(t *testing.T) {
 		t.Errorf("PublishMetaInfoConfigMap() error = %v", err)
 	}
 
-	// Verify ConfigMap was created
 	cm := &corev1.ConfigMap{}
 	err = fakeClient.Get(ctx, client.ObjectKey{Name: ConfigMapName, Namespace: "test-ns"}, cm)
 	if err != nil {
@@ -306,17 +288,19 @@ func TestParseUTCTime(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result := parseUTCTime(tt.input)
-			if tt.wantErr {
-				if !result.IsZero() {
-					t.Errorf("parseUTCTime(%s) should return zero time", tt.input)
+		t.Run(
+			tt.name, func(t *testing.T) {
+				result := parseUTCTime(tt.input)
+				if tt.wantErr {
+					if !result.IsZero() {
+						t.Errorf("parseUTCTime(%s) should return zero time", tt.input)
+					}
+				} else {
+					if result.IsZero() {
+						t.Errorf("parseUTCTime(%s) should not return zero time", tt.input)
+					}
 				}
-			} else {
-				if result.IsZero() {
-					t.Errorf("parseUTCTime(%s) should not return zero time", tt.input)
-				}
-			}
-		})
+			},
+		)
 	}
 }

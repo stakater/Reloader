@@ -66,7 +66,7 @@ func (c *Config) Validate() error {
 	default:
 		errs = append(
 			errs, ValidationError{
-				Field:   "ArgoRolloutStrategy",
+				Field: "ArgoRolloutStrategy",
 				Message: fmt.Sprintf(
 					"invalid value %q, must be %q or %q", c.ArgoRolloutStrategy, ArgoRolloutStrategyRestart, ArgoRolloutStrategyRollout,
 				),

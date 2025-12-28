@@ -26,75 +26,75 @@ const (
 
 // Config holds all configuration for Reloader.
 type Config struct {
-	Annotations         AnnotationConfig
-	AutoReloadAll       bool
-	ReloadStrategy      ReloadStrategy
-	ArgoRolloutsEnabled bool
-	ArgoRolloutStrategy ArgoRolloutStrategy
-	ReloadOnCreate      bool
-	ReloadOnDelete      bool
-	SyncAfterRestart    bool
-	EnableHA            bool
-	WebhookURL          string
+	Annotations         AnnotationConfig    `json:"annotations"`
+	AutoReloadAll       bool                `json:"autoReloadAll"`
+	ReloadStrategy      ReloadStrategy      `json:"reloadStrategy"`
+	ArgoRolloutsEnabled bool                `json:"argoRolloutsEnabled"`
+	ArgoRolloutStrategy ArgoRolloutStrategy `json:"argoRolloutStrategy"`
+	ReloadOnCreate      bool                `json:"reloadOnCreate"`
+	ReloadOnDelete      bool                `json:"reloadOnDelete"`
+	SyncAfterRestart    bool                `json:"syncAfterRestart"`
+	EnableHA            bool                `json:"enableHA"`
+	WebhookURL          string              `json:"webhookUrl,omitempty"`
 
-	IgnoredResources         []string
-	IgnoredWorkloads         []string
-	IgnoredNamespaces        []string
-	NamespaceSelectors       []labels.Selector
-	ResourceSelectors        []labels.Selector
-	NamespaceSelectorStrings []string
-	ResourceSelectorStrings  []string
+	IgnoredResources         []string          `json:"ignoredResources,omitempty"`
+	IgnoredWorkloads         []string          `json:"ignoredWorkloads,omitempty"`
+	IgnoredNamespaces        []string          `json:"ignoredNamespaces,omitempty"`
+	NamespaceSelectors       []labels.Selector `json:"-"`
+	ResourceSelectors        []labels.Selector `json:"-"`
+	NamespaceSelectorStrings []string          `json:"namespaceSelectors,omitempty"`
+	ResourceSelectorStrings  []string          `json:"resourceSelectors,omitempty"`
 
-	LogFormat   string
-	LogLevel    string
-	MetricsAddr string
-	HealthAddr  string
-	EnablePProf bool
-	PProfAddr   string
+	LogFormat   string `json:"logFormat,omitempty"`
+	LogLevel    string `json:"logLevel"`
+	MetricsAddr string `json:"metricsAddr"`
+	HealthAddr  string `json:"healthAddr"`
+	EnablePProf bool   `json:"enablePProf"`
+	PProfAddr   string `json:"pprofAddr,omitempty"`
 
-	Alerting         AlertingConfig
-	LeaderElection   LeaderElectionConfig
-	WatchedNamespace string
-	SyncPeriod       time.Duration
+	Alerting         AlertingConfig       `json:"alerting"`
+	LeaderElection   LeaderElectionConfig `json:"leaderElection"`
+	WatchedNamespace string               `json:"watchedNamespace,omitempty"`
+	SyncPeriod       time.Duration        `json:"syncPeriod"`
 }
 
 // AnnotationConfig holds customizable annotation keys.
 type AnnotationConfig struct {
-	Prefix           string
-	Auto             string
-	ConfigmapAuto    string
-	SecretAuto       string
-	ConfigmapReload  string
-	SecretReload     string
-	ConfigmapExclude string
-	SecretExclude    string
-	Ignore           string
-	Search           string
-	Match            string
-	RolloutStrategy  string
-	PausePeriod      string
-	PausedAt         string
-	LastReloadedFrom string
+	Prefix           string `json:"prefix"`
+	Auto             string `json:"auto"`
+	ConfigmapAuto    string `json:"configmapAuto"`
+	SecretAuto       string `json:"secretAuto"`
+	ConfigmapReload  string `json:"configmapReload"`
+	SecretReload     string `json:"secretReload"`
+	ConfigmapExclude string `json:"configmapExclude"`
+	SecretExclude    string `json:"secretExclude"`
+	Ignore           string `json:"ignore"`
+	Search           string `json:"search"`
+	Match            string `json:"match"`
+	RolloutStrategy  string `json:"rolloutStrategy"`
+	PausePeriod      string `json:"pausePeriod"`
+	PausedAt         string `json:"pausedAt"`
+	LastReloadedFrom string `json:"lastReloadedFrom"`
 }
 
 // AlertingConfig holds configuration for alerting integrations.
 type AlertingConfig struct {
-	Enabled    bool
-	WebhookURL string
-	Sink       string
-	Proxy      string
-	Additional string
+	Enabled    bool   `json:"enabled"`
+	WebhookURL string `json:"webhookUrl,omitempty"`
+	Sink       string `json:"sink,omitempty"`
+	Proxy      string `json:"proxy,omitempty"`
+	Additional string `json:"additional,omitempty"`
 }
 
 // LeaderElectionConfig holds configuration for leader election.
 type LeaderElectionConfig struct {
-	LockName        string
-	Namespace       string
-	Identity        string
-	LeaseDuration   time.Duration
-	RenewDeadline   time.Duration
-	RetryPeriod     time.Duration
-	ReleaseOnCancel bool
+	LockName        string        `json:"lockName"`
+	Namespace       string        `json:"namespace,omitempty"`
+	Identity        string        `json:"identity,omitempty"`
+	LeaseDuration   time.Duration `json:"leaseDuration"`
+	RenewDeadline   time.Duration `json:"renewDeadline"`
+	RetryPeriod     time.Duration `json:"retryPeriod"`
+	ReleaseOnCancel bool          `json:"releaseOnCancel"`
 }
 
 // NewDefault creates a Config with default values.
@@ -184,4 +184,3 @@ func (c *Config) IsNamespaceIgnored(namespace string) bool {
 	}
 	return false
 }
-

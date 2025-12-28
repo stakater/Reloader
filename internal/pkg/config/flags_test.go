@@ -12,7 +12,6 @@ func TestBindFlags(t *testing.T) {
 
 	BindFlags(fs, cfg)
 
-	// Verify flags are registered
 	expectedFlags := []string{
 		"auto-reload-all",
 		"reload-strategy",
@@ -64,12 +63,10 @@ func TestBindFlags_DefaultValues(t *testing.T) {
 
 	BindFlags(fs, cfg)
 
-	// Parse empty args to use defaults
 	if err := fs.Parse([]string{}); err != nil {
 		t.Fatalf("Parse() error = %v", err)
 	}
 
-	// Check default values are preserved
 	if cfg.ReloadStrategy != ReloadStrategyEnvVars {
 		t.Errorf("ReloadStrategy = %v, want %v", cfg.ReloadStrategy, ReloadStrategyEnvVars)
 	}
@@ -146,33 +143,33 @@ func TestApplyFlags_BooleanStrings(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			// Reset flag values
-			fv = flagValues{}
+		t.Run(
+			tt.name, func(t *testing.T) {
+				fv = flagValues{}
 
-			cfg := NewDefault()
-			fs := pflag.NewFlagSet("test", pflag.ContinueOnError)
-			BindFlags(fs, cfg)
+				cfg := NewDefault()
+				fs := pflag.NewFlagSet("test", pflag.ContinueOnError)
+				BindFlags(fs, cfg)
 
-			if err := fs.Parse(tt.args); err != nil {
-				t.Fatalf("Parse() error = %v", err)
-			}
+				if err := fs.Parse(tt.args); err != nil {
+					t.Fatalf("Parse() error = %v", err)
+				}
 
-			err := ApplyFlags(cfg)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("ApplyFlags() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
+				err := ApplyFlags(cfg)
+				if (err != nil) != tt.wantErr {
+					t.Errorf("ApplyFlags() error = %v, wantErr %v", err, tt.wantErr)
+					return
+				}
 
-			if cfg.ArgoRolloutsEnabled != tt.want {
-				t.Errorf("ArgoRolloutsEnabled = %v, want %v", cfg.ArgoRolloutsEnabled, tt.want)
-			}
-		})
+				if cfg.ArgoRolloutsEnabled != tt.want {
+					t.Errorf("ArgoRolloutsEnabled = %v, want %v", cfg.ArgoRolloutsEnabled, tt.want)
+				}
+			},
+		)
 	}
 }
 
 func TestApplyFlags_CommaSeparatedLists(t *testing.T) {
-	// Reset flag values
 	fv = flagValues{}
 
 	cfg := NewDefault()
@@ -193,7 +190,6 @@ func TestApplyFlags_CommaSeparatedLists(t *testing.T) {
 		t.Fatalf("ApplyFlags() error = %v", err)
 	}
 
-	// Check ignored resources
 	if len(cfg.IgnoredResources) != 2 {
 		t.Errorf("IgnoredResources length = %d, want 2", len(cfg.IgnoredResources))
 	}
@@ -201,7 +197,6 @@ func TestApplyFlags_CommaSeparatedLists(t *testing.T) {
 		t.Errorf("IgnoredResources = %v", cfg.IgnoredResources)
 	}
 
-	// Check ignored workloads
 	if len(cfg.IgnoredWorkloads) != 2 {
 		t.Errorf("IgnoredWorkloads length = %d, want 2", len(cfg.IgnoredWorkloads))
 	}
@@ -213,7 +208,6 @@ func TestApplyFlags_CommaSeparatedLists(t *testing.T) {
 }
 
 func TestApplyFlags_Selectors(t *testing.T) {
-	// Reset flag values
 	fv = flagValues{}
 
 	cfg := NewDefault()
@@ -241,14 +235,12 @@ func TestApplyFlags_Selectors(t *testing.T) {
 		t.Errorf("ResourceSelectors length = %d, want 1", len(cfg.ResourceSelectors))
 	}
 
-	// Check string versions are preserved
 	if len(cfg.NamespaceSelectorStrings) != 2 {
 		t.Errorf("NamespaceSelectorStrings length = %d, want 2", len(cfg.NamespaceSelectorStrings))
 	}
 }
 
 func TestApplyFlags_InvalidSelector(t *testing.T) {
-	// Reset flag values
 	fv = flagValues{}
 
 	cfg := NewDefault()
@@ -290,12 +282,14 @@ func TestParseBoolString(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		t.Run(tt.input, func(t *testing.T) {
-			got := parseBoolString(tt.input)
-			if got != tt.want {
-				t.Errorf("parseBoolString(%q) = %v, want %v", tt.input, got, tt.want)
-			}
-		})
+		t.Run(
+			tt.input, func(t *testing.T) {
+				got := parseBoolString(tt.input)
+				if got != tt.want {
+					t.Errorf("parseBoolString(%q) = %v, want %v", tt.input, got, tt.want)
+				}
+			},
+		)
 	}
 }
 
@@ -314,17 +308,19 @@ func TestSplitAndTrim(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got := splitAndTrim(tt.input)
-			if len(got) != len(tt.want) {
-				t.Errorf("splitAndTrim(%q) length = %d, want %d", tt.input, len(got), len(tt.want))
-				return
-			}
-			for i := range got {
-				if got[i] != tt.want[i] {
-					t.Errorf("splitAndTrim(%q)[%d] = %q, want %q", tt.input, i, got[i], tt.want[i])
+		t.Run(
+			tt.name, func(t *testing.T) {
+				got := splitAndTrim(tt.input)
+				if len(got) != len(tt.want) {
+					t.Errorf("splitAndTrim(%q) length = %d, want %d", tt.input, len(got), len(tt.want))
+					return
 				}
-			}
-		})
+				for i := range got {
+					if got[i] != tt.want[i] {
+						t.Errorf("splitAndTrim(%q)[%d] = %q, want %q", tt.input, i, got[i], tt.want[i])
+					}
+				}
+			},
+		)
 	}
 }

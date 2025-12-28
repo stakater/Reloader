@@ -208,7 +208,7 @@ func ApplyFlags(cfg *Config) error {
 	cfg.IgnoredWorkloads = splitAndTrim(fv.ignoredWorkloads)
 	cfg.IgnoredNamespaces = splitAndTrim(fv.ignoredNamespaces)
 
-	// Store raw selector strings (for backward compatibility)
+	// Store raw selector strings
 	cfg.NamespaceSelectorStrings = splitAndTrim(fv.namespaceSelectors)
 	cfg.ResourceSelectorStrings = splitAndTrim(fv.resourceSelectors)
 

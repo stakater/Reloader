@@ -12,7 +12,6 @@ func TestNewDefault(t *testing.T) {
 		t.Fatal("NewDefault() returned nil")
 	}
 
-	// Test default values
 	if cfg.ReloadStrategy != ReloadStrategyEnvVars {
 		t.Errorf("ReloadStrategy = %v, want %v", cfg.ReloadStrategy, ReloadStrategyEnvVars)
 	}
@@ -200,4 +199,3 @@ func TestConfig_IsNamespaceIgnored(t *testing.T) {
 		)
 	}
 }
-

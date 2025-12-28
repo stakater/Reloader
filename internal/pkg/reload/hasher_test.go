@@ -20,7 +20,6 @@ func TestHasher_HashConfigMap(t *testing.T) {
 				Data:       nil,
 				BinaryData: nil,
 			},
-			// Empty configmap gets a valid hash (hash of empty data)
 			wantHash: hasher.HashConfigMap(&corev1.ConfigMap{}),
 		},
 		{
@@ -31,13 +30,14 @@ func TestHasher_HashConfigMap(t *testing.T) {
 					"key2": "value2",
 				},
 			},
-			// Hash should be deterministic
-			wantHash: hasher.HashConfigMap(&corev1.ConfigMap{
-				Data: map[string]string{
-					"key1": "value1",
-					"key2": "value2",
+			wantHash: hasher.HashConfigMap(
+				&corev1.ConfigMap{
+					Data: map[string]string{
+						"key1": "value1",
+						"key2": "value2",
+					},
 				},
-			}),
+			),
 		},
 		{
 			name: "configmap with binary data",
@@ -46,21 +46,25 @@ func TestHasher_HashConfigMap(t *testing.T) {
 					"binary1": []byte("binaryvalue1"),
 				},
 			},
-			wantHash: hasher.HashConfigMap(&corev1.ConfigMap{
-				BinaryData: map[string][]byte{
-					"binary1": []byte("binaryvalue1"),
+			wantHash: hasher.HashConfigMap(
+				&corev1.ConfigMap{
+					BinaryData: map[string][]byte{
+						"binary1": []byte("binaryvalue1"),
+					},
 				},
-			}),
+			),
 		},
 	}
 
 	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got := hasher.HashConfigMap(tt.cm)
-			if got != tt.wantHash {
-				t.Errorf("HashConfigMap() = %v, want %v", got, tt.wantHash)
-			}
-		})
+		t.Run(
+			tt.name, func(t *testing.T) {
+				got := hasher.HashConfigMap(tt.cm)
+				if got != tt.wantHash {
+					t.Errorf("HashConfigMap() = %v, want %v", got, tt.wantHash)
+				}
+			},
+		)
 	}
 }
 
@@ -75,7 +79,6 @@ func TestHasher_HashConfigMap_Deterministic(t *testing.T) {
 		},
 	}
 
-	// Hash should be the same regardless of iteration order
 	hash1 := hasher.HashConfigMap(cm)
 	hash2 := hasher.HashConfigMap(cm)
 	hash3 := hasher.HashConfigMap(cm)
@@ -121,7 +124,6 @@ func TestHasher_HashSecret(t *testing.T) {
 			secret: &corev1.Secret{
 				Data: nil,
 			},
-			// Empty secret gets a valid hash (hash of empty data)
 			wantHash: hasher.HashSecret(&corev1.Secret{}),
 		},
 		{
@@ -132,22 +134,26 @@ func TestHasher_HashSecret(t *testing.T) {
 					"key2": []byte("value2"),
 				},
 			},
-			wantHash: hasher.HashSecret(&corev1.Secret{
-				Data: map[string][]byte{
-					"key1": []byte("value1"),
-					"key2": []byte("value2"),
+			wantHash: hasher.HashSecret(
+				&corev1.Secret{
+					Data: map[string][]byte{
+						"key1": []byte("value1"),
+						"key2": []byte("value2"),
+					},
 				},
-			}),
+			),
 		},
 	}
 
 	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got := hasher.HashSecret(tt.secret)
-			if got != tt.wantHash {
-				t.Errorf("HashSecret() = %v, want %v", got, tt.wantHash)
-			}
-		})
+		t.Run(
+			tt.name, func(t *testing.T) {
+				got := hasher.HashSecret(tt.secret)
+				if got != tt.wantHash {
+					t.Errorf("HashSecret() = %v, want %v", got, tt.wantHash)
+				}
+			},
+		)
 	}
 }
 
@@ -162,7 +168,6 @@ func TestHasher_HashSecret_Deterministic(t *testing.T) {
 		},
 	}
 
-	// Hash should be the same regardless of iteration order
 	hash1 := hasher.HashSecret(secret)
 	hash2 := hasher.HashSecret(secret)
 	hash3 := hasher.HashSecret(secret)
@@ -198,20 +203,17 @@ func TestHasher_HashSecret_DifferentValues(t *testing.T) {
 func TestHasher_EmptyHash(t *testing.T) {
 	hasher := NewHasher()
 
-	// EmptyHash returns empty string to signal deletion
 	emptyHash := hasher.EmptyHash()
 	if emptyHash != "" {
 		t.Errorf("EmptyHash should be empty string, got %s", emptyHash)
 	}
 
-	// Empty ConfigMap should have a valid hash (not empty)
 	cm := &corev1.ConfigMap{}
 	cmHash := hasher.HashConfigMap(cm)
 	if cmHash == "" {
 		t.Error("Empty ConfigMap should have a non-empty hash")
 	}
 
-	// Empty Secret should have a valid hash (not empty)
 	secret := &corev1.Secret{}
 	secretHash := hasher.HashSecret(secret)
 	if secretHash == "" {
@@ -222,13 +224,11 @@ func TestHasher_EmptyHash(t *testing.T) {
 func TestHasher_NilInput(t *testing.T) {
 	hasher := NewHasher()
 
-	// Test nil ConfigMap - returns hash of empty content (not EmptyHash)
 	cmHash := hasher.HashConfigMap(nil)
 	if cmHash == "" {
 		t.Error("nil ConfigMap should return a valid hash")
 	}
 
-	// Test nil Secret - returns hash of empty content (not EmptyHash)
 	secretHash := hasher.HashSecret(nil)
 	if secretHash == "" {
 		t.Error("nil Secret should return a valid hash")

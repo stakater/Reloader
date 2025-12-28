@@ -147,7 +147,10 @@ manifest:
 	docker manifest annotate --arch $(ARCH) $(REPOSITORY_GENERIC)  $(REPOSITORY_ARCH)
 
 test:
-	"$(GOCMD)" test -timeout 1800s -v ./cmd/... ./internal/...
+	"$(GOCMD)" test -timeout 1800s -v -short ./cmd/... ./internal/...
+
+e2e:
+	"$(GOCMD)" test -timeout 1800s -v ./test/...
 
 stop:
 	@docker stop "${BINARY}"

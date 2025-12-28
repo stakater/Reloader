@@ -45,9 +45,9 @@ func testAlertMessage() AlertMessage {
 
 func TestNewAlerter(t *testing.T) {
 	tests := []struct {
-		name       string
-		setup      func(*config.Config)
-		wantType   string
+		name     string
+		setup    func(*config.Config)
+		wantType string
 	}{
 		{
 			name: "disabled",

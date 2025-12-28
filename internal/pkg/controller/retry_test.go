@@ -1,118 +1,286 @@
-package controller
+package controller_test
 
 import (
+	"context"
 	"testing"
 
+	"github.com/stakater/Reloader/internal/pkg/config"
+	"github.com/stakater/Reloader/internal/pkg/controller"
 	"github.com/stakater/Reloader/internal/pkg/reload"
 	"github.com/stakater/Reloader/internal/pkg/workload"
 	appsv1 "k8s.io/api/apps/v1"
 	batchv1 "k8s.io/api/batch/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 )
 
-func TestUpdateWorkloadWithRetry_SwitchCases(t *testing.T) {
-	// Test that the switch statement correctly identifies workload types
-	// Note: Full integration tests require a fake k8s client, so we just test type detection
-
+func TestUpdateWorkloadWithRetry_WorkloadTypes(t *testing.T) {
 	tests := []struct {
 		name         string
-		workload     workload.WorkloadAccessor
-		expectedKind workload.Kind
+		object       runtime.Object
+		workload     func(runtime.Object) workload.WorkloadAccessor
+		resourceType reload.ResourceType
+		verify       func(t *testing.T, c client.Client)
 	}{
 		{
-			name: "deployment workload",
-			workload: workload.NewDeploymentWorkload(&appsv1.Deployment{
-				ObjectMeta: metav1.ObjectMeta{Name: "test", Namespace: "default"},
-			}),
-			expectedKind: workload.KindDeployment,
+			name:   "Deployment",
+			object: testDeployment("test-deployment", "default", nil),
+			workload: func(o runtime.Object) workload.WorkloadAccessor {
+				return workload.NewDeploymentWorkload(o.(*appsv1.Deployment))
+			},
+			resourceType: reload.ResourceTypeConfigMap,
+			verify: func(t *testing.T, c client.Client) {
+				var result appsv1.Deployment
+				if err := c.Get(context.Background(), types.NamespacedName{Name: "test-deployment", Namespace: "default"}, &result); err != nil {
+					t.Fatalf("Failed to get deployment: %v", err)
+				}
+				if result.Spec.Template.Annotations == nil {
+					t.Fatal("Expected pod template annotations to be set")
+				}
+			},
 		},
 		{
-			name: "daemonset workload",
-			workload: workload.NewDaemonSetWorkload(&appsv1.DaemonSet{
-				ObjectMeta: metav1.ObjectMeta{Name: "test", Namespace: "default"},
-			}),
-			expectedKind: workload.KindDaemonSet,
+			name:   "DaemonSet",
+			object: testDaemonSet("test-daemonset", "default", nil),
+			workload: func(o runtime.Object) workload.WorkloadAccessor {
+				return workload.NewDaemonSetWorkload(o.(*appsv1.DaemonSet))
+			},
+			resourceType: reload.ResourceTypeSecret,
+			verify: func(t *testing.T, c client.Client) {
+				var result appsv1.DaemonSet
+				if err := c.Get(context.Background(), types.NamespacedName{Name: "test-daemonset", Namespace: "default"}, &result); err != nil {
+					t.Fatalf("Failed to get daemonset: %v", err)
+				}
+				if result.Spec.Template.Annotations == nil {
+					t.Fatal("Expected pod template annotations to be set")
+				}
+			},
 		},
 		{
-			name: "statefulset workload",
-			workload: workload.NewStatefulSetWorkload(&appsv1.StatefulSet{
-				ObjectMeta: metav1.ObjectMeta{Name: "test", Namespace: "default"},
-			}),
-			expectedKind: workload.KindStatefulSet,
+			name:   "StatefulSet",
+			object: testStatefulSet("test-statefulset", "default", nil),
+			workload: func(o runtime.Object) workload.WorkloadAccessor {
+				return workload.NewStatefulSetWorkload(o.(*appsv1.StatefulSet))
+			},
+			resourceType: reload.ResourceTypeConfigMap,
+			verify: func(t *testing.T, c client.Client) {
+				var result appsv1.StatefulSet
+				if err := c.Get(context.Background(), types.NamespacedName{Name: "test-statefulset", Namespace: "default"}, &result); err != nil {
+					t.Fatalf("Failed to get statefulset: %v", err)
+				}
+				if result.Spec.Template.Annotations == nil {
+					t.Fatal("Expected pod template annotations to be set")
+				}
+			},
 		},
 		{
-			name: "job workload",
-			workload: workload.NewJobWorkload(&batchv1.Job{
-				ObjectMeta: metav1.ObjectMeta{Name: "test", Namespace: "default"},
-			}),
-			expectedKind: workload.KindJob,
+			name:   "Job",
+			object: testJob("test-job", "default"),
+			workload: func(o runtime.Object) workload.WorkloadAccessor {
+				return workload.NewJobWorkload(o.(*batchv1.Job))
+			},
+			resourceType: reload.ResourceTypeConfigMap,
+			verify: func(t *testing.T, c client.Client) {
+				var jobs batchv1.JobList
+				if err := c.List(context.Background(), &jobs, client.InNamespace("default")); err != nil {
+					t.Fatalf("Failed to list jobs: %v", err)
+				}
+				if len(jobs.Items) != 1 {
+					t.Errorf("Expected 1 job (recreated), got %d", len(jobs.Items))
+				}
+			},
 		},
 		{
-			name: "cronjob workload",
-			workload: workload.NewCronJobWorkload(&batchv1.CronJob{
-				ObjectMeta: metav1.ObjectMeta{Name: "test", Namespace: "default"},
-			}),
-			expectedKind: workload.KindCronJob,
+			name:   "CronJob",
+			object: testCronJob("test-cronjob", "default"),
+			workload: func(o runtime.Object) workload.WorkloadAccessor {
+				return workload.NewCronJobWorkload(o.(*batchv1.CronJob))
+			},
+			resourceType: reload.ResourceTypeSecret,
+			verify: func(t *testing.T, c client.Client) {
+				var jobs batchv1.JobList
+				if err := c.List(context.Background(), &jobs, client.InNamespace("default")); err != nil {
+					t.Fatalf("Failed to list jobs: %v", err)
+				}
+				if len(jobs.Items) != 1 {
+					t.Errorf("Expected 1 job from cronjob, got %d", len(jobs.Items))
+				}
+				if len(jobs.Items) > 0 && jobs.Items[0].Annotations["cronjob.kubernetes.io/instantiate"] != "manual" {
+					t.Error("Expected job to have manual instantiate annotation")
+				}
+			},
 		},
 	}
 
 	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			// Verify the workload kind is correctly identified
-			if tt.workload.Kind() != tt.expectedKind {
-				t.Errorf("workload.Kind() = %v, want %v", tt.workload.Kind(), tt.expectedKind)
-			}
-		})
+		t.Run(
+			tt.name, func(t *testing.T) {
+				cfg := config.NewDefault()
+				reloadService := reload.NewService(cfg)
+
+				fakeClient := fake.NewClientBuilder().
+					WithScheme(testScheme()).
+					WithRuntimeObjects(tt.object).
+					Build()
+
+				wl := tt.workload(tt.object)
+
+				updated, err := controller.UpdateWorkloadWithRetry(
+					context.Background(),
+					fakeClient,
+					reloadService,
+					wl,
+					"test-resource",
+					tt.resourceType,
+					"default",
+					"abc123",
+					false,
+				)
+
+				if err != nil {
+					t.Fatalf("UpdateWorkloadWithRetry failed: %v", err)
+				}
+				if !updated {
+					t.Error("Expected workload to be updated")
+				}
+
+				tt.verify(t, fakeClient)
+			},
+		)
 	}
 }
 
-func TestJobWorkloadTypeCast(t *testing.T) {
-	// Test that JobWorkload type cast works correctly
-	job := &batchv1.Job{
-		ObjectMeta: metav1.ObjectMeta{Name: "test-job", Namespace: "default"},
-	}
-	jobWl := workload.NewJobWorkload(job)
-
-	if jobWl.GetName() != "test-job" {
-		t.Errorf("JobWorkload.GetName() = %v, want test-job", jobWl.GetName())
-	}
-
-	// Test GetJob method
-	gotJob := jobWl.GetJob()
-	if gotJob.Name != "test-job" {
-		t.Errorf("JobWorkload.GetJob().Name = %v, want test-job", gotJob.Name)
-	}
-
-	// Verify it satisfies WorkloadAccessor interface
-	var _ workload.WorkloadAccessor = jobWl
-}
-
-func TestCronJobWorkloadTypeCast(t *testing.T) {
-	// Test that CronJobWorkload type cast works correctly
-	cronJob := &batchv1.CronJob{
-		ObjectMeta: metav1.ObjectMeta{Name: "test-cronjob", Namespace: "default"},
-		Spec: batchv1.CronJobSpec{
-			Schedule: "*/5 * * * *",
+func TestUpdateWorkloadWithRetry_Strategies(t *testing.T) {
+	tests := []struct {
+		name     string
+		strategy config.ReloadStrategy
+		verify   func(t *testing.T, cfg *config.Config, result *appsv1.Deployment)
+	}{
+		{
+			name:     "EnvVarStrategy",
+			strategy: config.ReloadStrategyEnvVars,
+			verify: func(t *testing.T, cfg *config.Config, result *appsv1.Deployment) {
+				found := false
+				for _, env := range result.Spec.Template.Spec.Containers[0].Env {
+					if env.Name == "STAKATER_TEST_CM_CONFIGMAP" && env.Value == "abc123" {
+						found = true
+						break
+					}
+				}
+				if !found {
+					t.Error("Expected STAKATER_TEST_CM_CONFIGMAP env var to be set")
+				}
+			},
+		},
+		{
+			name:     "AnnotationStrategy",
+			strategy: config.ReloadStrategyAnnotations,
+			verify: func(t *testing.T, cfg *config.Config, result *appsv1.Deployment) {
+				if result.Spec.Template.Annotations == nil {
+					t.Fatal("Expected pod template annotations to be set")
+				}
+				if _, ok := result.Spec.Template.Annotations[cfg.Annotations.LastReloadedFrom]; !ok {
+					t.Errorf("Expected %s annotation to be set", cfg.Annotations.LastReloadedFrom)
+				}
+				for _, env := range result.Spec.Template.Spec.Containers[0].Env {
+					if env.Name == "STAKATER_TEST_CM_CONFIGMAP" {
+						t.Error("Annotation strategy should not add env vars")
+					}
+				}
+			},
 		},
 	}
-	cronJobWl := workload.NewCronJobWorkload(cronJob)
 
-	if cronJobWl.GetName() != "test-cronjob" {
-		t.Errorf("CronJobWorkload.GetName() = %v, want test-cronjob", cronJobWl.GetName())
+	for _, tt := range tests {
+		t.Run(
+			tt.name, func(t *testing.T) {
+				cfg := config.NewDefault()
+				cfg.ReloadStrategy = tt.strategy
+				reloadService := reload.NewService(cfg)
+
+				deployment := testDeployment("test-deployment", "default", nil)
+				fakeClient := fake.NewClientBuilder().
+					WithScheme(testScheme()).
+					WithObjects(deployment).
+					Build()
+
+				wl := workload.NewDeploymentWorkload(deployment)
+
+				updated, err := controller.UpdateWorkloadWithRetry(
+					context.Background(),
+					fakeClient,
+					reloadService,
+					wl,
+					"test-cm",
+					reload.ResourceTypeConfigMap,
+					"default",
+					"abc123",
+					false,
+				)
+
+				if err != nil {
+					t.Fatalf("UpdateWorkloadWithRetry failed: %v", err)
+				}
+				if !updated {
+					t.Error("Expected workload to be updated")
+				}
+
+				var result appsv1.Deployment
+				if err := fakeClient.Get(
+					context.Background(), types.NamespacedName{Name: "test-deployment", Namespace: "default"}, &result,
+				); err != nil {
+					t.Fatalf("Failed to get deployment: %v", err)
+				}
+
+				tt.verify(t, cfg, &result)
+			},
+		)
+	}
+}
+
+func TestUpdateWorkloadWithRetry_NoUpdate(t *testing.T) {
+	cfg := config.NewDefault()
+	reloadService := reload.NewService(cfg)
+
+	deployment := testDeployment("test-deployment", "default", nil)
+	deployment.Spec.Template.Spec.Containers[0].Env = []corev1.EnvVar{
+		{
+			Name:  "STAKATER_TEST_CM_CONFIGMAP",
+			Value: "abc123",
+		},
 	}
 
-	// Test GetCronJob method
-	gotCronJob := cronJobWl.GetCronJob()
-	if gotCronJob.Name != "test-cronjob" {
-		t.Errorf("CronJobWorkload.GetCronJob().Name = %v, want test-cronjob", gotCronJob.Name)
-	}
+	fakeClient := fake.NewClientBuilder().
+		WithScheme(testScheme()).
+		WithObjects(deployment).
+		Build()
 
-	// Verify it satisfies WorkloadAccessor interface
-	var _ workload.WorkloadAccessor = cronJobWl
+	wl := workload.NewDeploymentWorkload(deployment)
+
+	updated, err := controller.UpdateWorkloadWithRetry(
+		context.Background(),
+		fakeClient,
+		reloadService,
+		wl,
+		"test-cm",
+		reload.ResourceTypeConfigMap,
+		"default",
+		"abc123", // Same hash as already set
+		false,
+	)
+
+	if err != nil {
+		t.Fatalf("UpdateWorkloadWithRetry failed: %v", err)
+	}
+	if updated {
+		t.Error("Expected workload NOT to be updated (same hash)")
+	}
 }
 
 func TestResourceTypeKind(t *testing.T) {
-	// Test that ResourceType.Kind() returns correct values
 	tests := []struct {
 		resourceType reload.ResourceType
 		expectedKind string
@@ -122,10 +290,12 @@ func TestResourceTypeKind(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		t.Run(string(tt.resourceType), func(t *testing.T) {
-			if got := tt.resourceType.Kind(); got != tt.expectedKind {
-				t.Errorf("ResourceType.Kind() = %v, want %v", got, tt.expectedKind)
-			}
-		})
+		t.Run(
+			string(tt.resourceType), func(t *testing.T) {
+				if got := tt.resourceType.Kind(); got != tt.expectedKind {
+					t.Errorf("ResourceType.Kind() = %v, want %v", got, tt.expectedKind)
+				}
+			},
+		)
 	}
 }

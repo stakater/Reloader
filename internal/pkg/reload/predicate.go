@@ -33,26 +33,30 @@ func resourcePredicates(cfg *config.Config, hashFn func(old, new client.Object) 
 
 // ConfigMapPredicates returns predicates for filtering ConfigMap events.
 func ConfigMapPredicates(cfg *config.Config, hasher *Hasher) predicate.Predicate {
-	return resourcePredicates(cfg, func(old, new client.Object) (string, string, bool) {
-		oldCM, okOld := old.(*corev1.ConfigMap)
-		newCM, okNew := new.(*corev1.ConfigMap)
-		if !okOld || !okNew {
-			return "", "", false
-		}
-		return hasher.HashConfigMap(oldCM), hasher.HashConfigMap(newCM), true
-	})
+	return resourcePredicates(
+		cfg, func(old, new client.Object) (string, string, bool) {
+			oldCM, okOld := old.(*corev1.ConfigMap)
+			newCM, okNew := new.(*corev1.ConfigMap)
+			if !okOld || !okNew {
+				return "", "", false
+			}
+			return hasher.HashConfigMap(oldCM), hasher.HashConfigMap(newCM), true
+		},
+	)
 }
 
 // SecretPredicates returns predicates for filtering Secret events.
 func SecretPredicates(cfg *config.Config, hasher *Hasher) predicate.Predicate {
-	return resourcePredicates(cfg, func(old, new client.Object) (string, string, bool) {
-		oldSecret, okOld := old.(*corev1.Secret)
-		newSecret, okNew := new.(*corev1.Secret)
-		if !okOld || !okNew {
-			return "", "", false
-		}
-		return hasher.HashSecret(oldSecret), hasher.HashSecret(newSecret), true
-	})
+	return resourcePredicates(
+		cfg, func(old, new client.Object) (string, string, bool) {
+			oldSecret, okOld := old.(*corev1.Secret)
+			newSecret, okNew := new.(*corev1.Secret)
+			if !okOld || !okNew {
+				return "", "", false
+			}
+			return hasher.HashSecret(oldSecret), hasher.HashSecret(newSecret), true
+		},
+	)
 }
 
 // NamespaceChecker defines the interface for checking if a namespace is allowed.
@@ -68,47 +72,49 @@ func NamespaceFilterPredicate(cfg *config.Config) predicate.Predicate {
 // NamespaceFilterPredicateWithCache returns a predicate that filters resources by namespace,
 // using the provided NamespaceChecker for namespace selector filtering.
 func NamespaceFilterPredicateWithCache(cfg *config.Config, nsCache NamespaceChecker) predicate.Predicate {
-	return predicate.NewPredicateFuncs(func(obj client.Object) bool {
-		namespace := obj.GetNamespace()
+	return predicate.NewPredicateFuncs(
+		func(obj client.Object) bool {
+			namespace := obj.GetNamespace()
 
-		// Check if namespace should be ignored
-		if cfg.IsNamespaceIgnored(namespace) {
-			return false
-		}
+			if cfg.IsNamespaceIgnored(namespace) {
+				return false
+			}
 
-		// Check namespace selector cache if provided
-		if nsCache != nil && !nsCache.Contains(namespace) {
-			return false
-		}
+			if nsCache != nil && !nsCache.Contains(namespace) {
+				return false
+			}
 
-		return true
-	})
+			return true
+		},
+	)
 }
 
 // LabelSelectorPredicate returns a predicate that filters resources by labels.
 func LabelSelectorPredicate(cfg *config.Config) predicate.Predicate {
 	if len(cfg.ResourceSelectors) == 0 {
-		// No selectors configured, allow all
-		return predicate.NewPredicateFuncs(func(obj client.Object) bool {
-			return true
-		})
+		return predicate.NewPredicateFuncs(
+			func(obj client.Object) bool {
+				return true
+			},
+		)
 	}
 
-	return predicate.NewPredicateFuncs(func(obj client.Object) bool {
-		labels := obj.GetLabels()
-		if labels == nil {
-			labels = make(map[string]string)
-		}
-
-		// Check if any selector matches
-		for _, selector := range cfg.ResourceSelectors {
-			if selector.Matches(LabelsSet(labels)) {
-				return true
+	return predicate.NewPredicateFuncs(
+		func(obj client.Object) bool {
+			labels := obj.GetLabels()
+			if labels == nil {
+				labels = make(map[string]string)
 			}
-		}
 
-		return false
-	})
+			for _, selector := range cfg.ResourceSelectors {
+				if selector.Matches(LabelsSet(labels)) {
+					return true
+				}
+			}
+
+			return false
+		},
+	)
 }
 
 // LabelsSet implements the k8s.io/apimachinery/pkg/labels.Labels interface
@@ -128,15 +134,16 @@ func (ls LabelsSet) Get(key string) string {
 
 // IgnoreAnnotationPredicate returns a predicate that filters out resources with the ignore annotation.
 func IgnoreAnnotationPredicate(cfg *config.Config) predicate.Predicate {
-	return predicate.NewPredicateFuncs(func(obj client.Object) bool {
-		annotations := obj.GetAnnotations()
-		if annotations == nil {
-			return true
-		}
+	return predicate.NewPredicateFuncs(
+		func(obj client.Object) bool {
+			annotations := obj.GetAnnotations()
+			if annotations == nil {
+				return true
+			}
 
-		// Check for ignore annotation
-		return annotations[cfg.Annotations.Ignore] != "true"
-	})
+			return annotations[cfg.Annotations.Ignore] != "true"
+		},
+	)
 }
 
 // CombinedPredicates combines multiple predicates with AND logic.

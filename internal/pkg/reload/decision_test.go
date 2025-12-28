@@ -9,28 +9,33 @@ import (
 )
 
 func TestFilterDecisions(t *testing.T) {
-	// Create some mock workloads for testing
-	wl1 := workload.NewDeploymentWorkload(&appsv1.Deployment{
-		ObjectMeta: metav1.ObjectMeta{Name: "deploy1", Namespace: "default"},
-	})
-	wl2 := workload.NewDeploymentWorkload(&appsv1.Deployment{
-		ObjectMeta: metav1.ObjectMeta{Name: "deploy2", Namespace: "default"},
-	})
-	wl3 := workload.NewDeploymentWorkload(&appsv1.Deployment{
-		ObjectMeta: metav1.ObjectMeta{Name: "deploy3", Namespace: "default"},
-	})
+	wl1 := workload.NewDeploymentWorkload(
+		&appsv1.Deployment{
+			ObjectMeta: metav1.ObjectMeta{Name: "deploy1", Namespace: "default"},
+		},
+	)
+	wl2 := workload.NewDeploymentWorkload(
+		&appsv1.Deployment{
+			ObjectMeta: metav1.ObjectMeta{Name: "deploy2", Namespace: "default"},
+		},
+	)
+	wl3 := workload.NewDeploymentWorkload(
+		&appsv1.Deployment{
+			ObjectMeta: metav1.ObjectMeta{Name: "deploy3", Namespace: "default"},
+		},
+	)
 
 	tests := []struct {
-		name       string
-		decisions  []ReloadDecision
-		wantCount  int
-		wantNames  []string
+		name      string
+		decisions []ReloadDecision
+		wantCount int
+		wantNames []string
 	}{
 		{
-			name:       "empty list",
-			decisions:  []ReloadDecision{},
-			wantCount:  0,
-			wantNames:  nil,
+			name:      "empty list",
+			decisions: []ReloadDecision{},
+			wantCount: 0,
+			wantNames: nil,
 		},
 		{
 			name: "all should reload",
@@ -63,29 +68,35 @@ func TestFilterDecisions(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result := FilterDecisions(tt.decisions)
+		t.Run(
+			tt.name, func(t *testing.T) {
+				result := FilterDecisions(tt.decisions)
 
-			if len(result) != tt.wantCount {
-				t.Errorf("FilterDecisions() returned %d decisions, want %d", len(result), tt.wantCount)
-			}
+				if len(result) != tt.wantCount {
+					t.Errorf("FilterDecisions() returned %d decisions, want %d", len(result), tt.wantCount)
+				}
 
-			if tt.wantNames != nil {
-				for i, d := range result {
-					if d.Workload.GetName() != tt.wantNames[i] {
-						t.Errorf("FilterDecisions()[%d].Workload.GetName() = %s, want %s",
-							i, d.Workload.GetName(), tt.wantNames[i])
+				if tt.wantNames != nil {
+					for i, d := range result {
+						if d.Workload.GetName() != tt.wantNames[i] {
+							t.Errorf(
+								"FilterDecisions()[%d].Workload.GetName() = %s, want %s",
+								i, d.Workload.GetName(), tt.wantNames[i],
+							)
+						}
 					}
 				}
-			}
-		})
+			},
+		)
 	}
 }
 
 func TestReloadDecision_Fields(t *testing.T) {
-	wl := workload.NewDeploymentWorkload(&appsv1.Deployment{
-		ObjectMeta: metav1.ObjectMeta{Name: "test", Namespace: "default"},
-	})
+	wl := workload.NewDeploymentWorkload(
+		&appsv1.Deployment{
+			ObjectMeta: metav1.ObjectMeta{Name: "test", Namespace: "default"},
+		},
+	)
 
 	decision := ReloadDecision{
 		Workload:     wl,
