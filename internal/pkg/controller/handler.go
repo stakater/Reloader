@@ -32,7 +32,7 @@ type ReloadHandler struct {
 // Process handles the reload workflow: list workloads, get decisions, webhook or apply.
 func (h *ReloadHandler) Process(
 	ctx context.Context,
-	namespace, resourceName, resourceKind string,
+	namespace, resourceName string,
 	resourceType reload.ResourceType,
 	getDecisions func([]workload.WorkloadAccessor) []reload.ReloadDecision,
 	log logr.Logger,
@@ -49,7 +49,7 @@ func (h *ReloadHandler) Process(
 		return h.sendWebhook(ctx, resourceName, namespace, resourceType, decisions, log)
 	}
 
-	h.applyReloads(ctx, resourceName, namespace, resourceKind, resourceType, decisions, log)
+	h.applyReloads(ctx, resourceName, namespace, resourceType, decisions, log)
 	return ctrl.Result{}, nil
 }
 
@@ -99,7 +99,7 @@ func (h *ReloadHandler) sendWebhook(
 
 func (h *ReloadHandler) applyReloads(
 	ctx context.Context,
-	resourceName, resourceNamespace, resourceKind string,
+	resourceName, resourceNamespace string,
 	resourceType reload.ResourceType,
 	decisions []reload.ReloadDecision,
 	log logr.Logger,
@@ -127,13 +127,13 @@ func (h *ReloadHandler) applyReloads(
 				"workload", decision.Workload.GetName(),
 				"kind", decision.Workload.Kind(),
 			)
-			h.EventRecorder.ReloadFailed(decision.Workload.GetObject(), resourceKind, resourceName, err)
+			h.EventRecorder.ReloadFailed(decision.Workload.GetObject(), resourceType.Kind(), resourceName, err)
 			h.Collectors.RecordReload(false, resourceNamespace)
 			continue
 		}
 
 		if updated {
-			h.EventRecorder.ReloadSuccess(decision.Workload.GetObject(), resourceKind, resourceName)
+			h.EventRecorder.ReloadSuccess(decision.Workload.GetObject(), resourceType.Kind(), resourceName)
 			h.Collectors.RecordReload(true, resourceNamespace)
 			log.Info("workload reloaded successfully",
 				"workload", decision.Workload.GetName(),
@@ -144,7 +144,7 @@ func (h *ReloadHandler) applyReloads(
 				WorkloadKind:      string(decision.Workload.Kind()),
 				WorkloadName:      decision.Workload.GetName(),
 				WorkloadNamespace: decision.Workload.GetNamespace(),
-				ResourceKind:      resourceKind,
+				ResourceKind:      resourceType.Kind(),
 				ResourceName:      resourceName,
 				ResourceNamespace: resourceNamespace,
 				Timestamp:         time.Now(),

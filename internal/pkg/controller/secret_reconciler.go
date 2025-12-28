@@ -62,9 +62,9 @@ func (r *SecretReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 		return ctrl.Result{}, nil
 	}
 
-	return r.reloadHandler().Process(ctx, secret.Namespace, secret.Name, "Secret", reload.ResourceTypeSecret,
+	return r.reloadHandler().Process(ctx, secret.Namespace, secret.Name, reload.ResourceTypeSecret,
 		func(workloads []workload.WorkloadAccessor) []reload.ReloadDecision {
-			return r.ReloadService.ProcessSecret(reload.SecretChange{
+			return r.ReloadService.Process(reload.SecretChange{
 				Secret:    &secret,
 				EventType: reload.EventTypeUpdate,
 			}, workloads)
@@ -78,9 +78,9 @@ func (r *SecretReconciler) handleDelete(ctx context.Context, req ctrl.Request, l
 	secret.Name = req.Name
 	secret.Namespace = req.Namespace
 
-	return r.reloadHandler().Process(ctx, req.Namespace, req.Name, "Secret", reload.ResourceTypeSecret,
+	return r.reloadHandler().Process(ctx, req.Namespace, req.Name, reload.ResourceTypeSecret,
 		func(workloads []workload.WorkloadAccessor) []reload.ReloadDecision {
-			return r.ReloadService.ProcessSecret(reload.SecretChange{
+			return r.ReloadService.Process(reload.SecretChange{
 				Secret:    secret,
 				EventType: reload.EventTypeDelete,
 			}, workloads)

@@ -62,9 +62,9 @@ func (r *ConfigMapReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		return ctrl.Result{}, nil
 	}
 
-	return r.reloadHandler().Process(ctx, cm.Namespace, cm.Name, "ConfigMap", reload.ResourceTypeConfigMap,
+	return r.reloadHandler().Process(ctx, cm.Namespace, cm.Name, reload.ResourceTypeConfigMap,
 		func(workloads []workload.WorkloadAccessor) []reload.ReloadDecision {
-			return r.ReloadService.ProcessConfigMap(reload.ConfigMapChange{
+			return r.ReloadService.Process(reload.ConfigMapChange{
 				ConfigMap: &cm,
 				EventType: reload.EventTypeUpdate,
 			}, workloads)
@@ -81,9 +81,9 @@ func (r *ConfigMapReconciler) handleDelete(ctx context.Context, req ctrl.Request
 	cm.Name = req.Name
 	cm.Namespace = req.Namespace
 
-	return r.reloadHandler().Process(ctx, req.Namespace, req.Name, "ConfigMap", reload.ResourceTypeConfigMap,
+	return r.reloadHandler().Process(ctx, req.Namespace, req.Name, reload.ResourceTypeConfigMap,
 		func(workloads []workload.WorkloadAccessor) []reload.ReloadDecision {
-			return r.ReloadService.ProcessConfigMap(reload.ConfigMapChange{
+			return r.ReloadService.Process(reload.ConfigMapChange{
 				ConfigMap: cm,
 				EventType: reload.EventTypeDelete,
 			}, workloads)

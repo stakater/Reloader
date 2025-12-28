@@ -43,6 +43,52 @@ func UpdateWorkloadWithRetry(
 	}
 }
 
+// retryWithReload wraps the common retry logic for workload updates.
+// It handles re-fetching on conflict, applying reload changes, and calling the update function.
+func retryWithReload(
+	ctx context.Context,
+	c client.Client,
+	reloadService *reload.Service,
+	wl workload.WorkloadAccessor,
+	resourceName string,
+	resourceType reload.ResourceType,
+	namespace string,
+	hash string,
+	autoReload bool,
+	updateFn func() error,
+) (bool, error) {
+	var updated bool
+	isFirstAttempt := true
+
+	err := retry.RetryOnConflict(retry.DefaultBackoff, func() error {
+		if !isFirstAttempt {
+			obj := wl.GetObject()
+			key := client.ObjectKeyFromObject(obj)
+			if err := c.Get(ctx, key, obj); err != nil {
+				if errors.IsNotFound(err) {
+					return nil
+				}
+				return err
+			}
+		}
+		isFirstAttempt = false
+
+		var applyErr error
+		updated, applyErr = reloadService.ApplyReload(ctx, wl, resourceName, resourceType, namespace, hash, autoReload)
+		if applyErr != nil {
+			return applyErr
+		}
+
+		if !updated {
+			return nil
+		}
+
+		return updateFn()
+	})
+
+	return updated, err
+}
+
 // updateStandardWorkload updates Deployments, DaemonSets, StatefulSets, etc.
 func updateStandardWorkload(
 	ctx context.Context,
@@ -55,48 +101,10 @@ func updateStandardWorkload(
 	hash string,
 	autoReload bool,
 ) (bool, error) {
-	var updated bool
-	isFirstAttempt := true
-
-	err := retry.RetryOnConflict(retry.DefaultBackoff, func() error {
-		// On retry, re-fetch the object to get the latest ResourceVersion
-		if !isFirstAttempt {
-			obj := wl.GetObject()
-			key := client.ObjectKeyFromObject(obj)
-			if err := c.Get(ctx, key, obj); err != nil {
-				if errors.IsNotFound(err) {
-					// Object was deleted, nothing to update
-					return nil
-				}
-				return err
-			}
-		}
-		isFirstAttempt = false
-
-		// Apply reload changes (this modifies the workload in-place)
-		var applyErr error
-		updated, applyErr = reloadService.ApplyReload(
-			ctx,
-			wl,
-			resourceName,
-			resourceType,
-			namespace,
-			hash,
-			autoReload,
-		)
-		if applyErr != nil {
-			return applyErr
-		}
-
-		if !updated {
-			return nil
-		}
-
-		// Attempt update with field ownership
-		return c.Update(ctx, wl.GetObject(), client.FieldOwner(FieldManager))
-	})
-
-	return updated, err
+	return retryWithReload(ctx, c, reloadService, wl, resourceName, resourceType, namespace, hash, autoReload,
+		func() error {
+			return c.Update(ctx, wl.GetObject(), client.FieldOwner(FieldManager))
+		})
 }
 
 // updateJobWithRecreate deletes the Job and recreates it with the updated spec.
@@ -254,46 +262,8 @@ func updateArgoRollout(
 		return false, nil
 	}
 
-	var updated bool
-	isFirstAttempt := true
-
-	err := retry.RetryOnConflict(retry.DefaultBackoff, func() error {
-		// On retry, re-fetch the object to get the latest ResourceVersion
-		if !isFirstAttempt {
-			obj := rolloutWl.GetObject()
-			key := client.ObjectKeyFromObject(obj)
-			if err := c.Get(ctx, key, obj); err != nil {
-				if errors.IsNotFound(err) {
-					// Object was deleted, nothing to update
-					return nil
-				}
-				return err
-			}
-		}
-		isFirstAttempt = false
-
-		// Apply reload changes (this modifies the workload in-place)
-		var applyErr error
-		updated, applyErr = reloadService.ApplyReload(
-			ctx,
-			wl,
-			resourceName,
-			resourceType,
-			namespace,
-			hash,
-			autoReload,
-		)
-		if applyErr != nil {
-			return applyErr
-		}
-
-		if !updated {
-			return nil
-		}
-
-		// Use the RolloutWorkload's Update method which handles the rollout strategy
-		return rolloutWl.Update(ctx, c)
-	})
-
-	return updated, err
+	return retryWithReload(ctx, c, reloadService, wl, resourceName, resourceType, namespace, hash, autoReload,
+		func() error {
+			return rolloutWl.Update(ctx, c)
+		})
 }

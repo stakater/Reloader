@@ -8,68 +8,51 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 )
 
-// ConfigMapPredicates returns predicates for filtering ConfigMap events.
-func ConfigMapPredicates(cfg *config.Config, hasher *Hasher) predicate.Predicate {
+// resourcePredicates returns predicates for filtering resource events.
+// The hashFn computes a hash from old and new objects to detect content changes.
+func resourcePredicates(cfg *config.Config, hashFn func(old, new client.Object) (string, string, bool)) predicate.Predicate {
 	return predicate.Funcs{
 		CreateFunc: func(e event.CreateEvent) bool {
-			// Only process create events if ReloadOnCreate is enabled
-			// or if SyncAfterRestart is enabled (for initial sync)
 			return cfg.ReloadOnCreate || cfg.SyncAfterRestart
 		},
 		UpdateFunc: func(e event.UpdateEvent) bool {
-			// Always process updates, but filter by content change
-			oldCM, okOld := e.ObjectOld.(*corev1.ConfigMap)
-			newCM, okNew := e.ObjectNew.(*corev1.ConfigMap)
-			if !okOld || !okNew {
+			oldHash, newHash, ok := hashFn(e.ObjectOld, e.ObjectNew)
+			if !ok {
 				return false
 			}
-
-			// Check if the data actually changed
-			oldHash := hasher.HashConfigMap(oldCM)
-			newHash := hasher.HashConfigMap(newCM)
 			return oldHash != newHash
 		},
 		DeleteFunc: func(e event.DeleteEvent) bool {
-			// Only process delete events if ReloadOnDelete is enabled
 			return cfg.ReloadOnDelete
 		},
 		GenericFunc: func(e event.GenericEvent) bool {
-			// Ignore generic events
 			return false
 		},
 	}
 }
 
+// ConfigMapPredicates returns predicates for filtering ConfigMap events.
+func ConfigMapPredicates(cfg *config.Config, hasher *Hasher) predicate.Predicate {
+	return resourcePredicates(cfg, func(old, new client.Object) (string, string, bool) {
+		oldCM, okOld := old.(*corev1.ConfigMap)
+		newCM, okNew := new.(*corev1.ConfigMap)
+		if !okOld || !okNew {
+			return "", "", false
+		}
+		return hasher.HashConfigMap(oldCM), hasher.HashConfigMap(newCM), true
+	})
+}
+
 // SecretPredicates returns predicates for filtering Secret events.
 func SecretPredicates(cfg *config.Config, hasher *Hasher) predicate.Predicate {
-	return predicate.Funcs{
-		CreateFunc: func(e event.CreateEvent) bool {
-			// Only process create events if ReloadOnCreate is enabled
-			// or if SyncAfterRestart is enabled (for initial sync)
-			return cfg.ReloadOnCreate || cfg.SyncAfterRestart
-		},
-		UpdateFunc: func(e event.UpdateEvent) bool {
-			// Always process updates, but filter by content change
-			oldSecret, okOld := e.ObjectOld.(*corev1.Secret)
-			newSecret, okNew := e.ObjectNew.(*corev1.Secret)
-			if !okOld || !okNew {
-				return false
-			}
-
-			// Check if the data actually changed
-			oldHash := hasher.HashSecret(oldSecret)
-			newHash := hasher.HashSecret(newSecret)
-			return oldHash != newHash
-		},
-		DeleteFunc: func(e event.DeleteEvent) bool {
-			// Only process delete events if ReloadOnDelete is enabled
-			return cfg.ReloadOnDelete
-		},
-		GenericFunc: func(e event.GenericEvent) bool {
-			// Ignore generic events
-			return false
-		},
-	}
+	return resourcePredicates(cfg, func(old, new client.Object) (string, string, bool) {
+		oldSecret, okOld := old.(*corev1.Secret)
+		newSecret, okNew := new.(*corev1.Secret)
+		if !okOld || !okNew {
+			return "", "", false
+		}
+		return hasher.HashSecret(oldSecret), hasher.HashSecret(newSecret), true
+	})
 }
 
 // NamespaceChecker defines the interface for checking if a namespace is allowed.

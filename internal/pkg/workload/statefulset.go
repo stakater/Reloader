@@ -96,95 +96,11 @@ func (w *StatefulSetWorkload) GetEnvFromSources() []corev1.EnvFromSource {
 }
 
 func (w *StatefulSetWorkload) UsesConfigMap(name string) bool {
-	// Check volumes
-	for _, vol := range w.statefulset.Spec.Template.Spec.Volumes {
-		if vol.ConfigMap != nil && vol.ConfigMap.Name == name {
-			return true
-		}
-		if vol.Projected != nil {
-			for _, source := range vol.Projected.Sources {
-				if source.ConfigMap != nil && source.ConfigMap.Name == name {
-					return true
-				}
-			}
-		}
-	}
-
-	// Check envFrom
-	for _, container := range w.statefulset.Spec.Template.Spec.Containers {
-		for _, envFrom := range container.EnvFrom {
-			if envFrom.ConfigMapRef != nil && envFrom.ConfigMapRef.Name == name {
-				return true
-			}
-		}
-		for _, env := range container.Env {
-			if env.ValueFrom != nil && env.ValueFrom.ConfigMapKeyRef != nil && env.ValueFrom.ConfigMapKeyRef.Name == name {
-				return true
-			}
-		}
-	}
-
-	// Check init containers
-	for _, container := range w.statefulset.Spec.Template.Spec.InitContainers {
-		for _, envFrom := range container.EnvFrom {
-			if envFrom.ConfigMapRef != nil && envFrom.ConfigMapRef.Name == name {
-				return true
-			}
-		}
-		for _, env := range container.Env {
-			if env.ValueFrom != nil && env.ValueFrom.ConfigMapKeyRef != nil && env.ValueFrom.ConfigMapKeyRef.Name == name {
-				return true
-			}
-		}
-	}
-
-	return false
+	return SpecUsesConfigMap(&w.statefulset.Spec.Template.Spec, name)
 }
 
 func (w *StatefulSetWorkload) UsesSecret(name string) bool {
-	// Check volumes
-	for _, vol := range w.statefulset.Spec.Template.Spec.Volumes {
-		if vol.Secret != nil && vol.Secret.SecretName == name {
-			return true
-		}
-		if vol.Projected != nil {
-			for _, source := range vol.Projected.Sources {
-				if source.Secret != nil && source.Secret.Name == name {
-					return true
-				}
-			}
-		}
-	}
-
-	// Check envFrom
-	for _, container := range w.statefulset.Spec.Template.Spec.Containers {
-		for _, envFrom := range container.EnvFrom {
-			if envFrom.SecretRef != nil && envFrom.SecretRef.Name == name {
-				return true
-			}
-		}
-		for _, env := range container.Env {
-			if env.ValueFrom != nil && env.ValueFrom.SecretKeyRef != nil && env.ValueFrom.SecretKeyRef.Name == name {
-				return true
-			}
-		}
-	}
-
-	// Check init containers
-	for _, container := range w.statefulset.Spec.Template.Spec.InitContainers {
-		for _, envFrom := range container.EnvFrom {
-			if envFrom.SecretRef != nil && envFrom.SecretRef.Name == name {
-				return true
-			}
-		}
-		for _, env := range container.Env {
-			if env.ValueFrom != nil && env.ValueFrom.SecretKeyRef != nil && env.ValueFrom.SecretKeyRef.Name == name {
-				return true
-			}
-		}
-	}
-
-	return false
+	return SpecUsesSecret(&w.statefulset.Spec.Template.Spec, name)
 }
 
 func (w *StatefulSetWorkload) GetOwnerReferences() []metav1.OwnerReference {

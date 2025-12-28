@@ -26,6 +26,7 @@ type DeploymentReconciler struct {
 // Reconcile handles Deployment pause expiration.
 func (r *DeploymentReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	log := r.Log.WithValues("deployment", req.NamespacedName)
+	log.Info("Deployment reconciling ", "namespace", req.Namespace, "name", req.Name)
 
 	var deploy appsv1.Deployment
 	if err := r.Get(ctx, req.NamespacedName, &deploy); err != nil {
@@ -76,14 +77,16 @@ func (r *DeploymentReconciler) SetupWithManager(mgr ctrl.Manager) error {
 // pausedByReloaderPredicate returns a predicate that only selects deployments
 // that have been paused by Reloader (have the paused-at annotation).
 func (r *DeploymentReconciler) pausedByReloaderPredicate() predicate.Predicate {
-	return predicate.NewPredicateFuncs(func(obj client.Object) bool {
-		annotations := obj.GetAnnotations()
-		if annotations == nil {
-			return false
-		}
+	return predicate.NewPredicateFuncs(
+		func(obj client.Object) bool {
+			annotations := obj.GetAnnotations()
+			if annotations == nil {
+				return false
+			}
 
-		// Only process if deployment has our paused-at annotation
-		_, hasPausedAt := annotations[r.Config.Annotations.PausedAt]
-		return hasPausedAt
-	})
+			// Only process if deployment has our paused-at annotation
+			_, hasPausedAt := annotations[r.Config.Annotations.PausedAt]
+			return hasPausedAt
+		},
+	)
 }

@@ -51,7 +51,7 @@ func TestService_ProcessConfigMap_AutoReload(t *testing.T) {
 		EventType: EventTypeUpdate,
 	}
 
-	decisions := svc.ProcessConfigMap(change, workloads)
+	decisions := svc.Process(change, workloads)
 
 	if len(decisions) != 1 {
 		t.Fatalf("Expected 1 decision, got %d", len(decisions))
@@ -98,7 +98,7 @@ func TestService_ProcessConfigMap_ExplicitAnnotation(t *testing.T) {
 		EventType: EventTypeUpdate,
 	}
 
-	decisions := svc.ProcessConfigMap(change, workloads)
+	decisions := svc.Process(change, workloads)
 
 	if len(decisions) != 1 {
 		t.Fatalf("Expected 1 decision, got %d", len(decisions))
@@ -157,7 +157,7 @@ func TestService_ProcessConfigMap_IgnoredResource(t *testing.T) {
 		EventType: EventTypeUpdate,
 	}
 
-	decisions := svc.ProcessConfigMap(change, workloads)
+	decisions := svc.Process(change, workloads)
 
 	// Should still get a decision, but ShouldReload should be false
 	for _, d := range decisions {
@@ -205,7 +205,7 @@ func TestService_ProcessSecret_AutoReload(t *testing.T) {
 		EventType: EventTypeUpdate,
 	}
 
-	decisions := svc.ProcessSecret(change, workloads)
+	decisions := svc.Process(change, workloads)
 
 	if len(decisions) != 1 {
 		t.Fatalf("Expected 1 decision, got %d", len(decisions))
@@ -246,7 +246,7 @@ func TestService_ProcessConfigMap_DeleteEvent(t *testing.T) {
 		EventType: EventTypeDelete,
 	}
 
-	decisions := svc.ProcessConfigMap(change, workloads)
+	decisions := svc.Process(change, workloads)
 
 	if len(decisions) != 1 {
 		t.Fatalf("Expected 1 decision, got %d", len(decisions))
@@ -287,7 +287,7 @@ func TestService_ProcessConfigMap_DeleteEventDisabled(t *testing.T) {
 		EventType: EventTypeDelete,
 	}
 
-	decisions := svc.ProcessConfigMap(change, workloads)
+	decisions := svc.Process(change, workloads)
 
 	// Should return nil when delete events are disabled
 	if decisions != nil {
@@ -496,7 +496,7 @@ func TestService_ProcessConfigMap_MultipleWorkloads(t *testing.T) {
 		EventType: EventTypeUpdate,
 	}
 
-	decisions := svc.ProcessConfigMap(change, workloads)
+	decisions := svc.Process(change, workloads)
 
 	if len(decisions) != 3 {
 		t.Fatalf("Expected 3 decisions, got %d", len(decisions))
@@ -572,7 +572,7 @@ func TestService_ProcessConfigMap_DifferentNamespaces(t *testing.T) {
 		EventType: EventTypeUpdate,
 	}
 
-	decisions := svc.ProcessConfigMap(change, workloads)
+	decisions := svc.Process(change, workloads)
 
 	// Should only affect deploy1 (same namespace)
 	reloadCount := 0

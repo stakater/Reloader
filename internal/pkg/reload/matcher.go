@@ -17,6 +17,18 @@ const (
 	ResourceTypeSecret ResourceType = "secret"
 )
 
+// Kind returns the capitalized Kubernetes Kind (e.g., "ConfigMap", "Secret").
+func (r ResourceType) Kind() string {
+	switch r {
+	case ResourceTypeConfigMap:
+		return "ConfigMap"
+	case ResourceTypeSecret:
+		return "Secret"
+	default:
+		return string(r)
+	}
+}
+
 // MatchResult contains the result of checking if a workload should be reloaded.
 type MatchResult struct {
 	ShouldReload bool
