@@ -22,13 +22,84 @@ func NewSlackAlerter(webhookURL, proxyURL, additional string) *SlackAlerter {
 	}
 }
 
+// slackMessage represents a Slack webhook message.
 type slackMessage struct {
-	Text string `json:"text"`
+	Username        string            `json:"username,omitempty"`
+	IconEmoji       string            `json:"icon_emoji,omitempty"`
+	IconURL         string            `json:"icon_url,omitempty"`
+	Channel         string            `json:"channel,omitempty"`
+	ThreadTimestamp string            `json:"thread_ts,omitempty"`
+	Text            string            `json:"text,omitempty"`
+	Attachments     []slackAttachment `json:"attachments,omitempty"`
+	Parse           string            `json:"parse,omitempty"`
+	ResponseType    string            `json:"response_type,omitempty"`
+	ReplaceOriginal bool              `json:"replace_original,omitempty"`
+	DeleteOriginal  bool              `json:"delete_original,omitempty"`
+	ReplyBroadcast  bool              `json:"reply_broadcast,omitempty"`
+}
+
+// slackAttachment represents a Slack message attachment.
+type slackAttachment struct {
+	Color    string `json:"color,omitempty"`
+	Fallback string `json:"fallback,omitempty"`
+
+	CallbackID string `json:"callback_id,omitempty"`
+	ID         int    `json:"id,omitempty"`
+
+	AuthorID      string `json:"author_id,omitempty"`
+	AuthorName    string `json:"author_name,omitempty"`
+	AuthorSubname string `json:"author_subname,omitempty"`
+	AuthorLink    string `json:"author_link,omitempty"`
+	AuthorIcon    string `json:"author_icon,omitempty"`
+
+	Title     string `json:"title,omitempty"`
+	TitleLink string `json:"title_link,omitempty"`
+	Pretext   string `json:"pretext,omitempty"`
+	Text      string `json:"text,omitempty"`
+
+	ImageURL string `json:"image_url,omitempty"`
+	ThumbURL string `json:"thumb_url,omitempty"`
+
+	ServiceName string `json:"service_name,omitempty"`
+	ServiceIcon string `json:"service_icon,omitempty"`
+	FromURL     string `json:"from_url,omitempty"`
+	OriginalURL string `json:"original_url,omitempty"`
+
+	Fields     []slackField `json:"fields,omitempty"`
+	MarkdownIn []string     `json:"mrkdwn_in,omitempty"`
+
+	Footer     string `json:"footer,omitempty"`
+	FooterIcon string `json:"footer_icon,omitempty"`
+
+	Actions []slackAction `json:"actions,omitempty"`
+}
+
+// slackField represents a field in a Slack attachment.
+type slackField struct {
+	Title string `json:"title"`
+	Value string `json:"value"`
+	Short bool   `json:"short"`
+}
+
+// slackAction represents an action button in a Slack attachment.
+type slackAction struct {
+	Type  string `json:"type"`
+	Text  string `json:"text"`
+	URL   string `json:"url"`
+	Style string `json:"style"`
 }
 
 func (a *SlackAlerter) Send(ctx context.Context, message AlertMessage) error {
 	text := a.formatMessage(message)
-	msg := slackMessage{Text: text}
+	msg := slackMessage{
+		Attachments: []slackAttachment{
+			{
+				Text:       text,
+				Color:      "good",
+				AuthorName: "Reloader",
+			},
+		},
+	}
 
 	body, err := json.Marshal(msg)
 	if err != nil {

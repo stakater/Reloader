@@ -84,6 +84,7 @@ type AlertingConfig struct {
 	Sink       string `json:"sink,omitempty"`
 	Proxy      string `json:"proxy,omitempty"`
 	Additional string `json:"additional,omitempty"`
+	Structured bool   `json:"structured,omitempty"` // For raw sink: send structured JSON instead of plain text
 }
 
 // LeaderElectionConfig holds configuration for leader election.

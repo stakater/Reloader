@@ -4,25 +4,29 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strings"
 )
 
-// RawAlerter sends alerts as raw JSON to a webhook.
+// RawAlerter sends alerts to a webhook as plain text (default) or structured JSON.
 type RawAlerter struct {
 	webhookURL string
 	additional string
+	structured bool
 	client     *httpClient
 }
 
 // NewRawAlerter creates a new RawAlerter.
-func NewRawAlerter(webhookURL, proxyURL, additional string) *RawAlerter {
+// If structured is true, sends JSON; otherwise sends plain text.
+func NewRawAlerter(webhookURL, proxyURL, additional string, structured bool) *RawAlerter {
 	return &RawAlerter{
 		webhookURL: webhookURL,
 		additional: additional,
+		structured: structured,
 		client:     newHTTPClient(proxyURL),
 	}
 }
 
-// rawMessage is the JSON payload for raw webhook alerts.
+// rawMessage is the JSON payload for structured raw webhook alerts.
 type rawMessage struct {
 	Event             string `json:"event"`
 	WorkloadKind      string `json:"workloadKind"`
@@ -36,6 +40,13 @@ type rawMessage struct {
 }
 
 func (a *RawAlerter) Send(ctx context.Context, message AlertMessage) error {
+	if a.structured {
+		return a.sendStructured(ctx, message)
+	}
+	return a.sendPlainText(ctx, message)
+}
+
+func (a *RawAlerter) sendStructured(ctx context.Context, message AlertMessage) error {
 	msg := rawMessage{
 		Event:             "reload",
 		WorkloadKind:      message.WorkloadKind,
@@ -54,4 +65,26 @@ func (a *RawAlerter) Send(ctx context.Context, message AlertMessage) error {
 	}
 
 	return a.client.post(ctx, a.webhookURL, body)
+}
+
+func (a *RawAlerter) sendPlainText(ctx context.Context, message AlertMessage) error {
+	text := a.formatMessage(message)
+	// Strip markdown formatting for plain text
+	text = strings.ReplaceAll(text, "*", "")
+	return a.client.postText(ctx, a.webhookURL, text)
+}
+
+func (a *RawAlerter) formatMessage(msg AlertMessage) string {
+	text := fmt.Sprintf(
+		"Reloader triggered reload - Workload: %s/%s (%s), Resource: %s/%s (%s), Time: %s",
+		msg.WorkloadNamespace, msg.WorkloadName, msg.WorkloadKind,
+		msg.ResourceNamespace, msg.ResourceName, msg.ResourceKind,
+		msg.Timestamp.Format("2006-01-02 15:04:05 UTC"),
+	)
+
+	if a.additional != "" {
+		text = a.additional + " : " + text
+	}
+
+	return text
 }

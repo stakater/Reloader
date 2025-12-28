@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
@@ -14,15 +15,15 @@ import (
 
 // testServer creates a test HTTP server that captures the request body.
 // Returns the server and a function to retrieve the captured body.
-func testServer(t *testing.T) (*httptest.Server, func() []byte) {
+func testServer(t *testing.T, expectedContentType string) (*httptest.Server, func() []byte) {
 	t.Helper()
 	var body []byte
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
 			t.Errorf("Expected POST request, got %s", r.Method)
 		}
-		if r.Header.Get("Content-Type") != "application/json" {
-			t.Errorf("Expected Content-Type application/json, got %s", r.Header.Get("Content-Type"))
+		if r.Header.Get("Content-Type") != expectedContentType {
+			t.Errorf("Expected Content-Type %s, got %s", expectedContentType, r.Header.Get("Content-Type"))
 		}
 		body, _ = io.ReadAll(r.Body)
 		w.WriteHeader(http.StatusOK)
@@ -150,26 +151,38 @@ func TestNoOpAlerter_Send(t *testing.T) {
 
 func TestAlerter_Send(t *testing.T) {
 	tests := []struct {
-		name     string
-		newAlert func(url string) Alerter
-		validate func(t *testing.T, body []byte)
+		name        string
+		contentType string
+		newAlert    func(url string) Alerter
+		validate    func(t *testing.T, body []byte)
 	}{
 		{
-			name:     "slack",
-			newAlert: func(url string) Alerter { return NewSlackAlerter(url, "", "Test Cluster") },
+			name:        "slack",
+			contentType: "application/json",
+			newAlert:    func(url string) Alerter { return NewSlackAlerter(url, "", "Test Cluster") },
 			validate: func(t *testing.T, body []byte) {
 				var msg slackMessage
 				if err := json.Unmarshal(body, &msg); err != nil {
 					t.Fatalf("Failed to unmarshal: %v", err)
 				}
-				if msg.Text == "" {
-					t.Error("Expected non-empty text")
+				if len(msg.Attachments) != 1 {
+					t.Fatalf("Expected 1 attachment, got %d", len(msg.Attachments))
+				}
+				if msg.Attachments[0].Text == "" {
+					t.Error("Expected non-empty attachment text")
+				}
+				if msg.Attachments[0].Color != "good" {
+					t.Errorf("Expected color 'good', got %s", msg.Attachments[0].Color)
+				}
+				if msg.Attachments[0].AuthorName != "Reloader" {
+					t.Errorf("Expected author_name 'Reloader', got %s", msg.Attachments[0].AuthorName)
 				}
 			},
 		},
 		{
-			name:     "teams",
-			newAlert: func(url string) Alerter { return NewTeamsAlerter(url, "", "") },
+			name:        "teams",
+			contentType: "application/json",
+			newAlert:    func(url string) Alerter { return NewTeamsAlerter(url, "", "") },
 			validate: func(t *testing.T, body []byte) {
 				var msg teamsMessage
 				if err := json.Unmarshal(body, &msg); err != nil {
@@ -181,8 +194,9 @@ func TestAlerter_Send(t *testing.T) {
 			},
 		},
 		{
-			name:     "gchat",
-			newAlert: func(url string) Alerter { return NewGChatAlerter(url, "", "") },
+			name:        "gchat",
+			contentType: "application/json",
+			newAlert:    func(url string) Alerter { return NewGChatAlerter(url, "", "") },
 			validate: func(t *testing.T, body []byte) {
 				var msg gchatMessage
 				if err := json.Unmarshal(body, &msg); err != nil {
@@ -194,8 +208,26 @@ func TestAlerter_Send(t *testing.T) {
 			},
 		},
 		{
-			name:     "raw",
-			newAlert: func(url string) Alerter { return NewRawAlerter(url, "", "custom-info") },
+			name:        "raw plain text (default)",
+			contentType: "text/plain",
+			newAlert:    func(url string) Alerter { return NewRawAlerter(url, "", "custom-info", false) },
+			validate: func(t *testing.T, body []byte) {
+				text := string(body)
+				if text == "" {
+					t.Error("Expected non-empty text")
+				}
+				if !strings.Contains(text, "custom-info") {
+					t.Error("Expected text to contain 'custom-info'")
+				}
+				if !strings.Contains(text, "nginx") {
+					t.Error("Expected text to contain workload name 'nginx'")
+				}
+			},
+		},
+		{
+			name:        "raw structured JSON",
+			contentType: "application/json",
+			newAlert:    func(url string) Alerter { return NewRawAlerter(url, "", "custom-info", true) },
 			validate: func(t *testing.T, body []byte) {
 				var msg rawMessage
 				if err := json.Unmarshal(body, &msg); err != nil {
@@ -216,7 +248,7 @@ func TestAlerter_Send(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			server, getBody := testServer(t)
+			server, getBody := testServer(t, tt.contentType)
 			defer server.Close()
 
 			alerter := tt.newAlert(server.URL)
@@ -234,7 +266,7 @@ func TestAlerter_WebhookError(t *testing.T) {
 	}))
 	defer server.Close()
 
-	alerter := NewRawAlerter(server.URL, "", "")
+	alerter := NewRawAlerter(server.URL, "", "", false)
 	if err := alerter.Send(context.Background(), AlertMessage{}); err == nil {
 		t.Error("Expected error for non-2xx response")
 	}

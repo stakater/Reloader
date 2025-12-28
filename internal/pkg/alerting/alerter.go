@@ -39,7 +39,7 @@ func NewAlerter(cfg *config.Config) Alerter {
 	case "gchat":
 		return NewGChatAlerter(alertCfg.WebhookURL, alertCfg.Proxy, alertCfg.Additional)
 	default:
-		return NewRawAlerter(alertCfg.WebhookURL, alertCfg.Proxy, alertCfg.Additional)
+		return NewRawAlerter(alertCfg.WebhookURL, alertCfg.Proxy, alertCfg.Additional, alertCfg.Structured)
 	}
 }
 
