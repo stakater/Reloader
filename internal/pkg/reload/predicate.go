@@ -132,6 +132,12 @@ func (ls LabelsSet) Get(key string) string {
 	return ls[key]
 }
 
+// Lookup returns the value for the provided label key and whether it exists.
+func (ls LabelsSet) Lookup(key string) (string, bool) {
+	value, ok := ls[key]
+	return value, ok
+}
+
 // IgnoreAnnotationPredicate returns a predicate that filters out resources with the ignore annotation.
 func IgnoreAnnotationPredicate(cfg *config.Config) predicate.Predicate {
 	return predicate.NewPredicateFuncs(

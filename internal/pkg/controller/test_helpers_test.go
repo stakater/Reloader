@@ -112,7 +112,7 @@ func assertReconcileSuccess(t *testing.T, reconciler interface {
 	if err != nil {
 		t.Fatalf("Reconcile failed: %v", err)
 	}
-	if result.Requeue {
+	if result.RequeueAfter > 0 {
 		t.Error("Should not requeue")
 	}
 }
