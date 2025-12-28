@@ -119,8 +119,8 @@ func run(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("setting up reconcilers: %w", err)
 	}
 
-	if err := metadata.CreateOrUpdate(mgr.GetClient(), cfg, log); err != nil {
-		log.Error(err, "Failed to create metadata ConfigMap")
+	if err := mgr.Add(metadata.Runnable(mgr.GetClient(), cfg, log)); err != nil {
+		log.Error(err, "Failed to add metadata publisher")
 		// Non-fatal, continue starting
 	}
 

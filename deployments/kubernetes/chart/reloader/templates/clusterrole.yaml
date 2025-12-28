@@ -76,6 +76,7 @@ rules:
       - get
       - update
       - patch
+      - watch
 {{- if .Values.reloader.ignoreCronJobs }}{{- else }}
   - apiGroups:
       - "batch"

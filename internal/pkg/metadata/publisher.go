@@ -40,10 +40,12 @@ func (p *Publisher) Publish(ctx context.Context) error {
 	configMap := metaInfo.ToConfigMap()
 
 	existing := &corev1.ConfigMap{}
-	err := p.client.Get(ctx, client.ObjectKey{
-		Name:      ConfigMapName,
-		Namespace: namespace,
-	}, existing)
+	err := p.client.Get(
+		ctx, client.ObjectKey{
+			Name:      ConfigMapName,
+			Namespace: namespace,
+		}, existing,
+	)
 
 	if err != nil {
 		if !errors.IsNotFound(err) {
@@ -73,8 +75,23 @@ func PublishMetaInfoConfigMap(ctx context.Context, c client.Client, cfg *config.
 	return publisher.Publish(ctx)
 }
 
-// CreateOrUpdate creates or updates the metadata ConfigMap using the provided client.
-func CreateOrUpdate(c client.Client, cfg *config.Config, log logr.Logger) error {
-	ctx := context.Background()
-	return PublishMetaInfoConfigMap(ctx, c, cfg, log)
+// Runnable returns a controller-runtime Runnable that publishes the metadata ConfigMap
+// when the manager starts. This ensures the cache is ready before accessing the API.
+func Runnable(c client.Client, cfg *config.Config, log logr.Logger) RunnableFunc {
+	return func(ctx context.Context) error {
+		if err := PublishMetaInfoConfigMap(ctx, c, cfg, log); err != nil {
+			log.Error(err, "Failed to create metadata ConfigMap")
+			// Non-fatal, don't return error to avoid crashing the manager
+		}
+		<-ctx.Done()
+		return nil
+	}
+}
+
+// RunnableFunc is a function that implements the controller-runtime Runnable interface.
+type RunnableFunc func(context.Context) error
+
+// Start implements the Runnable interface.
+func (r RunnableFunc) Start(ctx context.Context) error {
+	return r(ctx)
 }
