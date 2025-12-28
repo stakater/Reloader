@@ -78,6 +78,10 @@ func BindFlags(fs *pflag.FlagSet, cfg *Config) {
 	fs.StringVar(&cfg.MetricsAddr, "metrics-addr", cfg.MetricsAddr,
 		"Address to serve metrics on")
 
+	// Health probes
+	fs.StringVar(&cfg.HealthAddr, "health-addr", cfg.HealthAddr,
+		"Address to serve health probes on")
+
 	// Profiling
 	fs.BoolVar(&cfg.EnablePProf, "enable-pprof", cfg.EnablePProf,
 		"Enable pprof profiling server")

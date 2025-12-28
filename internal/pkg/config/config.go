@@ -82,6 +82,9 @@ type Config struct {
 	// Metrics configuration
 	MetricsAddr string // Address to serve metrics on (default :9090)
 
+	// Health probe configuration
+	HealthAddr string // Address to serve health probes on (default :8081)
+
 	// Profiling configuration
 	EnablePProf bool
 	PProfAddr   string
@@ -170,6 +173,7 @@ func NewDefault() *Config {
 		LogFormat:           "",
 		LogLevel:            "info",
 		MetricsAddr:         ":9090",
+		HealthAddr:          ":8081",
 		EnablePProf:         false,
 		PProfAddr:           ":6060",
 		Alerting:            AlertingConfig{},

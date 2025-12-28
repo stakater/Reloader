@@ -3,11 +3,14 @@ package controller
 import (
 	"context"
 	"sync"
+	"time"
 
 	"github.com/go-logr/logr"
 	"github.com/stakater/Reloader/internal/pkg/config"
+	"github.com/stakater/Reloader/internal/pkg/events"
 	"github.com/stakater/Reloader/internal/pkg/metrics"
 	"github.com/stakater/Reloader/internal/pkg/reload"
+	"github.com/stakater/Reloader/internal/pkg/webhook"
 	"github.com/stakater/Reloader/internal/pkg/workload"
 	appsv1 "k8s.io/api/apps/v1"
 	batchv1 "k8s.io/api/batch/v1"
@@ -28,9 +31,9 @@ type SecretReconciler struct {
 	ReloadService *reload.Service
 	Registry      *workload.Registry
 	Collectors    *metrics.Collectors
+	EventRecorder *events.Recorder
+	WebhookClient *webhook.Client
 
-	// initialized tracks whether initial sync has completed.
-	// Used to skip create events during startup unless SyncAfterRestart is enabled.
 	initialized bool
 	initOnce    sync.Once
 }
@@ -79,20 +82,31 @@ func (r *SecretReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 	}
 	decisions := r.ReloadService.ProcessSecret(change, workloads)
 
-	// Apply reloads
+	// Collect workloads that should be reloaded
+	var workloadsToReload []reload.ReloadDecision
 	for _, decision := range decisions {
-		if !decision.ShouldReload {
-			continue
+		if decision.ShouldReload {
+			workloadsToReload = append(workloadsToReload, decision)
 		}
+	}
 
+	// If webhook is configured, send notification instead of modifying workloads
+	if r.WebhookClient.IsConfigured() && len(workloadsToReload) > 0 {
+		return r.sendWebhookNotification(ctx, secret.Name, secret.Namespace, reload.ResourceTypeSecret, workloadsToReload, log)
+	}
+
+	// Apply reloads with conflict retry
+	for _, decision := range workloadsToReload {
 		log.Info("reloading workload",
 			"workload", decision.Workload.GetName(),
 			"kind", decision.Workload.Kind(),
 			"reason", decision.Reason,
 		)
 
-		updated, err := r.ReloadService.ApplyReload(
+		updated, err := UpdateWorkloadWithRetry(
 			ctx,
+			r.Client,
+			r.ReloadService,
 			decision.Workload,
 			secret.Name,
 			reload.ResourceTypeSecret,
@@ -101,24 +115,17 @@ func (r *SecretReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 			decision.AutoReload,
 		)
 		if err != nil {
-			log.Error(err, "failed to apply reload",
+			log.Error(err, "failed to update workload",
 				"workload", decision.Workload.GetName(),
 				"kind", decision.Workload.Kind(),
 			)
+			r.EventRecorder.ReloadFailed(decision.Workload.GetObject(), "Secret", secret.Name, err)
 			r.recordMetrics(false, secret.Namespace)
 			continue
 		}
 
 		if updated {
-			// Persist the changes
-			if err := r.Update(ctx, decision.Workload.GetObject()); err != nil {
-				log.Error(err, "failed to update workload",
-					"workload", decision.Workload.GetName(),
-					"kind", decision.Workload.Kind(),
-				)
-				r.recordMetrics(false, secret.Namespace)
-				continue
-			}
+			r.EventRecorder.ReloadSuccess(decision.Workload.GetObject(), "Secret", secret.Name)
 			r.recordMetrics(true, secret.Namespace)
 			log.Info("workload reloaded successfully",
 				"workload", decision.Workload.GetName(),
@@ -142,7 +149,6 @@ func (r *SecretReconciler) handleDelete(ctx context.Context, req ctrl.Request, l
 	}
 
 	// For delete events, we create a change with empty Secret
-	// The service will use an empty hash
 	change := reload.SecretChange{
 		Secret:    &corev1.Secret{},
 		EventType: reload.EventTypeDelete,
@@ -152,19 +158,30 @@ func (r *SecretReconciler) handleDelete(ctx context.Context, req ctrl.Request, l
 
 	decisions := r.ReloadService.ProcessSecret(change, workloads)
 
-	// Apply reloads for delete
+	// Collect workloads that should be reloaded
+	var workloadsToReload []reload.ReloadDecision
 	for _, decision := range decisions {
-		if !decision.ShouldReload {
-			continue
+		if decision.ShouldReload {
+			workloadsToReload = append(workloadsToReload, decision)
 		}
+	}
 
+	// If webhook is configured, send notification instead of modifying workloads
+	if r.WebhookClient.IsConfigured() && len(workloadsToReload) > 0 {
+		return r.sendWebhookNotification(ctx, req.Name, req.Namespace, reload.ResourceTypeSecret, workloadsToReload, log)
+	}
+
+	// Apply reloads for delete with conflict retry
+	for _, decision := range workloadsToReload {
 		log.Info("reloading workload due to Secret deletion",
 			"workload", decision.Workload.GetName(),
 			"kind", decision.Workload.Kind(),
 		)
 
-		updated, err := r.ReloadService.ApplyReload(
+		updated, err := UpdateWorkloadWithRetry(
 			ctx,
+			r.Client,
+			r.ReloadService,
 			decision.Workload,
 			req.Name,
 			reload.ResourceTypeSecret,
@@ -173,17 +190,14 @@ func (r *SecretReconciler) handleDelete(ctx context.Context, req ctrl.Request, l
 			decision.AutoReload,
 		)
 		if err != nil {
-			log.Error(err, "failed to apply reload for deletion")
+			log.Error(err, "failed to update workload")
+			r.EventRecorder.ReloadFailed(decision.Workload.GetObject(), "Secret", req.Name, err)
 			r.recordMetrics(false, req.Namespace)
 			continue
 		}
 
 		if updated {
-			if err := r.Update(ctx, decision.Workload.GetObject()); err != nil {
-				log.Error(err, "failed to update workload")
-				r.recordMetrics(false, req.Namespace)
-				continue
-			}
+			r.EventRecorder.ReloadSuccess(decision.Workload.GetObject(), "Secret", req.Name)
 			r.recordMetrics(true, req.Namespace)
 		}
 	}
@@ -291,10 +305,52 @@ func (r *SecretReconciler) listCronJobs(ctx context.Context, namespace string) (
 
 // recordMetrics records reload metrics.
 func (r *SecretReconciler) recordMetrics(success bool, namespace string) {
-	if r.Collectors == nil {
-		return
+	r.Collectors.RecordReload(success, namespace)
+}
+
+// sendWebhookNotification sends a webhook notification instead of modifying workloads.
+func (r *SecretReconciler) sendWebhookNotification(
+	ctx context.Context,
+	resourceName, namespace string,
+	resourceType reload.ResourceType,
+	decisions []reload.ReloadDecision,
+	log logr.Logger,
+) (ctrl.Result, error) {
+	var workloads []webhook.WorkloadInfo
+	var hash string
+	for _, d := range decisions {
+		workloads = append(workloads, webhook.WorkloadInfo{
+			Kind:      string(d.Workload.Kind()),
+			Name:      d.Workload.GetName(),
+			Namespace: d.Workload.GetNamespace(),
+		})
+		if hash == "" {
+			hash = d.Hash
+		}
 	}
-	// TODO: Integrate with existing metrics collectors
+
+	payload := webhook.Payload{
+		Kind:         string(resourceType),
+		Namespace:    namespace,
+		ResourceName: resourceName,
+		ResourceType: string(resourceType),
+		Hash:         hash,
+		Timestamp:    time.Now().UTC(),
+		Workloads:    workloads,
+	}
+
+	if err := r.WebhookClient.Send(ctx, payload); err != nil {
+		log.Error(err, "failed to send webhook notification")
+		r.recordMetrics(false, namespace)
+		return ctrl.Result{}, err
+	}
+
+	log.Info("webhook notification sent",
+		"resource", resourceName,
+		"workloadCount", len(workloads),
+	)
+	r.recordMetrics(true, namespace)
+	return ctrl.Result{}, nil
 }
 
 // SetupWithManager sets up the controller with the Manager.

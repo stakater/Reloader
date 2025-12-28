@@ -8,9 +8,32 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
+// Collectors holds Prometheus metrics collectors for Reloader.
 type Collectors struct {
 	Reloaded            *prometheus.CounterVec
 	ReloadedByNamespace *prometheus.CounterVec
+	countByNamespace    bool
+}
+
+// RecordReload records a reload event with the given success status and namespace.
+func (c *Collectors) RecordReload(success bool, namespace string) {
+	if c == nil {
+		return
+	}
+
+	successLabel := "false"
+	if success {
+		successLabel = "true"
+	}
+
+	c.Reloaded.With(prometheus.Labels{"success": successLabel}).Inc()
+
+	if c.countByNamespace {
+		c.ReloadedByNamespace.With(prometheus.Labels{
+			"success":   successLabel,
+			"namespace": namespace,
+		}).Inc()
+	}
 }
 
 func NewCollectors() Collectors {
@@ -43,6 +66,7 @@ func NewCollectors() Collectors {
 	return Collectors{
 		Reloaded:            reloaded,
 		ReloadedByNamespace: reloaded_by_namespace,
+		countByNamespace:    os.Getenv("METRICS_COUNT_BY_NAMESPACE") == "enabled",
 	}
 }
 
