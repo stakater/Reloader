@@ -3,6 +3,7 @@ package workload
 import (
 	"context"
 
+	argorolloutv1alpha1 "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	appsv1 "k8s.io/api/apps/v1"
 	batchv1 "k8s.io/api/batch/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -49,63 +50,81 @@ func (l *Lister) List(ctx context.Context, namespace string) ([]WorkloadAccessor
 }
 
 func (l *Lister) listByKind(ctx context.Context, namespace string, kind Kind) ([]WorkloadAccessor, error) {
-	switch kind {
-	case KindDeployment:
-		var list appsv1.DeploymentList
-		if err := l.Client.List(ctx, &list, client.InNamespace(namespace)); err != nil {
-			return nil, err
-		}
-		result := make([]WorkloadAccessor, len(list.Items))
-		for i := range list.Items {
-			result[i] = NewDeploymentWorkload(&list.Items[i])
-		}
-		return result, nil
-
-	case KindDaemonSet:
-		var list appsv1.DaemonSetList
-		if err := l.Client.List(ctx, &list, client.InNamespace(namespace)); err != nil {
-			return nil, err
-		}
-		result := make([]WorkloadAccessor, len(list.Items))
-		for i := range list.Items {
-			result[i] = NewDaemonSetWorkload(&list.Items[i])
-		}
-		return result, nil
-
-	case KindStatefulSet:
-		var list appsv1.StatefulSetList
-		if err := l.Client.List(ctx, &list, client.InNamespace(namespace)); err != nil {
-			return nil, err
-		}
-		result := make([]WorkloadAccessor, len(list.Items))
-		for i := range list.Items {
-			result[i] = NewStatefulSetWorkload(&list.Items[i])
-		}
-		return result, nil
-
-	case KindJob:
-		var list batchv1.JobList
-		if err := l.Client.List(ctx, &list, client.InNamespace(namespace)); err != nil {
-			return nil, err
-		}
-		result := make([]WorkloadAccessor, len(list.Items))
-		for i := range list.Items {
-			result[i] = NewJobWorkload(&list.Items[i])
-		}
-		return result, nil
-
-	case KindCronJob:
-		var list batchv1.CronJobList
-		if err := l.Client.List(ctx, &list, client.InNamespace(namespace)); err != nil {
-			return nil, err
-		}
-		result := make([]WorkloadAccessor, len(list.Items))
-		for i := range list.Items {
-			result[i] = NewCronJobWorkload(&list.Items[i])
-		}
-		return result, nil
-
-	default:
+	lister := l.Registry.ListerFor(kind)
+	if lister == nil {
 		return nil, nil
 	}
+	return lister(ctx, l.Client, namespace)
+}
+
+func listDeployments(ctx context.Context, c client.Client, namespace string) ([]WorkloadAccessor, error) {
+	var list appsv1.DeploymentList
+	if err := c.List(ctx, &list, client.InNamespace(namespace)); err != nil {
+		return nil, err
+	}
+	result := make([]WorkloadAccessor, len(list.Items))
+	for i := range list.Items {
+		result[i] = NewDeploymentWorkload(&list.Items[i])
+	}
+	return result, nil
+}
+
+func listDaemonSets(ctx context.Context, c client.Client, namespace string) ([]WorkloadAccessor, error) {
+	var list appsv1.DaemonSetList
+	if err := c.List(ctx, &list, client.InNamespace(namespace)); err != nil {
+		return nil, err
+	}
+	result := make([]WorkloadAccessor, len(list.Items))
+	for i := range list.Items {
+		result[i] = NewDaemonSetWorkload(&list.Items[i])
+	}
+	return result, nil
+}
+
+func listStatefulSets(ctx context.Context, c client.Client, namespace string) ([]WorkloadAccessor, error) {
+	var list appsv1.StatefulSetList
+	if err := c.List(ctx, &list, client.InNamespace(namespace)); err != nil {
+		return nil, err
+	}
+	result := make([]WorkloadAccessor, len(list.Items))
+	for i := range list.Items {
+		result[i] = NewStatefulSetWorkload(&list.Items[i])
+	}
+	return result, nil
+}
+
+func listJobs(ctx context.Context, c client.Client, namespace string) ([]WorkloadAccessor, error) {
+	var list batchv1.JobList
+	if err := c.List(ctx, &list, client.InNamespace(namespace)); err != nil {
+		return nil, err
+	}
+	result := make([]WorkloadAccessor, len(list.Items))
+	for i := range list.Items {
+		result[i] = NewJobWorkload(&list.Items[i])
+	}
+	return result, nil
+}
+
+func listCronJobs(ctx context.Context, c client.Client, namespace string) ([]WorkloadAccessor, error) {
+	var list batchv1.CronJobList
+	if err := c.List(ctx, &list, client.InNamespace(namespace)); err != nil {
+		return nil, err
+	}
+	result := make([]WorkloadAccessor, len(list.Items))
+	for i := range list.Items {
+		result[i] = NewCronJobWorkload(&list.Items[i])
+	}
+	return result, nil
+}
+
+func listRollouts(ctx context.Context, c client.Client, namespace string) ([]WorkloadAccessor, error) {
+	var list argorolloutv1alpha1.RolloutList
+	if err := c.List(ctx, &list, client.InNamespace(namespace)); err != nil {
+		return nil, err
+	}
+	result := make([]WorkloadAccessor, len(list.Items))
+	for i := range list.Items {
+		result[i] = NewRolloutWorkload(&list.Items[i])
+	}
+	return result, nil
 }

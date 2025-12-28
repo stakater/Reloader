@@ -201,29 +201,3 @@ func TestConfig_IsNamespaceIgnored(t *testing.T) {
 	}
 }
 
-func TestEqualFold(t *testing.T) {
-	tests := []struct {
-		s, t string
-		want bool
-	}{
-		{"abc", "abc", true},
-		{"ABC", "abc", true},
-		{"abc", "ABC", true},
-		{"aBc", "AbC", true},
-		{"abc", "abcd", false},
-		{"", "", true},
-		{"a", "", false},
-		{"", "a", false},
-	}
-
-	for _, tt := range tests {
-		t.Run(
-			tt.s+"_"+tt.t, func(t *testing.T) {
-				got := equalFold(tt.s, tt.t)
-				if got != tt.want {
-					t.Errorf("equalFold(%q, %q) = %v, want %v", tt.s, tt.t, got, tt.want)
-				}
-			},
-		)
-	}
-}

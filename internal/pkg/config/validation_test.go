@@ -178,6 +178,20 @@ func TestConfig_Validate_NormalizesIgnoredWorkloads(t *testing.T) {
 	}
 }
 
+func TestConfig_Validate_InvalidIgnoredWorkload(t *testing.T) {
+	cfg := NewDefault()
+	cfg.IgnoredWorkloads = []string{"deployment", "invalidtype"}
+
+	err := cfg.Validate()
+	if err == nil {
+		t.Fatal("Validate() should return error for invalid workload type")
+	}
+
+	if !strings.Contains(err.Error(), "invalidtype") {
+		t.Errorf("Error should mention invalid workload type, got: %v", err)
+	}
+}
+
 func TestConfig_Validate_MultipleErrors(t *testing.T) {
 	cfg := NewDefault()
 	cfg.ReloadStrategy = "invalid"

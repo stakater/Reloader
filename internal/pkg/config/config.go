@@ -2,6 +2,7 @@
 package config
 
 import (
+	"strings"
 	"time"
 
 	"k8s.io/apimachinery/pkg/labels"
@@ -157,7 +158,7 @@ func DefaultAnnotations() AnnotationConfig {
 // IsResourceIgnored checks if a resource name should be ignored (case-insensitive).
 func (c *Config) IsResourceIgnored(name string) bool {
 	for _, ignored := range c.IgnoredResources {
-		if equalFold(ignored, name) {
+		if strings.EqualFold(ignored, name) {
 			return true
 		}
 	}
@@ -167,7 +168,7 @@ func (c *Config) IsResourceIgnored(name string) bool {
 // IsWorkloadIgnored checks if a workload type should be ignored (case-insensitive).
 func (c *Config) IsWorkloadIgnored(workloadType string) bool {
 	for _, ignored := range c.IgnoredWorkloads {
-		if equalFold(ignored, workloadType) {
+		if strings.EqualFold(ignored, workloadType) {
 			return true
 		}
 	}
@@ -184,23 +185,3 @@ func (c *Config) IsNamespaceIgnored(namespace string) bool {
 	return false
 }
 
-func equalFold(s, t string) bool {
-	if len(s) != len(t) {
-		return false
-	}
-	for i := 0; i < len(s); i++ {
-		c1, c2 := s[i], t[i]
-		if c1 != c2 {
-			if 'A' <= c1 && c1 <= 'Z' {
-				c1 += 'a' - 'A'
-			}
-			if 'A' <= c2 && c2 <= 'Z' {
-				c2 += 'a' - 'A'
-			}
-			if c1 != c2 {
-				return false
-			}
-		}
-	}
-	return true
-}

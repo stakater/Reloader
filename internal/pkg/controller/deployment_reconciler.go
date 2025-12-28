@@ -26,7 +26,7 @@ type DeploymentReconciler struct {
 // Reconcile handles Deployment pause expiration.
 func (r *DeploymentReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	log := r.Log.WithValues("deployment", req.NamespacedName)
-	log.Info("Deployment reconciling ", "namespace", req.Namespace, "name", req.Name)
+	log.V(1).Info("reconciling deployment", "namespace", req.Namespace, "name", req.Name)
 
 	var deploy appsv1.Deployment
 	if err := r.Get(ctx, req.NamespacedName, &deploy); err != nil {

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/stakater/Reloader/internal/pkg/workload"
 	"k8s.io/apimachinery/pkg/labels"
 )
 
@@ -102,8 +103,16 @@ func (c *Config) Validate() error {
 	// Normalize IgnoredResources to lowercase for consistent comparison
 	c.IgnoredResources = normalizeToLower(c.IgnoredResources)
 
-	// Normalize IgnoredWorkloads to lowercase
+	// Validate and normalize IgnoredWorkloads
 	c.IgnoredWorkloads = normalizeToLower(c.IgnoredWorkloads)
+	for _, w := range c.IgnoredWorkloads {
+		if _, err := workload.KindFromString(w); err != nil {
+			errs = append(errs, ValidationError{
+				Field:   "IgnoredWorkloads",
+				Message: fmt.Sprintf("unknown workload type %q", w),
+			})
+		}
+	}
 
 	if len(errs) > 0 {
 		return errs
