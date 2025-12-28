@@ -264,8 +264,10 @@ func ConvertResourceToSHA(resourceType, namespace, name, data string) string {
 
 // WaitForDeploymentAnnotation waits for a deployment to have the specified annotation value.
 func WaitForDeploymentAnnotation(client kubernetes.Interface, namespace, name, annotation, expectedValue string, timeout time.Duration) error {
-	return wait.PollImmediate(time.Second, timeout, func() (bool, error) {
-		deployment, err := client.AppsV1().Deployments(namespace).Get(context.Background(), name, metav1.GetOptions{})
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+	return wait.PollUntilContextTimeout(ctx, time.Second, timeout, true, func(ctx context.Context) (bool, error) {
+		deployment, err := client.AppsV1().Deployments(namespace).Get(ctx, name, metav1.GetOptions{})
 		if err != nil {
 			return false, nil // Keep waiting
 		}
@@ -280,8 +282,10 @@ func WaitForDeploymentAnnotation(client kubernetes.Interface, namespace, name, a
 // WaitForDeploymentReloadedAnnotation waits for a deployment to have any reloaded annotation.
 func WaitForDeploymentReloadedAnnotation(client kubernetes.Interface, namespace, name string, cfg *config.Config, timeout time.Duration) (bool, error) {
 	var found bool
-	err := wait.PollImmediate(time.Second, timeout, func() (bool, error) {
-		deployment, err := client.AppsV1().Deployments(namespace).Get(context.Background(), name, metav1.GetOptions{})
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+	err := wait.PollUntilContextTimeout(ctx, time.Second, timeout, true, func(ctx context.Context) (bool, error) {
+		deployment, err := client.AppsV1().Deployments(namespace).Get(ctx, name, metav1.GetOptions{})
 		if err != nil {
 			return false, nil // Keep waiting
 		}
@@ -294,7 +298,7 @@ func WaitForDeploymentReloadedAnnotation(client kubernetes.Interface, namespace,
 		}
 		return false, nil
 	})
-	if err == wait.ErrWaitTimeout {
+	if wait.Interrupted(err) {
 		return found, nil
 	}
 	return found, err
@@ -303,8 +307,10 @@ func WaitForDeploymentReloadedAnnotation(client kubernetes.Interface, namespace,
 // WaitForDaemonSetReloadedAnnotation waits for a daemonset to have any reloaded annotation.
 func WaitForDaemonSetReloadedAnnotation(client kubernetes.Interface, namespace, name string, cfg *config.Config, timeout time.Duration) (bool, error) {
 	var found bool
-	err := wait.PollImmediate(time.Second, timeout, func() (bool, error) {
-		daemonset, err := client.AppsV1().DaemonSets(namespace).Get(context.Background(), name, metav1.GetOptions{})
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+	err := wait.PollUntilContextTimeout(ctx, time.Second, timeout, true, func(ctx context.Context) (bool, error) {
+		daemonset, err := client.AppsV1().DaemonSets(namespace).Get(ctx, name, metav1.GetOptions{})
 		if err != nil {
 			return false, nil // Keep waiting
 		}
@@ -317,7 +323,7 @@ func WaitForDaemonSetReloadedAnnotation(client kubernetes.Interface, namespace, 
 		}
 		return false, nil
 	})
-	if err == wait.ErrWaitTimeout {
+	if wait.Interrupted(err) {
 		return found, nil
 	}
 	return found, err
@@ -326,8 +332,10 @@ func WaitForDaemonSetReloadedAnnotation(client kubernetes.Interface, namespace, 
 // WaitForStatefulSetReloadedAnnotation waits for a statefulset to have any reloaded annotation.
 func WaitForStatefulSetReloadedAnnotation(client kubernetes.Interface, namespace, name string, cfg *config.Config, timeout time.Duration) (bool, error) {
 	var found bool
-	err := wait.PollImmediate(time.Second, timeout, func() (bool, error) {
-		statefulset, err := client.AppsV1().StatefulSets(namespace).Get(context.Background(), name, metav1.GetOptions{})
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+	err := wait.PollUntilContextTimeout(ctx, time.Second, timeout, true, func(ctx context.Context) (bool, error) {
+		statefulset, err := client.AppsV1().StatefulSets(namespace).Get(ctx, name, metav1.GetOptions{})
 		if err != nil {
 			return false, nil // Keep waiting
 		}
@@ -340,7 +348,7 @@ func WaitForStatefulSetReloadedAnnotation(client kubernetes.Interface, namespace
 		}
 		return false, nil
 	})
-	if err == wait.ErrWaitTimeout {
+	if wait.Interrupted(err) {
 		return found, nil
 	}
 	return found, err
