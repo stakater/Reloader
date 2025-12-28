@@ -140,9 +140,20 @@ type AnnotationConfig struct {
 
 // AlertingConfig holds configuration for alerting integrations.
 type AlertingConfig struct {
-	SlackWebhookURL string
-	TeamsWebhookURL string
-	GChatWebhookURL string
+	// Enabled enables alerting notifications on reload events.
+	Enabled bool
+
+	// WebhookURL is the webhook URL to send alerts to.
+	WebhookURL string
+
+	// Sink determines the alert format: "slack", "teams", "gchat", or "raw" (default).
+	Sink string
+
+	// Proxy is an optional HTTP proxy for webhook requests.
+	Proxy string
+
+	// Additional is optional context prepended to alert messages.
+	Additional string
 }
 
 // LeaderElectionConfig holds configuration for leader election.

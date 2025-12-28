@@ -192,3 +192,8 @@ func (w *DeploymentWorkload) UsesSecret(name string) bool {
 func (w *DeploymentWorkload) GetOwnerReferences() []metav1.OwnerReference {
 	return w.deployment.OwnerReferences
 }
+
+// GetDeployment returns the underlying Deployment for special handling.
+func (w *DeploymentWorkload) GetDeployment() *appsv1.Deployment {
+	return w.deployment
+}

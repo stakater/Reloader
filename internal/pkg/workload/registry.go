@@ -3,6 +3,7 @@ package workload
 import (
 	"fmt"
 
+	argorolloutv1alpha1 "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	appsv1 "k8s.io/api/apps/v1"
 	batchv1 "k8s.io/api/batch/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -48,6 +49,11 @@ func (r *Registry) FromObject(obj client.Object) (WorkloadAccessor, error) {
 		return NewJobWorkload(o), nil
 	case *batchv1.CronJob:
 		return NewCronJobWorkload(o), nil
+	case *argorolloutv1alpha1.Rollout:
+		if !r.argoRolloutsEnabled {
+			return nil, fmt.Errorf("Argo Rollouts support is not enabled")
+		}
+		return NewRolloutWorkload(o), nil
 	default:
 		return nil, fmt.Errorf("unsupported object type: %T", obj)
 	}

@@ -3,6 +3,7 @@ package workload
 import (
 	"testing"
 
+	argorolloutv1alpha1 "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -691,4 +692,226 @@ func TestWorkloadInterface(t *testing.T) {
 	var _ WorkloadAccessor = (*DeploymentWorkload)(nil)
 	var _ WorkloadAccessor = (*DaemonSetWorkload)(nil)
 	var _ WorkloadAccessor = (*StatefulSetWorkload)(nil)
+	var _ WorkloadAccessor = (*RolloutWorkload)(nil)
+}
+
+// RolloutWorkload tests
+func TestRolloutWorkload_BasicGetters(t *testing.T) {
+	rollout := &argorolloutv1alpha1.Rollout{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-rollout",
+			Namespace: "test-ns",
+			Annotations: map[string]string{
+				"key": "value",
+			},
+		},
+	}
+
+	w := NewRolloutWorkload(rollout)
+
+	if w.Kind() != KindArgoRollout {
+		t.Errorf("Kind() = %v, want %v", w.Kind(), KindArgoRollout)
+	}
+	if w.GetName() != "test-rollout" {
+		t.Errorf("GetName() = %v, want test-rollout", w.GetName())
+	}
+	if w.GetNamespace() != "test-ns" {
+		t.Errorf("GetNamespace() = %v, want test-ns", w.GetNamespace())
+	}
+	if w.GetAnnotations()["key"] != "value" {
+		t.Errorf("GetAnnotations()[key] = %v, want value", w.GetAnnotations()["key"])
+	}
+	if w.GetObject() != rollout {
+		t.Error("GetObject() should return the underlying rollout")
+	}
+}
+
+func TestRolloutWorkload_PodTemplateAnnotations(t *testing.T) {
+	rollout := &argorolloutv1alpha1.Rollout{
+		ObjectMeta: metav1.ObjectMeta{Name: "test"},
+		Spec: argorolloutv1alpha1.RolloutSpec{
+			Template: corev1.PodTemplateSpec{
+				ObjectMeta: metav1.ObjectMeta{
+					Annotations: map[string]string{
+						"existing": "annotation",
+					},
+				},
+			},
+		},
+	}
+
+	w := NewRolloutWorkload(rollout)
+
+	// Test get
+	annotations := w.GetPodTemplateAnnotations()
+	if annotations["existing"] != "annotation" {
+		t.Errorf("GetPodTemplateAnnotations()[existing] = %v, want annotation", annotations["existing"])
+	}
+
+	// Test set
+	w.SetPodTemplateAnnotation("new-key", "new-value")
+	if w.GetPodTemplateAnnotations()["new-key"] != "new-value" {
+		t.Error("SetPodTemplateAnnotation should add new annotation")
+	}
+}
+
+func TestRolloutWorkload_GetStrategy_Default(t *testing.T) {
+	rollout := &argorolloutv1alpha1.Rollout{
+		ObjectMeta: metav1.ObjectMeta{Name: "test"},
+	}
+
+	w := NewRolloutWorkload(rollout)
+
+	if w.GetStrategy() != RolloutStrategyRollout {
+		t.Errorf("GetStrategy() = %v, want %v (default)", w.GetStrategy(), RolloutStrategyRollout)
+	}
+}
+
+func TestRolloutWorkload_GetStrategy_Restart(t *testing.T) {
+	rollout := &argorolloutv1alpha1.Rollout{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "test",
+			Annotations: map[string]string{
+				RolloutStrategyAnnotation: "restart",
+			},
+		},
+	}
+
+	w := NewRolloutWorkload(rollout)
+
+	if w.GetStrategy() != RolloutStrategyRestart {
+		t.Errorf("GetStrategy() = %v, want %v", w.GetStrategy(), RolloutStrategyRestart)
+	}
+}
+
+func TestRolloutWorkload_UsesConfigMap_Volume(t *testing.T) {
+	rollout := &argorolloutv1alpha1.Rollout{
+		ObjectMeta: metav1.ObjectMeta{Name: "test"},
+		Spec: argorolloutv1alpha1.RolloutSpec{
+			Template: corev1.PodTemplateSpec{
+				Spec: corev1.PodSpec{
+					Volumes: []corev1.Volume{
+						{
+							Name: "config-vol",
+							VolumeSource: corev1.VolumeSource{
+								ConfigMap: &corev1.ConfigMapVolumeSource{
+									LocalObjectReference: corev1.LocalObjectReference{
+										Name: "rollout-config",
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	w := NewRolloutWorkload(rollout)
+
+	if !w.UsesConfigMap("rollout-config") {
+		t.Error("Rollout UsesConfigMap should return true for ConfigMap volume")
+	}
+	if w.UsesConfigMap("other-config") {
+		t.Error("Rollout UsesConfigMap should return false for non-existent ConfigMap")
+	}
+}
+
+func TestRolloutWorkload_UsesSecret_EnvFrom(t *testing.T) {
+	rollout := &argorolloutv1alpha1.Rollout{
+		ObjectMeta: metav1.ObjectMeta{Name: "test"},
+		Spec: argorolloutv1alpha1.RolloutSpec{
+			Template: corev1.PodTemplateSpec{
+				Spec: corev1.PodSpec{
+					Containers: []corev1.Container{
+						{
+							Name: "main",
+							EnvFrom: []corev1.EnvFromSource{
+								{
+									SecretRef: &corev1.SecretEnvSource{
+										LocalObjectReference: corev1.LocalObjectReference{
+											Name: "rollout-secret",
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	w := NewRolloutWorkload(rollout)
+
+	if !w.UsesSecret("rollout-secret") {
+		t.Error("Rollout UsesSecret should return true for Secret envFrom")
+	}
+	if w.UsesSecret("other-secret") {
+		t.Error("Rollout UsesSecret should return false for non-existent Secret")
+	}
+}
+
+func TestRolloutWorkload_DeepCopy(t *testing.T) {
+	rollout := &argorolloutv1alpha1.Rollout{
+		ObjectMeta: metav1.ObjectMeta{Name: "test"},
+		Spec: argorolloutv1alpha1.RolloutSpec{
+			Template: corev1.PodTemplateSpec{
+				ObjectMeta: metav1.ObjectMeta{
+					Annotations: map[string]string{
+						"original": "value",
+					},
+				},
+			},
+		},
+	}
+
+	w := NewRolloutWorkload(rollout)
+	copy := w.DeepCopy()
+
+	// Verify copy is independent
+	w.SetPodTemplateAnnotation("modified", "true")
+
+	copyAnnotations := copy.(*RolloutWorkload).GetPodTemplateAnnotations()
+	if copyAnnotations["modified"] == "true" {
+		t.Error("DeepCopy should create independent copy")
+	}
+}
+
+func TestRolloutStrategy_Validate(t *testing.T) {
+	tests := []struct {
+		strategy RolloutStrategy
+		wantErr  bool
+	}{
+		{RolloutStrategyRollout, false},
+		{RolloutStrategyRestart, false},
+		{RolloutStrategy("invalid"), true},
+		{RolloutStrategy(""), true},
+	}
+
+	for _, tt := range tests {
+		err := tt.strategy.Validate()
+		if (err != nil) != tt.wantErr {
+			t.Errorf("Validate(%s) error = %v, wantErr %v", tt.strategy, err, tt.wantErr)
+		}
+	}
+}
+
+func TestToRolloutStrategy(t *testing.T) {
+	tests := []struct {
+		input    string
+		expected RolloutStrategy
+	}{
+		{"rollout", RolloutStrategyRollout},
+		{"restart", RolloutStrategyRestart},
+		{"invalid", RolloutStrategyRollout}, // defaults to rollout
+		{"", RolloutStrategyRollout},        // defaults to rollout
+	}
+
+	for _, tt := range tests {
+		result := ToRolloutStrategy(tt.input)
+		if result != tt.expected {
+			t.Errorf("ToRolloutStrategy(%s) = %v, want %v", tt.input, result, tt.expected)
+		}
+	}
 }
