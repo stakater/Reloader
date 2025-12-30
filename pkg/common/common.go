@@ -32,6 +32,8 @@ type ReloaderOptions struct {
 	ConfigmapUpdateOnChangeAnnotation string `json:"configmapUpdateOnChangeAnnotation"`
 	// SecretUpdateOnChangeAnnotation is the annotation key used to detect changes in Secrets specified by name
 	SecretUpdateOnChangeAnnotation string `json:"secretUpdateOnChangeAnnotation"`
+	// SecretProviderClassUpdateOnChangeAnnotation is the annotation key used to detect changes in SecretProviderClasses specified by name
+	SecretProviderClassUpdateOnChangeAnnotation string `json:"secretProviderClassUpdateOnChangeAnnotation"`
 	// ReloaderAutoAnnotation is the annotation key used to detect changes in any referenced ConfigMaps or Secrets
 	ReloaderAutoAnnotation string `json:"reloaderAutoAnnotation"`
 	// IgnoreResourceAnnotation is the annotation key used to ignore resources from being watched
@@ -40,10 +42,14 @@ type ReloaderOptions struct {
 	ConfigmapReloaderAutoAnnotation string `json:"configmapReloaderAutoAnnotation"`
 	// SecretReloaderAutoAnnotation is the annotation key used to detect changes in Secrets only
 	SecretReloaderAutoAnnotation string `json:"secretReloaderAutoAnnotation"`
+	// SecretProviderClassReloaderAutoAnnotation is the annotation key used to detect changes in SecretProviderClasses only
+	SecretProviderClassReloaderAutoAnnotation string `json:"secretProviderClassReloaderAutoAnnotation"`
 	// ConfigmapExcludeReloaderAnnotation is the annotation key containing comma-separated list of ConfigMaps to exclude from watching
 	ConfigmapExcludeReloaderAnnotation string `json:"configmapExcludeReloaderAnnotation"`
 	// SecretExcludeReloaderAnnotation is the annotation key containing comma-separated list of Secrets to exclude from watching
 	SecretExcludeReloaderAnnotation string `json:"secretExcludeReloaderAnnotation"`
+	// SecretProviderClassExcludeReloaderAnnotation is the annotation key containing comma-separated list of SecretProviderClasses to exclude from watching
+	SecretProviderClassExcludeReloaderAnnotation string `json:"secretProviderClassExcludeReloaderAnnotation"`
 	// AutoSearchAnnotation is the annotation key used to detect changes in ConfigMaps/Secrets tagged with SearchMatchAnnotation
 	AutoSearchAnnotation string `json:"autoSearchAnnotation"`
 	// SearchMatchAnnotation is the annotation key used to tag ConfigMaps/Secrets to be found by AutoSearchAnnotation
@@ -71,6 +77,8 @@ type ReloaderOptions struct {
 	SyncAfterRestart bool `json:"syncAfterRestart"`
 	// EnableHA indicates whether High Availability mode is enabled with leader election
 	EnableHA bool `json:"enableHA"`
+	// EnableCSIIntegration indicates whether CSI integration is enabled to watch SecretProviderClassPodStatus
+	EnableCSIIntegration bool `json:"enableCSIIntegration"`
 	// WebhookUrl is the URL to send webhook notifications to instead of performing reloads
 	WebhookUrl string `json:"webhookUrl"`
 	// ResourcesToIgnore is a list of resource types to ignore (e.g., "configmaps" or "secrets")
@@ -224,6 +232,7 @@ func ShouldReload(config Config, resourceType string, annotations Map, podAnnota
 	typedAutoAnnotationEnabledValue, foundTypedAuto := annotations[config.TypedAutoAnnotation]
 	excludeConfigmapAnnotationValue, foundExcludeConfigmap := annotations[options.ConfigmapExcludeReloaderAnnotation]
 	excludeSecretAnnotationValue, foundExcludeSecret := annotations[options.SecretExcludeReloaderAnnotation]
+	excludeSecretProviderClassProviderAnnotationValue, foundExcludeSecretProviderClass := annotations[options.SecretProviderClassExcludeReloaderAnnotation]
 
 	if !found && !foundAuto && !foundTypedAuto && !foundSearchAnn {
 		annotations = podAnnotations
@@ -243,6 +252,11 @@ func ShouldReload(config Config, resourceType string, annotations Map, podAnnota
 	case constants.SecretEnvVarPostfix:
 		if foundExcludeSecret {
 			isResourceExcluded = checkIfResourceIsExcluded(config.ResourceName, excludeSecretAnnotationValue)
+		}
+
+	case constants.SecretProviderClassEnvVarPostfix:
+		if foundExcludeSecretProviderClass {
+			isResourceExcluded = checkIfResourceIsExcluded(config.ResourceName, excludeSecretProviderClassProviderAnnotationValue)
 		}
 	}
 
@@ -315,12 +329,15 @@ func GetCommandLineOptions() *ReloaderOptions {
 	CommandLineOptions.AutoReloadAll = options.AutoReloadAll
 	CommandLineOptions.ConfigmapUpdateOnChangeAnnotation = options.ConfigmapUpdateOnChangeAnnotation
 	CommandLineOptions.SecretUpdateOnChangeAnnotation = options.SecretUpdateOnChangeAnnotation
+	CommandLineOptions.SecretProviderClassUpdateOnChangeAnnotation = options.SecretProviderClassUpdateOnChangeAnnotation
 	CommandLineOptions.ReloaderAutoAnnotation = options.ReloaderAutoAnnotation
 	CommandLineOptions.IgnoreResourceAnnotation = options.IgnoreResourceAnnotation
 	CommandLineOptions.ConfigmapReloaderAutoAnnotation = options.ConfigmapReloaderAutoAnnotation
 	CommandLineOptions.SecretReloaderAutoAnnotation = options.SecretReloaderAutoAnnotation
+	CommandLineOptions.SecretProviderClassReloaderAutoAnnotation = options.SecretProviderClassReloaderAutoAnnotation
 	CommandLineOptions.ConfigmapExcludeReloaderAnnotation = options.ConfigmapExcludeReloaderAnnotation
 	CommandLineOptions.SecretExcludeReloaderAnnotation = options.SecretExcludeReloaderAnnotation
+	CommandLineOptions.SecretProviderClassExcludeReloaderAnnotation = options.SecretProviderClassExcludeReloaderAnnotation
 	CommandLineOptions.AutoSearchAnnotation = options.AutoSearchAnnotation
 	CommandLineOptions.SearchMatchAnnotation = options.SearchMatchAnnotation
 	CommandLineOptions.RolloutStrategyAnnotation = options.RolloutStrategyAnnotation
@@ -331,6 +348,7 @@ func GetCommandLineOptions() *ReloaderOptions {
 	CommandLineOptions.ReloadStrategy = options.ReloadStrategy
 	CommandLineOptions.SyncAfterRestart = options.SyncAfterRestart
 	CommandLineOptions.EnableHA = options.EnableHA
+	CommandLineOptions.EnableCSIIntegration = options.EnableCSIIntegration
 	CommandLineOptions.WebhookUrl = options.WebhookUrl
 	CommandLineOptions.ResourcesToIgnore = options.ResourcesToIgnore
 	CommandLineOptions.WorkloadTypesToIgnore = options.WorkloadTypesToIgnore

@@ -2,11 +2,13 @@ package handler
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"os"
+	"strings"
 
 	"github.com/parnurzeal/gorequest"
 	"github.com/prometheus/client_golang/prometheus"
@@ -23,6 +25,7 @@ import (
 	v1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	patchtypes "k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/wait"
@@ -283,6 +286,10 @@ func upgradeResource(clients kube.Clients, config common.Config, upgradeFuncs ca
 			return err
 		}
 	}
+	if config.Type == constants.SecretProviderClassEnvVarPostfix {
+		populateAnnotationsFromSecretProviderClass(clients, &config)
+	}
+
 	annotations := upgradeFuncs.AnnotationsFunc(resource)
 	podAnnotations := upgradeFuncs.PodAnnotationsFunc(resource)
 	result := common.ShouldReload(config, upgradeFuncs.ResourceType, annotations, podAnnotations, common.GetCommandLineOptions())
@@ -379,6 +386,10 @@ func getVolumeMountName(volumes []v1.Volume, mountType string, volumeName string
 						return volumes[i].Name
 					}
 				}
+			}
+		case constants.SecretProviderClassEnvVarPostfix:
+			if volumes[i].CSI != nil && volumes[i].CSI.VolumeAttributes["secretProviderClass"] == volumeName {
+				return volumes[i].Name
 			}
 		}
 	}
@@ -516,11 +527,20 @@ func updatePodAnnotations(upgradeFuncs callbacks.RollingUpgradeFuncs, item runti
 		return InvokeStrategyResult{constants.NotUpdated, nil}
 	}
 
+	if config.Type == constants.SecretProviderClassEnvVarPostfix && secretProviderClassAnnotationReloaded(pa, config) {
+		return InvokeStrategyResult{constants.NotUpdated, nil}
+	}
+
 	for k, v := range annotations {
 		pa[k] = v
 	}
 
 	return InvokeStrategyResult{constants.Updated, &Patch{Type: patchtypes.StrategicMergePatchType, Bytes: patch}}
+}
+
+func secretProviderClassAnnotationReloaded(oldAnnotations map[string]string, newConfig common.Config) bool {
+	annotaion := oldAnnotations[getReloaderAnnotationKey()]
+	return strings.Contains(annotaion, newConfig.ResourceName) && strings.Contains(annotaion, newConfig.SHAValue)
 }
 
 func getReloaderAnnotationKey() string {
@@ -573,6 +593,10 @@ func updateContainerEnvVars(upgradeFuncs callbacks.RollingUpgradeFuncs, item run
 		return InvokeStrategyResult{constants.NoContainerFound, nil}
 	}
 
+	if config.Type == constants.SecretProviderClassEnvVarPostfix && secretProviderClassEnvReloaded(upgradeFuncs.ContainersFunc(item), envVar, config.SHAValue) {
+		return InvokeStrategyResult{constants.NotUpdated, nil}
+	}
+
 	//update if env var exists
 	updateResult := updateEnvVar(container, envVar, config.SHAValue)
 
@@ -607,6 +631,29 @@ func updateEnvVar(container *v1.Container, envVar string, shaData string) consta
 	}
 
 	return constants.NoEnvVarFound
+}
+
+func secretProviderClassEnvReloaded(containers []v1.Container, envVar string, shaData string) bool {
+	for i := range containers {
+		envs := containers[i].Env
+		for j := range envs {
+			if envs[j].Name == envVar {
+				return envs[j].Value == shaData
+			}
+		}
+	}
+	return false
+}
+
+func populateAnnotationsFromSecretProviderClass(clients kube.Clients, config *common.Config) {
+	obj, err := clients.CSIClient.SecretsstoreV1().SecretProviderClasses(config.Namespace).Get(context.TODO(), config.ResourceName, metav1.GetOptions{})
+	annotations := make(map[string]string)
+	if err != nil {
+		logrus.Infof("Couldn't find secretproviderclass '%s' in '%s' namespace for typed annotation", config.ResourceName, config.Namespace)
+	} else if obj.Annotations != nil {
+		annotations = obj.Annotations
+	}
+	config.ResourceAnnotations = annotations
 }
 
 func jsonEscape(toEscape string) (string, error) {
