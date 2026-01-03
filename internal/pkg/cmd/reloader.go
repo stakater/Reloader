@@ -162,6 +162,7 @@ func startReloader(cmd *cobra.Command, args []string) {
 	for k := range kube.ResourceMap {
 		if k == "secretproviderclasspodstatuses" {
 			if !options.EnableCSIIntegration {
+				logrus.Infof("EnableCSIIntegration is set to false, won't run secretproviderclasspodstatuses controller")
 				continue
 			}
 			if !kube.IsCSIInstalled {
