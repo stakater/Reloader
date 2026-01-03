@@ -210,7 +210,7 @@ spec:
           {{- . | toYaml | nindent 10 }}
           {{- end }}
       {{- end }}
-      {{- if or (.Values.reloader.logFormat) (.Values.reloader.logLevel) (.Values.reloader.ignoreSecrets) (.Values.reloader.ignoreNamespaces) (include "reloader-namespaceSelector" .) (.Values.reloader.resourceLabelSelector) (.Values.reloader.ignoreConfigMaps) (.Values.reloader.custom_annotations) (eq .Values.reloader.isArgoRollouts true) (eq .Values.reloader.reloadOnCreate true) (eq .Values.reloader.reloadOnDelete true) (ne .Values.reloader.reloadStrategy "default") (.Values.reloader.enableHA) (.Values.reloader.autoReloadAll) (.Values.reloader.ignoreJobs) (.Values.reloader.ignoreCronJobs)}}
+      {{- if or (.Values.reloader.logFormat) (.Values.reloader.logLevel) (.Values.reloader.ignoreSecrets) (.Values.reloader.ignoreNamespaces) (include "reloader-namespaceSelector" .) (.Values.reloader.resourceLabelSelector) (.Values.reloader.ignoreConfigMaps) (.Values.reloader.custom_annotations) (eq .Values.reloader.isArgoRollouts true) (eq .Values.reloader.reloadOnCreate true) (eq .Values.reloader.reloadOnDelete true) (ne .Values.reloader.reloadStrategy "default") (.Values.reloader.enableHA) (.Values.reloader.autoReloadAll) (.Values.reloader.ignoreJobs) (.Values.reloader.ignoreCronJobs) (.Values.reloader.enableCSIIntegration)}}
         args:
           {{- if .Values.reloader.logFormat }}
           - "--log-format={{ .Values.reloader.logFormat }}"
@@ -245,6 +245,9 @@ spec:
           {{- if and .Values.reloader.pprofAddr }}
           - "--pprof-addr={{ .Values.reloader.pprofAddr }}"
           {{- end }}
+          {{- end }}
+          {{- if .Values.reloader.enableCSIIntegration }}
+          - "--enable-csi-integration=true"
           {{- end }}
           {{- if .Values.reloader.custom_annotations }}
             {{- if .Values.reloader.custom_annotations.configmap }}

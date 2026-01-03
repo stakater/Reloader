@@ -8,6 +8,7 @@ import (
 	"github.com/stakater/Reloader/pkg/common"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/tools/record"
+	csiv1 "sigs.k8s.io/secrets-store-csi-driver/apis/v1"
 )
 
 // ResourceUpdatedHandler contains updated objects
@@ -40,14 +41,18 @@ func (r ResourceUpdatedHandler) Handle() error {
 func (r ResourceUpdatedHandler) GetConfig() (common.Config, string) {
 	var oldSHAData string
 	var config common.Config
-	if _, ok := r.Resource.(*v1.ConfigMap); ok {
+	switch res := r.Resource.(type) {
+	case *v1.ConfigMap:
 		oldSHAData = util.GetSHAfromConfigmap(r.OldResource.(*v1.ConfigMap))
-		config = common.GetConfigmapConfig(r.Resource.(*v1.ConfigMap))
-	} else if _, ok := r.Resource.(*v1.Secret); ok {
+		config = common.GetConfigmapConfig(res)
+	case *v1.Secret:
 		oldSHAData = util.GetSHAfromSecret(r.OldResource.(*v1.Secret).Data)
-		config = common.GetSecretConfig(r.Resource.(*v1.Secret))
-	} else {
-		logrus.Warnf("Invalid resource: Resource should be 'Secret' or 'Configmap' but found, %v", r.Resource)
+		config = common.GetSecretConfig(res)
+	case *csiv1.SecretProviderClassPodStatus:
+		oldSHAData = util.GetSHAfromSecretProviderClassPodStatus(r.OldResource.(*csiv1.SecretProviderClassPodStatus).Status)
+		config = common.GetSecretProviderClassPodStatusConfig(res)
+	default:
+		logrus.Warnf("Invalid resource: Resource should be 'Secret', 'Configmap' or 'SecretProviderClassPodStatus' but found, %v", r.Resource)
 	}
 	return config, oldSHAData
 }
