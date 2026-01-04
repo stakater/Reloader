@@ -13,26 +13,29 @@ import (
 )
 
 // WorkloadLister is a function that lists workloads of a specific kind.
-type WorkloadLister func(ctx context.Context, c client.Client, namespace string) ([]WorkloadAccessor, error)
+type WorkloadLister func(ctx context.Context, c client.Client, namespace string) ([]Workload, error)
 
 // RegistryOptions configures the workload registry.
 type RegistryOptions struct {
-	ArgoRolloutsEnabled     bool
-	DeploymentConfigEnabled bool
+	ArgoRolloutsEnabled       bool
+	DeploymentConfigEnabled   bool
+	RolloutStrategyAnnotation string
 }
 
 // Registry provides factory methods for creating Workload instances.
 type Registry struct {
-	argoRolloutsEnabled     bool
-	deploymentConfigEnabled bool
-	listers                 map[Kind]WorkloadLister
+	argoRolloutsEnabled       bool
+	deploymentConfigEnabled   bool
+	rolloutStrategyAnnotation string
+	listers                   map[Kind]WorkloadLister
 }
 
 // NewRegistry creates a new workload registry.
 func NewRegistry(opts RegistryOptions) *Registry {
 	r := &Registry{
-		argoRolloutsEnabled:     opts.ArgoRolloutsEnabled,
-		deploymentConfigEnabled: opts.DeploymentConfigEnabled,
+		argoRolloutsEnabled:       opts.ArgoRolloutsEnabled,
+		deploymentConfigEnabled:   opts.DeploymentConfigEnabled,
+		rolloutStrategyAnnotation: opts.RolloutStrategyAnnotation,
 		listers: map[Kind]WorkloadLister{
 			KindDeployment:  listDeployments,
 			KindDaemonSet:   listDaemonSets,
@@ -42,7 +45,19 @@ func NewRegistry(opts RegistryOptions) *Registry {
 		},
 	}
 	if opts.ArgoRolloutsEnabled {
-		r.listers[KindArgoRollout] = listRollouts
+		// Use closure to capture the strategy annotation
+		strategyAnnotation := opts.RolloutStrategyAnnotation
+		r.listers[KindArgoRollout] = func(ctx context.Context, c client.Client, namespace string) ([]Workload, error) {
+			var list argorolloutv1alpha1.RolloutList
+			if err := c.List(ctx, &list, client.InNamespace(namespace)); err != nil {
+				return nil, err
+			}
+			result := make([]Workload, len(list.Items))
+			for i := range list.Items {
+				result[i] = NewRolloutWorkload(&list.Items[i], strategyAnnotation)
+			}
+			return result, nil
+		}
 	}
 	if opts.DeploymentConfigEnabled {
 		r.listers[KindDeploymentConfig] = listDeploymentConfigs
@@ -73,8 +88,8 @@ func (r *Registry) SupportedKinds() []Kind {
 	return kinds
 }
 
-// FromObject creates a WorkloadAccessor from a Kubernetes object.
-func (r *Registry) FromObject(obj client.Object) (WorkloadAccessor, error) {
+// FromObject creates a Workload from a Kubernetes object.
+func (r *Registry) FromObject(obj client.Object) (Workload, error) {
 	switch o := obj.(type) {
 	case *appsv1.Deployment:
 		return NewDeploymentWorkload(o), nil
@@ -90,7 +105,7 @@ func (r *Registry) FromObject(obj client.Object) (WorkloadAccessor, error) {
 		if !r.argoRolloutsEnabled {
 			return nil, fmt.Errorf("argo Rollouts support is not enabled")
 		}
-		return NewRolloutWorkload(o), nil
+		return NewRolloutWorkload(o, r.rolloutStrategyAnnotation), nil
 	case *openshiftv1.DeploymentConfig:
 		if !r.deploymentConfigEnabled {
 			return nil, fmt.Errorf("openShift DeploymentConfig support is not enabled")

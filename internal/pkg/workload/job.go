@@ -5,119 +5,103 @@ import (
 
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
+
+// jobAccessor implements PodTemplateAccessor for Job.
+type jobAccessor struct {
+	job *batchv1.Job
+}
+
+func (a *jobAccessor) GetPodTemplateSpec() *corev1.PodTemplateSpec {
+	return &a.job.Spec.Template
+}
+
+func (a *jobAccessor) GetObjectMeta() *metav1.ObjectMeta {
+	return &a.job.ObjectMeta
+}
 
 // JobWorkload wraps a Kubernetes Job.
 // Note: Jobs have a special update mechanism - instead of updating the Job,
 // Reloader deletes and recreates it with the same spec.
 type JobWorkload struct {
-	job *batchv1.Job
+	*BaseWorkload[*batchv1.Job]
 }
 
 // NewJobWorkload creates a new JobWorkload.
 func NewJobWorkload(j *batchv1.Job) *JobWorkload {
-	return &JobWorkload{job: j}
-}
-
-// Ensure JobWorkload implements WorkloadAccessor.
-var _ WorkloadAccessor = (*JobWorkload)(nil)
-
-func (w *JobWorkload) Kind() Kind {
-	return KindJob
-}
-
-func (w *JobWorkload) GetObject() client.Object {
-	return w.job
-}
-
-func (w *JobWorkload) GetName() string {
-	return w.job.Name
-}
-
-func (w *JobWorkload) GetNamespace() string {
-	return w.job.Namespace
-}
-
-func (w *JobWorkload) GetAnnotations() map[string]string {
-	return w.job.Annotations
-}
-
-func (w *JobWorkload) GetPodTemplateAnnotations() map[string]string {
-	if w.job.Spec.Template.Annotations == nil {
-		w.job.Spec.Template.Annotations = make(map[string]string)
+	original := j.DeepCopy()
+	accessor := &jobAccessor{job: j}
+	return &JobWorkload{
+		BaseWorkload: NewBaseWorkload(j, original, accessor, KindJob),
 	}
-	return w.job.Spec.Template.Annotations
 }
 
-func (w *JobWorkload) SetPodTemplateAnnotation(key, value string) {
-	if w.job.Spec.Template.Annotations == nil {
-		w.job.Spec.Template.Annotations = make(map[string]string)
-	}
-	w.job.Spec.Template.Annotations[key] = value
-}
+// Ensure JobWorkload implements Workload.
+var _ Workload = (*JobWorkload)(nil)
 
-func (w *JobWorkload) GetContainers() []corev1.Container {
-	return w.job.Spec.Template.Spec.Containers
-}
-
-func (w *JobWorkload) SetContainers(containers []corev1.Container) {
-	w.job.Spec.Template.Spec.Containers = containers
-}
-
-func (w *JobWorkload) GetInitContainers() []corev1.Container {
-	return w.job.Spec.Template.Spec.InitContainers
-}
-
-func (w *JobWorkload) SetInitContainers(containers []corev1.Container) {
-	w.job.Spec.Template.Spec.InitContainers = containers
-}
-
-func (w *JobWorkload) GetVolumes() []corev1.Volume {
-	return w.job.Spec.Template.Spec.Volumes
-}
-
-// Update for Job is a no-op - use RecreateJob instead.
+// Update for Job is a no-op - use PerformSpecialUpdate instead.
 // Jobs trigger reloads by being deleted and recreated.
 func (w *JobWorkload) Update(ctx context.Context, c client.Client) error {
 	// Jobs don't get updated directly - they are deleted and recreated
-	// This is handled by the reload package's special Job logic
+	// This is handled by PerformSpecialUpdate
 	return nil
-}
-
-func (w *JobWorkload) DeepCopy() Workload {
-	return &JobWorkload{job: w.job.DeepCopy()}
 }
 
 // ResetOriginal is a no-op for Jobs since they don't use strategic merge patch.
 // Jobs are deleted and recreated instead of being patched.
 func (w *JobWorkload) ResetOriginal() {}
 
-func (w *JobWorkload) GetEnvFromSources() []corev1.EnvFromSource {
-	var sources []corev1.EnvFromSource
-	for _, container := range w.job.Spec.Template.Spec.Containers {
-		sources = append(sources, container.EnvFrom...)
+func (w *JobWorkload) UpdateStrategy() UpdateStrategy {
+	return UpdateStrategyRecreate
+}
+
+// PerformSpecialUpdate deletes the Job and recreates it with the updated spec.
+// This is necessary because Jobs are immutable after creation.
+func (w *JobWorkload) PerformSpecialUpdate(ctx context.Context, c client.Client) (bool, error) {
+	oldJob := w.Object()
+	newJob := oldJob.DeepCopy()
+
+	// Delete the old job with background propagation
+	policy := metav1.DeletePropagationBackground
+	if err := c.Delete(ctx, oldJob, &client.DeleteOptions{
+		PropagationPolicy: &policy,
+	}); err != nil {
+		if !errors.IsNotFound(err) {
+			return false, err
+		}
 	}
-	for _, container := range w.job.Spec.Template.Spec.InitContainers {
-		sources = append(sources, container.EnvFrom...)
+
+	// Clear fields that should not be specified when creating a new Job
+	newJob.ResourceVersion = ""
+	newJob.UID = ""
+	newJob.CreationTimestamp = metav1.Time{}
+	newJob.Status = batchv1.JobStatus{}
+
+	// Remove problematic labels that are auto-generated
+	delete(newJob.Spec.Template.Labels, "controller-uid")
+	delete(newJob.Spec.Template.Labels, batchv1.ControllerUidLabel)
+	delete(newJob.Spec.Template.Labels, batchv1.JobNameLabel)
+	delete(newJob.Spec.Template.Labels, "job-name")
+
+	// Remove the selector to allow it to be auto-generated
+	newJob.Spec.Selector = nil
+
+	// Create the new job with same spec
+	if err := c.Create(ctx, newJob, client.FieldOwner(FieldManager)); err != nil {
+		return false, err
 	}
-	return sources
+
+	return true, nil
 }
 
-func (w *JobWorkload) UsesConfigMap(name string) bool {
-	return SpecUsesConfigMap(&w.job.Spec.Template.Spec, name)
-}
-
-func (w *JobWorkload) UsesSecret(name string) bool {
-	return SpecUsesSecret(&w.job.Spec.Template.Spec, name)
-}
-
-func (w *JobWorkload) GetOwnerReferences() []metav1.OwnerReference {
-	return w.job.OwnerReferences
+func (w *JobWorkload) DeepCopy() Workload {
+	return NewJobWorkload(w.Object().DeepCopy())
 }
 
 // GetJob returns the underlying Job for special handling.
 func (w *JobWorkload) GetJob() *batchv1.Job {
-	return w.job
+	return w.Object()
 }

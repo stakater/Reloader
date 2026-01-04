@@ -4,6 +4,7 @@ import (
 	"context"
 	"testing"
 
+	"github.com/go-logr/logr/testr"
 	"github.com/stakater/Reloader/internal/pkg/config"
 	"github.com/stakater/Reloader/internal/pkg/testutil"
 	"github.com/stakater/Reloader/internal/pkg/workload"
@@ -13,7 +14,7 @@ import (
 
 func TestService_ProcessConfigMap_AutoReload(t *testing.T) {
 	cfg := config.NewDefault()
-	svc := NewService(cfg)
+	svc := NewService(cfg, testr.New(t))
 
 	// Create a deployment with auto annotation that uses the configmap
 	deploy := testutil.NewDeployment(
@@ -34,7 +35,7 @@ func TestService_ProcessConfigMap_AutoReload(t *testing.T) {
 		},
 	}
 
-	workloads := []workload.WorkloadAccessor{
+	workloads := []workload.Workload{
 		workload.NewDeploymentWorkload(deploy),
 	}
 
@@ -74,7 +75,7 @@ func TestService_ProcessConfigMap_AutoReload(t *testing.T) {
 
 func TestService_ProcessConfigMap_ExplicitAnnotation(t *testing.T) {
 	cfg := config.NewDefault()
-	svc := NewService(cfg)
+	svc := NewService(cfg, testr.New(t))
 
 	deploy := testutil.NewDeployment(
 		"test-deploy", "default", map[string]string{
@@ -82,7 +83,7 @@ func TestService_ProcessConfigMap_ExplicitAnnotation(t *testing.T) {
 		},
 	)
 
-	workloads := []workload.WorkloadAccessor{
+	workloads := []workload.Workload{
 		workload.NewDeploymentWorkload(deploy),
 	}
 
@@ -118,7 +119,7 @@ func TestService_ProcessConfigMap_ExplicitAnnotation(t *testing.T) {
 
 func TestService_ProcessConfigMap_IgnoredResource(t *testing.T) {
 	cfg := config.NewDefault()
-	svc := NewService(cfg)
+	svc := NewService(cfg, testr.New(t))
 
 	// Create a deployment with auto annotation
 	deploy := testutil.NewDeployment(
@@ -139,7 +140,7 @@ func TestService_ProcessConfigMap_IgnoredResource(t *testing.T) {
 		},
 	}
 
-	workloads := []workload.WorkloadAccessor{
+	workloads := []workload.Workload{
 		workload.NewDeploymentWorkload(deploy),
 	}
 
@@ -174,7 +175,7 @@ func TestService_ProcessConfigMap_IgnoredResource(t *testing.T) {
 
 func TestService_ProcessSecret_AutoReload(t *testing.T) {
 	cfg := config.NewDefault()
-	svc := NewService(cfg)
+	svc := NewService(cfg, testr.New(t))
 
 	// Create a deployment with auto annotation that uses the secret
 	deploy := testutil.NewDeployment(
@@ -193,7 +194,7 @@ func TestService_ProcessSecret_AutoReload(t *testing.T) {
 		},
 	}
 
-	workloads := []workload.WorkloadAccessor{
+	workloads := []workload.Workload{
 		workload.NewDeploymentWorkload(deploy),
 	}
 
@@ -230,7 +231,7 @@ func TestService_ProcessSecret_AutoReload(t *testing.T) {
 func TestService_ProcessConfigMap_DeleteEvent(t *testing.T) {
 	cfg := config.NewDefault()
 	cfg.ReloadOnDelete = true
-	svc := NewService(cfg)
+	svc := NewService(cfg, testr.New(t))
 
 	// Create a deployment with explicit configmap annotation
 	deploy := testutil.NewDeployment(
@@ -239,7 +240,7 @@ func TestService_ProcessConfigMap_DeleteEvent(t *testing.T) {
 		},
 	)
 
-	workloads := []workload.WorkloadAccessor{
+	workloads := []workload.Workload{
 		workload.NewDeploymentWorkload(deploy),
 	}
 
@@ -274,7 +275,7 @@ func TestService_ProcessConfigMap_DeleteEvent(t *testing.T) {
 func TestService_ProcessConfigMap_DeleteEventDisabled(t *testing.T) {
 	cfg := config.NewDefault()
 	cfg.ReloadOnDelete = false // Disabled by default
-	svc := NewService(cfg)
+	svc := NewService(cfg, testr.New(t))
 
 	deploy := testutil.NewDeployment(
 		"test-deploy", "default", map[string]string{
@@ -282,7 +283,7 @@ func TestService_ProcessConfigMap_DeleteEventDisabled(t *testing.T) {
 		},
 	)
 
-	workloads := []workload.WorkloadAccessor{
+	workloads := []workload.Workload{
 		workload.NewDeploymentWorkload(deploy),
 	}
 
@@ -309,7 +310,7 @@ func TestService_ProcessConfigMap_DeleteEventDisabled(t *testing.T) {
 func TestService_ApplyReload_EnvVarStrategy(t *testing.T) {
 	cfg := config.NewDefault()
 	cfg.ReloadStrategy = config.ReloadStrategyEnvVars
-	svc := NewService(cfg)
+	svc := NewService(cfg, testr.New(t))
 
 	deploy := testutil.NewDeployment("test-deploy", "default", nil)
 	accessor := workload.NewDeploymentWorkload(deploy)
@@ -353,7 +354,7 @@ func TestService_ApplyReload_EnvVarStrategy(t *testing.T) {
 func TestService_ApplyReload_AnnotationStrategy(t *testing.T) {
 	cfg := config.NewDefault()
 	cfg.ReloadStrategy = config.ReloadStrategyAnnotations
-	svc := NewService(cfg)
+	svc := NewService(cfg, testr.New(t))
 
 	deploy := testutil.NewDeployment("test-deploy", "default", nil)
 	accessor := workload.NewDeploymentWorkload(deploy)
@@ -379,7 +380,7 @@ func TestService_ApplyReload_AnnotationStrategy(t *testing.T) {
 func TestService_ApplyReload_EnvVarDeletion(t *testing.T) {
 	cfg := config.NewDefault()
 	cfg.ReloadStrategy = config.ReloadStrategyEnvVars
-	svc := NewService(cfg)
+	svc := NewService(cfg, testr.New(t))
 
 	deploy := testutil.NewDeployment("test-deploy", "default", nil)
 	// Pre-add an env var
@@ -425,7 +426,7 @@ func TestService_ApplyReload_EnvVarDeletion(t *testing.T) {
 func TestService_ApplyReload_NoChangeIfSameHash(t *testing.T) {
 	cfg := config.NewDefault()
 	cfg.ReloadStrategy = config.ReloadStrategyEnvVars
-	svc := NewService(cfg)
+	svc := NewService(cfg, testr.New(t))
 
 	deploy := testutil.NewDeployment("test-deploy", "default", nil)
 	// Pre-add env var with same hash
@@ -448,7 +449,7 @@ func TestService_ApplyReload_NoChangeIfSameHash(t *testing.T) {
 
 func TestService_ProcessConfigMap_MultipleWorkloads(t *testing.T) {
 	cfg := config.NewDefault()
-	svc := NewService(cfg)
+	svc := NewService(cfg, testr.New(t))
 
 	// Create multiple workloads
 	deploy1 := testutil.NewDeployment(
@@ -494,7 +495,7 @@ func TestService_ProcessConfigMap_MultipleWorkloads(t *testing.T) {
 		},
 	)
 
-	workloads := []workload.WorkloadAccessor{
+	workloads := []workload.Workload{
 		workload.NewDeploymentWorkload(deploy1),
 		workload.NewDeploymentWorkload(deploy2),
 		workload.NewDeploymentWorkload(deploy3),
@@ -535,7 +536,7 @@ func TestService_ProcessConfigMap_MultipleWorkloads(t *testing.T) {
 
 func TestService_ProcessConfigMap_DifferentNamespaces(t *testing.T) {
 	cfg := config.NewDefault()
-	svc := NewService(cfg)
+	svc := NewService(cfg, testr.New(t))
 
 	// Create deployments in different namespaces
 	deploy1 := testutil.NewDeployment(
@@ -574,7 +575,7 @@ func TestService_ProcessConfigMap_DifferentNamespaces(t *testing.T) {
 		},
 	}
 
-	workloads := []workload.WorkloadAccessor{
+	workloads := []workload.Workload{
 		workload.NewDeploymentWorkload(deploy1),
 		workload.NewDeploymentWorkload(deploy2),
 	}
@@ -610,7 +611,7 @@ func TestService_ProcessConfigMap_DifferentNamespaces(t *testing.T) {
 
 func TestService_Hasher(t *testing.T) {
 	cfg := config.NewDefault()
-	svc := NewService(cfg)
+	svc := NewService(cfg, testr.New(t))
 
 	hasher := svc.Hasher()
 	if hasher == nil {
@@ -650,7 +651,7 @@ func TestService_shouldProcessEvent(t *testing.T) {
 				cfg := config.NewDefault()
 				cfg.ReloadOnCreate = tt.reloadOnCreate
 				cfg.ReloadOnDelete = tt.reloadOnDelete
-				svc := NewService(cfg)
+				svc := NewService(cfg, testr.New(t))
 
 				result := svc.shouldProcessEvent(tt.eventType)
 				if result != tt.expected {
@@ -663,7 +664,7 @@ func TestService_shouldProcessEvent(t *testing.T) {
 
 func TestService_findVolumeUsingResource_ConfigMap(t *testing.T) {
 	cfg := config.NewDefault()
-	svc := NewService(cfg)
+	svc := NewService(cfg, testr.New(t))
 
 	tests := []struct {
 		name         string
@@ -749,7 +750,7 @@ func TestService_findVolumeUsingResource_ConfigMap(t *testing.T) {
 
 func TestService_findVolumeUsingResource_Secret(t *testing.T) {
 	cfg := config.NewDefault()
-	svc := NewService(cfg)
+	svc := NewService(cfg, testr.New(t))
 
 	tests := []struct {
 		name         string
@@ -824,7 +825,7 @@ func TestService_findVolumeUsingResource_Secret(t *testing.T) {
 
 func TestService_findContainerWithVolumeMount(t *testing.T) {
 	cfg := config.NewDefault()
-	svc := NewService(cfg)
+	svc := NewService(cfg, testr.New(t))
 
 	tests := []struct {
 		name        string
@@ -908,7 +909,7 @@ func TestService_findContainerWithVolumeMount(t *testing.T) {
 
 func TestService_findContainerWithEnvRef_ConfigMap(t *testing.T) {
 	cfg := config.NewDefault()
-	svc := NewService(cfg)
+	svc := NewService(cfg, testr.New(t))
 
 	tests := []struct {
 		name         string
@@ -1010,7 +1011,7 @@ func TestService_findContainerWithEnvRef_ConfigMap(t *testing.T) {
 
 func TestService_findContainerWithEnvRef_Secret(t *testing.T) {
 	cfg := config.NewDefault()
-	svc := NewService(cfg)
+	svc := NewService(cfg, testr.New(t))
 
 	tests := []struct {
 		name         string
@@ -1099,7 +1100,7 @@ func TestService_findContainerWithEnvRef_Secret(t *testing.T) {
 
 func TestService_findTargetContainer_AutoReload(t *testing.T) {
 	cfg := config.NewDefault()
-	svc := NewService(cfg)
+	svc := NewService(cfg, testr.New(t))
 
 	// Test with autoReload=true and volume mount
 	deploy := testutil.NewDeployment("test", "default", nil)
@@ -1135,7 +1136,7 @@ func TestService_findTargetContainer_AutoReload(t *testing.T) {
 
 func TestService_findTargetContainer_AutoReload_EnvRef(t *testing.T) {
 	cfg := config.NewDefault()
-	svc := NewService(cfg)
+	svc := NewService(cfg, testr.New(t))
 
 	// Test with autoReload=true and env ref (no volume)
 	deploy := testutil.NewDeployment("test", "default", nil)
@@ -1173,7 +1174,7 @@ func TestService_findTargetContainer_AutoReload_EnvRef(t *testing.T) {
 
 func TestService_findTargetContainer_AutoReload_InitContainer(t *testing.T) {
 	cfg := config.NewDefault()
-	svc := NewService(cfg)
+	svc := NewService(cfg, testr.New(t))
 
 	// Test with autoReload=true where init container uses the volume
 	deploy := testutil.NewDeployment("test", "default", nil)
@@ -1216,7 +1217,7 @@ func TestService_findTargetContainer_AutoReload_InitContainer(t *testing.T) {
 
 func TestService_findTargetContainer_AutoReload_InitContainerEnvRef(t *testing.T) {
 	cfg := config.NewDefault()
-	svc := NewService(cfg)
+	svc := NewService(cfg, testr.New(t))
 
 	// Test with autoReload=true where init container has env ref
 	deploy := testutil.NewDeployment("test", "default", nil)
@@ -1257,7 +1258,7 @@ func TestService_findTargetContainer_AutoReload_InitContainerEnvRef(t *testing.T
 
 func TestService_findTargetContainer_NoContainers(t *testing.T) {
 	cfg := config.NewDefault()
-	svc := NewService(cfg)
+	svc := NewService(cfg, testr.New(t))
 
 	deploy := testutil.NewDeployment("test", "default", nil)
 	deploy.Spec.Template.Spec.Containers = []corev1.Container{}
@@ -1271,7 +1272,7 @@ func TestService_findTargetContainer_NoContainers(t *testing.T) {
 
 func TestService_findTargetContainer_NonAutoReload(t *testing.T) {
 	cfg := config.NewDefault()
-	svc := NewService(cfg)
+	svc := NewService(cfg, testr.New(t))
 
 	deploy := testutil.NewDeployment("test", "default", nil)
 	deploy.Spec.Template.Spec.Containers = []corev1.Container{
@@ -1292,7 +1293,7 @@ func TestService_findTargetContainer_NonAutoReload(t *testing.T) {
 
 func TestService_findTargetContainer_AutoReload_FallbackToFirst(t *testing.T) {
 	cfg := config.NewDefault()
-	svc := NewService(cfg)
+	svc := NewService(cfg, testr.New(t))
 
 	// autoReload=true but no matching volume or env ref - should fallback to first container
 	deploy := testutil.NewDeployment("test", "default", nil)
@@ -1313,10 +1314,10 @@ func TestService_findTargetContainer_AutoReload_FallbackToFirst(t *testing.T) {
 
 func TestService_ProcessNilChange(t *testing.T) {
 	cfg := config.NewDefault()
-	svc := NewService(cfg)
+	svc := NewService(cfg, testr.New(t))
 
 	deploy := testutil.NewDeployment("test", "default", nil)
-	workloads := []workload.WorkloadAccessor{workload.NewDeploymentWorkload(deploy)}
+	workloads := []workload.Workload{workload.NewDeploymentWorkload(deploy)}
 
 	// Test with nil ConfigMap
 	change := ConfigMapChange{
@@ -1333,14 +1334,14 @@ func TestService_ProcessNilChange(t *testing.T) {
 func TestService_ProcessCreateEventDisabled(t *testing.T) {
 	cfg := config.NewDefault()
 	cfg.ReloadOnCreate = false
-	svc := NewService(cfg)
+	svc := NewService(cfg, testr.New(t))
 
 	deploy := testutil.NewDeployment(
 		"test", "default", map[string]string{
 			"reloader.stakater.com/auto": "true",
 		},
 	)
-	workloads := []workload.WorkloadAccessor{workload.NewDeploymentWorkload(deploy)}
+	workloads := []workload.Workload{workload.NewDeploymentWorkload(deploy)}
 
 	cm := &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{Name: "test-cm", Namespace: "default"},

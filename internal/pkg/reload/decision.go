@@ -7,7 +7,7 @@ import (
 // ReloadDecision contains the result of evaluating whether to reload a workload.
 type ReloadDecision struct {
 	// Workload is the workload accessor.
-	Workload workload.WorkloadAccessor
+	Workload workload.Workload
 	// ShouldReload indicates whether the workload should be reloaded.
 	ShouldReload bool
 	// AutoReload indicates if this is an auto-reload.

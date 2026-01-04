@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"net/url"
-	"time"
+
+	httputil "github.com/stakater/Reloader/internal/pkg/http"
 )
 
 // httpClient wraps http.Client with common configuration.
@@ -17,20 +17,12 @@ type httpClient struct {
 
 // newHTTPClient creates a new httpClient with optional proxy support.
 func newHTTPClient(proxyURL string) *httpClient {
-	transport := &http.Transport{}
-
-	if proxyURL != "" {
-		proxy, err := url.Parse(proxyURL)
-		if err == nil {
-			transport.Proxy = http.ProxyURL(proxy)
-		}
-	}
+	cfg := httputil.DefaultConfig()
+	cfg.Timeout = httputil.AlertingTimeout
+	cfg.ProxyURL = proxyURL
 
 	return &httpClient{
-		client: &http.Client{
-			Transport: transport,
-			Timeout:   10 * time.Second,
-		},
+		client: httputil.NewClient(cfg),
 	}
 }
 

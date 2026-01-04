@@ -3,8 +3,10 @@ package reload
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"time"
 
+	"github.com/go-logr/logr"
 	"github.com/stakater/Reloader/internal/pkg/config"
 	"github.com/stakater/Reloader/internal/pkg/workload"
 	corev1 "k8s.io/api/core/v1"
@@ -13,15 +15,17 @@ import (
 // Service orchestrates the reload logic for ConfigMaps and Secrets.
 type Service struct {
 	cfg      *config.Config
+	log      logr.Logger
 	hasher   *Hasher
 	matcher  *Matcher
 	strategy Strategy
 }
 
 // NewService creates a new reload Service with the given configuration.
-func NewService(cfg *config.Config) *Service {
+func NewService(cfg *config.Config, log logr.Logger) *Service {
 	return &Service{
 		cfg:      cfg,
+		log:      log,
 		hasher:   NewHasher(),
 		matcher:  NewMatcher(cfg),
 		strategy: NewStrategy(cfg),
@@ -29,7 +33,7 @@ func NewService(cfg *config.Config) *Service {
 }
 
 // Process evaluates all workloads to determine which should be reloaded.
-func (s *Service) Process(change ResourceChange, workloads []workload.WorkloadAccessor) []ReloadDecision {
+func (s *Service) Process(change ResourceChange, workloads []workload.Workload) []ReloadDecision {
 	if change.IsNil() {
 		return nil
 	}
@@ -59,7 +63,7 @@ func (s *Service) processResource(
 	resourceAnnotations map[string]string,
 	resourceType ResourceType,
 	hash string,
-	workloads []workload.WorkloadAccessor,
+	workloads []workload.Workload,
 ) []ReloadDecision {
 	var decisions []ReloadDecision
 
@@ -96,13 +100,15 @@ func (s *Service) processResource(
 			shouldReload = false
 		}
 
-		decisions = append(decisions, ReloadDecision{
-			Workload:     wl,
-			ShouldReload: shouldReload,
-			AutoReload:   matchResult.AutoReload,
-			Reason:       matchResult.Reason,
-			Hash:         hash,
-		})
+		decisions = append(
+			decisions, ReloadDecision{
+				Workload:     wl,
+				ShouldReload: shouldReload,
+				AutoReload:   matchResult.AutoReload,
+				Reason:       matchResult.Reason,
+				Hash:         hash,
+			},
+		)
 	}
 
 	return decisions
@@ -124,7 +130,7 @@ func (s *Service) shouldProcessEvent(eventType EventType) bool {
 // ApplyReload applies the reload strategy to a workload.
 func (s *Service) ApplyReload(
 	ctx context.Context,
-	wl workload.WorkloadAccessor,
+	wl workload.Workload,
 	resourceName string,
 	resourceType ResourceType,
 	namespace string,
@@ -149,20 +155,23 @@ func (s *Service) ApplyReload(
 	}
 
 	if updated {
-		s.setAttributionAnnotation(wl, resourceName, resourceType, namespace, hash, container)
+		// Attribution annotation is informational; log errors but don't fail reloads
+		if err := s.setAttributionAnnotation(wl, resourceName, resourceType, namespace, hash, container); err != nil {
+			s.log.V(1).Info("failed to set attribution annotation", "error", err, "workload", wl.GetName())
+		}
 	}
 
 	return updated, nil
 }
 
 func (s *Service) setAttributionAnnotation(
-	wl workload.WorkloadAccessor,
+	wl workload.Workload,
 	resourceName string,
 	resourceType ResourceType,
 	namespace string,
 	hash string,
 	container *corev1.Container,
-) {
+) error {
 	containerName := ""
 	if container != nil {
 		containerName = container.Name
@@ -179,14 +188,15 @@ func (s *Service) setAttributionAnnotation(
 
 	sourceJSON, err := json.Marshal(source)
 	if err != nil {
-		return
+		return fmt.Errorf("failed to marshal reload source: %w", err)
 	}
 
 	wl.SetPodTemplateAnnotation(s.cfg.Annotations.LastReloadedFrom, string(sourceJSON))
+	return nil
 }
 
 func (s *Service) findTargetContainer(
-	wl workload.WorkloadAccessor,
+	wl workload.Workload,
 	resourceName string,
 	resourceType ResourceType,
 	autoReload bool,

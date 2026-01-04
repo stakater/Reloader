@@ -1,154 +1,77 @@
 package workload
 
 import (
-	"context"
-
 	openshiftv1 "github.com/openshift/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 )
+
+// deploymentConfigAccessor implements PodTemplateAccessor for DeploymentConfig.
+type deploymentConfigAccessor struct {
+	dc *openshiftv1.DeploymentConfig
+}
+
+func (a *deploymentConfigAccessor) GetPodTemplateSpec() *corev1.PodTemplateSpec {
+	// DeploymentConfig has a pointer to PodTemplateSpec which may be nil
+	return a.dc.Spec.Template
+}
+
+func (a *deploymentConfigAccessor) GetObjectMeta() *metav1.ObjectMeta {
+	return &a.dc.ObjectMeta
+}
 
 // DeploymentConfigWorkload wraps an OpenShift DeploymentConfig.
 type DeploymentConfigWorkload struct {
-	dc       *openshiftv1.DeploymentConfig
-	original *openshiftv1.DeploymentConfig
+	*BaseWorkload[*openshiftv1.DeploymentConfig]
 }
 
 // NewDeploymentConfigWorkload creates a new DeploymentConfigWorkload.
 func NewDeploymentConfigWorkload(dc *openshiftv1.DeploymentConfig) *DeploymentConfigWorkload {
+	original := dc.DeepCopy()
+	accessor := &deploymentConfigAccessor{dc: dc}
 	return &DeploymentConfigWorkload{
-		dc:       dc,
-		original: dc.DeepCopy(),
+		BaseWorkload: NewBaseWorkload(dc, original, accessor, KindDeploymentConfig),
 	}
 }
 
-// Ensure DeploymentConfigWorkload implements WorkloadAccessor.
-var _ WorkloadAccessor = (*DeploymentConfigWorkload)(nil)
+// Ensure DeploymentConfigWorkload implements Workload.
+var _ Workload = (*DeploymentConfigWorkload)(nil)
 
-func (w *DeploymentConfigWorkload) Kind() Kind {
-	return KindDeploymentConfig
-}
-
-func (w *DeploymentConfigWorkload) GetObject() client.Object {
-	return w.dc
-}
-
-func (w *DeploymentConfigWorkload) GetName() string {
-	return w.dc.Name
-}
-
-func (w *DeploymentConfigWorkload) GetNamespace() string {
-	return w.dc.Namespace
-}
-
-func (w *DeploymentConfigWorkload) GetAnnotations() map[string]string {
-	return w.dc.Annotations
-}
-
-func (w *DeploymentConfigWorkload) GetPodTemplateAnnotations() map[string]string {
-	if w.dc.Spec.Template == nil {
-		return nil
-	}
-	if w.dc.Spec.Template.Annotations == nil {
-		w.dc.Spec.Template.Annotations = make(map[string]string)
-	}
-	return w.dc.Spec.Template.Annotations
-}
-
+// SetPodTemplateAnnotation overrides the base to ensure Template is initialized.
 func (w *DeploymentConfigWorkload) SetPodTemplateAnnotation(key, value string) {
-	if w.dc.Spec.Template == nil {
-		w.dc.Spec.Template = &corev1.PodTemplateSpec{}
+	dc := w.Object()
+	if dc.Spec.Template == nil {
+		dc.Spec.Template = &corev1.PodTemplateSpec{}
 	}
-	if w.dc.Spec.Template.Annotations == nil {
-		w.dc.Spec.Template.Annotations = make(map[string]string)
+	if dc.Spec.Template.Annotations == nil {
+		dc.Spec.Template.Annotations = make(map[string]string)
 	}
-	w.dc.Spec.Template.Annotations[key] = value
+	dc.Spec.Template.Annotations[key] = value
 }
 
-func (w *DeploymentConfigWorkload) GetContainers() []corev1.Container {
-	if w.dc.Spec.Template == nil {
-		return nil
-	}
-	return w.dc.Spec.Template.Spec.Containers
-}
-
+// SetContainers overrides the base to ensure Template is initialized.
 func (w *DeploymentConfigWorkload) SetContainers(containers []corev1.Container) {
-	if w.dc.Spec.Template == nil {
-		w.dc.Spec.Template = &corev1.PodTemplateSpec{}
+	dc := w.Object()
+	if dc.Spec.Template == nil {
+		dc.Spec.Template = &corev1.PodTemplateSpec{}
 	}
-	w.dc.Spec.Template.Spec.Containers = containers
+	dc.Spec.Template.Spec.Containers = containers
 }
 
-func (w *DeploymentConfigWorkload) GetInitContainers() []corev1.Container {
-	if w.dc.Spec.Template == nil {
-		return nil
-	}
-	return w.dc.Spec.Template.Spec.InitContainers
-}
-
+// SetInitContainers overrides the base to ensure Template is initialized.
 func (w *DeploymentConfigWorkload) SetInitContainers(containers []corev1.Container) {
-	if w.dc.Spec.Template == nil {
-		w.dc.Spec.Template = &corev1.PodTemplateSpec{}
+	dc := w.Object()
+	if dc.Spec.Template == nil {
+		dc.Spec.Template = &corev1.PodTemplateSpec{}
 	}
-	w.dc.Spec.Template.Spec.InitContainers = containers
-}
-
-func (w *DeploymentConfigWorkload) GetVolumes() []corev1.Volume {
-	if w.dc.Spec.Template == nil {
-		return nil
-	}
-	return w.dc.Spec.Template.Spec.Volumes
-}
-
-func (w *DeploymentConfigWorkload) Update(ctx context.Context, c client.Client) error {
-	return c.Patch(ctx, w.dc, client.StrategicMergeFrom(w.original), client.FieldOwner(FieldManager))
+	dc.Spec.Template.Spec.InitContainers = containers
 }
 
 func (w *DeploymentConfigWorkload) DeepCopy() Workload {
-	return &DeploymentConfigWorkload{
-		dc:       w.dc.DeepCopy(),
-		original: w.original.DeepCopy(),
-	}
-}
-
-func (w *DeploymentConfigWorkload) ResetOriginal() {
-	w.original = w.dc.DeepCopy()
-}
-
-func (w *DeploymentConfigWorkload) GetEnvFromSources() []corev1.EnvFromSource {
-	if w.dc.Spec.Template == nil {
-		return nil
-	}
-	var sources []corev1.EnvFromSource
-	for _, container := range w.dc.Spec.Template.Spec.Containers {
-		sources = append(sources, container.EnvFrom...)
-	}
-	for _, container := range w.dc.Spec.Template.Spec.InitContainers {
-		sources = append(sources, container.EnvFrom...)
-	}
-	return sources
-}
-
-func (w *DeploymentConfigWorkload) UsesConfigMap(name string) bool {
-	if w.dc.Spec.Template == nil {
-		return false
-	}
-	return SpecUsesConfigMap(&w.dc.Spec.Template.Spec, name)
-}
-
-func (w *DeploymentConfigWorkload) UsesSecret(name string) bool {
-	if w.dc.Spec.Template == nil {
-		return false
-	}
-	return SpecUsesSecret(&w.dc.Spec.Template.Spec, name)
-}
-
-func (w *DeploymentConfigWorkload) GetOwnerReferences() []metav1.OwnerReference {
-	return w.dc.OwnerReferences
+	return NewDeploymentConfigWorkload(w.Object().DeepCopy())
 }
 
 // GetDeploymentConfig returns the underlying DeploymentConfig for special handling.
 func (w *DeploymentConfigWorkload) GetDeploymentConfig() *openshiftv1.DeploymentConfig {
-	return w.dc
+	return w.Object()
 }

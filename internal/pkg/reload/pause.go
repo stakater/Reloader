@@ -20,7 +20,7 @@ func NewPauseHandler(cfg *config.Config) *PauseHandler {
 }
 
 // ShouldPause checks if a deployment should be paused after reload.
-func (h *PauseHandler) ShouldPause(wl workload.WorkloadAccessor) bool {
+func (h *PauseHandler) ShouldPause(wl workload.Workload) bool {
 	if wl.Kind() != workload.KindDeployment {
 		return false
 	}
@@ -35,7 +35,7 @@ func (h *PauseHandler) ShouldPause(wl workload.WorkloadAccessor) bool {
 }
 
 // GetPausePeriod returns the configured pause period for a workload.
-func (h *PauseHandler) GetPausePeriod(wl workload.WorkloadAccessor) (time.Duration, error) {
+func (h *PauseHandler) GetPausePeriod(wl workload.Workload) (time.Duration, error) {
 	annotations := wl.GetAnnotations()
 	if annotations == nil {
 		return 0, fmt.Errorf("no annotations on workload")
@@ -50,7 +50,7 @@ func (h *PauseHandler) GetPausePeriod(wl workload.WorkloadAccessor) (time.Durati
 }
 
 // ApplyPause pauses a deployment and sets the paused-at annotation.
-func (h *PauseHandler) ApplyPause(wl workload.WorkloadAccessor) error {
+func (h *PauseHandler) ApplyPause(wl workload.Workload) error {
 	deployWl, ok := wl.(*workload.DeploymentWorkload)
 	if !ok {
 		return fmt.Errorf("workload is not a deployment")

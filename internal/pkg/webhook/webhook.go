@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/go-logr/logr"
+	httputil "github.com/stakater/Reloader/internal/pkg/http"
 )
 
 // Payload represents the data sent to the webhook endpoint.
@@ -43,11 +44,9 @@ type Client struct {
 // NewClient creates a new webhook client.
 func NewClient(url string, log logr.Logger) *Client {
 	return &Client{
-		httpClient: &http.Client{
-			Timeout: 30 * time.Second,
-		},
-		url: url,
-		log: log,
+		httpClient: httputil.NewDefaultClient(),
+		url:        url,
+		log:        log,
 	}
 }
 

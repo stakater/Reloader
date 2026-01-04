@@ -7,6 +7,7 @@ import (
 
 	"github.com/go-logr/logr"
 	"github.com/stakater/Reloader/internal/pkg/config"
+	"github.com/stakater/Reloader/internal/pkg/workload"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -52,7 +53,7 @@ func (p *Publisher) Publish(ctx context.Context) error {
 			return fmt.Errorf("failed to get existing meta info configmap: %w", err)
 		}
 		p.log.Info("Creating meta info configmap")
-		if err := p.client.Create(ctx, configMap, client.FieldOwner(FieldManager)); err != nil {
+		if err := p.client.Create(ctx, configMap, client.FieldOwner(workload.FieldManager)); err != nil {
 			return fmt.Errorf("failed to create meta info configmap: %w", err)
 		}
 		p.log.Info("Meta info configmap created successfully")
@@ -62,7 +63,7 @@ func (p *Publisher) Publish(ctx context.Context) error {
 	p.log.Info("Meta info configmap already exists, updating it")
 	existing.Data = configMap.Data
 	existing.Labels = configMap.Labels
-	if err := p.client.Update(ctx, existing, client.FieldOwner(FieldManager)); err != nil {
+	if err := p.client.Update(ctx, existing, client.FieldOwner(workload.FieldManager)); err != nil {
 		return fmt.Errorf("failed to update meta info configmap: %w", err)
 	}
 	p.log.Info("Meta info configmap updated successfully")

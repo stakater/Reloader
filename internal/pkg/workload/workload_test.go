@@ -10,6 +10,9 @@ import (
 	"github.com/stakater/Reloader/internal/pkg/testutil"
 )
 
+// testRolloutStrategyAnnotation is the annotation key used in tests for rollout strategy.
+const testRolloutStrategyAnnotation = "reloader.stakater.com/rollout-strategy"
+
 // addEnvVar adds an environment variable with a ConfigMapKeyRef or SecretKeyRef to a container.
 func addEnvVarConfigMapRef(containers []corev1.Container, envName, configMapName, key string) {
 	if len(containers) > 0 {
@@ -763,10 +766,10 @@ func TestStatefulSetWorkload_GetOwnerReferences(t *testing.T) {
 
 // Test that workloads implement the interface
 func TestWorkloadInterface(t *testing.T) {
-	var _ WorkloadAccessor = (*DeploymentWorkload)(nil)
-	var _ WorkloadAccessor = (*DaemonSetWorkload)(nil)
-	var _ WorkloadAccessor = (*StatefulSetWorkload)(nil)
-	var _ WorkloadAccessor = (*RolloutWorkload)(nil)
+	var _ Workload = (*DeploymentWorkload)(nil)
+	var _ Workload = (*DaemonSetWorkload)(nil)
+	var _ Workload = (*StatefulSetWorkload)(nil)
+	var _ Workload = (*RolloutWorkload)(nil)
 }
 
 // RolloutWorkload tests
@@ -781,7 +784,7 @@ func TestRolloutWorkload_BasicGetters(t *testing.T) {
 		},
 	}
 
-	w := NewRolloutWorkload(rollout)
+	w := NewRolloutWorkload(rollout, testRolloutStrategyAnnotation)
 
 	if w.Kind() != KindArgoRollout {
 		t.Errorf("Kind() = %v, want %v", w.Kind(), KindArgoRollout)
@@ -814,7 +817,7 @@ func TestRolloutWorkload_PodTemplateAnnotations(t *testing.T) {
 		},
 	}
 
-	w := NewRolloutWorkload(rollout)
+	w := NewRolloutWorkload(rollout, testRolloutStrategyAnnotation)
 
 	// Test get
 	annotations := w.GetPodTemplateAnnotations()
@@ -834,7 +837,7 @@ func TestRolloutWorkload_GetStrategy_Default(t *testing.T) {
 		ObjectMeta: metav1.ObjectMeta{Name: "test"},
 	}
 
-	w := NewRolloutWorkload(rollout)
+	w := NewRolloutWorkload(rollout, testRolloutStrategyAnnotation)
 
 	if w.GetStrategy() != RolloutStrategyRollout {
 		t.Errorf("GetStrategy() = %v, want %v (default)", w.GetStrategy(), RolloutStrategyRollout)
@@ -846,12 +849,12 @@ func TestRolloutWorkload_GetStrategy_Restart(t *testing.T) {
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "test",
 			Annotations: map[string]string{
-				RolloutStrategyAnnotation: "restart",
+				testRolloutStrategyAnnotation: "restart",
 			},
 		},
 	}
 
-	w := NewRolloutWorkload(rollout)
+	w := NewRolloutWorkload(rollout, testRolloutStrategyAnnotation)
 
 	if w.GetStrategy() != RolloutStrategyRestart {
 		t.Errorf("GetStrategy() = %v, want %v", w.GetStrategy(), RolloutStrategyRestart)
@@ -881,7 +884,7 @@ func TestRolloutWorkload_UsesConfigMap_Volume(t *testing.T) {
 		},
 	}
 
-	w := NewRolloutWorkload(rollout)
+	w := NewRolloutWorkload(rollout, testRolloutStrategyAnnotation)
 
 	if !w.UsesConfigMap("rollout-config") {
 		t.Error("Rollout UsesConfigMap should return true for ConfigMap volume")
@@ -916,7 +919,7 @@ func TestRolloutWorkload_UsesSecret_EnvFrom(t *testing.T) {
 		},
 	}
 
-	w := NewRolloutWorkload(rollout)
+	w := NewRolloutWorkload(rollout, testRolloutStrategyAnnotation)
 
 	if !w.UsesSecret("rollout-secret") {
 		t.Error("Rollout UsesSecret should return true for Secret envFrom")
@@ -940,7 +943,7 @@ func TestRolloutWorkload_DeepCopy(t *testing.T) {
 		},
 	}
 
-	w := NewRolloutWorkload(rollout)
+	w := NewRolloutWorkload(rollout, testRolloutStrategyAnnotation)
 	copy := w.DeepCopy()
 
 	// Verify copy is independent
@@ -1176,8 +1179,8 @@ func TestCronJobWorkload_DeepCopy(t *testing.T) {
 
 // Test that Job and CronJob implement the interface
 func TestJobCronJobWorkloadInterface(t *testing.T) {
-	var _ WorkloadAccessor = (*JobWorkload)(nil)
-	var _ WorkloadAccessor = (*CronJobWorkload)(nil)
+	var _ Workload = (*JobWorkload)(nil)
+	var _ Workload = (*CronJobWorkload)(nil)
 }
 
 // DeploymentConfig tests
@@ -1538,5 +1541,228 @@ func TestDeploymentConfigWorkload_GetDeploymentConfig(t *testing.T) {
 
 // Test that DeploymentConfig implements the interface
 func TestDeploymentConfigWorkloadInterface(t *testing.T) {
-	var _ WorkloadAccessor = (*DeploymentConfigWorkload)(nil)
+	var _ Workload = (*DeploymentConfigWorkload)(nil)
+}
+
+// Tests for UpdateStrategy
+func TestWorkload_UpdateStrategy(t *testing.T) {
+	tests := []struct {
+		name     string
+		workload Workload
+		expected UpdateStrategy
+	}{
+		{
+			name:     "Deployment uses Patch strategy",
+			workload: NewDeploymentWorkload(testutil.NewDeployment("test", "default", nil)),
+			expected: UpdateStrategyPatch,
+		},
+		{
+			name:     "DaemonSet uses Patch strategy",
+			workload: NewDaemonSetWorkload(testutil.NewDaemonSet("test", "default", nil)),
+			expected: UpdateStrategyPatch,
+		},
+		{
+			name:     "StatefulSet uses Patch strategy",
+			workload: NewStatefulSetWorkload(testutil.NewStatefulSet("test", "default", nil)),
+			expected: UpdateStrategyPatch,
+		},
+		{
+			name:     "Job uses Recreate strategy",
+			workload: NewJobWorkload(testutil.NewJob("test", "default")),
+			expected: UpdateStrategyRecreate,
+		},
+		{
+			name:     "CronJob uses CreateNew strategy",
+			workload: NewCronJobWorkload(testutil.NewCronJob("test", "default")),
+			expected: UpdateStrategyCreateNew,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := tt.workload.UpdateStrategy(); got != tt.expected {
+				t.Errorf("UpdateStrategy() = %v, want %v", got, tt.expected)
+			}
+		})
+	}
+}
+
+// Tests for ResetOriginal
+func TestDeploymentWorkload_ResetOriginal(t *testing.T) {
+	deploy := testutil.NewDeployment("test", "default", nil)
+	w := NewDeploymentWorkload(deploy)
+
+	// Modify the workload
+	w.SetPodTemplateAnnotation("modified", "true")
+
+	// Original should still not have the annotation
+	originalAnnotations := w.Original().Spec.Template.Annotations
+	if originalAnnotations != nil && originalAnnotations["modified"] == "true" {
+		t.Error("Original should not be modified yet")
+	}
+
+	// Reset original
+	w.ResetOriginal()
+
+	// Now original should have the annotation
+	if w.Original().Spec.Template.Annotations["modified"] != "true" {
+		t.Error("ResetOriginal should update original to match current state")
+	}
+}
+
+func TestJobWorkload_ResetOriginal(t *testing.T) {
+	job := testutil.NewJob("test", "default")
+	w := NewJobWorkload(job)
+
+	// ResetOriginal should be a no-op for Jobs (they don't use strategic merge patch)
+	w.SetPodTemplateAnnotation("modified", "true")
+	w.ResetOriginal() // Should not panic or error
+}
+
+func TestCronJobWorkload_ResetOriginal(t *testing.T) {
+	cj := testutil.NewCronJob("test", "default")
+	w := NewCronJobWorkload(cj)
+
+	// ResetOriginal should be a no-op for CronJobs
+	w.SetPodTemplateAnnotation("modified", "true")
+	w.ResetOriginal() // Should not panic or error
+}
+
+// Tests for BaseWorkload.Original()
+func TestDeploymentWorkload_Original(t *testing.T) {
+	deploy := testutil.NewDeployment("test", "default", nil)
+	deploy.Spec.Template.Annotations = map[string]string{"initial": "value"}
+
+	w := NewDeploymentWorkload(deploy)
+
+	// Modify the current object
+	w.SetPodTemplateAnnotation("new", "annotation")
+
+	// Original should still have only the initial annotation
+	original := w.Original()
+	if original.Spec.Template.Annotations["new"] == "annotation" {
+		t.Error("Original should not reflect changes to current object")
+	}
+	if original.Spec.Template.Annotations["initial"] != "value" {
+		t.Error("Original should retain initial state")
+	}
+}
+
+// Tests for PerformSpecialUpdate returning false for standard workloads
+func TestDeploymentWorkload_PerformSpecialUpdate(t *testing.T) {
+	deploy := testutil.NewDeployment("test", "default", nil)
+	w := NewDeploymentWorkload(deploy)
+
+	updated, err := w.PerformSpecialUpdate(t.Context(), nil)
+	if err != nil {
+		t.Errorf("PerformSpecialUpdate() error = %v", err)
+	}
+	if updated {
+		t.Error("PerformSpecialUpdate() should return false for Deployment")
+	}
+}
+
+func TestDaemonSetWorkload_PerformSpecialUpdate(t *testing.T) {
+	ds := testutil.NewDaemonSet("test", "default", nil)
+	w := NewDaemonSetWorkload(ds)
+
+	updated, err := w.PerformSpecialUpdate(t.Context(), nil)
+	if err != nil {
+		t.Errorf("PerformSpecialUpdate() error = %v", err)
+	}
+	if updated {
+		t.Error("PerformSpecialUpdate() should return false for DaemonSet")
+	}
+}
+
+func TestStatefulSetWorkload_PerformSpecialUpdate(t *testing.T) {
+	ss := testutil.NewStatefulSet("test", "default", nil)
+	w := NewStatefulSetWorkload(ss)
+
+	updated, err := w.PerformSpecialUpdate(t.Context(), nil)
+	if err != nil {
+		t.Errorf("PerformSpecialUpdate() error = %v", err)
+	}
+	if updated {
+		t.Error("PerformSpecialUpdate() should return false for StatefulSet")
+	}
+}
+
+// Test Update returns nil for Job (no-op, uses PerformSpecialUpdate instead)
+func TestJobWorkload_Update(t *testing.T) {
+	job := testutil.NewJob("test", "default")
+	w := NewJobWorkload(job)
+
+	err := w.Update(t.Context(), nil)
+	if err != nil {
+		t.Errorf("Update() should return nil for Job, got %v", err)
+	}
+}
+
+// Test Update returns nil for CronJob (no-op, uses PerformSpecialUpdate instead)
+func TestCronJobWorkload_Update(t *testing.T) {
+	cj := testutil.NewCronJob("test", "default")
+	w := NewCronJobWorkload(cj)
+
+	err := w.Update(t.Context(), nil)
+	if err != nil {
+		t.Errorf("Update() should return nil for CronJob, got %v", err)
+	}
+}
+
+// Test GetJob and GetCronJob accessors
+func TestJobWorkload_GetJob(t *testing.T) {
+	job := testutil.NewJob("test", "default")
+	w := NewJobWorkload(job)
+
+	if w.GetJob() != job {
+		t.Error("GetJob should return the underlying Job")
+	}
+}
+
+func TestCronJobWorkload_GetCronJob(t *testing.T) {
+	cj := testutil.NewCronJob("test", "default")
+	w := NewCronJobWorkload(cj)
+
+	if w.GetCronJob() != cj {
+		t.Error("GetCronJob should return the underlying CronJob")
+	}
+}
+
+func TestDeploymentWorkload_GetDeployment(t *testing.T) {
+	deploy := testutil.NewDeployment("test", "default", nil)
+	w := NewDeploymentWorkload(deploy)
+
+	if w.GetDeployment() != deploy {
+		t.Error("GetDeployment should return the underlying Deployment")
+	}
+}
+
+func TestDaemonSetWorkload_GetDaemonSet(t *testing.T) {
+	ds := testutil.NewDaemonSet("test", "default", nil)
+	w := NewDaemonSetWorkload(ds)
+
+	if w.GetDaemonSet() != ds {
+		t.Error("GetDaemonSet should return the underlying DaemonSet")
+	}
+}
+
+func TestStatefulSetWorkload_GetStatefulSet(t *testing.T) {
+	ss := testutil.NewStatefulSet("test", "default", nil)
+	w := NewStatefulSetWorkload(ss)
+
+	if w.GetStatefulSet() != ss {
+		t.Error("GetStatefulSet should return the underlying StatefulSet")
+	}
+}
+
+func TestRolloutWorkload_GetRollout(t *testing.T) {
+	rollout := &argorolloutv1alpha1.Rollout{
+		ObjectMeta: metav1.ObjectMeta{Name: "test", Namespace: "default"},
+	}
+	w := NewRolloutWorkload(rollout, testRolloutStrategyAnnotation)
+
+	if w.GetRollout() != rollout {
+		t.Error("GetRollout should return the underlying Rollout")
+	}
 }

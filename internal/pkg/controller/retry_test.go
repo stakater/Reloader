@@ -4,6 +4,7 @@ import (
 	"context"
 	"testing"
 
+	"github.com/go-logr/logr/testr"
 	"github.com/stakater/Reloader/internal/pkg/config"
 	"github.com/stakater/Reloader/internal/pkg/controller"
 	"github.com/stakater/Reloader/internal/pkg/reload"
@@ -22,14 +23,14 @@ func TestUpdateWorkloadWithRetry_WorkloadTypes(t *testing.T) {
 	tests := []struct {
 		name         string
 		object       runtime.Object
-		workload     func(runtime.Object) workload.WorkloadAccessor
+		workload     func(runtime.Object) workload.Workload
 		resourceType reload.ResourceType
 		verify       func(t *testing.T, c client.Client)
 	}{
 		{
 			name:   "Deployment",
 			object: testutil.NewDeployment("test-deployment", "default", nil),
-			workload: func(o runtime.Object) workload.WorkloadAccessor {
+			workload: func(o runtime.Object) workload.Workload {
 				return workload.NewDeploymentWorkload(o.(*appsv1.Deployment))
 			},
 			resourceType: reload.ResourceTypeConfigMap,
@@ -46,7 +47,7 @@ func TestUpdateWorkloadWithRetry_WorkloadTypes(t *testing.T) {
 		{
 			name:   "DaemonSet",
 			object: testutil.NewDaemonSet("test-daemonset", "default", nil),
-			workload: func(o runtime.Object) workload.WorkloadAccessor {
+			workload: func(o runtime.Object) workload.Workload {
 				return workload.NewDaemonSetWorkload(o.(*appsv1.DaemonSet))
 			},
 			resourceType: reload.ResourceTypeSecret,
@@ -63,7 +64,7 @@ func TestUpdateWorkloadWithRetry_WorkloadTypes(t *testing.T) {
 		{
 			name:   "StatefulSet",
 			object: testutil.NewStatefulSet("test-statefulset", "default", nil),
-			workload: func(o runtime.Object) workload.WorkloadAccessor {
+			workload: func(o runtime.Object) workload.Workload {
 				return workload.NewStatefulSetWorkload(o.(*appsv1.StatefulSet))
 			},
 			resourceType: reload.ResourceTypeConfigMap,
@@ -80,7 +81,7 @@ func TestUpdateWorkloadWithRetry_WorkloadTypes(t *testing.T) {
 		{
 			name:   "Job",
 			object: testutil.NewJob("test-job", "default"),
-			workload: func(o runtime.Object) workload.WorkloadAccessor {
+			workload: func(o runtime.Object) workload.Workload {
 				return workload.NewJobWorkload(o.(*batchv1.Job))
 			},
 			resourceType: reload.ResourceTypeConfigMap,
@@ -97,7 +98,7 @@ func TestUpdateWorkloadWithRetry_WorkloadTypes(t *testing.T) {
 		{
 			name:   "CronJob",
 			object: testutil.NewCronJob("test-cronjob", "default"),
-			workload: func(o runtime.Object) workload.WorkloadAccessor {
+			workload: func(o runtime.Object) workload.Workload {
 				return workload.NewCronJobWorkload(o.(*batchv1.CronJob))
 			},
 			resourceType: reload.ResourceTypeSecret,
@@ -120,7 +121,7 @@ func TestUpdateWorkloadWithRetry_WorkloadTypes(t *testing.T) {
 		t.Run(
 			tt.name, func(t *testing.T) {
 				cfg := config.NewDefault()
-				reloadService := reload.NewService(cfg)
+				reloadService := reload.NewService(cfg, testr.New(t))
 
 				fakeClient := fake.NewClientBuilder().
 					WithScheme(testutil.NewScheme()).
@@ -201,7 +202,7 @@ func TestUpdateWorkloadWithRetry_Strategies(t *testing.T) {
 			tt.name, func(t *testing.T) {
 				cfg := config.NewDefault()
 				cfg.ReloadStrategy = tt.strategy
-				reloadService := reload.NewService(cfg)
+				reloadService := reload.NewService(cfg, testr.New(t))
 
 				deployment := testutil.NewDeployment("test-deployment", "default", nil)
 				fakeClient := fake.NewClientBuilder().
@@ -246,7 +247,7 @@ func TestUpdateWorkloadWithRetry_Strategies(t *testing.T) {
 
 func TestUpdateWorkloadWithRetry_NoUpdate(t *testing.T) {
 	cfg := config.NewDefault()
-	reloadService := reload.NewService(cfg)
+	reloadService := reload.NewService(cfg, testr.New(t))
 
 	deployment := testutil.NewDeployment("test-deployment", "default", nil)
 	deployment.Spec.Template.Spec.Containers[0].Env = []corev1.EnvVar{
@@ -306,7 +307,7 @@ func TestResourceTypeKind(t *testing.T) {
 
 func TestUpdateWorkloadWithRetry_PauseDeployment(t *testing.T) {
 	cfg := config.NewDefault()
-	reloadService := reload.NewService(cfg)
+	reloadService := reload.NewService(cfg, testr.New(t))
 	pauseHandler := reload.NewPauseHandler(cfg)
 
 	deployment := testutil.NewDeployment(
@@ -367,7 +368,7 @@ func TestUpdateWorkloadWithRetry_PauseDeployment(t *testing.T) {
 // TestUpdateWorkloadWithRetry_PauseWithExplicitAnnotation tests pause with explicit configmap annotation (no auto).
 func TestUpdateWorkloadWithRetry_PauseWithExplicitAnnotation(t *testing.T) {
 	cfg := config.NewDefault()
-	reloadService := reload.NewService(cfg)
+	reloadService := reload.NewService(cfg, testr.New(t))
 	pauseHandler := reload.NewPauseHandler(cfg)
 
 	deployment := testutil.NewDeployment(
@@ -428,7 +429,7 @@ func TestUpdateWorkloadWithRetry_PauseWithExplicitAnnotation(t *testing.T) {
 // TestUpdateWorkloadWithRetry_PauseWithSecretReload tests pause with Secret-triggered reload.
 func TestUpdateWorkloadWithRetry_PauseWithSecretReload(t *testing.T) {
 	cfg := config.NewDefault()
-	reloadService := reload.NewService(cfg)
+	reloadService := reload.NewService(cfg, testr.New(t))
 	pauseHandler := reload.NewPauseHandler(cfg)
 
 	deployment := testutil.NewDeployment(
@@ -485,7 +486,7 @@ func TestUpdateWorkloadWithRetry_PauseWithSecretReload(t *testing.T) {
 // TestUpdateWorkloadWithRetry_PauseWithAutoSecret tests pause with auto annotation + Secret change.
 func TestUpdateWorkloadWithRetry_PauseWithAutoSecret(t *testing.T) {
 	cfg := config.NewDefault()
-	reloadService := reload.NewService(cfg)
+	reloadService := reload.NewService(cfg, testr.New(t))
 	pauseHandler := reload.NewPauseHandler(cfg)
 
 	deployment := testutil.NewDeployment(
@@ -536,7 +537,7 @@ func TestUpdateWorkloadWithRetry_PauseWithAutoSecret(t *testing.T) {
 
 func TestUpdateWorkloadWithRetry_NoPauseWithoutAnnotation(t *testing.T) {
 	cfg := config.NewDefault()
-	reloadService := reload.NewService(cfg)
+	reloadService := reload.NewService(cfg, testr.New(t))
 	pauseHandler := reload.NewPauseHandler(cfg)
 
 	deployment := testutil.NewDeployment(

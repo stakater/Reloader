@@ -4,6 +4,7 @@ import (
 	"context"
 	"testing"
 
+	"github.com/go-logr/logr"
 	"github.com/go-logr/logr/testr"
 	"github.com/stakater/Reloader/internal/pkg/alerting"
 	"github.com/stakater/Reloader/internal/pkg/config"
@@ -21,56 +22,77 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 )
 
+// testDeps holds shared test dependencies.
+type testDeps struct {
+	client        *fake.ClientBuilder
+	log           logr.Logger
+	cfg           *config.Config
+	reloadService *reload.Service
+	registry      *workload.Registry
+	collectors    *metrics.Collectors
+	eventRecorder *events.Recorder
+	webhookClient *webhook.Client
+	alerter       alerting.Alerter
+}
+
+// newTestDeps creates shared test dependencies for reconciler tests.
+func newTestDeps(t *testing.T, cfg *config.Config, objects ...runtime.Object) testDeps {
+	t.Helper()
+	log := testr.New(t)
+	collectors := metrics.NewCollectors()
+	return testDeps{
+		client: fake.NewClientBuilder().
+			WithScheme(testutil.NewScheme()).
+			WithRuntimeObjects(objects...),
+		log:           log,
+		cfg:           cfg,
+		reloadService: reload.NewService(cfg, log),
+		registry: workload.NewRegistry(workload.RegistryOptions{
+			ArgoRolloutsEnabled:       cfg.ArgoRolloutsEnabled,
+			DeploymentConfigEnabled:   cfg.DeploymentConfigEnabled,
+			RolloutStrategyAnnotation: cfg.Annotations.RolloutStrategy,
+		}),
+		collectors:    &collectors,
+		eventRecorder: events.NewRecorder(nil),
+		webhookClient: webhook.NewClient("", log),
+		alerter:       &alerting.NoOpAlerter{},
+	}
+}
+
 // newConfigMapReconciler creates a ConfigMapReconciler for testing.
 func newConfigMapReconciler(t *testing.T, cfg *config.Config, objects ...runtime.Object) *controller.ConfigMapReconciler {
 	t.Helper()
-	fakeClient := fake.NewClientBuilder().
-		WithScheme(testutil.NewScheme()).
-		WithRuntimeObjects(objects...).
-		Build()
-
-	collectors := metrics.NewCollectors()
-
-	return &controller.ConfigMapReconciler{
-		Client:        fakeClient,
-		Log:           testr.New(t),
-		Config:        cfg,
-		ReloadService: reload.NewService(cfg),
-		Registry: workload.NewRegistry(workload.RegistryOptions{
-			ArgoRolloutsEnabled:     cfg.ArgoRolloutsEnabled,
-			DeploymentConfigEnabled: cfg.DeploymentConfigEnabled,
-		}),
-		Collectors:    &collectors,
-		EventRecorder: events.NewRecorder(nil),
-		WebhookClient: webhook.NewClient("", testr.New(t)),
-		Alerter:       &alerting.NoOpAlerter{},
-	}
+	deps := newTestDeps(t, cfg, objects...)
+	return controller.NewConfigMapReconciler(
+		deps.client.Build(),
+		deps.log,
+		deps.cfg,
+		deps.reloadService,
+		deps.registry,
+		deps.collectors,
+		deps.eventRecorder,
+		deps.webhookClient,
+		deps.alerter,
+		nil,
+	)
 }
 
 // newSecretReconciler creates a SecretReconciler for testing.
 func newSecretReconciler(t *testing.T, cfg *config.Config, objects ...runtime.Object) *controller.SecretReconciler {
 	t.Helper()
-	fakeClient := fake.NewClientBuilder().
-		WithScheme(testutil.NewScheme()).
-		WithRuntimeObjects(objects...).
-		Build()
-
-	collectors := metrics.NewCollectors()
-
-	return &controller.SecretReconciler{
-		Client:        fakeClient,
-		Log:           testr.New(t),
-		Config:        cfg,
-		ReloadService: reload.NewService(cfg),
-		Registry: workload.NewRegistry(workload.RegistryOptions{
-			ArgoRolloutsEnabled:     cfg.ArgoRolloutsEnabled,
-			DeploymentConfigEnabled: cfg.DeploymentConfigEnabled,
-		}),
-		Collectors:    &collectors,
-		EventRecorder: events.NewRecorder(nil),
-		WebhookClient: webhook.NewClient("", testr.New(t)),
-		Alerter:       &alerting.NoOpAlerter{},
-	}
+	deps := newTestDeps(t, cfg, objects...)
+	return controller.NewSecretReconciler(
+		deps.client.Build(),
+		deps.log,
+		deps.cfg,
+		deps.reloadService,
+		deps.registry,
+		deps.collectors,
+		deps.eventRecorder,
+		deps.webhookClient,
+		deps.alerter,
+		nil,
+	)
 }
 
 // newNamespaceReconciler creates a NamespaceReconciler for testing.

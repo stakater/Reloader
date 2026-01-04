@@ -20,8 +20,6 @@ const (
 	ConfigMapLabelKey = "reloader.stakater.com/meta-info"
 	// ConfigMapLabelValue is the label value for the metadata ConfigMap.
 	ConfigMapLabelValue = "reloader-oss"
-	// FieldManager is the field manager name for server-side apply.
-	FieldManager = "reloader"
 
 	// Environment variables for deployment info.
 	EnvReloaderNamespace      = "RELOADER_NAMESPACE"

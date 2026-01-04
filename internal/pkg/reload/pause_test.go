@@ -16,7 +16,7 @@ func TestPauseHandler_ShouldPause(t *testing.T) {
 
 	tests := []struct {
 		name     string
-		workload workload.WorkloadAccessor
+		workload workload.Workload
 		want     bool
 	}{
 		{
@@ -66,7 +66,7 @@ func TestPauseHandler_GetPausePeriod(t *testing.T) {
 
 	tests := []struct {
 		name       string
-		workload   workload.WorkloadAccessor
+		workload   workload.Workload
 		wantPeriod time.Duration
 		wantErr    bool
 	}{

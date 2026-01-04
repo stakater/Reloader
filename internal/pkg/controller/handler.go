@@ -32,7 +32,7 @@ func (h *ReloadHandler) Process(
 	ctx context.Context,
 	namespace, resourceName string,
 	resourceType reload.ResourceType,
-	getDecisions func([]workload.WorkloadAccessor) []reload.ReloadDecision,
+	getDecisions func([]workload.Workload) []reload.ReloadDecision,
 	log logr.Logger,
 ) (ctrl.Result, error) {
 	workloads, err := h.Lister.List(ctx, namespace)

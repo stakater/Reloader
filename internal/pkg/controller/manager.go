@@ -127,11 +127,12 @@ func NewManagerWithRestConfig(opts ManagerOptions, restConfig *rest.Config) (ctr
 func SetupReconcilers(mgr ctrl.Manager, cfg *config.Config, log logr.Logger, collectors *metrics.Collectors) error {
 	registry := workload.NewRegistry(
 		workload.RegistryOptions{
-			ArgoRolloutsEnabled:     cfg.ArgoRolloutsEnabled,
-			DeploymentConfigEnabled: cfg.DeploymentConfigEnabled,
+			ArgoRolloutsEnabled:       cfg.ArgoRolloutsEnabled,
+			DeploymentConfigEnabled:   cfg.DeploymentConfigEnabled,
+			RolloutStrategyAnnotation: cfg.Annotations.RolloutStrategy,
 		},
 	)
-	reloadService := reload.NewService(cfg)
+	reloadService := reload.NewService(cfg, log.WithName("reload"))
 	eventRecorder := events.NewRecorder(mgr.GetEventRecorderFor("reloader"))
 	pauseHandler := reload.NewPauseHandler(cfg)
 
@@ -150,36 +151,38 @@ func SetupReconcilers(mgr ctrl.Manager, cfg *config.Config, log logr.Logger, col
 
 	// Setup ConfigMap reconciler
 	if !cfg.IsResourceIgnored("configmaps") {
-		if err := (&ConfigMapReconciler{
-			Client:        mgr.GetClient(),
-			Log:           log.WithName("configmap-reconciler"),
-			Config:        cfg,
-			ReloadService: reloadService,
-			Registry:      registry,
-			Collectors:    collectors,
-			EventRecorder: eventRecorder,
-			WebhookClient: webhookClient,
-			Alerter:       alerter,
-			PauseHandler:  pauseHandler,
-		}).SetupWithManager(mgr); err != nil {
+		cmReconciler := NewConfigMapReconciler(
+			mgr.GetClient(),
+			log.WithName("configmap-reconciler"),
+			cfg,
+			reloadService,
+			registry,
+			collectors,
+			eventRecorder,
+			webhookClient,
+			alerter,
+			pauseHandler,
+		)
+		if err := SetupConfigMapReconciler(mgr, cmReconciler); err != nil {
 			return fmt.Errorf("setting up configmap reconciler: %w", err)
 		}
 	}
 
 	// Setup Secret reconciler
 	if !cfg.IsResourceIgnored("secrets") {
-		if err := (&SecretReconciler{
-			Client:        mgr.GetClient(),
-			Log:           log.WithName("secret-reconciler"),
-			Config:        cfg,
-			ReloadService: reloadService,
-			Registry:      registry,
-			Collectors:    collectors,
-			EventRecorder: eventRecorder,
-			WebhookClient: webhookClient,
-			Alerter:       alerter,
-			PauseHandler:  pauseHandler,
-		}).SetupWithManager(mgr); err != nil {
+		secretReconciler := NewSecretReconciler(
+			mgr.GetClient(),
+			log.WithName("secret-reconciler"),
+			cfg,
+			reloadService,
+			registry,
+			collectors,
+			eventRecorder,
+			webhookClient,
+			alerter,
+			pauseHandler,
+		)
+		if err := SetupSecretReconciler(mgr, secretReconciler); err != nil {
 			return fmt.Errorf("setting up secret reconciler: %w", err)
 		}
 	}

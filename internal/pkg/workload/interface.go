@@ -31,9 +31,20 @@ const (
 	KindDeploymentConfig Kind = "DeploymentConfig"
 )
 
-// Workload provides a uniform interface for managing Kubernetes workloads.
-// All implementations must be safe for concurrent use.
-type Workload interface {
+// UpdateStrategy defines how a workload should be updated.
+type UpdateStrategy int
+
+const (
+	// UpdateStrategyPatch uses strategic merge patch (default for most workloads).
+	UpdateStrategyPatch UpdateStrategy = iota
+	// UpdateStrategyRecreate deletes and recreates the workload (Jobs).
+	UpdateStrategyRecreate
+	// UpdateStrategyCreateNew creates a new resource from template (CronJobs).
+	UpdateStrategyCreateNew
+)
+
+// WorkloadIdentity provides basic identification for a workload.
+type WorkloadIdentity interface {
 	// Kind returns the workload type.
 	Kind() Kind
 
@@ -45,54 +56,11 @@ type Workload interface {
 
 	// GetNamespace returns the workload namespace.
 	GetNamespace() string
-
-	// GetAnnotations returns the workload's annotations.
-	GetAnnotations() map[string]string
-
-	// GetPodTemplateAnnotations returns annotations from the pod template spec.
-	GetPodTemplateAnnotations() map[string]string
-
-	// SetPodTemplateAnnotation sets an annotation on the pod template.
-	SetPodTemplateAnnotation(key, value string)
-
-	// GetContainers returns all containers (including init containers).
-	GetContainers() []corev1.Container
-
-	// SetContainers updates the containers.
-	SetContainers(containers []corev1.Container)
-
-	// GetInitContainers returns all init containers.
-	GetInitContainers() []corev1.Container
-
-	// SetInitContainers updates the init containers.
-	SetInitContainers(containers []corev1.Container)
-
-	// GetVolumes returns the pod template volumes.
-	GetVolumes() []corev1.Volume
-
-	// Update persists changes to the workload.
-	Update(ctx context.Context, c client.Client) error
-
-	// ResetOriginal resets the original state to the current object state.
-	// This should be called after re-fetching the object (e.g., after a conflict)
-	// to ensure strategic merge patch diffs are calculated correctly.
-	ResetOriginal()
-
-	// DeepCopy returns a deep copy of the workload.
-	DeepCopy() Workload
 }
 
-// Accessor provides read-only access to workload configuration.
-// Use this interface when you only need to inspect workload state.
-type Accessor interface {
-	// Kind returns the workload type.
-	Kind() Kind
-
-	// GetName returns the workload name.
-	GetName() string
-
-	// GetNamespace returns the workload namespace.
-	GetNamespace() string
+// WorkloadReader provides read-only access to workload state.
+type WorkloadReader interface {
+	WorkloadIdentity
 
 	// GetAnnotations returns the workload's annotations.
 	GetAnnotations() map[string]string
@@ -112,19 +80,62 @@ type Accessor interface {
 	// GetEnvFromSources returns all envFrom sources from all containers.
 	GetEnvFromSources() []corev1.EnvFromSource
 
+	// GetOwnerReferences returns the owner references of the workload.
+	GetOwnerReferences() []metav1.OwnerReference
+}
+
+// WorkloadMatcher provides methods for checking resource usage.
+type WorkloadMatcher interface {
 	// UsesConfigMap checks if the workload uses a specific ConfigMap.
 	UsesConfigMap(name string) bool
 
 	// UsesSecret checks if the workload uses a specific Secret.
 	UsesSecret(name string) bool
-
-	// GetOwnerReferences returns the owner references of the workload.
-	GetOwnerReferences() []metav1.OwnerReference
 }
 
-// WorkloadAccessor provides both Workload and Accessor interfaces.
-// This is the primary type returned by the registry.
-type WorkloadAccessor interface {
-	Workload
-	Accessor
+// WorkloadMutator provides methods for modifying workload state.
+type WorkloadMutator interface {
+	// SetPodTemplateAnnotation sets an annotation on the pod template.
+	SetPodTemplateAnnotation(key, value string)
+
+	// SetContainers updates the containers.
+	SetContainers(containers []corev1.Container)
+
+	// SetInitContainers updates the init containers.
+	SetInitContainers(containers []corev1.Container)
+}
+
+// WorkloadUpdater provides methods for persisting workload changes.
+type WorkloadUpdater interface {
+	// Update persists changes to the workload.
+	Update(ctx context.Context, c client.Client) error
+
+	// UpdateStrategy returns how this workload should be updated.
+	// Most workloads use UpdateStrategyPatch (strategic merge patch).
+	// Jobs use UpdateStrategyRecreate (delete and recreate).
+	// CronJobs use UpdateStrategyCreateNew (create a new Job from template).
+	UpdateStrategy() UpdateStrategy
+
+	// PerformSpecialUpdate handles non-standard update logic.
+	// This is called when UpdateStrategy() != UpdateStrategyPatch.
+	// For UpdateStrategyPatch workloads, this returns (false, nil).
+	PerformSpecialUpdate(ctx context.Context, c client.Client) (updated bool, err error)
+
+	// ResetOriginal resets the original state to the current object state.
+	// This should be called after re-fetching the object (e.g., after a conflict)
+	// to ensure strategic merge patch diffs are calculated correctly.
+	ResetOriginal()
+
+	// DeepCopy returns a deep copy of the workload.
+	DeepCopy() Workload
+}
+
+// Workload combines all workload interfaces for full workload access.
+// Use specific interfaces (WorkloadReader, WorkloadMatcher, etc.) when possible
+// to limit scope and improve testability.
+type Workload interface {
+	WorkloadReader
+	WorkloadMatcher
+	WorkloadMutator
+	WorkloadUpdater
 }
