@@ -106,6 +106,18 @@ func run(cmd *cobra.Command, args []string) error {
 
 	collectors := metrics.SetupPrometheusEndpoint()
 
+	if config.ShouldAutoDetectOpenShift() {
+		restConfig := controllerruntime.GetConfigOrDie()
+		discoveryClient, err := discovery.NewDiscoveryClientForConfig(restConfig)
+		if err != nil {
+			log.V(1).Info("Failed to create discovery client for DeploymentConfig detection", "error", err)
+		} else if openshift.HasDeploymentConfigSupport(discoveryClient, log) {
+			cfg.DeploymentConfigEnabled = true
+		}
+	}
+
+	controller.AddOptionalSchemes(cfg.ArgoRolloutsEnabled, cfg.DeploymentConfigEnabled)
+
 	mgr, err := controller.NewManager(
 		controller.ManagerOptions{
 			Config:     cfg,
@@ -115,16 +127,6 @@ func run(cmd *cobra.Command, args []string) error {
 	)
 	if err != nil {
 		return fmt.Errorf("creating manager: %w", err)
-	}
-
-	if config.ShouldAutoDetectOpenShift() {
-		restConfig := controllerruntime.GetConfigOrDie()
-		discoveryClient, err := discovery.NewDiscoveryClientForConfig(restConfig)
-		if err != nil {
-			log.V(1).Info("Failed to create discovery client for DeploymentConfig detection", "error", err)
-		} else if openshift.HasDeploymentConfigSupport(discoveryClient, log) {
-			cfg.DeploymentConfigEnabled = true
-		}
 	}
 
 	if err := controller.SetupReconcilers(mgr, cfg, log, &collectors); err != nil {

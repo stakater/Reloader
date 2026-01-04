@@ -14,6 +14,10 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
+// FieldManager is the field manager name used for server-side apply and patch operations.
+// This identifies Reloader as the actor making changes to workload resources.
+const FieldManager = "reloader"
+
 // Kind represents the type of workload.
 type Kind string
 
@@ -68,6 +72,11 @@ type Workload interface {
 
 	// Update persists changes to the workload.
 	Update(ctx context.Context, c client.Client) error
+
+	// ResetOriginal resets the original state to the current object state.
+	// This should be called after re-fetching the object (e.g., after a conflict)
+	// to ensure strategic merge patch diffs are calculated correctly.
+	ResetOriginal()
 
 	// DeepCopy returns a deep copy of the workload.
 	DeepCopy() Workload

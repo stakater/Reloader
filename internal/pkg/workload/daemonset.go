@@ -12,11 +12,15 @@ import (
 // DaemonSetWorkload wraps a Kubernetes DaemonSet.
 type DaemonSetWorkload struct {
 	daemonset *appsv1.DaemonSet
+	original  *appsv1.DaemonSet
 }
 
 // NewDaemonSetWorkload creates a new DaemonSetWorkload.
 func NewDaemonSetWorkload(d *appsv1.DaemonSet) *DaemonSetWorkload {
-	return &DaemonSetWorkload{daemonset: d}
+	return &DaemonSetWorkload{
+		daemonset: d,
+		original:  d.DeepCopy(),
+	}
 }
 
 // Ensure DaemonSetWorkload implements WorkloadAccessor.
@@ -77,11 +81,18 @@ func (w *DaemonSetWorkload) GetVolumes() []corev1.Volume {
 }
 
 func (w *DaemonSetWorkload) Update(ctx context.Context, c client.Client) error {
-	return c.Update(ctx, w.daemonset)
+	return c.Patch(ctx, w.daemonset, client.StrategicMergeFrom(w.original), client.FieldOwner(FieldManager))
 }
 
 func (w *DaemonSetWorkload) DeepCopy() Workload {
-	return &DaemonSetWorkload{daemonset: w.daemonset.DeepCopy()}
+	return &DaemonSetWorkload{
+		daemonset: w.daemonset.DeepCopy(),
+		original:  w.original.DeepCopy(),
+	}
+}
+
+func (w *DaemonSetWorkload) ResetOriginal() {
+	w.original = w.daemonset.DeepCopy()
 }
 
 func (w *DaemonSetWorkload) GetEnvFromSources() []corev1.EnvFromSource {

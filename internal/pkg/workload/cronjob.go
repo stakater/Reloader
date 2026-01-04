@@ -91,6 +91,10 @@ func (w *CronJobWorkload) DeepCopy() Workload {
 	return &CronJobWorkload{cronjob: w.cronjob.DeepCopy()}
 }
 
+// ResetOriginal is a no-op for CronJobs since they don't use strategic merge patch.
+// CronJobs create new Jobs instead of being patched.
+func (w *CronJobWorkload) ResetOriginal() {}
+
 func (w *CronJobWorkload) GetEnvFromSources() []corev1.EnvFromSource {
 	var sources []corev1.EnvFromSource
 	for _, container := range w.cronjob.Spec.JobTemplate.Spec.Template.Spec.Containers {

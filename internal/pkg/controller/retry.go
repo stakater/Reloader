@@ -41,7 +41,7 @@ func UpdateObjectWithRetry(
 				return nil
 			}
 
-			return c.Update(ctx, obj, client.FieldOwner(FieldManager))
+			return c.Update(ctx, obj, client.FieldOwner(workload.FieldManager))
 		},
 	)
 }
@@ -107,6 +107,7 @@ func retryWithReload(
 					}
 					return err
 				}
+				wl.ResetOriginal()
 			}
 			isFirstAttempt = false
 
@@ -142,7 +143,7 @@ func updateStandardWorkload(
 	return retryWithReload(
 		ctx, c, reloadService, wl, resourceName, resourceType, namespace, hash, autoReload,
 		func() error {
-			return c.Update(ctx, wl.GetObject(), client.FieldOwner(FieldManager))
+			return wl.Update(ctx, c)
 		},
 	)
 }
@@ -170,7 +171,7 @@ func updateDeploymentWithPause(
 					return err
 				}
 			}
-			return c.Update(ctx, wl.GetObject(), client.FieldOwner(FieldManager))
+			return wl.Update(ctx, c)
 		},
 	)
 }
@@ -242,7 +243,7 @@ func updateJobWithRecreate(
 	newJob.Spec.Selector = nil
 
 	// Create the new job with same spec
-	if err := c.Create(ctx, newJob, client.FieldOwner(FieldManager)); err != nil {
+	if err := c.Create(ctx, newJob, client.FieldOwner(workload.FieldManager)); err != nil {
 		return false, err
 	}
 
@@ -304,7 +305,7 @@ func updateCronJobWithNewJob(
 		Spec: cronJob.Spec.JobTemplate.Spec,
 	}
 
-	if err := c.Create(ctx, job, client.FieldOwner(FieldManager)); err != nil {
+	if err := c.Create(ctx, job, client.FieldOwner(workload.FieldManager)); err != nil {
 		return false, err
 	}
 

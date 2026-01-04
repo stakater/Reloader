@@ -12,11 +12,15 @@ import (
 // StatefulSetWorkload wraps a Kubernetes StatefulSet.
 type StatefulSetWorkload struct {
 	statefulset *appsv1.StatefulSet
+	original    *appsv1.StatefulSet
 }
 
 // NewStatefulSetWorkload creates a new StatefulSetWorkload.
 func NewStatefulSetWorkload(s *appsv1.StatefulSet) *StatefulSetWorkload {
-	return &StatefulSetWorkload{statefulset: s}
+	return &StatefulSetWorkload{
+		statefulset: s,
+		original:    s.DeepCopy(),
+	}
 }
 
 // Ensure StatefulSetWorkload implements WorkloadAccessor.
@@ -77,11 +81,18 @@ func (w *StatefulSetWorkload) GetVolumes() []corev1.Volume {
 }
 
 func (w *StatefulSetWorkload) Update(ctx context.Context, c client.Client) error {
-	return c.Update(ctx, w.statefulset)
+	return c.Patch(ctx, w.statefulset, client.StrategicMergeFrom(w.original), client.FieldOwner(FieldManager))
 }
 
 func (w *StatefulSetWorkload) DeepCopy() Workload {
-	return &StatefulSetWorkload{statefulset: w.statefulset.DeepCopy()}
+	return &StatefulSetWorkload{
+		statefulset: w.statefulset.DeepCopy(),
+		original:    w.original.DeepCopy(),
+	}
+}
+
+func (w *StatefulSetWorkload) ResetOriginal() {
+	w.original = w.statefulset.DeepCopy()
 }
 
 func (w *StatefulSetWorkload) GetEnvFromSources() []corev1.EnvFromSource {

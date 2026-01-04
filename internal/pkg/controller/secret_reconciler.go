@@ -3,6 +3,7 @@ package controller
 import (
 	"context"
 	"sync"
+	"time"
 
 	"github.com/go-logr/logr"
 	"github.com/stakater/Reloader/internal/pkg/alerting"
@@ -39,6 +40,7 @@ type SecretReconciler struct {
 
 // Reconcile handles Secret events and triggers workload reloads as needed.
 func (r *SecretReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
+	startTime := time.Now()
 	log := r.Log.WithValues("secret", req.NamespacedName)
 
 	r.initOnce.Do(func() {
@@ -46,30 +48,52 @@ func (r *SecretReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 		log.Info("Secret controller initialized")
 	})
 
+	r.Collectors.RecordEventReceived("reconcile", "secret")
+
 	var secret corev1.Secret
 	if err := r.Get(ctx, req.NamespacedName, &secret); err != nil {
 		if errors.IsNotFound(err) {
 			if r.Config.ReloadOnDelete {
-				return r.handleDelete(ctx, req, log)
+				r.Collectors.RecordEventReceived("delete", "secret")
+				result, err := r.handleDelete(ctx, req, log)
+				if err != nil {
+					r.Collectors.RecordReconcile("error", time.Since(startTime))
+				} else {
+					r.Collectors.RecordReconcile("success", time.Since(startTime))
+				}
+				return result, err
 			}
+			r.Collectors.RecordSkipped("not_found")
+			r.Collectors.RecordReconcile("success", time.Since(startTime))
 			return ctrl.Result{}, nil
 		}
 		log.Error(err, "failed to get Secret")
+		r.Collectors.RecordError("get_secret")
+		r.Collectors.RecordReconcile("error", time.Since(startTime))
 		return ctrl.Result{}, err
 	}
 
 	if r.Config.IsNamespaceIgnored(secret.Namespace) {
 		log.V(1).Info("skipping Secret in ignored namespace")
+		r.Collectors.RecordSkipped("ignored_namespace")
+		r.Collectors.RecordReconcile("success", time.Since(startTime))
 		return ctrl.Result{}, nil
 	}
 
-	return r.reloadHandler().Process(ctx, secret.Namespace, secret.Name, reload.ResourceTypeSecret,
+	result, err := r.reloadHandler().Process(ctx, secret.Namespace, secret.Name, reload.ResourceTypeSecret,
 		func(workloads []workload.WorkloadAccessor) []reload.ReloadDecision {
 			return r.ReloadService.Process(reload.SecretChange{
 				Secret:    &secret,
 				EventType: reload.EventTypeUpdate,
 			}, workloads)
 		}, log)
+
+	if err != nil {
+		r.Collectors.RecordReconcile("error", time.Since(startTime))
+	} else {
+		r.Collectors.RecordReconcile("success", time.Since(startTime))
+	}
+	return result, err
 }
 
 func (r *SecretReconciler) handleDelete(ctx context.Context, req ctrl.Request, log logr.Logger) (ctrl.Result, error) {

@@ -90,6 +90,10 @@ func (w *JobWorkload) DeepCopy() Workload {
 	return &JobWorkload{job: w.job.DeepCopy()}
 }
 
+// ResetOriginal is a no-op for Jobs since they don't use strategic merge patch.
+// Jobs are deleted and recreated instead of being patched.
+func (w *JobWorkload) ResetOriginal() {}
+
 func (w *JobWorkload) GetEnvFromSources() []corev1.EnvFromSource {
 	var sources []corev1.EnvFromSource
 	for _, container := range w.job.Spec.Template.Spec.Containers {

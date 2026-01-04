@@ -11,12 +11,16 @@ import (
 
 // DeploymentConfigWorkload wraps an OpenShift DeploymentConfig.
 type DeploymentConfigWorkload struct {
-	dc *openshiftv1.DeploymentConfig
+	dc       *openshiftv1.DeploymentConfig
+	original *openshiftv1.DeploymentConfig
 }
 
 // NewDeploymentConfigWorkload creates a new DeploymentConfigWorkload.
 func NewDeploymentConfigWorkload(dc *openshiftv1.DeploymentConfig) *DeploymentConfigWorkload {
-	return &DeploymentConfigWorkload{dc: dc}
+	return &DeploymentConfigWorkload{
+		dc:       dc,
+		original: dc.DeepCopy(),
+	}
 }
 
 // Ensure DeploymentConfigWorkload implements WorkloadAccessor.
@@ -98,11 +102,18 @@ func (w *DeploymentConfigWorkload) GetVolumes() []corev1.Volume {
 }
 
 func (w *DeploymentConfigWorkload) Update(ctx context.Context, c client.Client) error {
-	return c.Update(ctx, w.dc)
+	return c.Patch(ctx, w.dc, client.StrategicMergeFrom(w.original), client.FieldOwner(FieldManager))
 }
 
 func (w *DeploymentConfigWorkload) DeepCopy() Workload {
-	return &DeploymentConfigWorkload{dc: w.dc.DeepCopy()}
+	return &DeploymentConfigWorkload{
+		dc:       w.dc.DeepCopy(),
+		original: w.original.DeepCopy(),
+	}
+}
+
+func (w *DeploymentConfigWorkload) ResetOriginal() {
+	w.original = w.dc.DeepCopy()
 }
 
 func (w *DeploymentConfigWorkload) GetEnvFromSources() []corev1.EnvFromSource {

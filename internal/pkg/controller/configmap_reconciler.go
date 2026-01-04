@@ -3,6 +3,7 @@ package controller
 import (
 	"context"
 	"sync"
+	"time"
 
 	"github.com/go-logr/logr"
 	"github.com/stakater/Reloader/internal/pkg/alerting"
@@ -39,6 +40,7 @@ type ConfigMapReconciler struct {
 
 // Reconcile handles ConfigMap events and triggers workload reloads as needed.
 func (r *ConfigMapReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
+	startTime := time.Now()
 	log := r.Log.WithValues("configmap", req.NamespacedName)
 
 	r.initOnce.Do(func() {
@@ -46,34 +48,53 @@ func (r *ConfigMapReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		log.Info("ConfigMap controller initialized")
 	})
 
+	r.Collectors.RecordEventReceived("reconcile", "configmap")
+
 	var cm corev1.ConfigMap
 	if err := r.Get(ctx, req.NamespacedName, &cm); err != nil {
 		if errors.IsNotFound(err) {
 			if r.Config.ReloadOnDelete {
-				return r.handleDelete(ctx, req, log)
+				r.Collectors.RecordEventReceived("delete", "configmap")
+				result, err := r.handleDelete(ctx, req, log)
+				if err != nil {
+					r.Collectors.RecordReconcile("error", time.Since(startTime))
+				} else {
+					r.Collectors.RecordReconcile("success", time.Since(startTime))
+				}
+				return result, err
 			}
+			r.Collectors.RecordSkipped("not_found")
+			r.Collectors.RecordReconcile("success", time.Since(startTime))
 			return ctrl.Result{}, nil
 		}
 		log.Error(err, "failed to get ConfigMap")
+		r.Collectors.RecordError("get_configmap")
+		r.Collectors.RecordReconcile("error", time.Since(startTime))
 		return ctrl.Result{}, err
 	}
 
 	if r.Config.IsNamespaceIgnored(cm.Namespace) {
 		log.V(1).Info("skipping ConfigMap in ignored namespace")
+		r.Collectors.RecordSkipped("ignored_namespace")
+		r.Collectors.RecordReconcile("success", time.Since(startTime))
 		return ctrl.Result{}, nil
 	}
 
-	return r.reloadHandler().Process(ctx, cm.Namespace, cm.Name, reload.ResourceTypeConfigMap,
+	result, err := r.reloadHandler().Process(ctx, cm.Namespace, cm.Name, reload.ResourceTypeConfigMap,
 		func(workloads []workload.WorkloadAccessor) []reload.ReloadDecision {
 			return r.ReloadService.Process(reload.ConfigMapChange{
 				ConfigMap: &cm,
 				EventType: reload.EventTypeUpdate,
 			}, workloads)
 		}, log)
-}
 
-// FieldManager is the field manager name used for server-side apply.
-const FieldManager = "reloader"
+	if err != nil {
+		r.Collectors.RecordReconcile("error", time.Since(startTime))
+	} else {
+		r.Collectors.RecordReconcile("success", time.Since(startTime))
+	}
+	return result, err
+}
 
 func (r *ConfigMapReconciler) handleDelete(ctx context.Context, req ctrl.Request, log logr.Logger) (ctrl.Result, error) {
 	log.Info("handling ConfigMap deletion")

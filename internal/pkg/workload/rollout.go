@@ -27,12 +27,16 @@ const RolloutStrategyAnnotation = "reloader.stakater.com/rollout-strategy"
 
 // RolloutWorkload wraps an Argo Rollout.
 type RolloutWorkload struct {
-	rollout *argorolloutv1alpha1.Rollout
+	rollout  *argorolloutv1alpha1.Rollout
+	original *argorolloutv1alpha1.Rollout
 }
 
 // NewRolloutWorkload creates a new RolloutWorkload.
 func NewRolloutWorkload(r *argorolloutv1alpha1.Rollout) *RolloutWorkload {
-	return &RolloutWorkload{rollout: r}
+	return &RolloutWorkload{
+		rollout:  r,
+		original: r.DeepCopy(),
+	}
 }
 
 // Ensure RolloutWorkload implements WorkloadAccessor.
@@ -98,12 +102,11 @@ func (w *RolloutWorkload) Update(ctx context.Context, c client.Client) error {
 	strategy := w.getStrategy()
 	switch strategy {
 	case RolloutStrategyRestart:
-		// Use merge patch to set restartAt field
+		// Set restartAt field to trigger a restart
 		restartAt := metav1.NewTime(time.Now())
 		w.rollout.Spec.RestartAt = &restartAt
 	}
-	// For both strategies, we update the rollout (annotations have already been set)
-	return c.Update(ctx, w.rollout)
+	return c.Patch(ctx, w.rollout, client.StrategicMergeFrom(w.original), client.FieldOwner(FieldManager))
 }
 
 // getStrategy returns the rollout strategy from the annotation.
@@ -122,7 +125,14 @@ func (w *RolloutWorkload) getStrategy() RolloutStrategy {
 }
 
 func (w *RolloutWorkload) DeepCopy() Workload {
-	return &RolloutWorkload{rollout: w.rollout.DeepCopy()}
+	return &RolloutWorkload{
+		rollout:  w.rollout.DeepCopy(),
+		original: w.original.DeepCopy(),
+	}
+}
+
+func (w *RolloutWorkload) ResetOriginal() {
+	w.original = w.rollout.DeepCopy()
 }
 
 func (w *RolloutWorkload) GetEnvFromSources() []corev1.EnvFromSource {

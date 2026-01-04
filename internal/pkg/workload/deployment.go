@@ -12,11 +12,15 @@ import (
 // DeploymentWorkload wraps a Kubernetes Deployment.
 type DeploymentWorkload struct {
 	deployment *appsv1.Deployment
+	original   *appsv1.Deployment
 }
 
 // NewDeploymentWorkload creates a new DeploymentWorkload.
 func NewDeploymentWorkload(d *appsv1.Deployment) *DeploymentWorkload {
-	return &DeploymentWorkload{deployment: d}
+	return &DeploymentWorkload{
+		deployment: d,
+		original:   d.DeepCopy(),
+	}
 }
 
 // Ensure DeploymentWorkload implements WorkloadAccessor.
@@ -77,11 +81,18 @@ func (w *DeploymentWorkload) GetVolumes() []corev1.Volume {
 }
 
 func (w *DeploymentWorkload) Update(ctx context.Context, c client.Client) error {
-	return c.Update(ctx, w.deployment)
+	return c.Patch(ctx, w.deployment, client.StrategicMergeFrom(w.original), client.FieldOwner(FieldManager))
 }
 
 func (w *DeploymentWorkload) DeepCopy() Workload {
-	return &DeploymentWorkload{deployment: w.deployment.DeepCopy()}
+	return &DeploymentWorkload{
+		deployment: w.deployment.DeepCopy(),
+		original:   w.original.DeepCopy(),
+	}
+}
+
+func (w *DeploymentWorkload) ResetOriginal() {
+	w.original = w.deployment.DeepCopy()
 }
 
 func (w *DeploymentWorkload) GetEnvFromSources() []corev1.EnvFromSource {
