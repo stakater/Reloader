@@ -171,7 +171,7 @@ This instructs Reloader to skip all reload logic for that resource across all wo
 
 ### 4. ⚙️ Workload-Specific Rollout Strategy (Argo Rollouts Only)
 
-Note: This is only applicable when using [Argo Rollouts](https://argoproj.github.io/argo-rollouts/). It is ignored for standard Kubernetes Deployments, StatefulSets, or DaemonSets. To use this feature, Argo Rollouts support must be enabled in Reloader (for example via --is-argo-rollouts=true).
+Note: This is only applicable when using [Argo Rollouts](https://argoproj.github.io/argo-rollouts/). It is ignored for standard Kubernetes `Deployments`, `StatefulSets`, or `DaemonSets`. To use this feature, Argo Rollouts support must be enabled in Reloader (for example via --is-argo-rollouts=true).
 
 By default, Reloader triggers the Argo Rollout controller to perform a standard rollout by updating the pod template. This works well in most cases, however, because this modifies the workload spec, GitOps tools like ArgoCD will detect this as "Configuration Drift" and mark your application as OutOfSync.
 
@@ -191,8 +191,8 @@ metadata:
 ✅ Use `restart` if:
 
 1. You're using GitOps and want to avoid drift
-2. You want a quick restart without changing the workload spec
-3. Your platform restricts metadata changes
+1. You want a quick restart without changing the workload spec
+1. Your platform restricts metadata changes
 
 This setting affects Argo Rollouts behavior, not Argo CD sync settings.
 
@@ -289,13 +289,13 @@ spec:
         secretKey: "password"
 ```
 
-***Important***: Reloader tracks changes to individual secrets (identified by secretKey). If your SecretProviderClass doesn't specify secretKey for each object, Reloader may not detect updates correctly.
+***Important***: Reloader tracks changes to individual secrets (identified by `secretKey`). If your SecretProviderClass doesn't specify `secretKey` for each object, Reloader may not detect updates correctly.
 
 #### Notes & Limitations
 
 Reloader reacts to CSI status changes, not direct updates to external secret stores
 Secret rotation must be enabled in the CSI driver for updates to be detected
-CSI limitations (such as subPath mounts) still apply and may require pod restarts
+CSI limitations (such as `subPath` mounts) still apply and may require pod restarts
 If secrets are synced to Kubernetes Secret objects, standard Reloader behavior applies and CSI support may not be required
 
 ## 🚀 Installation
@@ -489,7 +489,7 @@ PRs are welcome. In general, we follow the "fork-and-pull" Git workflow:
 
 ## Release Processes
 
-_Repository GitHub releases_: As requested by the community in [issue 685](https://github.com/stakater/Reloader/issues/685), Reloader is now based on a manual release process. Releases are no longer done on every merged PR to the main branch, but manually on request.
+*Repository GitHub releases*: As requested by the community in [issue 685](https://github.com/stakater/Reloader/issues/685), Reloader is now based on a manual release process. Releases are no longer done on every merged PR to the main branch, but manually on request.
 
 To make a GitHub release:
 
@@ -502,7 +502,7 @@ To make a GitHub release:
 1. Code owners create another branch from `master` and bump the helm chart version as well as Reloader image version.
     - Code owners create a PR with `release/helm-chart` label, example: [PR-846](https://github.com/stakater/Reloader/pull/846)
 
-_Repository git tagging_: Push to the main branch will create a merge-image and merge-tag named `merge-${{ github.event.number }}`, for example `merge-800` when pull request number 800 is merged.
+*Repository git tagging*: Push to the main branch will create a merge-image and merge-tag named `merge-${{ github.event.number }}`, for example `merge-800` when pull request number 800 is merged.
 
 ## Changelog
 
