@@ -263,10 +263,33 @@ Reloader watches these updates and triggers a rollout when a change is detected.
 
 #### Annotations for CSI-mounted Secrets
 
-| Annotation                                 | Description                                                          |
-|--------------------------------------------|----------------------------------------------------------------------|
-| `reloader.stakater.com/auto: "true"`       | Reloads workload when CSI-mounted secrets change                     |
-| `secretproviderclass.reloader.stakater.com/reload: "my-spc"` | Reloads when specific SecretProviderClass changes |
+| Annotation                                                                   | Description                                                                                                                 |
+|------------------------------------------------------------------------------|-----------------------------------------------------------------------------------------------------------------------------|
+| `reloader.stakater.com/auto: "true"`                                         | Global Discovery: Automatically discovers and reloads the workload when any mounted ConfigMap or Secret is updated.         |
+| `secretproviderclass.reloader.stakater.com/auto: 'true'`                     | CSI Discovery: Specifically watches for updates to all SecretProviderClasses used by the workload (CSI driver integration). |
+| `secretproviderclass.reloader.stakater.com/reload: "my-secretproviderclass"` | Targeted Reload: Only reloads the workload when the specifically named SecretProviderClass(es) are updated.                 |
+
+Reloader monitors changes at the **per-secret level** by watching the `SecretProviderClassPodStatus`. Make sure each secret you want to monitor is properly defined with a `secretKey` in your `SecretProviderClass`:
+
+```yaml
+apiVersion: secrets-store.csi.x-k8s.io/v1
+kind: SecretProviderClass
+metadata:
+  name: vault-reloader-demo
+  namespace: test
+spec:
+  provider: vault
+  parameters:
+    vaultAddress: "http://vault.vault.svc:8200"
+    vaultSkipTLSVerify: "true"
+    roleName: "demo-role"
+    objects: |
+      - objectName: "password"
+        secretPath: "secret/data/reloader-demo"
+        secretKey: "password"
+```
+***Important***: Reloader tracks changes to individual secrets (identified by secretKey). If your SecretProviderClass doesn't specify secretKey for each object, Reloader may not detect updates correctly.
+
 
 #### Notes & Limitations
 
