@@ -39,20 +39,31 @@ func (r ResourceUpdatedHandler) Handle() error {
 
 // GetConfig gets configurations containing SHA, annotations, namespace and resource name
 func (r ResourceUpdatedHandler) GetConfig() (common.Config, string) {
-	var oldSHAData string
-	var config common.Config
+	var (
+		oldSHAData string
+		config     common.Config
+	)
+
 	switch res := r.Resource.(type) {
 	case *v1.ConfigMap:
-		oldSHAData = util.GetSHAfromConfigmap(r.OldResource.(*v1.ConfigMap))
+		if old, ok := r.OldResource.(*v1.ConfigMap); ok && old != nil {
+			oldSHAData = util.GetSHAfromConfigmap(old)
+		}
 		config = common.GetConfigmapConfig(res)
+
 	case *v1.Secret:
-		oldSHAData = util.GetSHAfromSecret(r.OldResource.(*v1.Secret).Data)
+		if old, ok := r.OldResource.(*v1.Secret); ok && old != nil {
+			oldSHAData = util.GetSHAfromSecret(old.Data)
+		}
 		config = common.GetSecretConfig(res)
+
 	case *csiv1.SecretProviderClassPodStatus:
-		oldSHAData = util.GetSHAfromSecretProviderClassPodStatus(r.OldResource.(*csiv1.SecretProviderClassPodStatus).Status)
+		if old, ok := r.OldResource.(*csiv1.SecretProviderClassPodStatus); ok && old != nil && old.Status.Objects != nil {
+			oldSHAData = util.GetSHAfromSecretProviderClassPodStatus(old.Status)
+		}
 		config = common.GetSecretProviderClassPodStatusConfig(res)
 	default:
-		logrus.Warnf("Invalid resource: Resource should be 'Secret', 'Configmap' or 'SecretProviderClassPodStatus' but found, %v", r.Resource)
+		logrus.Warnf("Invalid resource: Resource should be 'Secret', 'Configmap' or 'SecretProviderClassPodStatus' but found, %T", r.Resource)
 	}
 	return config, oldSHAData
 }

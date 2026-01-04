@@ -2,9 +2,11 @@ package controller
 
 import (
 	"fmt"
+	"slices"
 	"time"
 
 	"github.com/sirupsen/logrus"
+	"github.com/stakater/Reloader/internal/pkg/constants"
 	"github.com/stakater/Reloader/internal/pkg/handler"
 	"github.com/stakater/Reloader/internal/pkg/metrics"
 	"github.com/stakater/Reloader/internal/pkg/options"
@@ -21,7 +23,6 @@ import (
 	"k8s.io/client-go/tools/record"
 	"k8s.io/client-go/util/workqueue"
 	"k8s.io/kubectl/pkg/scheme"
-	"k8s.io/utils/strings/slices"
 	csiv1 "sigs.k8s.io/secrets-store-csi-driver/apis/v1"
 )
 
@@ -80,13 +81,9 @@ func NewController(
 		}
 	}
 
-	getterRESTClient := client.CoreV1().RESTClient()
-	if resource == "secretproviderclasspodstatuses" {
-		csiClient, err := kube.GetCSIClient()
-		if err != nil {
-			logrus.Fatal(err)
-		}
-		getterRESTClient = csiClient.SecretsstoreV1().RESTClient()
+	getterRESTClient, err := getClientForResource(resource, client)
+	if err != nil {
+		return nil, fmt.Errorf("failed to initialize REST client for %s: %w", resource, err)
 	}
 
 	listWatcher := cache.NewFilteredListWatchFromClient(getterRESTClient, resource, namespace, optionsModifier)
@@ -300,4 +297,15 @@ func (c *Controller) handleErr(err error, key interface{}) {
 	runtime.HandleError(err)
 	logrus.Errorf("Dropping key out of the queue: %v", err)
 	logrus.Debugf("Dropping the key %q out of the queue: %v", key, err)
+}
+
+func getClientForResource(resource string, coreClient kubernetes.Interface) (cache.Getter, error) {
+	if resource == constants.SecretProviderClassController {
+		csiClient, err := kube.GetCSIClient()
+		if err != nil {
+			return nil, fmt.Errorf("failed to get CSI client: %w", err)
+		}
+		return csiClient.SecretsstoreV1().RESTClient(), nil
+	}
+	return coreClient.CoreV1().RESTClient(), nil
 }

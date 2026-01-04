@@ -634,11 +634,10 @@ func updateEnvVar(container *v1.Container, envVar string, shaData string) consta
 }
 
 func secretProviderClassEnvReloaded(containers []v1.Container, envVar string, shaData string) bool {
-	for i := range containers {
-		envs := containers[i].Env
-		for j := range envs {
-			if envs[j].Name == envVar {
-				return envs[j].Value == shaData
+	for _, container := range containers {
+		for _, env := range container.Env {
+			if env.Name == envVar {
+				return env.Value == shaData
 			}
 		}
 	}
@@ -649,7 +648,11 @@ func populateAnnotationsFromSecretProviderClass(clients kube.Clients, config *co
 	obj, err := clients.CSIClient.SecretsstoreV1().SecretProviderClasses(config.Namespace).Get(context.TODO(), config.ResourceName, metav1.GetOptions{})
 	annotations := make(map[string]string)
 	if err != nil {
-		logrus.Infof("Couldn't find secretproviderclass '%s' in '%s' namespace for typed annotation", config.ResourceName, config.Namespace)
+		if apierrors.IsNotFound(err) {
+			logrus.Warnf("SecretProviderClass '%s' not found in namespace '%s'", config.ResourceName, config.Namespace)
+		} else {
+			logrus.Errorf("Failed to get SecretProviderClass '%s' in namespace '%s': %v", config.ResourceName, config.Namespace, err)
+		}
 	} else if obj.Annotations != nil {
 		annotations = obj.Annotations
 	}

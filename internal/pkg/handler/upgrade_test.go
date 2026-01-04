@@ -32,7 +32,7 @@ import (
 
 var (
 	clients = kube.Clients{
-		KubernetesClient: testclient.NewSimpleClientset(),
+		KubernetesClient: testclient.NewClientset(),
 		CSIClient:        csitestclient.NewSimpleClientset(),
 	}
 

@@ -13,7 +13,7 @@
 
 ## 🔁 What is Reloader?
 
-Reloader is a Kubernetes controller that automatically triggers rollouts of workloads (like Deployments, StatefulSets, and more) whenever referenced `Secrets` or `ConfigMaps` are updated.
+Reloader is a Kubernetes controller that automatically triggers rollouts of workloads (like Deployments, StatefulSets, and more) whenever referenced `Secrets`, `ConfigMaps` or **optionally CSI-mounted secrets** are updated.
 
 In a traditional Kubernetes setup, updating a `Secret` or `ConfigMap` does not automatically restart or redeploy your workloads. This can lead to stale configurations running in production, especially when dealing with dynamic values like credentials, feature flags, or environment configs.
 
@@ -169,9 +169,11 @@ metadata:
 
 This instructs Reloader to skip all reload logic for that resource across all workloads.
 
-### 4. ⚙️ Workload-Specific Rollout Strategy
+### 4. ⚙️ Workload-Specific Rollout Strategy (Argo Rollouts Only)
 
-By default, Reloader uses the **rollout** strategy — it updates the pod template to trigger a new rollout. This works well in most cases, but it can cause problems if you're using GitOps tools like ArgoCD, which detect this as configuration drift.
+Note: This is only applicable when using [Argo Rollouts](https://argoproj.github.io/argo-rollouts/). It is ignored for standard Kubernetes Deployments, StatefulSets, or DaemonSets. To use this feature, Argo Rollouts support must be enabled in Reloader (for example via --is-argo-rollouts=true).
+
+By default, Reloader triggers the Argo Rollout controller to perform a standard rollout by updating the pod template. This works well in most cases, however, because this modifies the workload spec, GitOps tools like ArgoCD will detect this as "Configuration Drift" and mark your application as OutOfSync.
 
 To avoid that, you can switch to the **restart** strategy, which simply restarts the pod without changing the pod template.
 
@@ -189,8 +191,10 @@ metadata:
 ✅ Use `restart` if:
 
 1. You're using GitOps and want to avoid drift
-1. You want a quick restart without changing the workload spec
-1. Your platform restricts metadata changes
+2. You want a quick restart without changing the workload spec
+3. Your platform restricts metadata changes
+
+This setting affects Argo Rollouts behavior, not Argo CD sync settings.
 
 ### 5. ❗ Annotation Behavior Rules & Compatibility
 
@@ -238,6 +242,38 @@ This feature allows you to pause rollouts for a deployment for a specified durat
 
 1. ✅ Your deployment references multiple ConfigMaps or Secrets that may be updated at the same time.
 1. ✅ You want to minimize unnecessary rollouts and reduce downtime caused by back-to-back configuration changes.
+
+### 8. 🔐 CSI Secret Provider Support
+
+Reloader supports the [Secrets Store CSI Driver](https://secrets-store-csi-driver.sigs.k8s.io/), which allows mounting secrets from external secret stores (like AWS Secrets Manager, Azure Key Vault, HashiCorp Vault) directly into pods.
+Unlike Kubernetes Secret objects, CSI-mounted secrets do not always trigger native Kubernetes update events. Reloader solves this by watching CSI status resources and restarting affected workloads when mounted secret versions change.
+
+#### How it works
+
+When secret rotation is enabled, the Secrets Store CSI Driver updates a Kubernetes resource called: `SecretProviderClassPodStatus`
+
+This resource reflects the currently mounted secret versions for a pod.
+Reloader watches these updates and triggers a rollout when a change is detected.
+
+#### Prerequisites
+
+- Secrets Store CSI Driver must be installed in your cluster
+- Secret rotation enabled in the CSI driver.
+- Enable CSI integration in Reloader: `--enable-csi-integration=true`
+
+#### Annotations for CSI-mounted Secrets
+
+| Annotation                                 | Description                                                          |
+|--------------------------------------------|----------------------------------------------------------------------|
+| `reloader.stakater.com/auto: "true"`       | Reloads workload when CSI-mounted secrets change                     |
+| `secretproviderclass.reloader.stakater.com/reload: "my-spc"` | Reloads when specific SecretProviderClass changes |
+
+#### Notes & Limitations
+
+Reloader reacts to CSI status changes, not direct updates to external secret stores
+Secret rotation must be enabled in the CSI driver for updates to be detected
+CSI limitations (such as subPath mounts) still apply and may require pod restarts
+If secrets are synced to Kubernetes Secret objects, standard Reloader behavior applies and CSI support may not be required
 
 ## 🚀 Installation
 

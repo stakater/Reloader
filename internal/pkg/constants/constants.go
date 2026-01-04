@@ -24,6 +24,8 @@ const (
 	EnvVarsReloadStrategy = "env-vars"
 	// AnnotationsReloadStrategy instructs Reloader to add pod template annotations to facilitate a restart
 	AnnotationsReloadStrategy = "annotations"
+	// SecretProviderClassController enables support for SecretProviderClassPodStatus resources
+	SecretProviderClassController = "secretproviderclasspodstatuses"
 )
 
 // Leadership election related consts
