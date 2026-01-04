@@ -288,8 +288,8 @@ spec:
         secretPath: "secret/data/reloader-demo"
         secretKey: "password"
 ```
-***Important***: Reloader tracks changes to individual secrets (identified by secretKey). If your SecretProviderClass doesn't specify secretKey for each object, Reloader may not detect updates correctly.
 
+***Important***: Reloader tracks changes to individual secrets (identified by secretKey). If your SecretProviderClass doesn't specify secretKey for each object, Reloader may not detect updates correctly.
 
 #### Notes & Limitations
 
