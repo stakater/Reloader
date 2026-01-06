@@ -108,6 +108,9 @@ var (
 )
 
 func TestMain(m *testing.M) {
+	// Skipping test sleep because fake clients are synchronous and don't need delays
+	// This significantly speeds up test execution (saves ~3-5 seconds per resource creation)
+	testutil.SkipTestSleeps = true
 
 	// Creating namespaces
 	testutil.CreateNamespace(arsNamespace, clients.KubernetesClient)
@@ -1870,7 +1873,7 @@ var labelFailed = prometheus.Labels{"success": "false"}
 
 func testRollingUpgradeInvokeDeleteStrategyArs(t *testing.T, clients kube.Clients, config common.Config, upgradeFuncs callbacks.RollingUpgradeFuncs, collectors metrics.Collectors, envVarPostfix string) {
 	err := PerformAction(clients, config, upgradeFuncs, collectors, nil, invokeDeleteStrategy)
-	time.Sleep(5 * time.Second)
+	testutil.TestSleep(100 * time.Millisecond)
 	if err != nil {
 		t.Errorf("Rolling upgrade failed for %s with %s", upgradeFuncs.ResourceType, envVarPostfix)
 	}
@@ -1924,7 +1927,7 @@ func TestRollingUpgradeForDeploymentWithConfigmapUsingArs(t *testing.T) {
 	}
 
 	err := PerformAction(clients, config, deploymentFuncs, collectors, nil, invokeReloadStrategy)
-	time.Sleep(5 * time.Second)
+	testutil.TestSleep(100 * time.Millisecond)
 	if err != nil {
 		t.Errorf("Rolling upgrade failed for Deployment with Configmap")
 	}
@@ -2014,7 +2017,7 @@ func TestRollingUpgradeForDeploymentWithConfigmapWithoutReloadAnnotationAndWitho
 	collectors := getCollectors()
 
 	err := PerformAction(clients, config, deploymentFuncs, collectors, nil, invokeReloadStrategy)
-	time.Sleep(5 * time.Second)
+	testutil.TestSleep(100 * time.Millisecond)
 	if err != nil {
 		t.Errorf("Rolling upgrade failed for Deployment with Configmap")
 	}
@@ -2046,7 +2049,7 @@ func TestRollingUpgradeForDeploymentWithConfigmapWithoutReloadAnnotationButWithA
 	collectors := getCollectors()
 
 	err := PerformAction(clients, config, deploymentFuncs, collectors, nil, invokeReloadStrategy)
-	time.Sleep(5 * time.Second)
+	testutil.TestSleep(100 * time.Millisecond)
 	if err != nil {
 		t.Errorf("Rolling upgrade failed for Deployment with Configmap")
 	}
@@ -2148,7 +2151,7 @@ func TestRollingUpgradeForDeploymentWithConfigmapViaSearchAnnotationNoTriggersUs
 
 	logrus.Infof("Verifying deployment update")
 	updated := testutil.VerifyResourceAnnotationUpdate(clients, config, deploymentFuncs)
-	time.Sleep(5 * time.Second)
+	testutil.TestSleep(100 * time.Millisecond)
 	if updated {
 		t.Errorf("Deployment was updated unexpectedly")
 	}
@@ -2216,7 +2219,7 @@ func TestRollingUpgradeForDeploymentWithConfigmapInInitContainerUsingArs(t *test
 	collectors := getCollectors()
 
 	err := PerformAction(clients, config, deploymentFuncs, collectors, nil, invokeReloadStrategy)
-	time.Sleep(5 * time.Second)
+	testutil.TestSleep(100 * time.Millisecond)
 	if err != nil {
 		t.Errorf("Rolling upgrade failed for Deployment with Configmap")
 	}
@@ -2248,7 +2251,7 @@ func TestRollingUpgradeForDeploymentWithConfigmapInProjectVolumeInInitContainerU
 	collectors := getCollectors()
 
 	err := PerformAction(clients, config, deploymentFuncs, collectors, nil, invokeReloadStrategy)
-	time.Sleep(5 * time.Second)
+	testutil.TestSleep(100 * time.Millisecond)
 	if err != nil {
 		t.Errorf("Rolling upgrade failed for Deployment with Configmap in projected volume")
 	}
@@ -2280,7 +2283,7 @@ func TestRollingUpgradeForDeploymentWithConfigmapAsEnvVarUsingArs(t *testing.T) 
 	collectors := getCollectors()
 
 	err := PerformAction(clients, config, deploymentFuncs, collectors, nil, invokeReloadStrategy)
-	time.Sleep(5 * time.Second)
+	testutil.TestSleep(100 * time.Millisecond)
 	if err != nil {
 		t.Errorf("Rolling upgrade failed for Deployment with Configmap used as env var")
 	}
@@ -2312,7 +2315,7 @@ func TestRollingUpgradeForDeploymentWithConfigmapAsEnvVarInInitContainerUsingArs
 	collectors := getCollectors()
 
 	err := PerformAction(clients, config, deploymentFuncs, collectors, nil, invokeReloadStrategy)
-	time.Sleep(5 * time.Second)
+	testutil.TestSleep(100 * time.Millisecond)
 	if err != nil {
 		t.Errorf("Rolling upgrade failed for Deployment with Configmap used as env var")
 	}
@@ -2344,7 +2347,7 @@ func TestRollingUpgradeForDeploymentWithConfigmapAsEnvVarFromUsingArs(t *testing
 	collectors := getCollectors()
 
 	err := PerformAction(clients, config, deploymentFuncs, collectors, nil, invokeReloadStrategy)
-	time.Sleep(5 * time.Second)
+	testutil.TestSleep(100 * time.Millisecond)
 	if err != nil {
 		t.Errorf("Rolling upgrade failed for Deployment with Configmap used as env var")
 	}
@@ -2376,7 +2379,7 @@ func TestRollingUpgradeForDeploymentWithSecretUsingArs(t *testing.T) {
 	collectors := getCollectors()
 
 	err := PerformAction(clients, config, deploymentFuncs, collectors, nil, invokeReloadStrategy)
-	time.Sleep(5 * time.Second)
+	testutil.TestSleep(100 * time.Millisecond)
 	if err != nil {
 		t.Errorf("Rolling upgrade failed for Deployment with Secret")
 	}
@@ -2408,7 +2411,7 @@ func TestRollingUpgradeForDeploymentWithSecretProviderClassUsingArs(t *testing.T
 	collectors := getCollectors()
 
 	err := PerformAction(clients, config, deploymentFuncs, collectors, nil, invokeReloadStrategy)
-	time.Sleep(5 * time.Second)
+	testutil.TestSleep(100 * time.Millisecond)
 	if err != nil {
 		t.Errorf("Rolling upgrade failed for Deployment with SecretProviderClass")
 	}
@@ -2440,7 +2443,7 @@ func TestRollingUpgradeForDeploymentWithSecretInProjectedVolumeUsingArs(t *testi
 	collectors := getCollectors()
 
 	err := PerformAction(clients, config, deploymentFuncs, collectors, nil, invokeReloadStrategy)
-	time.Sleep(5 * time.Second)
+	testutil.TestSleep(100 * time.Millisecond)
 	if err != nil {
 		t.Errorf("Rolling upgrade failed for Deployment with Secret in projected volume")
 	}
@@ -2472,7 +2475,7 @@ func TestRollingUpgradeForDeploymentWithSecretinInitContainerUsingArs(t *testing
 	collectors := getCollectors()
 
 	err := PerformAction(clients, config, deploymentFuncs, collectors, nil, invokeReloadStrategy)
-	time.Sleep(5 * time.Second)
+	testutil.TestSleep(100 * time.Millisecond)
 	if err != nil {
 		t.Errorf("Rolling upgrade failed for Deployment with Secret")
 	}
@@ -2504,7 +2507,7 @@ func TestRollingUpgradeForDeploymentWithSecretproviderclassInInitContainerUsingA
 	collectors := getCollectors()
 
 	err := PerformAction(clients, config, deploymentFuncs, collectors, nil, invokeReloadStrategy)
-	time.Sleep(5 * time.Second)
+	testutil.TestSleep(100 * time.Millisecond)
 	if err != nil {
 		t.Errorf("Rolling upgrade failed for Deployment with SecretProviderClass")
 	}
@@ -2536,7 +2539,7 @@ func TestRollingUpgradeForDeploymentWithSecretInProjectedVolumeinInitContainerUs
 	collectors := getCollectors()
 
 	err := PerformAction(clients, config, deploymentFuncs, collectors, nil, invokeReloadStrategy)
-	time.Sleep(5 * time.Second)
+	testutil.TestSleep(100 * time.Millisecond)
 	if err != nil {
 		t.Errorf("Rolling upgrade failed for Deployment with Secret in projected volume")
 	}
@@ -2568,7 +2571,7 @@ func TestRollingUpgradeForDeploymentWithSecretAsEnvVarUsingArs(t *testing.T) {
 	collectors := getCollectors()
 
 	err := PerformAction(clients, config, deploymentFuncs, collectors, nil, invokeReloadStrategy)
-	time.Sleep(5 * time.Second)
+	testutil.TestSleep(100 * time.Millisecond)
 	if err != nil {
 		t.Errorf("Rolling upgrade failed for Deployment with Secret")
 	}
@@ -2600,7 +2603,7 @@ func TestRollingUpgradeForDeploymentWithSecretAsEnvVarFromUsingArs(t *testing.T)
 	collectors := getCollectors()
 
 	err := PerformAction(clients, config, deploymentFuncs, collectors, nil, invokeReloadStrategy)
-	time.Sleep(5 * time.Second)
+	testutil.TestSleep(100 * time.Millisecond)
 	if err != nil {
 		t.Errorf("Rolling upgrade failed for Deployment with Secret")
 	}
@@ -2631,7 +2634,7 @@ func TestRollingUpgradeForDeploymentWithSecretAsEnvVarInInitContainerUsingArs(t 
 	collectors := getCollectors()
 
 	err := PerformAction(clients, config, deploymentFuncs, collectors, nil, invokeReloadStrategy)
-	time.Sleep(5 * time.Second)
+	testutil.TestSleep(100 * time.Millisecond)
 	if err != nil {
 		t.Errorf("Rolling upgrade failed for Deployment with Secret")
 	}
@@ -2705,7 +2708,7 @@ func TestRollingUpgradeForDeploymentWithSecretProviderClassReloadedWithSameConfi
 	collectors := getCollectors()
 
 	err := PerformAction(clients, config, deploymentFuncs, collectors, nil, invokeReloadStrategy)
-	time.Sleep(5 * time.Second)
+	testutil.TestSleep(100 * time.Millisecond)
 	if err != nil {
 		t.Errorf("Rolling upgrade failed for Deployment with same config")
 	}
@@ -2718,7 +2721,7 @@ func TestRollingUpgradeForDeploymentWithSecretProviderClassReloadedWithSameConfi
 
 	logrus.Infof("Performing reload using same config")
 	err = PerformAction(clients, config, deploymentFuncs, collectors, nil, invokeReloadStrategy)
-	time.Sleep(5 * time.Second)
+	testutil.TestSleep(100 * time.Millisecond)
 	if err != nil {
 		t.Errorf("Second rolling upgrade failed for Deployment with same config")
 	}
@@ -2740,7 +2743,7 @@ func TestRollingUpgradeForDeploymentWithSecretProviderClassReloadedWithDifferent
 	collectors := getCollectors()
 
 	err := PerformAction(clients, config, deploymentFuncs, collectors, nil, invokeReloadStrategy)
-	time.Sleep(5 * time.Second)
+	testutil.TestSleep(100 * time.Millisecond)
 	if err != nil {
 		t.Errorf("Rolling upgrade failed for Deployment with different config")
 	}
@@ -2756,7 +2759,7 @@ func TestRollingUpgradeForDeploymentWithSecretProviderClassReloadedWithDifferent
 	config.SHAValue = shaData
 
 	err = PerformAction(clients, config, deploymentFuncs, collectors, nil, invokeReloadStrategy)
-	time.Sleep(5 * time.Second)
+	testutil.TestSleep(100 * time.Millisecond)
 	if err != nil {
 		t.Errorf("Second rolling upgrade failed for Deployment with different config")
 	}
@@ -2778,7 +2781,7 @@ func TestRollingUpgradeForDeploymentWithSecretAutoAnnotationUsingArs(t *testing.
 	collectors := getCollectors()
 
 	err := PerformAction(clients, config, deploymentFuncs, collectors, nil, invokeReloadStrategy)
-	time.Sleep(5 * time.Second)
+	testutil.TestSleep(100 * time.Millisecond)
 	if err != nil {
 		t.Errorf("Rolling upgrade failed for Deployment with Secret")
 	}
@@ -2810,7 +2813,7 @@ func TestRollingUpgradeForDeploymentWithSecretProviderClassAutoAnnotationUsingAr
 	collectors := getCollectors()
 
 	err := PerformAction(clients, config, deploymentFuncs, collectors, nil, invokeReloadStrategy)
-	time.Sleep(5 * time.Second)
+	testutil.TestSleep(100 * time.Millisecond)
 	if err != nil {
 		t.Errorf("Rolling upgrade failed for Deployment with SecretProviderClass")
 	}
@@ -2863,7 +2866,7 @@ func TestRollingUpgradeForDeploymentWithConfigMapAutoAnnotationUsingArs(t *testi
 	collectors := getCollectors()
 
 	err := PerformAction(clients, config, deploymentFuncs, collectors, nil, invokeReloadStrategy)
-	time.Sleep(5 * time.Second)
+	testutil.TestSleep(100 * time.Millisecond)
 	if err != nil {
 		t.Errorf("Rolling upgrade failed for Deployment with ConfigMap")
 	}
@@ -2907,7 +2910,7 @@ func TestRollingUpgradeForDaemonSetWithConfigmapUsingArs(t *testing.T) {
 	}
 
 	err := PerformAction(clients, config, daemonSetFuncs, collectors, nil, invokeReloadStrategy)
-	time.Sleep(5 * time.Second)
+	testutil.TestSleep(100 * time.Millisecond)
 	if err != nil {
 		t.Errorf("Rolling upgrade failed for DaemonSet with configmap")
 	}
@@ -2998,7 +3001,7 @@ func TestRollingUpgradeForDaemonSetWithConfigmapInProjectedVolumeUsingArs(t *tes
 	collectors := getCollectors()
 
 	err := PerformAction(clients, config, daemonSetFuncs, collectors, nil, invokeReloadStrategy)
-	time.Sleep(5 * time.Second)
+	testutil.TestSleep(100 * time.Millisecond)
 	if err != nil {
 		t.Errorf("Rolling upgrade failed for DaemonSet with configmap in projected volume")
 	}
@@ -3030,7 +3033,7 @@ func TestRollingUpgradeForDaemonSetWithConfigmapAsEnvVarUsingArs(t *testing.T) {
 	collectors := getCollectors()
 
 	err := PerformAction(clients, config, daemonSetFuncs, collectors, nil, invokeReloadStrategy)
-	time.Sleep(5 * time.Second)
+	testutil.TestSleep(100 * time.Millisecond)
 	if err != nil {
 		t.Errorf("Rolling upgrade failed for DaemonSet with configmap used as env var")
 	}
@@ -3062,7 +3065,7 @@ func TestRollingUpgradeForDaemonSetWithSecretUsingArs(t *testing.T) {
 	collectors := getCollectors()
 
 	err := PerformAction(clients, config, daemonSetFuncs, collectors, nil, invokeReloadStrategy)
-	time.Sleep(5 * time.Second)
+	testutil.TestSleep(100 * time.Millisecond)
 	if err != nil {
 		t.Errorf("Rolling upgrade failed for DaemonSet with secret")
 	}
@@ -3094,7 +3097,7 @@ func TestRollingUpgradeForDaemonSetWithSecretProviderClassUsingArs(t *testing.T)
 	collectors := getCollectors()
 
 	err := PerformAction(clients, config, daemonSetFuncs, collectors, nil, invokeReloadStrategy)
-	time.Sleep(5 * time.Second)
+	testutil.TestSleep(100 * time.Millisecond)
 	if err != nil {
 		t.Errorf("Rolling upgrade failed for DaemonSet with SecretProviderClass")
 	}
@@ -3126,7 +3129,7 @@ func TestRollingUpgradeForDaemonSetWithSecretInProjectedVolumeUsingArs(t *testin
 	collectors := getCollectors()
 
 	err := PerformAction(clients, config, daemonSetFuncs, collectors, nil, invokeReloadStrategy)
-	time.Sleep(5 * time.Second)
+	testutil.TestSleep(100 * time.Millisecond)
 	if err != nil {
 		t.Errorf("Rolling upgrade failed for DaemonSet with secret in projected volume")
 	}
@@ -3170,7 +3173,7 @@ func TestRollingUpgradeForStatefulSetWithConfigmapUsingArs(t *testing.T) {
 	}
 
 	err := PerformAction(clients, config, statefulSetFuncs, collectors, nil, invokeReloadStrategy)
-	time.Sleep(5 * time.Second)
+	testutil.TestSleep(100 * time.Millisecond)
 	if err != nil {
 		t.Errorf("Rolling upgrade failed for StatefulSet with configmap")
 	}
@@ -3261,7 +3264,7 @@ func TestRollingUpgradeForStatefulSetWithConfigmapInProjectedVolumeUsingArs(t *t
 	collectors := getCollectors()
 
 	err := PerformAction(clients, config, statefulSetFuncs, collectors, nil, invokeReloadStrategy)
-	time.Sleep(5 * time.Second)
+	testutil.TestSleep(100 * time.Millisecond)
 	if err != nil {
 		t.Errorf("Rolling upgrade failed for StatefulSet with configmap in projected volume")
 	}
@@ -3293,7 +3296,7 @@ func TestRollingUpgradeForStatefulSetWithSecretUsingArs(t *testing.T) {
 	collectors := getCollectors()
 
 	err := PerformAction(clients, config, statefulSetFuncs, collectors, nil, invokeReloadStrategy)
-	time.Sleep(5 * time.Second)
+	testutil.TestSleep(100 * time.Millisecond)
 	if err != nil {
 		t.Errorf("Rolling upgrade failed for StatefulSet with secret")
 	}
@@ -3325,7 +3328,7 @@ func TestRollingUpgradeForStatefulSetWithSecretProviderClassUsingArs(t *testing.
 	collectors := getCollectors()
 
 	err := PerformAction(clients, config, statefulSetFuncs, collectors, nil, invokeReloadStrategy)
-	time.Sleep(5 * time.Second)
+	testutil.TestSleep(100 * time.Millisecond)
 	if err != nil {
 		t.Errorf("Rolling upgrade failed for StatefulSet with SecretProviderClass: %v", err)
 	}
@@ -3357,7 +3360,7 @@ func TestRollingUpgradeForStatefulSetWithSecretInProjectedVolumeUsingArs(t *test
 	collectors := getCollectors()
 
 	err := PerformAction(clients, config, statefulSetFuncs, collectors, nil, invokeReloadStrategy)
-	time.Sleep(5 * time.Second)
+	testutil.TestSleep(100 * time.Millisecond)
 	if err != nil {
 		t.Errorf("Rolling upgrade failed for StatefulSet with secret in projected volume")
 	}
@@ -3389,7 +3392,7 @@ func TestRollingUpgradeForDeploymentWithPodAnnotationsUsingArs(t *testing.T) {
 	collectors := getCollectors()
 
 	err := PerformAction(clients, config, deploymentFuncs, collectors, nil, invokeReloadStrategy)
-	time.Sleep(5 * time.Second)
+	testutil.TestSleep(100 * time.Millisecond)
 	if err != nil {
 		t.Errorf("Rolling upgrade failed for Deployment with pod annotations")
 	}
@@ -3522,7 +3525,7 @@ func TestIgnoreAnnotationNoReloadUsingErs(t *testing.T) {
 
 func testRollingUpgradeInvokeDeleteStrategyErs(t *testing.T, clients kube.Clients, config common.Config, upgradeFuncs callbacks.RollingUpgradeFuncs, collectors metrics.Collectors, envVarPostfix string) {
 	err := PerformAction(clients, config, upgradeFuncs, collectors, nil, invokeDeleteStrategy)
-	time.Sleep(5 * time.Second)
+	testutil.TestSleep(100 * time.Millisecond)
 	if err != nil {
 		t.Errorf("Rolling upgrade failed for %s with %s", upgradeFuncs.ResourceType, envVarPostfix)
 	}
@@ -3565,7 +3568,7 @@ func TestRollingUpgradeForDeploymentWithConfigmapUsingErs(t *testing.T) {
 	collectors := getCollectors()
 
 	err := PerformAction(clients, config, deploymentFuncs, collectors, nil, invokeReloadStrategy)
-	time.Sleep(5 * time.Second)
+	testutil.TestSleep(100 * time.Millisecond)
 	if err != nil {
 		t.Errorf("Rolling upgrade failed for %s with %s", deploymentFuncs.ResourceType, envVarPostfix)
 	}
@@ -3709,7 +3712,7 @@ func TestRollingUpgradeForDeploymentWithConfigmapViaSearchAnnotationNoTriggersUs
 
 	logrus.Infof("Verifying deployment update")
 	updated := testutil.VerifyResourceEnvVarUpdate(clients, config, envVarPostfix, deploymentFuncs)
-	time.Sleep(5 * time.Second)
+	testutil.TestSleep(100 * time.Millisecond)
 	if updated {
 		t.Errorf("Deployment was updated unexpectedly")
 	}
@@ -3777,7 +3780,7 @@ func TestRollingUpgradeForDeploymentWithConfigmapInInitContainerUsingErs(t *test
 	collectors := getCollectors()
 
 	err := PerformAction(clients, config, deploymentFuncs, collectors, nil, invokeReloadStrategy)
-	time.Sleep(5 * time.Second)
+	testutil.TestSleep(100 * time.Millisecond)
 	if err != nil {
 		t.Errorf("Rolling upgrade failed for %s with %s", deploymentFuncs.ResourceType, envVarPostfix)
 	}
@@ -3809,7 +3812,7 @@ func TestRollingUpgradeForDeploymentWithConfigmapInProjectVolumeInInitContainerU
 	collectors := getCollectors()
 
 	err := PerformAction(clients, config, deploymentFuncs, collectors, nil, invokeReloadStrategy)
-	time.Sleep(5 * time.Second)
+	testutil.TestSleep(100 * time.Millisecond)
 	if err != nil {
 		t.Errorf("Rolling upgrade failed for Deployment with Configmap in projected volume")
 	}
@@ -3841,7 +3844,7 @@ func TestRollingUpgradeForDeploymentWithConfigmapAsEnvVarUsingErs(t *testing.T) 
 	collectors := getCollectors()
 
 	err := PerformAction(clients, config, deploymentFuncs, collectors, nil, invokeReloadStrategy)
-	time.Sleep(5 * time.Second)
+	testutil.TestSleep(100 * time.Millisecond)
 	if err != nil {
 		t.Errorf("Rolling upgrade failed for Deployment with Configmap used as env var")
 	}
@@ -3873,7 +3876,7 @@ func TestRollingUpgradeForDeploymentWithConfigmapAsEnvVarInInitContainerUsingErs
 	collectors := getCollectors()
 
 	err := PerformAction(clients, config, deploymentFuncs, collectors, nil, invokeReloadStrategy)
-	time.Sleep(5 * time.Second)
+	testutil.TestSleep(100 * time.Millisecond)
 	if err != nil {
 		t.Errorf("Rolling upgrade failed for Deployment with Configmap used as env var")
 	}
@@ -3905,7 +3908,7 @@ func TestRollingUpgradeForDeploymentWithConfigmapAsEnvVarFromUsingErs(t *testing
 	collectors := getCollectors()
 
 	err := PerformAction(clients, config, deploymentFuncs, collectors, nil, invokeReloadStrategy)
-	time.Sleep(5 * time.Second)
+	testutil.TestSleep(100 * time.Millisecond)
 	if err != nil {
 		t.Errorf("Rolling upgrade failed for Deployment with Configmap used as env var")
 	}
@@ -3937,7 +3940,7 @@ func TestRollingUpgradeForDeploymentWithSecretUsingErs(t *testing.T) {
 	collectors := getCollectors()
 
 	err := PerformAction(clients, config, deploymentFuncs, collectors, nil, invokeReloadStrategy)
-	time.Sleep(5 * time.Second)
+	testutil.TestSleep(100 * time.Millisecond)
 	if err != nil {
 		t.Errorf("Rolling upgrade failed for Deployment with Secret")
 	}
@@ -3969,7 +3972,7 @@ func TestRollingUpgradeForDeploymentWithSecretProviderClassUsingErs(t *testing.T
 	collectors := getCollectors()
 
 	err := PerformAction(clients, config, deploymentFuncs, collectors, nil, invokeReloadStrategy)
-	time.Sleep(5 * time.Second)
+	testutil.TestSleep(100 * time.Millisecond)
 	if err != nil {
 		t.Errorf("Rolling upgrade failed for Deployment with SecretProviderClass")
 	}
@@ -4001,7 +4004,7 @@ func TestRollingUpgradeForDeploymentWithSecretInProjectedVolumeUsingErs(t *testi
 	collectors := getCollectors()
 
 	err := PerformAction(clients, config, deploymentFuncs, collectors, nil, invokeReloadStrategy)
-	time.Sleep(5 * time.Second)
+	testutil.TestSleep(100 * time.Millisecond)
 	if err != nil {
 		t.Errorf("Rolling upgrade failed for Deployment with Secret in projected volume")
 	}
@@ -4033,7 +4036,7 @@ func TestRollingUpgradeForDeploymentWithSecretinInitContainerUsingErs(t *testing
 	collectors := getCollectors()
 
 	err := PerformAction(clients, config, deploymentFuncs, collectors, nil, invokeReloadStrategy)
-	time.Sleep(5 * time.Second)
+	testutil.TestSleep(100 * time.Millisecond)
 	if err != nil {
 		t.Errorf("Rolling upgrade failed for Deployment with Secret")
 	}
@@ -4065,7 +4068,7 @@ func TestRollingUpgradeForDeploymentWithSecretProviderClassinInitContainerUsingE
 	collectors := getCollectors()
 
 	err := PerformAction(clients, config, deploymentFuncs, collectors, nil, invokeReloadStrategy)
-	time.Sleep(5 * time.Second)
+	testutil.TestSleep(100 * time.Millisecond)
 	if err != nil {
 		t.Errorf("Rolling upgrade failed for Deployment with SecretProviderClass")
 	}
@@ -4097,7 +4100,7 @@ func TestRollingUpgradeForDeploymentWithSecretInProjectedVolumeinInitContainerUs
 	collectors := getCollectors()
 
 	err := PerformAction(clients, config, deploymentFuncs, collectors, nil, invokeReloadStrategy)
-	time.Sleep(5 * time.Second)
+	testutil.TestSleep(100 * time.Millisecond)
 	if err != nil {
 		t.Errorf("Rolling upgrade failed for Deployment with Secret in projected volume")
 	}
@@ -4129,7 +4132,7 @@ func TestRollingUpgradeForDeploymentWithSecretAsEnvVarUsingErs(t *testing.T) {
 	collectors := getCollectors()
 
 	err := PerformAction(clients, config, deploymentFuncs, collectors, nil, invokeReloadStrategy)
-	time.Sleep(5 * time.Second)
+	testutil.TestSleep(100 * time.Millisecond)
 	if err != nil {
 		t.Errorf("Rolling upgrade failed for Deployment with Secret")
 	}
@@ -4161,7 +4164,7 @@ func TestRollingUpgradeForDeploymentWithSecretAsEnvVarFromUsingErs(t *testing.T)
 	collectors := getCollectors()
 
 	err := PerformAction(clients, config, deploymentFuncs, collectors, nil, invokeReloadStrategy)
-	time.Sleep(5 * time.Second)
+	testutil.TestSleep(100 * time.Millisecond)
 	if err != nil {
 		t.Errorf("Rolling upgrade failed for Deployment with Secret")
 	}
@@ -4193,7 +4196,7 @@ func TestRollingUpgradeForDeploymentWithSecretAsEnvVarInInitContainerUsingErs(t 
 	collectors := getCollectors()
 
 	err := PerformAction(clients, config, deploymentFuncs, collectors, nil, invokeReloadStrategy)
-	time.Sleep(5 * time.Second)
+	testutil.TestSleep(100 * time.Millisecond)
 	if err != nil {
 		t.Errorf("Rolling upgrade failed for Deployment with Secret")
 	}
@@ -4225,7 +4228,7 @@ func TestRollingUpgradeForDeploymentWithSecretExcludeAnnotationUsingErs(t *testi
 	collectors := getCollectors()
 
 	err := PerformAction(clients, config, deploymentFuncs, collectors, nil, invokeReloadStrategy)
-	time.Sleep(5 * time.Second)
+	testutil.TestSleep(100 * time.Millisecond)
 	if err != nil {
 		t.Errorf("Rolling upgrade failed for Deployment with exclude Secret")
 	}
@@ -4247,7 +4250,7 @@ func TestRollingUpgradeForDeploymentWithSecretProviderClassExcludeAnnotationUsin
 	collectors := getCollectors()
 
 	err := PerformAction(clients, config, deploymentFuncs, collectors, nil, invokeReloadStrategy)
-	time.Sleep(5 * time.Second)
+	testutil.TestSleep(100 * time.Millisecond)
 	if err != nil {
 		t.Errorf("Rolling upgrade failed for Deployment with exclude SecretProviderClass")
 	}
@@ -4269,7 +4272,7 @@ func TestRollingUpgradeForDeploymentWithSecretProviderClassReloadedWithSameConfi
 	collectors := getCollectors()
 
 	err := PerformAction(clients, config, deploymentFuncs, collectors, nil, invokeReloadStrategy)
-	time.Sleep(5 * time.Second)
+	testutil.TestSleep(100 * time.Millisecond)
 	if err != nil {
 		t.Errorf("Rolling upgrade failed for Deployment with same config")
 	}
@@ -4282,7 +4285,7 @@ func TestRollingUpgradeForDeploymentWithSecretProviderClassReloadedWithSameConfi
 
 	logrus.Infof("Performing reload using same config")
 	err = PerformAction(clients, config, deploymentFuncs, collectors, nil, invokeReloadStrategy)
-	time.Sleep(5 * time.Second)
+	testutil.TestSleep(100 * time.Millisecond)
 	if err != nil {
 		t.Errorf("Second rolling upgrade failed for Deployment with same config")
 	}
@@ -4304,7 +4307,7 @@ func TestRollingUpgradeForDeploymentWithSecretProviderClassReloadedWithDifferent
 	collectors := getCollectors()
 
 	err := PerformAction(clients, config, deploymentFuncs, collectors, nil, invokeReloadStrategy)
-	time.Sleep(5 * time.Second)
+	testutil.TestSleep(100 * time.Millisecond)
 	if err != nil {
 		t.Errorf("Rolling upgrade failed for Deployment with different config")
 	}
@@ -4320,7 +4323,7 @@ func TestRollingUpgradeForDeploymentWithSecretProviderClassReloadedWithDifferent
 	config.SHAValue = shaData
 
 	err = PerformAction(clients, config, deploymentFuncs, collectors, nil, invokeReloadStrategy)
-	time.Sleep(5 * time.Second)
+	testutil.TestSleep(100 * time.Millisecond)
 	if err != nil {
 		t.Errorf("Second rolling upgrade failed for Deployment with different config")
 	}
@@ -4342,7 +4345,7 @@ func TestRollingUpgradeForDeploymentWithSecretAutoAnnotationUsingErs(t *testing.
 	collectors := getCollectors()
 
 	err := PerformAction(clients, config, deploymentFuncs, collectors, nil, invokeReloadStrategy)
-	time.Sleep(5 * time.Second)
+	testutil.TestSleep(100 * time.Millisecond)
 	if err != nil {
 		t.Errorf("Rolling upgrade failed for Deployment with Secret")
 	}
@@ -4374,7 +4377,7 @@ func TestRollingUpgradeForDeploymentWithSecretProviderClassAutoAnnotationUsingEr
 	collectors := getCollectors()
 
 	err := PerformAction(clients, config, deploymentFuncs, collectors, nil, invokeReloadStrategy)
-	time.Sleep(5 * time.Second)
+	testutil.TestSleep(100 * time.Millisecond)
 	if err != nil {
 		t.Errorf("Rolling upgrade failed for Deployment with SecretProviderClass")
 	}
@@ -4406,7 +4409,7 @@ func TestRollingUpgradeForDeploymentWithConfigMapExcludeAnnotationUsingErs(t *te
 	collectors := getCollectors()
 
 	err := PerformAction(clients, config, deploymentFuncs, collectors, nil, invokeReloadStrategy)
-	time.Sleep(5 * time.Second)
+	testutil.TestSleep(100 * time.Millisecond)
 	if err != nil {
 		t.Errorf("Rolling upgrade failed for Deployment with exclude ConfigMap")
 	}
@@ -4428,7 +4431,7 @@ func TestRollingUpgradeForDeploymentWithConfigMapAutoAnnotationUsingErs(t *testi
 	collectors := getCollectors()
 
 	err := PerformAction(clients, config, deploymentFuncs, collectors, nil, invokeReloadStrategy)
-	time.Sleep(5 * time.Second)
+	testutil.TestSleep(100 * time.Millisecond)
 	if err != nil {
 		t.Errorf("Rolling upgrade failed for Deployment with ConfigMap")
 	}
@@ -4460,7 +4463,7 @@ func TestRollingUpgradeForDaemonSetWithConfigmapUsingErs(t *testing.T) {
 	collectors := getCollectors()
 
 	err := PerformAction(clients, config, daemonSetFuncs, collectors, nil, invokeReloadStrategy)
-	time.Sleep(5 * time.Second)
+	testutil.TestSleep(100 * time.Millisecond)
 	if err != nil {
 		t.Errorf("Rolling upgrade failed for DaemonSet with configmap")
 	}
@@ -4514,7 +4517,7 @@ func TestRollingUpgradeForDaemonSetWithPatchAndRetryUsingErs(t *testing.T) {
 	collectors := getCollectors()
 
 	err := PerformAction(clients, config, daemonSetFuncs, collectors, nil, invokeReloadStrategy)
-	time.Sleep(5 * time.Second)
+	testutil.TestSleep(100 * time.Millisecond)
 	if err != nil {
 		t.Errorf("Rolling upgrade failed for DaemonSet with configmap")
 	}
@@ -4535,7 +4538,7 @@ func TestRollingUpgradeForDaemonSetWithConfigmapInProjectedVolumeUsingErs(t *tes
 	collectors := getCollectors()
 
 	err := PerformAction(clients, config, daemonSetFuncs, collectors, nil, invokeReloadStrategy)
-	time.Sleep(5 * time.Second)
+	testutil.TestSleep(100 * time.Millisecond)
 	if err != nil {
 		t.Errorf("Rolling upgrade failed for DaemonSet with configmap in projected volume")
 	}
@@ -4567,7 +4570,7 @@ func TestRollingUpgradeForDaemonSetWithConfigmapAsEnvVarUsingErs(t *testing.T) {
 	collectors := getCollectors()
 
 	err := PerformAction(clients, config, daemonSetFuncs, collectors, nil, invokeReloadStrategy)
-	time.Sleep(5 * time.Second)
+	testutil.TestSleep(100 * time.Millisecond)
 	if err != nil {
 		t.Errorf("Rolling upgrade failed for DaemonSet with configmap used as env var")
 	}
@@ -4599,7 +4602,7 @@ func TestRollingUpgradeForDaemonSetWithSecretUsingErs(t *testing.T) {
 	collectors := getCollectors()
 
 	err := PerformAction(clients, config, daemonSetFuncs, collectors, nil, invokeReloadStrategy)
-	time.Sleep(5 * time.Second)
+	testutil.TestSleep(100 * time.Millisecond)
 	if err != nil {
 		t.Errorf("Rolling upgrade failed for DaemonSet with secret")
 	}
@@ -4631,7 +4634,7 @@ func TestRollingUpgradeForDaemonSetWithSecretProviderClassUsingErs(t *testing.T)
 	collectors := getCollectors()
 
 	err := PerformAction(clients, config, daemonSetFuncs, collectors, nil, invokeReloadStrategy)
-	time.Sleep(5 * time.Second)
+	testutil.TestSleep(100 * time.Millisecond)
 	if err != nil {
 		t.Errorf("Rolling upgrade failed for DaemonSet with SecretProviderClass")
 	}
@@ -4663,7 +4666,7 @@ func TestRollingUpgradeForDaemonSetWithSecretInProjectedVolumeUsingErs(t *testin
 	collectors := getCollectors()
 
 	err := PerformAction(clients, config, daemonSetFuncs, collectors, nil, invokeReloadStrategy)
-	time.Sleep(5 * time.Second)
+	testutil.TestSleep(100 * time.Millisecond)
 	if err != nil {
 		t.Errorf("Rolling upgrade failed for DaemonSet with secret in projected volume")
 	}
@@ -4695,7 +4698,7 @@ func TestRollingUpgradeForStatefulSetWithConfigmapUsingErs(t *testing.T) {
 	collectors := getCollectors()
 
 	err := PerformAction(clients, config, statefulSetFuncs, collectors, nil, invokeReloadStrategy)
-	time.Sleep(5 * time.Second)
+	testutil.TestSleep(100 * time.Millisecond)
 	if err != nil {
 		t.Errorf("Rolling upgrade failed for StatefulSet with configmap")
 	}
@@ -4749,7 +4752,7 @@ func TestRollingUpgradeForStatefulSetWithPatchAndRetryUsingErs(t *testing.T) {
 	collectors := getCollectors()
 
 	err := PerformAction(clients, config, statefulSetFuncs, collectors, nil, invokeReloadStrategy)
-	time.Sleep(5 * time.Second)
+	testutil.TestSleep(100 * time.Millisecond)
 	if err != nil {
 		t.Errorf("Rolling upgrade failed for StatefulSet with configmap")
 	}
@@ -4770,7 +4773,7 @@ func TestRollingUpgradeForStatefulSetWithConfigmapInProjectedVolumeUsingErs(t *t
 	collectors := getCollectors()
 
 	err := PerformAction(clients, config, statefulSetFuncs, collectors, nil, invokeReloadStrategy)
-	time.Sleep(5 * time.Second)
+	testutil.TestSleep(100 * time.Millisecond)
 	if err != nil {
 		t.Errorf("Rolling upgrade failed for StatefulSet with configmap in projected volume")
 	}
@@ -4802,7 +4805,7 @@ func TestRollingUpgradeForStatefulSetWithSecretUsingErs(t *testing.T) {
 	collectors := getCollectors()
 
 	err := PerformAction(clients, config, statefulSetFuncs, collectors, nil, invokeReloadStrategy)
-	time.Sleep(5 * time.Second)
+	testutil.TestSleep(100 * time.Millisecond)
 	if err != nil {
 		t.Errorf("Rolling upgrade failed for StatefulSet with secret")
 	}
@@ -4834,7 +4837,7 @@ func TestRollingUpgradeForStatefulSetWithSecretProviderClassUsingErs(t *testing.
 	collectors := getCollectors()
 
 	err := PerformAction(clients, config, statefulSetFuncs, collectors, nil, invokeReloadStrategy)
-	time.Sleep(5 * time.Second)
+	testutil.TestSleep(100 * time.Millisecond)
 	if err != nil {
 		t.Errorf("Rolling upgrade failed for StatefulSet with SecretProviderClass")
 	}
@@ -4866,7 +4869,7 @@ func TestRollingUpgradeForStatefulSetWithSecretInProjectedVolumeUsingErs(t *test
 	collectors := getCollectors()
 
 	err := PerformAction(clients, config, statefulSetFuncs, collectors, nil, invokeReloadStrategy)
-	time.Sleep(5 * time.Second)
+	testutil.TestSleep(100 * time.Millisecond)
 	if err != nil {
 		t.Errorf("Rolling upgrade failed for StatefulSet with secret in projected volume")
 	}
@@ -4898,7 +4901,7 @@ func TestRollingUpgradeForDeploymentWithPodAnnotationsUsingErs(t *testing.T) {
 	collectors := getCollectors()
 
 	err := PerformAction(clients, config, deploymentFuncs, collectors, nil, invokeReloadStrategy)
-	time.Sleep(5 * time.Second)
+	testutil.TestSleep(100 * time.Millisecond)
 	if err != nil {
 		t.Errorf("Rolling upgrade failed for Deployment with pod annotations")
 	}
@@ -5042,7 +5045,12 @@ func testPausingDeployment(t *testing.T, reloadStrategy string, testName string,
 	}
 
 	logrus.Infof("Verifying deployment has been resumed after pause interval")
-	time.Sleep(11 * time.Second)
+	// This sleep tests the pause functionality - reduce time in fast mode but keep some delay for test stability
+	if testutil.SkipTestSleeps {
+		time.Sleep(100 * time.Millisecond)
+	} else {
+		time.Sleep(11 * time.Second)
+	}
 	items = deploymentFuncs.ItemsFunc(clients, config.Namespace)
 	deploymentPaused, err = isDeploymentPaused(items, testName)
 	if err != nil {
