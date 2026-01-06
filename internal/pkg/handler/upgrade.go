@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"time"
 
 	"github.com/parnurzeal/gorequest"
 	"github.com/prometheus/client_golang/prometheus"
@@ -236,23 +237,34 @@ func rollingUpgrade(clients kube.Clients, config common.Config, upgradeFuncs cal
 func PerformAction(clients kube.Clients, config common.Config, upgradeFuncs callbacks.RollingUpgradeFuncs, collectors metrics.Collectors, recorder record.EventRecorder, strategy invokeStrategy) error {
 	items := upgradeFuncs.ItemsFunc(clients, config.Namespace)
 
+	// Record workloads scanned
+	collectors.RecordWorkloadsScanned(upgradeFuncs.ResourceType, len(items))
+
+	matchedCount := 0
 	for _, item := range items {
-		err := retryOnConflict(retry.DefaultRetry, func(fetchResource bool) error {
-			return upgradeResource(clients, config, upgradeFuncs, collectors, recorder, strategy, item, fetchResource)
+		err := retryOnConflict(retry.DefaultRetry, func(fetchResource bool) (bool, error) {
+			matched, err := upgradeResource(clients, config, upgradeFuncs, collectors, recorder, strategy, item, fetchResource)
+			if matched {
+				matchedCount++
+			}
+			return matched, err
 		})
 		if err != nil {
 			return err
 		}
 	}
 
+	// Record workloads matched
+	collectors.RecordWorkloadsMatched(upgradeFuncs.ResourceType, matchedCount)
+
 	return nil
 }
 
-func retryOnConflict(backoff wait.Backoff, fn func(_ bool) error) error {
+func retryOnConflict(backoff wait.Backoff, fn func(_ bool) (bool, error)) error {
 	var lastError error
 	fetchResource := false // do not fetch resource on first attempt, already done by ItemsFunc
 	err := wait.ExponentialBackoff(backoff, func() (bool, error) {
-		err := fn(fetchResource)
+		_, err := fn(fetchResource)
 		fetchResource = true
 		switch {
 		case err == nil:
@@ -270,17 +282,19 @@ func retryOnConflict(backoff wait.Backoff, fn func(_ bool) error) error {
 	return err
 }
 
-func upgradeResource(clients kube.Clients, config common.Config, upgradeFuncs callbacks.RollingUpgradeFuncs, collectors metrics.Collectors, recorder record.EventRecorder, strategy invokeStrategy, resource runtime.Object, fetchResource bool) error {
+func upgradeResource(clients kube.Clients, config common.Config, upgradeFuncs callbacks.RollingUpgradeFuncs, collectors metrics.Collectors, recorder record.EventRecorder, strategy invokeStrategy, resource runtime.Object, fetchResource bool) (bool, error) {
+	actionStartTime := time.Now()
+
 	accessor, err := meta.Accessor(resource)
 	if err != nil {
-		return err
+		return false, err
 	}
 
 	resourceName := accessor.GetName()
 	if fetchResource {
 		resource, err = upgradeFuncs.ItemFunc(clients, resourceName, config.Namespace)
 		if err != nil {
-			return err
+			return false, err
 		}
 	}
 	annotations := upgradeFuncs.AnnotationsFunc(resource)
@@ -289,13 +303,14 @@ func upgradeResource(clients kube.Clients, config common.Config, upgradeFuncs ca
 
 	if !result.ShouldReload {
 		logrus.Debugf("No changes detected in '%s' of type '%s' in namespace '%s'", config.ResourceName, config.Type, config.Namespace)
-		return nil
+		return false, nil
 	}
 
 	strategyResult := strategy(upgradeFuncs, resource, config, result.AutoReload)
 
 	if strategyResult.Result != constants.Updated {
-		return nil
+		collectors.RecordSkipped("strategy_not_updated")
+		return false, nil
 	}
 
 	// find correct annotation and update the resource
@@ -309,7 +324,7 @@ func upgradeResource(clients kube.Clients, config common.Config, upgradeFuncs ca
 			_, err = PauseDeployment(deployment, clients, config.Namespace, pauseInterval)
 			if err != nil {
 				logrus.Errorf("Failed to pause deployment '%s' in namespace '%s': %v", resourceName, config.Namespace, err)
-				return err
+				return true, err
 			}
 		}
 	}
@@ -320,16 +335,19 @@ func upgradeResource(clients kube.Clients, config common.Config, upgradeFuncs ca
 		err = upgradeFuncs.UpdateFunc(clients, config.Namespace, resource)
 	}
 
+	actionLatency := time.Since(actionStartTime)
+
 	if err != nil {
 		message := fmt.Sprintf("Update for '%s' of type '%s' in namespace '%s' failed with error %v", resourceName, upgradeFuncs.ResourceType, config.Namespace, err)
 		logrus.Errorf("Update for '%s' of type '%s' in namespace '%s' failed with error %v", resourceName, upgradeFuncs.ResourceType, config.Namespace, err)
 
 		collectors.Reloaded.With(prometheus.Labels{"success": "false"}).Inc()
 		collectors.ReloadedByNamespace.With(prometheus.Labels{"success": "false", "namespace": config.Namespace}).Inc()
+		collectors.RecordAction(upgradeFuncs.ResourceType, "error", actionLatency)
 		if recorder != nil {
 			recorder.Event(resource, v1.EventTypeWarning, "ReloadFail", message)
 		}
-		return err
+		return true, err
 	} else {
 		message := fmt.Sprintf("Changes detected in '%s' of type '%s' in namespace '%s'", config.ResourceName, config.Type, config.Namespace)
 		message += fmt.Sprintf(", Updated '%s' of type '%s' in namespace '%s'", resourceName, upgradeFuncs.ResourceType, config.Namespace)
@@ -338,6 +356,7 @@ func upgradeResource(clients kube.Clients, config common.Config, upgradeFuncs ca
 
 		collectors.Reloaded.With(prometheus.Labels{"success": "true"}).Inc()
 		collectors.ReloadedByNamespace.With(prometheus.Labels{"success": "true", "namespace": config.Namespace}).Inc()
+		collectors.RecordAction(upgradeFuncs.ResourceType, "success", actionLatency)
 		alert_on_reload, ok := os.LookupEnv("ALERT_ON_RELOAD")
 		if recorder != nil {
 			recorder.Event(resource, v1.EventTypeNormal, "Reloaded", message)
@@ -350,7 +369,7 @@ func upgradeResource(clients kube.Clients, config common.Config, upgradeFuncs ca
 		}
 	}
 
-	return nil
+	return true, nil
 }
 
 func getVolumeMountName(volumes []v1.Volume, mountType string, volumeName string) string {

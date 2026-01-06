@@ -1,6 +1,8 @@
 package handler
 
 import (
+	"time"
+
 	"github.com/sirupsen/logrus"
 	"github.com/stakater/Reloader/internal/pkg/metrics"
 	"github.com/stakater/Reloader/internal/pkg/options"
@@ -11,23 +13,45 @@ import (
 
 // ResourceCreatedHandler contains new objects
 type ResourceCreatedHandler struct {
-	Resource   interface{}
-	Collectors metrics.Collectors
-	Recorder   record.EventRecorder
+	Resource    interface{}
+	Collectors  metrics.Collectors
+	Recorder    record.EventRecorder
+	EnqueueTime time.Time // Time when this handler was added to the queue
+}
+
+// GetEnqueueTime returns when this handler was enqueued
+func (r ResourceCreatedHandler) GetEnqueueTime() time.Time {
+	return r.EnqueueTime
 }
 
 // Handle processes the newly created resource
 func (r ResourceCreatedHandler) Handle() error {
+	startTime := time.Now()
+	result := "success"
+
+	defer func() {
+		r.Collectors.RecordReconcile(result, time.Since(startTime))
+	}()
+
 	if r.Resource == nil {
 		logrus.Errorf("Resource creation handler received nil resource")
+		result = "error"
 	} else {
 		config, _ := r.GetConfig()
 		// Send webhook
 		if options.WebhookUrl != "" {
-			return sendUpgradeWebhook(config, options.WebhookUrl)
+			err := sendUpgradeWebhook(config, options.WebhookUrl)
+			if err != nil {
+				result = "error"
+			}
+			return err
 		}
 		// process resource based on its type
-		return doRollingUpgrade(config, r.Collectors, r.Recorder, invokeReloadStrategy)
+		err := doRollingUpgrade(config, r.Collectors, r.Recorder, invokeReloadStrategy)
+		if err != nil {
+			result = "error"
+		}
+		return err
 	}
 	return nil
 }

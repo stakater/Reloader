@@ -1,6 +1,8 @@
 package handler
 
 import (
+	"time"
+
 	"github.com/sirupsen/logrus"
 	"github.com/stakater/Reloader/internal/pkg/metrics"
 	"github.com/stakater/Reloader/internal/pkg/options"
@@ -16,21 +18,47 @@ type ResourceUpdatedHandler struct {
 	OldResource interface{}
 	Collectors  metrics.Collectors
 	Recorder    record.EventRecorder
+	EnqueueTime time.Time // Time when this handler was added to the queue
+}
+
+// GetEnqueueTime returns when this handler was enqueued
+func (r ResourceUpdatedHandler) GetEnqueueTime() time.Time {
+	return r.EnqueueTime
 }
 
 // Handle processes the updated resource
 func (r ResourceUpdatedHandler) Handle() error {
+	startTime := time.Now()
+	result := "success"
+
+	defer func() {
+		r.Collectors.RecordReconcile(result, time.Since(startTime))
+	}()
+
 	if r.Resource == nil || r.OldResource == nil {
 		logrus.Errorf("Resource update handler received nil resource")
+		result = "error"
 	} else {
 		config, oldSHAData := r.GetConfig()
 		if config.SHAValue != oldSHAData {
 			// Send a webhook if update
 			if options.WebhookUrl != "" {
-				return sendUpgradeWebhook(config, options.WebhookUrl)
+				err := sendUpgradeWebhook(config, options.WebhookUrl)
+				if err != nil {
+					result = "error"
+				}
+				return err
 			}
 			// process resource based on its type
-			return doRollingUpgrade(config, r.Collectors, r.Recorder, invokeReloadStrategy)
+			err := doRollingUpgrade(config, r.Collectors, r.Recorder, invokeReloadStrategy)
+			if err != nil {
+				result = "error"
+			}
+			return err
+		} else {
+			// No data change - skip
+			result = "skipped"
+			r.Collectors.RecordSkipped("no_data_change")
 		}
 	}
 	return nil

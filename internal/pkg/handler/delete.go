@@ -3,6 +3,7 @@ package handler
 import (
 	"fmt"
 	"slices"
+	"time"
 
 	"github.com/sirupsen/logrus"
 	"github.com/stakater/Reloader/internal/pkg/callbacks"
@@ -20,23 +21,45 @@ import (
 
 // ResourceDeleteHandler contains new objects
 type ResourceDeleteHandler struct {
-	Resource   interface{}
-	Collectors metrics.Collectors
-	Recorder   record.EventRecorder
+	Resource    interface{}
+	Collectors  metrics.Collectors
+	Recorder    record.EventRecorder
+	EnqueueTime time.Time // Time when this handler was added to the queue
+}
+
+// GetEnqueueTime returns when this handler was enqueued
+func (r ResourceDeleteHandler) GetEnqueueTime() time.Time {
+	return r.EnqueueTime
 }
 
 // Handle processes resources being deleted
 func (r ResourceDeleteHandler) Handle() error {
+	startTime := time.Now()
+	result := "success"
+
+	defer func() {
+		r.Collectors.RecordReconcile(result, time.Since(startTime))
+	}()
+
 	if r.Resource == nil {
 		logrus.Errorf("Resource delete handler received nil resource")
+		result = "error"
 	} else {
 		config, _ := r.GetConfig()
 		// Send webhook
 		if options.WebhookUrl != "" {
-			return sendUpgradeWebhook(config, options.WebhookUrl)
+			err := sendUpgradeWebhook(config, options.WebhookUrl)
+			if err != nil {
+				result = "error"
+			}
+			return err
 		}
 		// process resource based on its type
-		return doRollingUpgrade(config, r.Collectors, r.Recorder, invokeDeleteStrategy)
+		err := doRollingUpgrade(config, r.Collectors, r.Recorder, invokeDeleteStrategy)
+		if err != nil {
+			result = "error"
+		}
+		return err
 	}
 	return nil
 }

@@ -1,0 +1,222 @@
+name: Load Test
+
+on:
+  issue_comment:
+    types: [created]
+
+jobs:
+  loadtest:
+    # Only run on PR comments with /loadtest command
+    if: |
+      github.event.issue.pull_request &&
+      contains(github.event.comment.body, '/loadtest')
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Add reaction to comment
+        uses: actions/github-script@v7
+        with:
+          script: |
+            await github.rest.reactions.createForIssueComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              comment_id: context.payload.comment.id,
+              content: 'rocket'
+            });
+
+      - name: Get PR details
+        id: pr
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const pr = await github.rest.pulls.get({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: context.issue.number
+            });
+            core.setOutput('head_ref', pr.data.head.ref);
+            core.setOutput('head_sha', pr.data.head.sha);
+            core.setOutput('base_ref', pr.data.base.ref);
+            core.setOutput('base_sha', pr.data.base.sha);
+            console.log(`PR #${context.issue.number}: ${pr.data.head.ref} -> ${pr.data.base.ref}`);
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.23'
+          cache: false
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Install kind
+        run: |
+          curl -Lo ./kind https://kind.sigs.k8s.io/dl/v0.20.0/kind-linux-amd64
+          chmod +x ./kind
+          sudo mv ./kind /usr/local/bin/kind
+
+      # Build OLD image from base branch (e.g., main)
+      - name: Checkout base branch (old)
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.pr.outputs.base_ref }}
+          path: old
+
+      - name: Build old image
+        run: |
+          cd old
+          docker build -t localhost/reloader:old -f Dockerfile .
+          echo "Built old image from ${{ steps.pr.outputs.base_ref }} (${{ steps.pr.outputs.base_sha }})"
+
+      # Build NEW image from PR branch
+      - name: Checkout PR branch (new)
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.pr.outputs.head_ref }}
+          path: new
+
+      - name: Build new image
+        run: |
+          cd new
+          docker build -t localhost/reloader:new -f Dockerfile .
+          echo "Built new image from ${{ steps.pr.outputs.head_ref }} (${{ steps.pr.outputs.head_sha }})"
+
+      # Build and run loadtest from PR branch
+      - name: Build loadtest tool
+        run: |
+          cd new/test/loadtest
+          go build -o loadtest ./cmd/loadtest
+
+      - name: Run A/B comparison load test
+        id: loadtest
+        run: |
+          cd new/test/loadtest
+          ./loadtest run \
+            --old-image=localhost/reloader:old \
+            --new-image=localhost/reloader:new \
+            --scenario=all \
+            --duration=60 2>&1 | tee loadtest-output.txt
+          echo "exitcode=${PIPESTATUS[0]}" >> $GITHUB_OUTPUT
+
+      - name: Upload results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: loadtest-results
+          path: |
+            new/test/loadtest/results/
+            new/test/loadtest/loadtest-output.txt
+          retention-days: 30
+
+      - name: Post results comment
+        uses: actions/github-script@v7
+        if: always()
+        with:
+          script: |
+            const fs = require('fs');
+
+            let results = '';
+            const resultsDir = 'new/test/loadtest/results';
+
+            // Collect summary of all scenarios
+            let passCount = 0;
+            let failCount = 0;
+            const summaries = [];
+
+            if (fs.existsSync(resultsDir)) {
+              const scenarios = fs.readdirSync(resultsDir).sort();
+              for (const scenario of scenarios) {
+                const reportPath = `${resultsDir}/${scenario}/report.txt`;
+                if (fs.existsSync(reportPath)) {
+                  const report = fs.readFileSync(reportPath, 'utf8');
+
+                  // Extract status from report
+                  const statusMatch = report.match(/Status:\s+(PASS|FAIL)/);
+                  const status = statusMatch ? statusMatch[1] : 'UNKNOWN';
+
+                  if (status === 'PASS') passCount++;
+                  else failCount++;
+
+                  // Extract key metrics for summary
+                  const actionMatch = report.match(/action_total\s+[\d.]+\s+[\d.]+\s+[\d.]+/);
+                  const errorsMatch = report.match(/errors_total\s+[\d.]+\s+[\d.]+/);
+
+                  summaries.push(`| ${scenario} | ${status === 'PASS' ? '✅' : '❌'} ${status} |`);
+
+                  results += `\n<details>\n<summary>${status === 'PASS' ? '✅' : '❌'} ${scenario}</summary>\n\n\`\`\`\n${report}\n\`\`\`\n</details>\n`;
+                }
+              }
+            }
+
+            if (!results) {
+              // Read raw output if no reports
+              if (fs.existsSync('new/test/loadtest/loadtest-output.txt')) {
+                const output = fs.readFileSync('new/test/loadtest/loadtest-output.txt', 'utf8');
+                const maxLen = 60000;
+                results = output.length > maxLen
+                  ? output.substring(output.length - maxLen)
+                  : output;
+                results = `\`\`\`\n${results}\n\`\`\``;
+              } else {
+                results = 'No results available';
+              }
+            }
+
+            const overallStatus = failCount === 0 ? '✅ ALL PASSED' : `❌ ${failCount} FAILED`;
+
+            const body = `## Load Test Results ${overallStatus}
+
+            **Comparing:** \`${{ steps.pr.outputs.base_ref }}\` (old) vs \`${{ steps.pr.outputs.head_ref }}\` (new)
+            **Old commit:** ${{ steps.pr.outputs.base_sha }}
+            **New commit:** ${{ steps.pr.outputs.head_sha }}
+            **Triggered by:** @${{ github.event.comment.user.login }}
+
+            ### Summary
+
+            | Scenario | Status |
+            |----------|--------|
+            ${summaries.join('\n')}
+
+            **Total:** ${passCount} passed, ${failCount} failed
+
+            ### Detailed Results
+
+            ${results}
+
+            <details>
+            <summary>📦 Download full results</summary>
+
+            Artifacts are available in the [workflow run](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}).
+            </details>
+            `;
+
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body: body
+            });
+
+      - name: Add success reaction
+        if: success()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            await github.rest.reactions.createForIssueComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              comment_id: context.payload.comment.id,
+              content: '+1'
+            });
+
+      - name: Add failure reaction
+        if: failure()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            await github.rest.reactions.createForIssueComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              comment_id: context.payload.comment.id,
+              content: '-1'
+            });

@@ -103,6 +103,8 @@ func NewController(
 
 // Add function to add a new object to the queue in case of creating a resource
 func (c *Controller) Add(obj interface{}) {
+	// Record event received
+	c.collectors.RecordEventReceived("add", c.resource)
 
 	switch object := obj.(type) {
 	case *v1.Namespace:
@@ -112,11 +114,14 @@ func (c *Controller) Add(obj interface{}) {
 
 	if options.ReloadOnCreate == "true" {
 		if !c.resourceInIgnoredNamespace(obj) && c.resourceInSelectedNamespaces(obj) && secretControllerInitialized && configmapControllerInitialized {
-			c.queue.Add(handler.ResourceCreatedHandler{
-				Resource:   obj,
-				Collectors: c.collectors,
-				Recorder:   c.recorder,
+			c.enqueue(handler.ResourceCreatedHandler{
+				Resource:    obj,
+				Collectors:  c.collectors,
+				Recorder:    c.recorder,
+				EnqueueTime: time.Now(), // Track when item was enqueued
 			})
+		} else {
+			c.collectors.RecordSkipped("ignored_or_not_selected")
 		}
 	}
 }
@@ -166,31 +171,42 @@ func (c *Controller) removeSelectedNamespaceFromCache(namespace v1.Namespace) {
 
 // Update function to add an old object and a new object to the queue in case of updating a resource
 func (c *Controller) Update(old interface{}, new interface{}) {
+	// Record event received
+	c.collectors.RecordEventReceived("update", c.resource)
+
 	switch new.(type) {
 	case *v1.Namespace:
 		return
 	}
 
 	if !c.resourceInIgnoredNamespace(new) && c.resourceInSelectedNamespaces(new) {
-		c.queue.Add(handler.ResourceUpdatedHandler{
+		c.enqueue(handler.ResourceUpdatedHandler{
 			Resource:    new,
 			OldResource: old,
 			Collectors:  c.collectors,
 			Recorder:    c.recorder,
+			EnqueueTime: time.Now(), // Track when item was enqueued
 		})
+	} else {
+		c.collectors.RecordSkipped("ignored_or_not_selected")
 	}
 }
 
 // Delete function to add an object to the queue in case of deleting a resource
 func (c *Controller) Delete(old interface{}) {
+	// Record event received
+	c.collectors.RecordEventReceived("delete", c.resource)
 
 	if options.ReloadOnDelete == "true" {
 		if !c.resourceInIgnoredNamespace(old) && c.resourceInSelectedNamespaces(old) && secretControllerInitialized && configmapControllerInitialized {
-			c.queue.Add(handler.ResourceDeleteHandler{
-				Resource:   old,
-				Collectors: c.collectors,
-				Recorder:   c.recorder,
+			c.enqueue(handler.ResourceDeleteHandler{
+				Resource:    old,
+				Collectors:  c.collectors,
+				Recorder:    c.recorder,
+				EnqueueTime: time.Now(), // Track when item was enqueued
 			})
+		} else {
+			c.collectors.RecordSkipped("ignored_or_not_selected")
 		}
 	}
 
@@ -199,6 +215,13 @@ func (c *Controller) Delete(old interface{}) {
 		c.removeSelectedNamespaceFromCache(*object)
 		return
 	}
+}
+
+// enqueue adds an item to the queue and records metrics
+func (c *Controller) enqueue(item interface{}) {
+	c.queue.Add(item)
+	c.collectors.RecordQueueAdd()
+	c.collectors.SetQueueDepth(c.queue.Len())
 }
 
 // Run function for controller which handles the queue
@@ -242,13 +265,36 @@ func (c *Controller) processNextItem() bool {
 	if quit {
 		return false
 	}
+
+	// Update queue depth after getting item
+	c.collectors.SetQueueDepth(c.queue.Len())
+
 	// Tell the queue that we are done with processing this key. This unblocks the key for other workers
 	// This allows safe parallel processing because two events with the same key are never processed in
 	// parallel.
 	defer c.queue.Done(resourceHandler)
 
+	// Record queue latency if the handler supports it
+	if h, ok := resourceHandler.(handler.TimedHandler); ok {
+		queueLatency := time.Since(h.GetEnqueueTime())
+		c.collectors.RecordQueueLatency(queueLatency)
+	}
+
+	// Track reconcile/handler duration
+	startTime := time.Now()
+
 	// Invoke the method containing the business logic
 	err := resourceHandler.(handler.ResourceHandler).Handle()
+
+	duration := time.Since(startTime)
+
+	// Record reconcile metrics
+	if err != nil {
+		c.collectors.RecordReconcile("error", duration)
+	} else {
+		c.collectors.RecordReconcile("success", duration)
+	}
+
 	// Handle the error if something went wrong during the execution of the business logic
 	c.handleErr(err, resourceHandler)
 	return true
@@ -261,16 +307,26 @@ func (c *Controller) handleErr(err error, key interface{}) {
 		// This ensures that future processing of updates for this key is not delayed because of
 		// an outdated error history.
 		c.queue.Forget(key)
+
+		// Record successful event processing
+		c.collectors.RecordEventProcessed("unknown", c.resource, "success")
 		return
 	}
+
+	// Record error
+	c.collectors.RecordError("handler_error")
 
 	// This controller retries 5 times if something goes wrong. After that, it stops trying.
 	if c.queue.NumRequeues(key) < 5 {
 		logrus.Errorf("Error syncing events: %v", err)
 
+		// Record retry
+		c.collectors.RecordRetry()
+
 		// Re-enqueue the key rate limited. Based on the rate limiter on the
 		// queue and the re-enqueue history, the key will be processed later again.
 		c.queue.AddRateLimited(key)
+		c.collectors.SetQueueDepth(c.queue.Len())
 		return
 	}
 
@@ -279,4 +335,7 @@ func (c *Controller) handleErr(err error, key interface{}) {
 	runtime.HandleError(err)
 	logrus.Errorf("Dropping key out of the queue: %v", err)
 	logrus.Debugf("Dropping the key %q out of the queue: %v", key, err)
+
+	// Record failed event processing
+	c.collectors.RecordEventProcessed("unknown", c.resource, "dropped")
 }
