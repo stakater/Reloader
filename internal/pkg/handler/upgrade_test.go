@@ -5046,11 +5046,7 @@ func testPausingDeployment(t *testing.T, reloadStrategy string, testName string,
 
 	logrus.Infof("Verifying deployment has been resumed after pause interval")
 	// This sleep tests the pause functionality - reduce time in fast mode but keep some delay for test stability
-	if testutil.SkipTestSleeps {
-		time.Sleep(100 * time.Millisecond)
-	} else {
-		time.Sleep(11 * time.Second)
-	}
+	time.Sleep(11 * time.Second)
 	items = deploymentFuncs.ItemsFunc(clients, config.Namespace)
 	deploymentPaused, err = isDeploymentPaused(items, testName)
 	if err != nil {
