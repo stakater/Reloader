@@ -1327,7 +1327,11 @@ func VerifyResourceAnnotationUpdate(clients kube.Clients, config common.Config, 
 }
 
 func GetSHAfromEmptyData() string {
-	return crypto.GenerateSHA("")
+	// Use a special marker that represents "deleted" or "empty" state
+	// This ensures we have a distinct, deterministic hash for the delete strategy
+	// Note: We could use GenerateSHA("") which now returns a hash, but using a marker
+	// makes the intent clearer and avoids potential confusion with actual empty data
+	return crypto.GenerateSHA("__RELOADER_EMPTY_DELETE_MARKER__")
 }
 
 // GetRollout provides rollout for testing

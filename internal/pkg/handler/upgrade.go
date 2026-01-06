@@ -539,8 +539,8 @@ func updatePodAnnotations(upgradeFuncs callbacks.RollingUpgradeFuncs, item runti
 }
 
 func secretProviderClassAnnotationReloaded(oldAnnotations map[string]string, newConfig common.Config) bool {
-	annotaion := oldAnnotations[getReloaderAnnotationKey()]
-	return strings.Contains(annotaion, newConfig.ResourceName) && strings.Contains(annotaion, newConfig.SHAValue)
+	annotation := oldAnnotations[getReloaderAnnotationKey()]
+	return strings.Contains(annotation, newConfig.ResourceName) && strings.Contains(annotation, newConfig.SHAValue)
 }
 
 func getReloaderAnnotationKey() string {
@@ -645,7 +645,7 @@ func secretProviderClassEnvReloaded(containers []v1.Container, envVar string, sh
 }
 
 func populateAnnotationsFromSecretProviderClass(clients kube.Clients, config *common.Config) {
-	obj, err := clients.CSIClient.SecretsstoreV1().SecretProviderClasses(config.Namespace).Get(context.TODO(), config.ResourceName, metav1.GetOptions{})
+	obj, err := clients.CSIClient.SecretsstoreV1().SecretProviderClasses(config.Namespace).Get(context.Background(), config.ResourceName, metav1.GetOptions{})
 	annotations := make(map[string]string)
 	if err != nil {
 		if apierrors.IsNotFound(err) {

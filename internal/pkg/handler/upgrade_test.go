@@ -3327,7 +3327,7 @@ func TestRollingUpgradeForStatefulSetWithSecretProviderClassUsingArs(t *testing.
 	err := PerformAction(clients, config, statefulSetFuncs, collectors, nil, invokeReloadStrategy)
 	time.Sleep(5 * time.Second)
 	if err != nil {
-		t.Errorf("Rolling upgrade failed for StatefulSet with SecretProviderClass")
+		t.Errorf("Rolling upgrade failed for StatefulSet with SecretProviderClass: %v", err)
 	}
 
 	logrus.Infof("Verifying statefulSet update")
@@ -3337,11 +3337,11 @@ func TestRollingUpgradeForStatefulSetWithSecretProviderClassUsingArs(t *testing.
 	}
 
 	if promtestutil.ToFloat64(collectors.Reloaded.With(labelSucceeded)) != 1 {
-		t.Errorf("Counter was not increased")
+		t.Errorf("Counter was not increased, expected 1 but got %f", promtestutil.ToFloat64(collectors.Reloaded.With(labelSucceeded)))
 	}
 
 	if promtestutil.ToFloat64(collectors.ReloadedByNamespace.With(prometheus.Labels{"success": "true", "namespace": arsNamespace})) != 1 {
-		t.Errorf("Counter by namespace was not increased")
+		t.Errorf("Counter by namespace was not increased, expected 1 but got %f", promtestutil.ToFloat64(collectors.ReloadedByNamespace.With(prometheus.Labels{"success": "true", "namespace": arsNamespace})))
 	}
 
 	testRollingUpgradeInvokeDeleteStrategyArs(t, clients, config, statefulSetFuncs, collectors, envVarPostfix)
