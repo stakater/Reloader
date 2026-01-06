@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"math/rand"
+	"os"
 	"sort"
 	"strconv"
 	"strings"
@@ -43,7 +44,28 @@ var (
 	SecretResourceType = "secrets"
 	// SecretproviderclasspodstatusResourceType is a resource type which controller watches for changes
 	SecretProviderClassPodStatusResourceType = "secretproviderclasspodstatuses"
+
+	// SkipTestSleeps can be set to true to skip all sleep delays in test utilities
+	// This significantly speeds up tests when using fake clients (which are synchronous)
+	// Set via environment variable RELOADER_SKIP_TEST_SLEEPS=true or in test code
+	SkipTestSleeps = false
 )
+
+func init() {
+	// Check environment variable to enable fast test mode
+	if os.Getenv("RELOADER_SKIP_TEST_SLEEPS") == "true" {
+		SkipTestSleeps = true
+	}
+}
+
+// TestSleep is a helper that only sleeps if SkipTestSleeps is false
+// This allows tests to run much faster with fake clients while maintaining
+// compatibility with real cluster testing if needed
+func TestSleep(duration time.Duration) {
+	if !SkipTestSleeps {
+		time.Sleep(duration)
+	}
+}
 
 var (
 	Clients             = kube.GetClients()
@@ -839,7 +861,7 @@ func CreateConfigMap(client kubernetes.Interface, namespace string, configmapNam
 	logrus.Infof("Creating configmap")
 	configmapClient := client.CoreV1().ConfigMaps(namespace)
 	_, err := configmapClient.Create(context.TODO(), GetConfigmap(namespace, configmapName, data), metav1.CreateOptions{})
-	time.Sleep(3 * time.Second)
+	TestSleep(3 * time.Second)
 	return configmapClient, err
 }
 
@@ -848,7 +870,7 @@ func CreateSecretProviderClass(client csiclient.Interface, namespace string, sec
 	logrus.Infof("Creating SecretProviderClass")
 	secretProviderClassClient := client.SecretsstoreV1().SecretProviderClasses(namespace)
 	_, err := secretProviderClassClient.Create(context.TODO(), GetSecretProviderClass(namespace, secretProviderClassName, data), metav1.CreateOptions{})
-	time.Sleep(3 * time.Second)
+	TestSleep(3 * time.Second)
 	return secretProviderClassClient, err
 }
 
@@ -858,7 +880,7 @@ func CreateSecretProviderClassPodStatus(client csiclient.Interface, namespace st
 	secretProviderClassPodStatusClient := client.SecretsstoreV1().SecretProviderClassPodStatuses(namespace)
 	secretProviderClassPodStatus := GetSecretProviderClassPodStatus(namespace, secretProviderClassPodStatusName, data)
 	_, err := secretProviderClassPodStatusClient.Create(context.TODO(), secretProviderClassPodStatus, metav1.CreateOptions{})
-	time.Sleep(3 * time.Second)
+	TestSleep(3 * time.Second)
 	return secretProviderClassPodStatusClient, err
 }
 
@@ -867,7 +889,7 @@ func CreateSecret(client kubernetes.Interface, namespace string, secretName stri
 	logrus.Infof("Creating secret")
 	secretClient := client.CoreV1().Secrets(namespace)
 	_, err := secretClient.Create(context.TODO(), GetSecret(namespace, secretName, data), metav1.CreateOptions{})
-	time.Sleep(3 * time.Second)
+	TestSleep(3 * time.Second)
 	return secretClient, err
 }
 
@@ -882,7 +904,7 @@ func CreateDeployment(client kubernetes.Interface, deploymentName string, namesp
 		deploymentObj = GetDeploymentWithEnvVars(namespace, deploymentName)
 	}
 	deployment, err := deploymentClient.Create(context.TODO(), deploymentObj, metav1.CreateOptions{})
-	time.Sleep(3 * time.Second)
+	TestSleep(3 * time.Second)
 	return deployment, err
 }
 
@@ -902,7 +924,7 @@ func CreateDeploymentWithAnnotations(client kubernetes.Interface, deploymentName
 	}
 
 	deployment, err := deploymentClient.Create(context.TODO(), deploymentObj, metav1.CreateOptions{})
-	time.Sleep(3 * time.Second)
+	TestSleep(3 * time.Second)
 	return deployment, err
 }
 
@@ -917,7 +939,7 @@ func CreateDeploymentConfig(client appsclient.Interface, deploymentName string, 
 		deploymentConfigObj = GetDeploymentConfigWithEnvVars(namespace, deploymentName)
 	}
 	deploymentConfig, err := deploymentConfigsClient.Create(context.TODO(), deploymentConfigObj, metav1.CreateOptions{})
-	time.Sleep(5 * time.Second)
+	TestSleep(5 * time.Second)
 	return deploymentConfig, err
 }
 
@@ -932,7 +954,7 @@ func CreateDeploymentWithInitContainer(client kubernetes.Interface, deploymentNa
 		deploymentObj = GetDeploymentWithInitContainerAndEnv(namespace, deploymentName)
 	}
 	deployment, err := deploymentClient.Create(context.TODO(), deploymentObj, metav1.CreateOptions{})
-	time.Sleep(3 * time.Second)
+	TestSleep(3 * time.Second)
 	return deployment, err
 }
 
@@ -942,7 +964,7 @@ func CreateDeploymentWithEnvVarSource(client kubernetes.Interface, deploymentNam
 	deploymentClient := client.AppsV1().Deployments(namespace)
 	deploymentObj := GetDeploymentWithEnvVarSources(namespace, deploymentName)
 	deployment, err := deploymentClient.Create(context.TODO(), deploymentObj, metav1.CreateOptions{})
-	time.Sleep(3 * time.Second)
+	TestSleep(3 * time.Second)
 	return deployment, err
 
 }
@@ -953,7 +975,7 @@ func CreateDeploymentWithPodAnnotations(client kubernetes.Interface, deploymentN
 	deploymentClient := client.AppsV1().Deployments(namespace)
 	deploymentObj := GetDeploymentWithPodAnnotations(namespace, deploymentName, both)
 	deployment, err := deploymentClient.Create(context.TODO(), deploymentObj, metav1.CreateOptions{})
-	time.Sleep(3 * time.Second)
+	TestSleep(3 * time.Second)
 	return deployment, err
 }
 
@@ -965,7 +987,7 @@ func CreateDeploymentWithEnvVarSourceAndAnnotations(client kubernetes.Interface,
 	deploymentObj := GetDeploymentWithEnvVarSources(namespace, deploymentName)
 	deploymentObj.Annotations = annotations
 	deployment, err := deploymentClient.Create(context.TODO(), deploymentObj, metav1.CreateOptions{})
-	time.Sleep(3 * time.Second)
+	TestSleep(3 * time.Second)
 	return deployment, err
 }
 
@@ -975,7 +997,7 @@ func CreateDeploymentWithTypedAutoAnnotation(client kubernetes.Interface, deploy
 	deploymentClient := client.AppsV1().Deployments(namespace)
 	deploymentObj := GetDeploymentWithTypedAutoAnnotation(namespace, deploymentName, resourceType)
 	deployment, err := deploymentClient.Create(context.TODO(), deploymentObj, metav1.CreateOptions{})
-	time.Sleep(3 * time.Second)
+	TestSleep(3 * time.Second)
 	return deployment, err
 }
 
@@ -999,7 +1021,7 @@ func CreateDaemonSet(client kubernetes.Interface, daemonsetName string, namespac
 		daemonsetObj = GetDaemonSetWithEnvVars(namespace, daemonsetName)
 	}
 	daemonset, err := daemonsetClient.Create(context.TODO(), daemonsetObj, metav1.CreateOptions{})
-	time.Sleep(3 * time.Second)
+	TestSleep(3 * time.Second)
 	return daemonset, err
 }
 
@@ -1014,7 +1036,7 @@ func CreateStatefulSet(client kubernetes.Interface, statefulsetName string, name
 		statefulsetObj = GetStatefulSetWithEnvVar(namespace, statefulsetName)
 	}
 	statefulset, err := statefulsetClient.Create(context.TODO(), statefulsetObj, metav1.CreateOptions{})
-	time.Sleep(3 * time.Second)
+	TestSleep(3 * time.Second)
 	return statefulset, err
 }
 
@@ -1029,7 +1051,7 @@ func CreateCronJob(client kubernetes.Interface, cronJobName string, namespace st
 		cronJobObj = GetCronJobWithEnvVar(namespace, cronJobName)
 	}
 	cronJob, err := cronJobClient.Create(context.TODO(), cronJobObj, metav1.CreateOptions{})
-	time.Sleep(3 * time.Second)
+	TestSleep(3 * time.Second)
 	return cronJob, err
 }
 
@@ -1044,7 +1066,7 @@ func CreateJob(client kubernetes.Interface, jobName string, namespace string, vo
 		jobObj = GetJobWithEnvVar(namespace, jobName)
 	}
 	job, err := jobClient.Create(context.TODO(), jobObj, metav1.CreateOptions{})
-	time.Sleep(3 * time.Second)
+	TestSleep(3 * time.Second)
 	return job, err
 }
 
@@ -1052,7 +1074,7 @@ func CreateJob(client kubernetes.Interface, jobName string, namespace string, vo
 func DeleteDeployment(client kubernetes.Interface, namespace string, deploymentName string) error {
 	logrus.Infof("Deleting Deployment")
 	deploymentError := client.AppsV1().Deployments(namespace).Delete(context.TODO(), deploymentName, metav1.DeleteOptions{})
-	time.Sleep(3 * time.Second)
+	TestSleep(3 * time.Second)
 	return deploymentError
 }
 
@@ -1060,7 +1082,7 @@ func DeleteDeployment(client kubernetes.Interface, namespace string, deploymentN
 func DeleteDeploymentConfig(client appsclient.Interface, namespace string, deploymentConfigName string) error {
 	logrus.Infof("Deleting DeploymentConfig")
 	deploymentConfigError := client.AppsV1().DeploymentConfigs(namespace).Delete(context.TODO(), deploymentConfigName, metav1.DeleteOptions{})
-	time.Sleep(3 * time.Second)
+	TestSleep(3 * time.Second)
 	return deploymentConfigError
 }
 
@@ -1068,7 +1090,7 @@ func DeleteDeploymentConfig(client appsclient.Interface, namespace string, deplo
 func DeleteDaemonSet(client kubernetes.Interface, namespace string, daemonsetName string) error {
 	logrus.Infof("Deleting DaemonSet %s", daemonsetName)
 	daemonsetError := client.AppsV1().DaemonSets(namespace).Delete(context.TODO(), daemonsetName, metav1.DeleteOptions{})
-	time.Sleep(3 * time.Second)
+	TestSleep(3 * time.Second)
 	return daemonsetError
 }
 
@@ -1076,7 +1098,7 @@ func DeleteDaemonSet(client kubernetes.Interface, namespace string, daemonsetNam
 func DeleteStatefulSet(client kubernetes.Interface, namespace string, statefulsetName string) error {
 	logrus.Infof("Deleting StatefulSet %s", statefulsetName)
 	statefulsetError := client.AppsV1().StatefulSets(namespace).Delete(context.TODO(), statefulsetName, metav1.DeleteOptions{})
-	time.Sleep(3 * time.Second)
+	TestSleep(3 * time.Second)
 	return statefulsetError
 }
 
@@ -1084,7 +1106,7 @@ func DeleteStatefulSet(client kubernetes.Interface, namespace string, statefulse
 func DeleteCronJob(client kubernetes.Interface, namespace string, cronJobName string) error {
 	logrus.Infof("Deleting CronJob %s", cronJobName)
 	cronJobError := client.BatchV1().CronJobs(namespace).Delete(context.TODO(), cronJobName, metav1.DeleteOptions{})
-	time.Sleep(3 * time.Second)
+	TestSleep(3 * time.Second)
 	return cronJobError
 }
 
@@ -1092,7 +1114,7 @@ func DeleteCronJob(client kubernetes.Interface, namespace string, cronJobName st
 func DeleteJob(client kubernetes.Interface, namespace string, jobName string) error {
 	logrus.Infof("Deleting Job %s", jobName)
 	jobError := client.BatchV1().Jobs(namespace).Delete(context.TODO(), jobName, metav1.DeleteOptions{})
-	time.Sleep(3 * time.Second)
+	TestSleep(3 * time.Second)
 	return jobError
 }
 
@@ -1106,7 +1128,7 @@ func UpdateConfigMap(configmapClient core_v1.ConfigMapInterface, namespace strin
 		configmap = GetConfigmap(namespace, configmapName, data)
 	}
 	_, updateErr := configmapClient.Update(context.TODO(), configmap, metav1.UpdateOptions{})
-	time.Sleep(3 * time.Second)
+	TestSleep(3 * time.Second)
 	return updateErr
 }
 
@@ -1120,7 +1142,7 @@ func UpdateSecret(secretClient core_v1.SecretInterface, namespace string, secret
 		secret = GetSecret(namespace, secretName, data)
 	}
 	_, updateErr := secretClient.Update(context.TODO(), secret, metav1.UpdateOptions{})
-	time.Sleep(3 * time.Second)
+	TestSleep(3 * time.Second)
 	return updateErr
 }
 
@@ -1141,7 +1163,7 @@ func UpdateSecretProviderClassPodStatus(spcpsClient csiclient_v1.SecretProviderC
 		labels["firstLabel"] = label
 	}
 	_, updateErr := spcpsClient.Update(context.TODO(), secretproviderclasspodstatus, metav1.UpdateOptions{})
-	time.Sleep(3 * time.Second)
+	TestSleep(3 * time.Second)
 	return updateErr
 }
 
@@ -1149,7 +1171,7 @@ func UpdateSecretProviderClassPodStatus(spcpsClient csiclient_v1.SecretProviderC
 func DeleteConfigMap(client kubernetes.Interface, namespace string, configmapName string) error {
 	logrus.Infof("Deleting configmap %q.\n", configmapName)
 	err := client.CoreV1().ConfigMaps(namespace).Delete(context.TODO(), configmapName, metav1.DeleteOptions{})
-	time.Sleep(3 * time.Second)
+	TestSleep(3 * time.Second)
 	return err
 }
 
@@ -1157,7 +1179,7 @@ func DeleteConfigMap(client kubernetes.Interface, namespace string, configmapNam
 func DeleteSecret(client kubernetes.Interface, namespace string, secretName string) error {
 	logrus.Infof("Deleting secret %q.\n", secretName)
 	err := client.CoreV1().Secrets(namespace).Delete(context.TODO(), secretName, metav1.DeleteOptions{})
-	time.Sleep(3 * time.Second)
+	TestSleep(3 * time.Second)
 	return err
 }
 
@@ -1165,7 +1187,7 @@ func DeleteSecret(client kubernetes.Interface, namespace string, secretName stri
 func DeleteSecretProviderClass(client csiclient.Interface, namespace string, secretProviderClassName string) error {
 	logrus.Infof("Deleting secretproviderclass %q.\n", secretProviderClassName)
 	err := client.SecretsstoreV1().SecretProviderClasses(namespace).Delete(context.TODO(), secretProviderClassName, metav1.DeleteOptions{})
-	time.Sleep(3 * time.Second)
+	TestSleep(3 * time.Second)
 	return err
 }
 
@@ -1173,7 +1195,7 @@ func DeleteSecretProviderClass(client csiclient.Interface, namespace string, sec
 func DeleteSecretProviderClassPodStatus(client csiclient.Interface, namespace string, secretProviderClassPodStatusName string) error {
 	logrus.Infof("Deleting secretproviderclasspodstatus %q.\n", secretProviderClassPodStatusName)
 	err := client.SecretsstoreV1().SecretProviderClassPodStatuses(namespace).Delete(context.TODO(), secretProviderClassPodStatusName, metav1.DeleteOptions{})
-	time.Sleep(3 * time.Second)
+	TestSleep(3 * time.Second)
 	return err
 }
 
@@ -1355,6 +1377,6 @@ func CreateRollout(client argorollout.Interface, rolloutName string, namespace s
 	rolloutClient := client.ArgoprojV1alpha1().Rollouts(namespace)
 	rolloutObj := GetRollout(namespace, rolloutName, annotations)
 	rollout, err := rolloutClient.Create(context.TODO(), rolloutObj, metav1.CreateOptions{})
-	time.Sleep(3 * time.Second)
+	TestSleep(3 * time.Second)
 	return rollout, err
 }
