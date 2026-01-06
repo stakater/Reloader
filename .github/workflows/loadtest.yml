@@ -3,7 +3,11 @@ name: Load Test
 on:
   issue_comment:
     types: [created]
-  workflow_dispatch:
+
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
 
 jobs:
   loadtest:
@@ -55,6 +59,12 @@ jobs:
           curl -Lo ./kind https://kind.sigs.k8s.io/dl/v0.20.0/kind-linux-amd64
           chmod +x ./kind
           sudo mv ./kind /usr/local/bin/kind
+
+      - name: Install kubectl
+        run: |
+          curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+          chmod +x kubectl
+          sudo mv kubectl /usr/local/bin/kubectl
 
       # Build OLD image from base branch (e.g., main)
       - name: Checkout base branch (old)
@@ -165,31 +175,32 @@ jobs:
 
             const overallStatus = failCount === 0 ? '✅ ALL PASSED' : `❌ ${failCount} FAILED`;
 
-            const body = `## Load Test Results ${overallStatus}
-
-            **Comparing:** \`${{ steps.pr.outputs.base_ref }}\` (old) vs \`${{ steps.pr.outputs.head_ref }}\` (new)
-            **Old commit:** ${{ steps.pr.outputs.base_sha }}
-            **New commit:** ${{ steps.pr.outputs.head_sha }}
-            **Triggered by:** @${{ github.event.comment.user.login }}
-
-            ### Summary
-
-            | Scenario | Status |
-            |----------|--------|
-            ${summaries.join('\n')}
-
-            **Total:** ${passCount} passed, ${failCount} failed
-
-            ### Detailed Results
-
-            ${results}
-
-            <details>
-            <summary>📦 Download full results</summary>
-
-            Artifacts are available in the [workflow run](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}).
-            </details>
-            `;
+            const body = [
+              `## Load Test Results ${overallStatus}`,
+              '',
+              `**Comparing:** \`${{ steps.pr.outputs.base_ref }}\` (old) vs \`${{ steps.pr.outputs.head_ref }}\` (new)`,
+              `**Old commit:** ${{ steps.pr.outputs.base_sha }}`,
+              `**New commit:** ${{ steps.pr.outputs.head_sha }}`,
+              `**Triggered by:** @${{ github.event.comment.user.login }}`,
+              '',
+              '### Summary',
+              '',
+              '| Scenario | Status |',
+              '|----------|--------|',
+              summaries.join('\n'),
+              '',
+              `**Total:** ${passCount} passed, ${failCount} failed`,
+              '',
+              '### Detailed Results',
+              '',
+              results,
+              '',
+              '<details>',
+              '<summary>📦 Download full results</summary>',
+              '',
+              `Artifacts are available in the [workflow run](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}).`,
+              '</details>',
+            ].join('\n');
 
             await github.rest.issues.createComment({
               owner: context.repo.owner,
