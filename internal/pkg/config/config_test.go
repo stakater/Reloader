@@ -48,8 +48,8 @@ func TestNewDefault(t *testing.T) {
 		t.Errorf("MetricsAddr = %q, want %q", cfg.MetricsAddr, ":9090")
 	}
 
-	if cfg.HealthAddr != ":8081" {
-		t.Errorf("HealthAddr = %q, want %q", cfg.HealthAddr, ":8081")
+	if cfg.HealthAddr != ":8080" {
+		t.Errorf("HealthAddr = %q, want %q", cfg.HealthAddr, ":8080")
 	}
 
 	if cfg.PProfAddr != ":6060" {

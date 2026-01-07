@@ -47,11 +47,13 @@ func newTestDeps(t *testing.T, cfg *config.Config, objects ...runtime.Object) te
 		log:           log,
 		cfg:           cfg,
 		reloadService: reload.NewService(cfg, log),
-		registry: workload.NewRegistry(workload.RegistryOptions{
-			ArgoRolloutsEnabled:       cfg.ArgoRolloutsEnabled,
-			DeploymentConfigEnabled:   cfg.DeploymentConfigEnabled,
-			RolloutStrategyAnnotation: cfg.Annotations.RolloutStrategy,
-		}),
+		registry: workload.NewRegistry(
+			workload.RegistryOptions{
+				ArgoRolloutsEnabled:       cfg.ArgoRolloutsEnabled,
+				DeploymentConfigEnabled:   cfg.DeploymentConfigEnabled,
+				RolloutStrategyAnnotation: cfg.Annotations.RolloutStrategy,
+			},
+		),
 		collectors:    &collectors,
 		eventRecorder: events.NewRecorder(nil),
 		webhookClient: webhook.NewClient("", log),
@@ -74,6 +76,7 @@ func newConfigMapReconciler(t *testing.T, cfg *config.Config, objects ...runtime
 		deps.webhookClient,
 		deps.alerter,
 		nil,
+		nil,
 	)
 }
 
@@ -91,6 +94,7 @@ func newSecretReconciler(t *testing.T, cfg *config.Config, objects ...runtime.Ob
 		deps.eventRecorder,
 		deps.webhookClient,
 		deps.alerter,
+		nil,
 		nil,
 	)
 }

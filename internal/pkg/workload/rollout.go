@@ -66,7 +66,7 @@ func (w *RolloutWorkload) Update(ctx context.Context, c client.Client) error {
 		restartAt := metav1.NewTime(time.Now())
 		w.Object().Spec.RestartAt = &restartAt
 	}
-	return c.Patch(ctx, w.Object(), client.StrategicMergeFrom(w.Original()), client.FieldOwner(FieldManager))
+	return c.Patch(ctx, w.Object(), client.MergeFrom(w.Original()), client.FieldOwner(FieldManager))
 }
 
 // getStrategy returns the rollout strategy from the annotation.

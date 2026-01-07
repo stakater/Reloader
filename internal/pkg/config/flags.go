@@ -1,11 +1,13 @@
 package config
 
 import (
+	"fmt"
 	"strings"
 	"time"
 
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
+	"k8s.io/apimachinery/pkg/labels"
 )
 
 // v is the viper instance for configuration.
@@ -112,13 +114,13 @@ func BindFlags(fs *pflag.FlagSet, cfg *Config) {
 	)
 
 	// Filtering - selectors
-	fs.String(
-		"namespace-selector", "",
-		"Comma-separated list of namespace label selectors",
+	fs.StringSlice(
+		"namespace-selector", nil,
+		"Namespace label selectors (can be specified multiple times)",
 	)
-	fs.String(
-		"resource-label-selector", "",
-		"Comma-separated list of resource label selectors",
+	fs.StringSlice(
+		"resource-label-selector", nil,
+		"Resource label selectors (can be specified multiple times)",
 	)
 
 	// Logging
@@ -262,6 +264,9 @@ func ApplyFlags(cfg *Config) error {
 	cfg.HealthAddr = v.GetString("health-addr")
 	cfg.PProfAddr = v.GetString("pprof-addr")
 	cfg.WatchedNamespace = v.GetString("watch-namespace")
+	if cfg.WatchedNamespace == "" {
+		cfg.WatchedNamespace = v.GetString("KUBERNETES_NAMESPACE")
+	}
 
 	// Leader election
 	cfg.LeaderElection.LockName = v.GetString("leader-election-id")
@@ -300,19 +305,32 @@ func ApplyFlags(cfg *Config) error {
 	cfg.IgnoredWorkloads = splitAndTrim(v.GetString("ignored-workload-types"))
 	cfg.IgnoredNamespaces = splitAndTrim(v.GetString("namespaces-to-ignore"))
 
-	// Store raw selector strings
-	cfg.NamespaceSelectorStrings = splitAndTrim(v.GetString("namespace-selector"))
-	cfg.ResourceSelectorStrings = splitAndTrim(v.GetString("resource-label-selector"))
+	// Get selector slices and join with comma
+	nsSelectors := v.GetStringSlice("namespace-selector")
+	resSelectors := v.GetStringSlice("resource-label-selector")
 
-	// Parse selectors into labels.Selector
-	var err error
-	cfg.NamespaceSelectors, err = ParseSelectors(cfg.NamespaceSelectorStrings)
-	if err != nil {
-		return err
+	if len(nsSelectors) > 0 {
+		cfg.NamespaceSelectorStrings = nsSelectors
 	}
-	cfg.ResourceSelectors, err = ParseSelectors(cfg.ResourceSelectorStrings)
-	if err != nil {
-		return err
+	if len(resSelectors) > 0 {
+		cfg.ResourceSelectorStrings = resSelectors
+	}
+
+	if len(nsSelectors) > 0 {
+		joinedNS := strings.Join(nsSelectors, ",")
+		selector, err := labels.Parse(joinedNS)
+		if err != nil {
+			return fmt.Errorf("invalid selector %q: %w", joinedNS, err)
+		}
+		cfg.NamespaceSelectors = []labels.Selector{selector}
+	}
+	if len(resSelectors) > 0 {
+		joinedRes := strings.Join(resSelectors, ",")
+		selector, err := labels.Parse(joinedRes)
+		if err != nil {
+			return fmt.Errorf("invalid selector %q: %w", joinedRes, err)
+		}
+		cfg.ResourceSelectors = []labels.Selector{selector}
 	}
 
 	// Ensure duration defaults are preserved if not set

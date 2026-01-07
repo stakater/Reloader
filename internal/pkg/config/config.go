@@ -121,7 +121,7 @@ func NewDefault() *Config {
 		LogFormat:               "",
 		LogLevel:                "info",
 		MetricsAddr:             ":9090",
-		HealthAddr:              ":8081",
+		HealthAddr:              ":8080",
 		EnablePProf:             false,
 		PProfAddr:               ":6060",
 		Alerting:                AlertingConfig{},

@@ -80,8 +80,10 @@ func run(cmd *cobra.Command, args []string) error {
 
 	log.Info("Starting Reloader")
 
-	if ns := os.Getenv("KUBERNETES_NAMESPACE"); ns == "" {
-		log.Info("KUBERNETES_NAMESPACE is unset, will detect changes in all namespaces")
+	if cfg.WatchedNamespace != "" {
+		log.Info("watching single namespace", "namespace", cfg.WatchedNamespace)
+	} else {
+		log.Info("watching all namespaces")
 	}
 
 	if len(cfg.NamespaceSelectors) > 0 {
@@ -133,9 +135,14 @@ func run(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("setting up reconcilers: %w", err)
 	}
 
-	if err := mgr.Add(metadata.Runnable(mgr.GetClient(), cfg, log)); err != nil {
-		log.Error(err, "Failed to add metadata publisher")
-		// Non-fatal, continue starting
+	// Skip metadata publisher when ConfigMaps are ignored (no RBAC permissions)
+	if !cfg.IsResourceIgnored("configmaps") {
+		if err := mgr.Add(metadata.Runnable(mgr.GetClient(), cfg, log)); err != nil {
+			log.Error(err, "Failed to add metadata publisher")
+			// Non-fatal, continue starting
+		}
+	} else {
+		log.Info("skipping metadata publisher (configmaps ignored)")
 	}
 
 	if cfg.EnablePProf {

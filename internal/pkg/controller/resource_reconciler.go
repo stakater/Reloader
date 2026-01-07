@@ -21,16 +21,17 @@ import (
 
 // ResourceReconcilerDeps holds shared dependencies for resource reconcilers.
 type ResourceReconcilerDeps struct {
-	Client        client.Client
-	Log           logr.Logger
-	Config        *config.Config
-	ReloadService *reload.Service
-	Registry      *workload.Registry
-	Collectors    *metrics.Collectors
-	EventRecorder *events.Recorder
-	WebhookClient *webhook.Client
-	Alerter       alerting.Alerter
-	PauseHandler  *reload.PauseHandler
+	Client         client.Client
+	Log            logr.Logger
+	Config         *config.Config
+	ReloadService  *reload.Service
+	Registry       *workload.Registry
+	Collectors     *metrics.Collectors
+	EventRecorder  *events.Recorder
+	WebhookClient  *webhook.Client
+	Alerter        alerting.Alerter
+	PauseHandler   *reload.PauseHandler
+	NamespaceCache *NamespaceCache
 }
 
 // ResourceConfig provides type-specific configuration for a resource reconciler.
@@ -75,10 +76,12 @@ func (r *ResourceReconciler[T]) Reconcile(ctx context.Context, req ctrl.Request)
 	resourceType := string(r.ResourceType)
 	log := r.Log.WithValues(resourceType, req.NamespacedName)
 
-	r.initOnce.Do(func() {
-		r.initialized = true
-		log.Info(resourceType + " controller initialized")
-	})
+	r.initOnce.Do(
+		func() {
+			r.initialized = true
+			log.Info(resourceType + " controller initialized")
+		},
+	)
 
 	r.Collectors.RecordEventReceived("reconcile", resourceType)
 
@@ -101,10 +104,19 @@ func (r *ResourceReconciler[T]) Reconcile(ctx context.Context, req ctrl.Request)
 		return ctrl.Result{}, nil
 	}
 
-	result, err := r.reloadHandler().Process(ctx, req.Namespace, req.Name, r.ResourceType,
+	if r.NamespaceCache != nil && r.NamespaceCache.IsEnabled() && !r.NamespaceCache.Contains(namespace) {
+		log.V(1).Info("skipping "+resourceType+" in namespace not matching selector", "namespace", namespace)
+		r.Collectors.RecordSkipped("namespace_selector")
+		r.Collectors.RecordReconcile("success", time.Since(startTime))
+		return ctrl.Result{}, nil
+	}
+
+	result, err := r.reloadHandler().Process(
+		ctx, req.Namespace, req.Name, r.ResourceType,
 		func(workloads []workload.Workload) []reload.ReloadDecision {
 			return r.ReloadService.Process(r.CreateChange(resource, reload.EventTypeUpdate), workloads)
-		}, log)
+		}, log,
+	)
 
 	r.recordReconcile(startTime, err)
 	return result, err
@@ -139,10 +151,12 @@ func (r *ResourceReconciler[T]) handleDelete(
 	resource.SetName(req.Name)
 	resource.SetNamespace(req.Namespace)
 
-	return r.reloadHandler().Process(ctx, req.Namespace, req.Name, r.ResourceType,
+	return r.reloadHandler().Process(
+		ctx, req.Namespace, req.Name, r.ResourceType,
 		func(workloads []workload.Workload) []reload.ReloadDecision {
 			return r.ReloadService.Process(r.CreateChange(resource, reload.EventTypeDelete), workloads)
-		}, log)
+		}, log,
+	)
 }
 
 func (r *ResourceReconciler[T]) recordReconcile(startTime time.Time, err error) {
@@ -178,9 +192,11 @@ func (r *ResourceReconciler[T]) Initialized() *bool {
 func (r *ResourceReconciler[T]) SetupWithManager(mgr ctrl.Manager, forObject T) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(forObject).
-		WithEventFilter(BuildEventFilter(
-			r.CreatePredicates(r.Config, r.ReloadService.Hasher()),
-			r.Config, r.Initialized(),
-		)).
+		WithEventFilter(
+			BuildEventFilter(
+				r.CreatePredicates(r.Config, r.ReloadService.Hasher()),
+				r.Config, r.Initialized(),
+			),
+	).
 		Complete(r)
 }

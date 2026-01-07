@@ -19,6 +19,7 @@ import (
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	ctrlmetrics "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 )
@@ -73,6 +74,15 @@ func NewManager(opts ManagerOptions) (ctrl.Manager, error) {
 		RetryPeriod:                   &le.RetryPeriod,
 	}
 
+	if cfg.WatchedNamespace != "" {
+		mgrOpts.Cache = cache.Options{
+			DefaultNamespaces: map[string]cache.Config{
+				cfg.WatchedNamespace: {},
+			},
+		}
+		opts.Log.Info("namespace filtering enabled", "namespace", cfg.WatchedNamespace)
+	}
+
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), mgrOpts)
 	if err != nil {
 		return nil, fmt.Errorf("creating manager: %w", err)
@@ -115,6 +125,14 @@ func NewManagerWithRestConfig(opts ManagerOptions, restConfig *rest.Config) (ctr
 		RetryPeriod:                   &le.RetryPeriod,
 	}
 
+	if cfg.WatchedNamespace != "" {
+		mgrOpts.Cache = cache.Options{
+			DefaultNamespaces: map[string]cache.Config{
+				cfg.WatchedNamespace: {},
+			},
+		}
+	}
+
 	mgr, err := ctrl.NewManager(restConfig, mgrOpts)
 	if err != nil {
 		return nil, fmt.Errorf("creating manager: %w", err)
@@ -149,6 +167,22 @@ func SetupReconcilers(mgr ctrl.Manager, cfg *config.Config, log logr.Logger, col
 		log.Info("webhook mode enabled", "url", cfg.WebhookURL)
 	}
 
+	// Create namespace cache if namespace selectors are configured.
+	// This cache is shared between the namespace reconciler and resource reconcilers.
+	var nsCache *NamespaceCache
+	if len(cfg.NamespaceSelectors) > 0 {
+		nsCache = NewNamespaceCache(true)
+		if err := (&NamespaceReconciler{
+			Client: mgr.GetClient(),
+			Log:    log.WithName("namespace-reconciler"),
+			Config: cfg,
+			Cache:  nsCache,
+		}).SetupWithManager(mgr); err != nil {
+			return fmt.Errorf("setting up namespace reconciler: %w", err)
+		}
+		log.Info("namespace reconciler enabled for label selector filtering")
+	}
+
 	// Setup ConfigMap reconciler
 	if !cfg.IsResourceIgnored("configmaps") {
 		cmReconciler := NewConfigMapReconciler(
@@ -162,6 +196,7 @@ func SetupReconcilers(mgr ctrl.Manager, cfg *config.Config, log logr.Logger, col
 			webhookClient,
 			alerter,
 			pauseHandler,
+			nsCache,
 		)
 		if err := SetupConfigMapReconciler(mgr, cmReconciler); err != nil {
 			return fmt.Errorf("setting up configmap reconciler: %w", err)
@@ -181,24 +216,11 @@ func SetupReconcilers(mgr ctrl.Manager, cfg *config.Config, log logr.Logger, col
 			webhookClient,
 			alerter,
 			pauseHandler,
+			nsCache,
 		)
 		if err := SetupSecretReconciler(mgr, secretReconciler); err != nil {
 			return fmt.Errorf("setting up secret reconciler: %w", err)
 		}
-	}
-
-	// Setup Namespace reconciler if namespace selectors are configured
-	if len(cfg.NamespaceSelectors) > 0 {
-		nsCache := NewNamespaceCache(true)
-		if err := (&NamespaceReconciler{
-			Client: mgr.GetClient(),
-			Log:    log.WithName("namespace-reconciler"),
-			Config: cfg,
-			Cache:  nsCache,
-		}).SetupWithManager(mgr); err != nil {
-			return fmt.Errorf("setting up namespace reconciler: %w", err)
-		}
-		log.Info("namespace reconciler enabled for label selector filtering")
 	}
 
 	// Setup Deployment reconciler for pause handling

@@ -18,3 +18,4 @@ site/
 /mkdocs.yml
 yq
 bin
+*.test

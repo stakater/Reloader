@@ -249,8 +249,8 @@ func TestApplyFlags_Selectors(t *testing.T) {
 		t.Fatalf("ApplyFlags() error = %v", err)
 	}
 
-	if len(cfg.NamespaceSelectors) != 2 {
-		t.Errorf("NamespaceSelectors length = %d, want 2", len(cfg.NamespaceSelectors))
+	if len(cfg.NamespaceSelectors) != 1 {
+		t.Errorf("NamespaceSelectors length = %d, want 1", len(cfg.NamespaceSelectors))
 	}
 
 	if len(cfg.ResourceSelectors) != 1 {

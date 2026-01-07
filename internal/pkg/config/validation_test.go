@@ -166,7 +166,8 @@ func TestConfig_Validate_NormalizesIgnoredWorkloads(t *testing.T) {
 		t.Fatalf("Validate() error = %v", err)
 	}
 
-	expected := []string{"jobs", "cronjobs"}
+	// Should be normalized to canonical Kind values (e.g., "CronJob" not "cronjobs")
+	expected := []string{"Job", "CronJob"}
 	if len(cfg.IgnoredWorkloads) != len(expected) {
 		t.Fatalf("IgnoredWorkloads length = %d, want %d", len(cfg.IgnoredWorkloads), len(expected))
 	}

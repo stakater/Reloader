@@ -98,17 +98,23 @@ func (c *Config) Validate() error {
 
 	c.IgnoredResources = normalizeToLower(c.IgnoredResources)
 
+	// Normalize ignored workloads to canonical Kind values (e.g., "cronjobs" -> "CronJob")
 	c.IgnoredWorkloads = normalizeToLower(c.IgnoredWorkloads)
+	normalizedWorkloads := make([]string, 0, len(c.IgnoredWorkloads))
 	for _, w := range c.IgnoredWorkloads {
-		if _, err := workload.KindFromString(w); err != nil {
+		kind, err := workload.KindFromString(w)
+		if err != nil {
 			errs = append(
 				errs, ValidationError{
 					Field:   "IgnoredWorkloads",
 					Message: fmt.Sprintf("unknown workload type %q", w),
 				},
 			)
+		} else {
+			normalizedWorkloads = append(normalizedWorkloads, string(kind))
 		}
 	}
+	c.IgnoredWorkloads = normalizedWorkloads
 
 	if len(errs) > 0 {
 		return errs
