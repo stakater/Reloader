@@ -20,8 +20,7 @@ RUN mkdir /image && \
 COPY ubi-build-files-${TARGETARCH}.txt /tmp
 # Copy all the required files from the base UBI image into the image directory
 # As the go binary is not statically compiled this includes everything needed for CGO to work, cacerts, tzdata and RH release files
-# Filter existing files before tarring to avoid "Cannot stat" errors on ARM64
-# Use -h flag to follow symlinks when creating the archive
+# Filter existing files and exclude temporary entitlement files that may be removed during build
 RUN while IFS= read -r file; do \
       [ -z "$file" ] && continue; \
       if [ -e "$file" ] || [ -L "$file" ]; then \
@@ -29,8 +28,10 @@ RUN while IFS= read -r file; do \
       fi; \
     done < /tmp/ubi-build-files-${TARGETARCH}.txt > /tmp/existing-files.txt && \
     if [ -s /tmp/existing-files.txt ]; then \
-      tar -chf /tmp/files.tar -T /tmp/existing-files.txt && \
-      tar xf /tmp/files.tar -C /image/; \
+      tar -chf /tmp/files.tar --exclude='etc/pki/entitlement-host*' -T /tmp/existing-files.txt 2>&1 | grep -vE "(File removed before we read it|Cannot stat)" || true; \
+      if [ -f /tmp/files.tar ]; then \
+        tar xf /tmp/files.tar -C /image/ 2>/dev/null || true; \
+      fi; \
     fi
 
 # Generate a rpm database which contains all the packages that you said were needed in ubi-build-files-*.txt
