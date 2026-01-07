@@ -1981,7 +1981,7 @@ func TestRollingUpgradeForDeploymentWithPatchAndRetryUsingArs(t *testing.T) {
 		assert.Equal(t, patchtypes.StrategicMergePatchType, patchType)
 		assert.NotEmpty(t, bytes)
 		assert.Contains(t, string(bytes), `{"spec":{"template":{"metadata":{"annotations":{"reloader.stakater.com/last-reloaded-from":`)
-		assert.Contains(t, string(bytes), `\"hash\":\"fd9e71a362056bfa864d9859e12978f893d330ce8cbf09218b25d015770ad91f\"`)
+		assert.Contains(t, string(bytes), `\"hash\":\"3c9a892aeaedc759abc3df9884a37b8be5680382\"`)
 		return nil
 	}
 
@@ -2964,7 +2964,7 @@ func TestRollingUpgradeForDaemonSetWithPatchAndRetryUsingArs(t *testing.T) {
 		assert.Equal(t, patchtypes.StrategicMergePatchType, patchType)
 		assert.NotEmpty(t, bytes)
 		assert.Contains(t, string(bytes), `{"spec":{"template":{"metadata":{"annotations":{"reloader.stakater.com/last-reloaded-from":`)
-		assert.Contains(t, string(bytes), `\"hash\":\"43bf9e30e7c4e32a8f8673c462b86d0b1ac626cf498afdc0d0108e79ebe7ee0c\"`)
+		assert.Contains(t, string(bytes), `\"hash\":\"314a2269170750a974d79f02b5b9ee517de7f280\"`)
 		return nil
 	}
 
@@ -3227,7 +3227,7 @@ func TestRollingUpgradeForStatefulSetWithPatchAndRetryUsingArs(t *testing.T) {
 		assert.Equal(t, patchtypes.StrategicMergePatchType, patchType)
 		assert.NotEmpty(t, bytes)
 		assert.Contains(t, string(bytes), `{"spec":{"template":{"metadata":{"annotations":{"reloader.stakater.com/last-reloaded-from":`)
-		assert.Contains(t, string(bytes), `\"hash\":\"6aa837180bdf6a93306c71a0cf62b4a45c2d5b021578247b3b64d5baea2b84d9\"`)
+		assert.Contains(t, string(bytes), `\"hash\":\"f821414d40d8815fb330763f74a4ff7ab651d4fa\"`)
 		return nil
 	}
 
@@ -3607,7 +3607,7 @@ func TestRollingUpgradeForDeploymentWithPatchAndRetryUsingErs(t *testing.T) {
 		assert.Equal(t, patchtypes.StrategicMergePatchType, patchType)
 		assert.NotEmpty(t, bytes)
 		assert.Contains(t, string(bytes), `{"spec":{"template":{"spec":{"containers":[{"name":`)
-		assert.Contains(t, string(bytes), `"value":"fd9e71a362056bfa864d9859e12978f893d330ce8cbf09218b25d015770ad91f"`)
+		assert.Contains(t, string(bytes), `"value":"3c9a892aeaedc759abc3df9884a37b8be5680382"`)
 		return nil
 	}
 
@@ -4502,7 +4502,7 @@ func TestRollingUpgradeForDaemonSetWithPatchAndRetryUsingErs(t *testing.T) {
 		assert.Equal(t, patchtypes.StrategicMergePatchType, patchType)
 		assert.NotEmpty(t, bytes)
 		assert.Contains(t, string(bytes), `{"spec":{"template":{"spec":{"containers":[{"name":`)
-		assert.Contains(t, string(bytes), `"value":"43bf9e30e7c4e32a8f8673c462b86d0b1ac626cf498afdc0d0108e79ebe7ee0c"`)
+		assert.Contains(t, string(bytes), `"value":"314a2269170750a974d79f02b5b9ee517de7f280"`)
 		return nil
 	}
 
@@ -4737,7 +4737,7 @@ func TestRollingUpgradeForStatefulSetWithPatchAndRetryUsingErs(t *testing.T) {
 		assert.Equal(t, patchtypes.StrategicMergePatchType, patchType)
 		assert.NotEmpty(t, bytes)
 		assert.Contains(t, string(bytes), `{"spec":{"template":{"spec":{"containers":[{"name":`)
-		assert.Contains(t, string(bytes), `"value":"6aa837180bdf6a93306c71a0cf62b4a45c2d5b021578247b3b64d5baea2b84d9"`)
+		assert.Contains(t, string(bytes), `"value":"f821414d40d8815fb330763f74a4ff7ab651d4fa"`)
 		return nil
 	}
 

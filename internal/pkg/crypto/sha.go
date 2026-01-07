@@ -1,14 +1,20 @@
 package crypto
 
 import (
-	"crypto/sha512"
-	"encoding/hex"
+	"crypto/sha1"
+	"fmt"
+	"io"
+
+	"github.com/sirupsen/logrus"
 )
 
 // GenerateSHA generates SHA from string
-// Always returns a hash value, even for empty strings, to ensure consistent behavior
-// and avoid issues with string matching operations (e.g., strings.Contains(str, "") always returns true)
 func GenerateSHA(data string) string {
-	hash := sha512.Sum512_256([]byte(data))
-	return hex.EncodeToString(hash[:])
+	hasher := sha1.New()
+	_, err := io.WriteString(hasher, data)
+	if err != nil {
+		logrus.Errorf("Unable to write data in hash writer %v", err)
+	}
+	sha := hasher.Sum(nil)
+	return fmt.Sprintf("%x", sha)
 }
