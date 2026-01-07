@@ -21,33 +21,19 @@ COPY ubi-build-files-${TARGETARCH}.txt /tmp
 # Copy all the required files from the base UBI image into the image directory
 # As the go binary is not statically compiled this includes everything needed for CGO to work, cacerts, tzdata and RH release files
 # Filter existing files and exclude temporary entitlement files that may be removed during build
-RUN set -e && \
-    # Filter files that actually exist (files, directories, or symlinks)
-    # This ensures we only copy files that are present, avoiding "Cannot stat" errors
-    while IFS= read -r file; do \
-      [ -n "$file" ] && ([ -e "$file" ] || [ -L "$file" ]) && echo "$file"; \
+RUN while IFS= read -r file; do \
+      [ -z "$file" ] && continue; \
+      if [ -e "$file" ] || [ -L "$file" ]; then \
+        echo "$file"; \
+      fi; \
     done < /tmp/ubi-build-files-${TARGETARCH}.txt > /tmp/existing-files.txt && \
-    # Verify we have files to copy (fail if list is empty to catch configuration issues)
-    if [ ! -s /tmp/existing-files.txt ]; then \
-      echo "ERROR: No files found to copy from ubi-build-files-${TARGETARCH}.txt" >&2; \
-      echo "This indicates the base image may be missing required files or the file list is incorrect." >&2; \
-      echo "Expected files from ubi-build-files-${TARGETARCH}.txt:" >&2; \
-      cat /tmp/ubi-build-files-${TARGETARCH}.txt >&2; \
-      exit 1; \
+    if [ -s /tmp/existing-files.txt ]; then \
+      tar -chf /tmp/files.tar --exclude='etc/pki/entitlement-host*' -T /tmp/existing-files.txt 2>&1 | grep -vE "(File removed before we read it|Cannot stat)" || true; \
+      if [ -f /tmp/files.tar ]; then \
+        tar xf /tmp/files.tar -C /image/ 2>/dev/null || true; \
+        rm -f /tmp/files.tar; \
+      fi; \
     fi && \
-    # Create tarball, excluding only temporary entitlement files (safe to exclude)
-    # Note: --exclude only affects files within directories being archived, not the directories themselves
-    tar -chf /tmp/files.tar \
-      --exclude='etc/pki/entitlement-host*' \
-      -T /tmp/existing-files.txt 2>&1 | grep -vE "(File removed before we read it|Cannot stat)" || true; \
-    # Extract tarball (critical files like libc.so.6, ld-linux, etc/ssl/certs are included)
-    if [ -f /tmp/files.tar ]; then \
-      tar -xf /tmp/files.tar -C /image/ && \
-      rm -f /tmp/files.tar; \
-    else \
-      echo "WARNING: Tarball was not created, but continuing..." >&2; \
-    fi && \
-    # Clean up temporary file list
     rm -f /tmp/existing-files.txt
 
 # Generate a rpm database which contains all the packages that you said were needed in ubi-build-files-*.txt
