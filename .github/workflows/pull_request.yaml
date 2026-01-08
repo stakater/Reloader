@@ -106,8 +106,11 @@ jobs:
         kubectl cluster-info
 
 
-    - name: Test
+    - name: Unit Tests
       run: make test
+
+    - name: E2E Tests
+      run: make e2e
 
     - name: Generate Tags
       id: generate_tag

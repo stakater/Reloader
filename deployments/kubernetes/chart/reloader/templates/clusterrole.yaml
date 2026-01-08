@@ -56,12 +56,12 @@ rules:
 {{- if and (.Capabilities.APIVersions.Has "argoproj.io/v1alpha1") (.Values.reloader.isArgoRollouts) }}
   - apiGroups:
       - "argoproj.io"
-      - ""
     resources:
       - rollouts
     verbs:
       - list
       - get
+      - watch
       - update
       - patch
 {{- end }}
@@ -76,6 +76,7 @@ rules:
       - get
       - update
       - patch
+      - watch
 {{- if .Values.reloader.ignoreCronJobs }}{{- else }}
   - apiGroups:
       - "batch"
@@ -84,6 +85,9 @@ rules:
     verbs:
       - list
       - get
+      - watch
+      - update
+      - patch
 {{- end }}
 {{- if .Values.reloader.ignoreJobs }}{{- else }}
   - apiGroups:
@@ -95,6 +99,7 @@ rules:
       - delete
       - list
       - get
+      - watch
 {{- end}}
 {{- if .Values.reloader.enableHA }}
   - apiGroups:

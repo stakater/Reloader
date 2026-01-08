@@ -20,9 +20,16 @@ BUILD=
 
 GOCMD = go
 GOFLAGS ?= $(GOFLAGS:)
-LDFLAGS =
 GOPROXY   ?=
 GOPRIVATE ?=
+
+# Version information for ldflags
+GIT_COMMIT ?= $(shell git rev-parse --short HEAD 2>/dev/null || echo "unknown")
+BUILD_DATE ?= $(shell date -u +"%Y-%m-%dT%H:%M:%SZ")
+LDFLAGS = -s -w \
+	-X github.com/stakater/Reloader/internal/pkg/metadata.Version=$(VERSION) \
+	-X github.com/stakater/Reloader/internal/pkg/metadata.Commit=$(GIT_COMMIT) \
+	-X github.com/stakater/Reloader/internal/pkg/metadata.BuildDate=$(BUILD_DATE)
 
 ## Location to install dependencies to
 LOCALBIN ?= $(shell pwd)/bin
@@ -31,18 +38,9 @@ $(LOCALBIN):
 
 ## Tool Binaries
 KUBECTL ?= kubectl
-KUSTOMIZE ?= $(LOCALBIN)/kustomize-$(KUSTOMIZE_VERSION)
-CONTROLLER_GEN ?= $(LOCALBIN)/controller-gen-$(CONTROLLER_TOOLS_VERSION)
-ENVTEST ?= $(LOCALBIN)/setup-envtest-$(ENVTEST_VERSION)
-GOLANGCI_LINT = $(LOCALBIN)/golangci-lint-$(GOLANGCI_LINT_VERSION)
 YQ ?= $(LOCALBIN)/yq
 
 ## Tool Versions
-KUSTOMIZE_VERSION ?= v5.3.0
-CONTROLLER_TOOLS_VERSION ?= v0.14.0
-ENVTEST_VERSION ?= release-0.17
-GOLANGCI_LINT_VERSION ?= v2.6.1
-
 YQ_VERSION ?= v4.27.5
 YQ_DOWNLOAD_URL = "https://github.com/mikefarah/yq/releases/download/$(YQ_VERSION)/yq_$(OS)_$(ARCH)"
 
@@ -57,53 +55,19 @@ $(YQ):
 	@chmod +x $(YQ)
 	@echo "yq downloaded successfully to $(YQ)."
 
-.PHONY: kustomize
-kustomize: $(KUSTOMIZE) ## Download kustomize locally if necessary.
-$(KUSTOMIZE): $(LOCALBIN)
-	$(call go-install-tool,$(KUSTOMIZE),sigs.k8s.io/kustomize/kustomize/v5,$(KUSTOMIZE_VERSION))
-
-.PHONY: controller-gen
-controller-gen: $(CONTROLLER_GEN) ## Download controller-gen locally if necessary.
-$(CONTROLLER_GEN): $(LOCALBIN)
-	$(call go-install-tool,$(CONTROLLER_GEN),sigs.k8s.io/controller-tools/cmd/controller-gen,$(CONTROLLER_TOOLS_VERSION))
-
-.PHONY: envtest
-envtest: $(ENVTEST) ## Download setup-envtest locally if necessary.
-$(ENVTEST): $(LOCALBIN)
-	$(call go-install-tool,$(ENVTEST),sigs.k8s.io/controller-runtime/tools/setup-envtest,$(ENVTEST_VERSION))
-
-.PHONY: golangci-lint
-golangci-lint: $(GOLANGCI_LINT) ## Download golangci-lint locally if necessary.
-$(GOLANGCI_LINT): $(LOCALBIN)
-	$(call go-install-tool,$(GOLANGCI_LINT),github.com/golangci/golangci-lint/v2/cmd/golangci-lint,${GOLANGCI_LINT_VERSION})
-
-# go-install-tool will 'go install' any package with custom target and name of binary, if it doesn't exist
-# $1 - target path with name of binary (ideally with version)
-# $2 - package url which can be installed
-# $3 - specific version of package
-define go-install-tool
-@[ -f $(1) ] || { \
-set -e; \
-package=$(2)@$(3) ;\
-echo "Downloading $${package}" ;\
-GOBIN=$(LOCALBIN) go install $${package} ;\
-mv "$$(echo "$(1)" | sed "s/-$(3)$$//")" $(1) ;\
-}
-endef
-
 default: build test
 
 install:
 	"$(GOCMD)" mod download
 
 run:
-	go run ./main.go
+	go run ./cmd/reloader
 
 build:
-	"$(GOCMD)" build ${GOFLAGS} ${LDFLAGS} -o "${BINARY}"
+	"$(GOCMD)" build ${GOFLAGS} -ldflags '${LDFLAGS}' -o "${BINARY}" ./cmd/reloader
 
-lint: golangci-lint ## Run golangci-lint on the codebase
-	$(GOLANGCI_LINT) run ./...
+lint: ## Run golangci-lint on the codebase
+	go tool golangci-lint run ./...
 
 build-image:
 	docker buildx build \
@@ -140,7 +104,11 @@ manifest:
 	docker manifest annotate --arch $(ARCH) $(REPOSITORY_GENERIC)  $(REPOSITORY_ARCH)
 
 test:
-	"$(GOCMD)" test -timeout 1800s -v ./...
+	"$(GOCMD)" test -timeout 1800s -v -short ./cmd/... ./internal/...
+
+.PHONY: docker-build
+docker-build: ## Build Docker image
+	$(CONTAINER_RUNTIME) build -t $(IMG) -f Dockerfile .
 
 stop:
 	@docker stop "${BINARY}"
@@ -151,8 +119,8 @@ apply:
 deploy: binary-image push apply
 
 .PHONY: k8s-manifests
-k8s-manifests: $(KUSTOMIZE) ## Generate k8s manifests using Kustomize from 'manifests' folder
-	$(KUSTOMIZE) build ./deployments/kubernetes/ -o ./deployments/kubernetes/reloader.yaml
+k8s-manifests: ## Generate k8s manifests using Kustomize from 'manifests' folder
+	go tool kustomize build ./deployments/kubernetes/ -o ./deployments/kubernetes/reloader.yaml
 
 .PHONY: update-manifests-version
 update-manifests-version: ## Generate k8s manifests using Kustomize from 'manifests' folder

@@ -1,6 +1,7 @@
 ARG BUILDER_IMAGE
 ARG BASE_IMAGE
 
+# First stage: Build the binary (using the standard Dockerfile as builder)
 FROM --platform=${BUILDPLATFORM} ${BUILDER_IMAGE} AS SRC
 
 FROM ${BASE_IMAGE:-registry.access.redhat.com/ubi9/ubi:9.7} AS ubi
