@@ -216,6 +216,27 @@ func (m *Manager) Cleanup(ctx context.Context) error {
 	return nil
 }
 
+// CleanupByVersion removes Reloader resources for a specific version without needing a Manager instance.
+// This is useful for cleaning up from previous runs before creating a new Manager.
+func CleanupByVersion(ctx context.Context, version, kubeContext string) {
+	ns := fmt.Sprintf("reloader-%s", version)
+	name := fmt.Sprintf("reloader-%s", version)
+
+	nsArgs := []string{"delete", "namespace", ns, "--wait=false", "--ignore-not-found"}
+	crArgs := []string{"delete", "clusterrole", name, "--ignore-not-found"}
+	crbArgs := []string{"delete", "clusterrolebinding", name, "--ignore-not-found"}
+
+	if kubeContext != "" {
+		nsArgs = append([]string{"--context", kubeContext}, nsArgs...)
+		crArgs = append([]string{"--context", kubeContext}, crArgs...)
+		crbArgs = append([]string{"--context", kubeContext}, crbArgs...)
+	}
+
+	exec.CommandContext(ctx, "kubectl", nsArgs...).Run()
+	exec.CommandContext(ctx, "kubectl", crArgs...).Run()
+	exec.CommandContext(ctx, "kubectl", crbArgs...).Run()
+}
+
 // CollectLogs collects logs from the Reloader pod and writes them to the specified file.
 func (m *Manager) CollectLogs(ctx context.Context, logPath string) error {
 	ns := m.namespace()

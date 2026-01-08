@@ -208,8 +208,8 @@ func runSequential(ctx context.Context, cfg RunConfig, scenariosToRun []string, 
 		log.Printf("========================================")
 
 		cleanupTestNamespaces(ctx, "")
-		cleanupReloader(ctx, "old", "")
-		cleanupReloader(ctx, "new", "")
+		reloader.CleanupByVersion(ctx, "old", "")
+		reloader.CleanupByVersion(ctx, "new", "")
 
 		if err := promMgr.Reset(ctx); err != nil {
 			log.Printf("Warning: failed to reset Prometheus: %v", err)
@@ -357,8 +357,8 @@ func runParallel(ctx context.Context, cfg RunConfig, scenariosToRun []string, ru
 				log.Printf("[Worker %d] Starting scenario %s", w.id, scenarioID)
 
 				cleanupTestNamespaces(ctx, w.kubeContext)
-				cleanupReloader(ctx, "old", w.kubeContext)
-				cleanupReloader(ctx, "new", w.kubeContext)
+				reloader.CleanupByVersion(ctx, "old", w.kubeContext)
+				reloader.CleanupByVersion(ctx, "new", w.kubeContext)
 
 				if err := w.promMgr.Reset(ctx); err != nil {
 					log.Printf("[Worker %d] Warning: failed to reset Prometheus: %v", w.id, err)
@@ -629,20 +629,3 @@ func cleanupTestNamespaces(ctx context.Context, kubeContext string) {
 	}
 }
 
-func cleanupReloader(ctx context.Context, version string, kubeContext string) {
-	ns := fmt.Sprintf("reloader-%s", version)
-
-	nsArgs := []string{"delete", "namespace", ns, "--wait=false", "--ignore-not-found"}
-	crArgs := []string{"delete", "clusterrole", fmt.Sprintf("reloader-%s", version), "--ignore-not-found"}
-	crbArgs := []string{"delete", "clusterrolebinding", fmt.Sprintf("reloader-%s", version), "--ignore-not-found"}
-
-	if kubeContext != "" {
-		nsArgs = append([]string{"--context", kubeContext}, nsArgs...)
-		crArgs = append([]string{"--context", kubeContext}, crArgs...)
-		crbArgs = append([]string{"--context", kubeContext}, crbArgs...)
-	}
-
-	exec.CommandContext(ctx, "kubectl", nsArgs...).Run()
-	exec.CommandContext(ctx, "kubectl", crArgs...).Run()
-	exec.CommandContext(ctx, "kubectl", crbArgs...).Run()
-}
