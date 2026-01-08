@@ -2,9 +2,11 @@ package controller
 
 import (
 	"fmt"
+	"slices"
 	"time"
 
 	"github.com/sirupsen/logrus"
+	"github.com/stakater/Reloader/internal/pkg/constants"
 	"github.com/stakater/Reloader/internal/pkg/handler"
 	"github.com/stakater/Reloader/internal/pkg/metrics"
 	"github.com/stakater/Reloader/internal/pkg/options"
@@ -21,7 +23,7 @@ import (
 	"k8s.io/client-go/tools/record"
 	"k8s.io/client-go/util/workqueue"
 	"k8s.io/kubectl/pkg/scheme"
-	"k8s.io/utils/strings/slices"
+	csiv1 "sigs.k8s.io/secrets-store-csi-driver/apis/v1"
 )
 
 // Controller for checking events
@@ -79,7 +81,12 @@ func NewController(
 		}
 	}
 
-	listWatcher := cache.NewFilteredListWatchFromClient(client.CoreV1().RESTClient(), resource, namespace, optionsModifier)
+	getterRESTClient, err := getClientForResource(resource, client)
+	if err != nil {
+		return nil, fmt.Errorf("failed to initialize REST client for %s: %w", resource, err)
+	}
+
+	listWatcher := cache.NewFilteredListWatchFromClient(getterRESTClient, resource, namespace, optionsModifier)
 
 	_, informer := cache.NewInformerWithOptions(cache.InformerOptions{
 		ListerWatcher: listWatcher,
@@ -110,6 +117,8 @@ func (c *Controller) Add(obj interface{}) {
 	case *v1.Namespace:
 		c.addSelectedNamespaceToCache(*object)
 		return
+	case *csiv1.SecretProviderClassPodStatus:
+		return
 	}
 
 	if options.ReloadOnCreate == "true" {
@@ -127,11 +136,13 @@ func (c *Controller) Add(obj interface{}) {
 }
 
 func (c *Controller) resourceInIgnoredNamespace(raw interface{}) bool {
-	switch object := raw.(type) {
+	switch obj := raw.(type) {
 	case *v1.ConfigMap:
-		return c.ignoredNamespaces.Contains(object.Namespace)
+		return c.ignoredNamespaces.Contains(obj.Namespace)
 	case *v1.Secret:
-		return c.ignoredNamespaces.Contains(object.Namespace)
+		return c.ignoredNamespaces.Contains(obj.Namespace)
+	case *csiv1.SecretProviderClassPodStatus:
+		return c.ignoredNamespaces.Contains(obj.Namespace)
 	}
 	return false
 }
@@ -147,6 +158,10 @@ func (c *Controller) resourceInSelectedNamespaces(raw interface{}) bool {
 			return true
 		}
 	case *v1.Secret:
+		if slices.Contains(selectedNamespacesCache, object.GetNamespace()) {
+			return true
+		}
+	case *csiv1.SecretProviderClassPodStatus:
 		if slices.Contains(selectedNamespacesCache, object.GetNamespace()) {
 			return true
 		}
@@ -196,6 +211,10 @@ func (c *Controller) Update(old interface{}, new interface{}) {
 func (c *Controller) Delete(old interface{}) {
 	// Record event received
 	c.collectors.RecordEventReceived("delete", c.resource)
+
+	if _, ok := old.(*csiv1.SecretProviderClassPodStatus); ok {
+		return
+	}
 
 	if options.ReloadOnDelete == "true" {
 		if !c.resourceInIgnoredNamespace(old) && c.resourceInSelectedNamespaces(old) && secretControllerInitialized && configmapControllerInitialized {
@@ -338,4 +357,15 @@ func (c *Controller) handleErr(err error, key interface{}) {
 
 	// Record failed event processing
 	c.collectors.RecordEventProcessed("unknown", c.resource, "dropped")
+}
+
+func getClientForResource(resource string, coreClient kubernetes.Interface) (cache.Getter, error) {
+	if resource == constants.SecretProviderClassController {
+		csiClient, err := kube.GetCSIClient()
+		if err != nil {
+			return nil, fmt.Errorf("failed to get CSI client: %w", err)
+		}
+		return csiClient.SecretsstoreV1().RESTClient(), nil
+	}
+	return coreClient.CoreV1().RESTClient(), nil
 }

@@ -27,10 +27,14 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	patchtypes "k8s.io/apimachinery/pkg/types"
 	testclient "k8s.io/client-go/kubernetes/fake"
+	csitestclient "sigs.k8s.io/secrets-store-csi-driver/pkg/client/clientset/versioned/fake"
 )
 
 var (
-	clients = kube.Clients{KubernetesClient: testclient.NewSimpleClientset()}
+	clients = kube.Clients{
+		KubernetesClient: testclient.NewClientset(),
+		CSIClient:        csitestclient.NewSimpleClientset(),
+	}
 
 	arsNamespace                               = "test-handler-" + testutil.RandSeq(5)
 	arsConfigmapName                           = "testconfigmap-handler-" + testutil.RandSeq(5)
@@ -59,6 +63,14 @@ var (
 	arsSecretWithIgnoreAnnotation              = "testsecretWithIgnoreAnnotation-handler-" + testutil.RandSeq(5)
 	arsConfigmapWithPausedDeployment           = "testconfigmapWithPausedDeployment-handler-" + testutil.RandSeq(5)
 
+	// Secret provider class
+	arsSecretProviderClassName                        = "testsecretproviderclass-handler-" + testutil.RandSeq(5)
+	arsSecretProviderClassWithInitContainer           = "testsecretproviderclassWithInitContainer-handler-" + testutil.RandSeq(5)
+	arsSecretProviderClassWithSPCAutoAnnotation       = "testsecretproviderclasswithspcautoannotationdeployment-handler-" + testutil.RandSeq(5)
+	arsSecretProviderClassWithExcludeSPCAnnotation    = "testsecretproviderclasswithspcexcludeannotationdeployment-handler-" + testutil.RandSeq(5)
+	arsSecretProviderClassReloadedWithSameConfig      = "testsecretproviderclassreloadedwithsameconfig-handler-" + testutil.RandSeq(5)
+	arsSecretProviderClassReloadedWithDifferentConfig = "testsecretproviderclassreloadedwithdifferentconfig-handler-" + testutil.RandSeq(5)
+
 	ersNamespace                               = "test-handler-" + testutil.RandSeq(5)
 	ersConfigmapName                           = "testconfigmap-handler-" + testutil.RandSeq(5)
 	ersSecretName                              = "testsecret-handler-" + testutil.RandSeq(5)
@@ -84,6 +96,15 @@ var (
 	ersConfigmapWithIgnoreAnnotation           = "testconfigmapWithIgnoreAnnotation-handler-" + testutil.RandSeq(5)
 	ersSecretWithIgnoreAnnotation              = "testsecretWithIgnoreAnnotation-handler-" + testutil.RandSeq(5)
 	ersConfigmapWithPausedDeployment           = "testconfigmapWithPausedDeployment-handler-" + testutil.RandSeq(5)
+
+	// SecretProviderClass
+	ersSecretProviderClassName              = "testsecretproviderclass-handler-" + testutil.RandSeq(5)
+	ersSecretProviderClassWithInitContainer = "testsecretproviderclassWithInitContainer-handler-" + testutil.RandSeq(5)
+
+	ersSecretProviderClassWithSPCAutoAnnotation       = "testsecretproviderclasswithspcautoannotationdeployment-handler-" + testutil.RandSeq(5)
+	ersSecretProviderClassWithExcludeSPCAnnotation    = "testsecretproviderclasswithspcexcludeannotationdeployment-handler-" + testutil.RandSeq(5)
+	ersSecretProviderClassReloadedWithSameConfig      = "testsecretproviderclassreloadedwithsameconfig-handler-" + testutil.RandSeq(5)
+	ersSecretProviderClassReloadedWithDifferentConfig = "testsecretproviderclassreloadedwithdifferentconfig-handler-" + testutil.RandSeq(5)
 )
 
 func TestMain(m *testing.M) {
@@ -120,6 +141,12 @@ func setupArs() {
 	_, err = testutil.CreateSecret(clients.KubernetesClient, arsNamespace, arsSecretName, data)
 	if err != nil {
 		logrus.Errorf("Error in secret creation: %v", err)
+	}
+
+	// Creating secretproviderclass
+	_, err = testutil.CreateSecretProviderClass(clients.CSIClient, arsNamespace, arsSecretProviderClassName, "testing")
+	if err != nil {
+		logrus.Errorf("Error in secretproviderclass creation: %v", err)
 	}
 
 	// Creating configmap will be used in projected volume
@@ -190,6 +217,12 @@ func setupArs() {
 		logrus.Errorf("Error in secret creation: %v", err)
 	}
 
+	// Creating secretproviderclass
+	_, err = testutil.CreateSecretProviderClass(clients.CSIClient, arsNamespace, arsSecretProviderClassWithInitContainer, "testing")
+	if err != nil {
+		logrus.Errorf("Error in secretproviderclass creation: %v", err)
+	}
+
 	_, err = testutil.CreateConfigMap(clients.KubernetesClient, arsNamespace, arsConfigmapWithPodAnnotations, "www.google.com")
 	if err != nil {
 		logrus.Errorf("Error in configmap creation: %v", err)
@@ -204,6 +237,12 @@ func setupArs() {
 	_, err = testutil.CreateSecret(clients.KubernetesClient, arsNamespace, arsSecretWithSecretAutoAnnotation, data)
 	if err != nil {
 		logrus.Errorf("Error in secret creation: %v", err)
+	}
+
+	// Creating secretproviderclass used with secretproviderclass auto annotation
+	_, err = testutil.CreateSecretProviderClass(clients.CSIClient, arsNamespace, arsSecretProviderClassWithSPCAutoAnnotation, "testing")
+	if err != nil {
+		logrus.Errorf("Error in secretproviderclass creation: %v", err)
 	}
 
 	// Creating configmap used with configmap auto annotation
@@ -222,6 +261,24 @@ func setupArs() {
 	_, err = testutil.CreateSecret(clients.KubernetesClient, arsNamespace, arsSecretWithExcludeSecretAnnotation, data)
 	if err != nil {
 		logrus.Errorf("Error in secret creation: %v", err)
+	}
+
+	// Creating secretproviderclass used with secret auto annotation
+	_, err = testutil.CreateSecretProviderClass(clients.CSIClient, arsNamespace, arsSecretProviderClassWithExcludeSPCAnnotation, "testing")
+	if err != nil {
+		logrus.Errorf("Error in secretproviderclass creation: %v", err)
+	}
+
+	// Creating secretproviderclass to reload with same config
+	_, err = testutil.CreateSecretProviderClass(clients.CSIClient, arsNamespace, arsSecretProviderClassReloadedWithSameConfig, "testing")
+	if err != nil {
+		logrus.Errorf("Error in secretproviderclass creation: %v", err)
+	}
+
+	// Creating secretproviderclass to reload with different config
+	_, err = testutil.CreateSecretProviderClass(clients.CSIClient, arsNamespace, arsSecretProviderClassReloadedWithDifferentConfig, "testing")
+	if err != nil {
+		logrus.Errorf("Error in secretproviderclass creation: %v", err)
 	}
 
 	// Creating configmap used with configmap auto annotation
@@ -301,6 +358,12 @@ func setupArs() {
 		logrus.Errorf("Error in Deployment with secret creation: %v", err)
 	}
 
+	// Creating Deployment with secretproviderclass mounted in init container
+	_, err = testutil.CreateDeploymentWithInitContainer(clients.KubernetesClient, arsSecretProviderClassWithInitContainer, arsNamespace, true)
+	if err != nil {
+		logrus.Errorf("Error in Deployment with secretproviderclass creation: %v", err)
+	}
+
 	// Creating Deployment with configmap mounted as Env in init container
 	_, err = testutil.CreateDeploymentWithInitContainer(clients.KubernetesClient, arsConfigmapWithInitEnv, arsNamespace, false)
 	if err != nil {
@@ -317,6 +380,12 @@ func setupArs() {
 	_, err = testutil.CreateDeployment(clients.KubernetesClient, arsSecretName, arsNamespace, true)
 	if err != nil {
 		logrus.Errorf("Error in Deployment with secret creation: %v", err)
+	}
+
+	// Creating Deployment with secretproviderclass
+	_, err = testutil.CreateDeployment(clients.KubernetesClient, arsSecretProviderClassName, arsNamespace, true)
+	if err != nil {
+		logrus.Errorf("Error in Deployment with secretproviderclass creation: %v", err)
 	}
 
 	// Creating Deployment with env var source as configmap
@@ -366,6 +435,12 @@ func setupArs() {
 		logrus.Errorf("Error in Deployment with secret and with secret auto annotation: %v", err)
 	}
 
+	// Creating Deployment with secretproviderclass and with secretproviderclass auto annotation
+	_, err = testutil.CreateDeploymentWithTypedAutoAnnotation(clients.KubernetesClient, arsSecretProviderClassWithSPCAutoAnnotation, arsNamespace, testutil.SecretProviderClassPodStatusResourceType)
+	if err != nil {
+		logrus.Errorf("Error in Deployment with secretproviderclass and with secretproviderclass auto annotation: %v", err)
+	}
+
 	// Creating Deployment with secret and with secret auto annotation
 	_, err = testutil.CreateDeploymentWithTypedAutoAnnotation(clients.KubernetesClient, arsConfigmapWithConfigMapAutoAnnotation, arsNamespace, testutil.ConfigmapResourceType)
 	if err != nil {
@@ -376,6 +451,24 @@ func setupArs() {
 	_, err = testutil.CreateDeploymentWithExcludeAnnotation(clients.KubernetesClient, arsSecretWithExcludeSecretAnnotation, arsNamespace, testutil.SecretResourceType)
 	if err != nil {
 		logrus.Errorf("Error in Deployment with secret and with secret exclude annotation: %v", err)
+	}
+
+	// Creating Deployment with secretproviderclass and exclude secretproviderclass annotation
+	_, err = testutil.CreateDeploymentWithExcludeAnnotation(clients.KubernetesClient, arsSecretProviderClassWithExcludeSPCAnnotation, arsNamespace, testutil.SecretProviderClassPodStatusResourceType)
+	if err != nil {
+		logrus.Errorf("Error in Deployment with secretproviderclass and with secretproviderclass exclude annotation: %v", err)
+	}
+
+	// Creating Deployment with secretproviderclass to reload with same config
+	_, err = testutil.CreateDeploymentWithTypedAutoAnnotation(clients.KubernetesClient, arsSecretProviderClassReloadedWithSameConfig, arsNamespace, testutil.SecretProviderClassPodStatusResourceType)
+	if err != nil {
+		logrus.Errorf("Error in Deployment with secretproviderclass to reload with same config: %v", err)
+	}
+
+	// Creating Deployment with secretproviderclass to reload with different config
+	_, err = testutil.CreateDeploymentWithTypedAutoAnnotation(clients.KubernetesClient, arsSecretProviderClassReloadedWithDifferentConfig, arsNamespace, testutil.SecretProviderClassPodStatusResourceType)
+	if err != nil {
+		logrus.Errorf("Error in Deployment with secretproviderclass to reload with different config: %v", err)
 	}
 
 	// Creating Deployment with secret and exclude configmap annotation
@@ -394,6 +487,12 @@ func setupArs() {
 	_, err = testutil.CreateDaemonSet(clients.KubernetesClient, arsSecretName, arsNamespace, true)
 	if err != nil {
 		logrus.Errorf("Error in DaemonSet with secret creation: %v", err)
+	}
+
+	// Creating DaemonSet with secretproviderclass
+	_, err = testutil.CreateDaemonSet(clients.KubernetesClient, arsSecretProviderClassName, arsNamespace, true)
+	if err != nil {
+		logrus.Errorf("Error in DaemonSet with secretproviderclass creation: %v", err)
 	}
 
 	// Creating DaemonSet with configmap in projected volume
@@ -430,6 +529,12 @@ func setupArs() {
 	_, err = testutil.CreateStatefulSet(clients.KubernetesClient, arsSecretName, arsNamespace, true)
 	if err != nil {
 		logrus.Errorf("Error in StatefulSet with secret creation: %v", err)
+	}
+
+	// Creating StatefulSet with secretproviderclass
+	_, err = testutil.CreateStatefulSet(clients.KubernetesClient, arsSecretProviderClassName, arsNamespace, true)
+	if err != nil {
+		logrus.Errorf("Error in StatefulSet with secretproviderclass creation: %v", err)
 	}
 
 	// Creating StatefulSet with configmap in projected volume
@@ -489,6 +594,12 @@ func teardownArs() {
 		logrus.Errorf("Error while deleting deployment with secret %v", deploymentError)
 	}
 
+	// Deleting Deployment with secretproviderclass
+	deploymentError = testutil.DeleteDeployment(clients.KubernetesClient, arsNamespace, arsSecretProviderClassName)
+	if deploymentError != nil {
+		logrus.Errorf("Error while deleting deployment with secretproviderclass %v", deploymentError)
+	}
+
 	// Deleting Deployment with configmap in projected volume
 	deploymentError = testutil.DeleteDeployment(clients.KubernetesClient, arsNamespace, arsProjectedConfigMapName)
 	if deploymentError != nil {
@@ -535,6 +646,12 @@ func teardownArs() {
 	deploymentError = testutil.DeleteDeployment(clients.KubernetesClient, arsNamespace, arsSecretWithInitContainer)
 	if deploymentError != nil {
 		logrus.Errorf("Error while deleting deployment with secret mounted in init container %v", deploymentError)
+	}
+
+	// Deleting Deployment with secretproviderclass mounted in init container
+	deploymentError = testutil.DeleteDeployment(clients.KubernetesClient, arsNamespace, arsSecretProviderClassWithInitContainer)
+	if deploymentError != nil {
+		logrus.Errorf("Error while deleting deployment with secretproviderclass mounted in init container %v", deploymentError)
 	}
 
 	// Deleting Deployment with configmap mounted as env in init container
@@ -585,6 +702,12 @@ func teardownArs() {
 		logrus.Errorf("Error while deleting deployment with secret auto annotation %v", deploymentError)
 	}
 
+	// Deleting Deployment with secretproviderclass and secretproviderclass auto annotation
+	deploymentError = testutil.DeleteDeployment(clients.KubernetesClient, arsNamespace, arsSecretProviderClassWithSPCAutoAnnotation)
+	if deploymentError != nil {
+		logrus.Errorf("Error while deleting deployment with secretproviderclass auto annotation %v", deploymentError)
+	}
+
 	// Deleting Deployment with configmap and configmap auto annotation
 	deploymentError = testutil.DeleteDeployment(clients.KubernetesClient, arsNamespace, arsConfigmapWithConfigMapAutoAnnotation)
 	if deploymentError != nil {
@@ -595,6 +718,24 @@ func teardownArs() {
 	deploymentError = testutil.DeleteDeployment(clients.KubernetesClient, arsNamespace, arsSecretWithExcludeSecretAnnotation)
 	if deploymentError != nil {
 		logrus.Errorf("Error while deleting deployment with secret auto annotation %v", deploymentError)
+	}
+
+	// Deleting Deployment with secretproviderclass and exclude secretproviderclass annotation
+	deploymentError = testutil.DeleteDeployment(clients.KubernetesClient, arsNamespace, arsSecretProviderClassWithExcludeSPCAnnotation)
+	if deploymentError != nil {
+		logrus.Errorf("Error while deleting deployment with secretproviderclass auto annotation %v", deploymentError)
+	}
+
+	// Deleting Deployment with secretproviderclass to reload with same config
+	deploymentError = testutil.DeleteDeployment(clients.KubernetesClient, arsNamespace, arsSecretProviderClassReloadedWithSameConfig)
+	if deploymentError != nil {
+		logrus.Errorf("Error while deleting deployment with secretproviderclass to reload with same config %v", deploymentError)
+	}
+
+	// Deleting Deployment with secretproviderclass to reload with different config
+	deploymentError = testutil.DeleteDeployment(clients.KubernetesClient, arsNamespace, arsSecretProviderClassReloadedWithDifferentConfig)
+	if deploymentError != nil {
+		logrus.Errorf("Error while deleting deployment with secretproviderclass to reload with different config %v", deploymentError)
 	}
 
 	// Deleting Deployment with configmap and exclude configmap annotation
@@ -609,10 +750,16 @@ func teardownArs() {
 		logrus.Errorf("Error while deleting daemonSet with configmap %v", daemonSetError)
 	}
 
-	// Deleting Deployment with secret
+	// Deleting DeamonSet with secret
 	daemonSetError = testutil.DeleteDaemonSet(clients.KubernetesClient, arsNamespace, arsSecretName)
 	if daemonSetError != nil {
 		logrus.Errorf("Error while deleting daemonSet with secret %v", daemonSetError)
+	}
+
+	// Deleting DeamonSet with secretproviderclass
+	daemonSetError = testutil.DeleteDaemonSet(clients.KubernetesClient, arsNamespace, arsSecretProviderClassName)
+	if daemonSetError != nil {
+		logrus.Errorf("Error while deleting daemonSet with secretproviderclass %v", daemonSetError)
 	}
 
 	// Deleting DaemonSet with configmap in projected volume
@@ -645,10 +792,16 @@ func teardownArs() {
 		logrus.Errorf("Error while deleting statefulSet with configmap %v", statefulSetError)
 	}
 
-	// Deleting Deployment with secret
+	// Deleting StatefulSet with secret
 	statefulSetError = testutil.DeleteStatefulSet(clients.KubernetesClient, arsNamespace, arsSecretName)
 	if statefulSetError != nil {
 		logrus.Errorf("Error while deleting statefulSet with secret %v", statefulSetError)
+	}
+
+	// Deleting StatefulSet with secretproviderclass
+	statefulSetError = testutil.DeleteStatefulSet(clients.KubernetesClient, arsNamespace, arsSecretProviderClassName)
+	if statefulSetError != nil {
+		logrus.Errorf("Error while deleting statefulSet with secretproviderclass %v", statefulSetError)
 	}
 
 	// Deleting StatefulSet with configmap in projected volume
@@ -691,6 +844,12 @@ func teardownArs() {
 	err = testutil.DeleteSecret(clients.KubernetesClient, arsNamespace, arsSecretName)
 	if err != nil {
 		logrus.Errorf("Error while deleting the secret %v", err)
+	}
+
+	// Deleting Secretproviderclass
+	err = testutil.DeleteSecretProviderClass(clients.CSIClient, arsNamespace, arsSecretProviderClassName)
+	if err != nil {
+		logrus.Errorf("Error while deleting the secretproviderclass %v", err)
 	}
 
 	// Deleting configmap used in projected volume
@@ -741,6 +900,12 @@ func teardownArs() {
 		logrus.Errorf("Error while deleting the secret used in init container %v", err)
 	}
 
+	// Deleting Secretproviderclass used in init container
+	err = testutil.DeleteSecretProviderClass(clients.CSIClient, arsNamespace, arsSecretProviderClassWithInitContainer)
+	if err != nil {
+		logrus.Errorf("Error while deleting the secretproviderclass used in init container %v", err)
+	}
+
 	// Deleting Configmap used as env var source
 	err = testutil.DeleteConfigMap(clients.KubernetesClient, arsNamespace, arsConfigmapWithEnvFromName)
 	if err != nil {
@@ -776,6 +941,12 @@ func teardownArs() {
 		logrus.Errorf("Error while deleting the secret used with secret auto annotations: %v", err)
 	}
 
+	// Deleting SecretProviderClass used with secretproviderclass auto annotation
+	err = testutil.DeleteSecretProviderClass(clients.CSIClient, arsNamespace, arsSecretProviderClassWithSPCAutoAnnotation)
+	if err != nil {
+		logrus.Errorf("Error while deleting the secretproviderclass used with secretproviderclass auto annotations: %v", err)
+	}
+
 	// Deleting ConfigMap used with configmap auto annotation
 	err = testutil.DeleteConfigMap(clients.KubernetesClient, arsNamespace, arsConfigmapWithConfigMapAutoAnnotation)
 	if err != nil {
@@ -786,6 +957,24 @@ func teardownArs() {
 	err = testutil.DeleteSecret(clients.KubernetesClient, arsNamespace, arsSecretWithExcludeSecretAnnotation)
 	if err != nil {
 		logrus.Errorf("Error while deleting the secret used with secret auto annotations: %v", err)
+	}
+
+	// Deleting Secretproviderclass used with exclude secretproviderclass annotation
+	err = testutil.DeleteSecretProviderClass(clients.CSIClient, arsNamespace, arsSecretProviderClassWithExcludeSPCAnnotation)
+	if err != nil {
+		logrus.Errorf("Error while deleting the secretproviderclass used with secretproviderclass auto annotations: %v", err)
+	}
+
+	// Deleting SecretProviderClass used with secretproviderclass to reload with same config
+	err = testutil.DeleteSecretProviderClass(clients.CSIClient, arsNamespace, arsSecretProviderClassReloadedWithSameConfig)
+	if err != nil {
+		logrus.Errorf("Error while deleting the secretproviderclass used with secretproviderclass to reload with same config: %v", err)
+	}
+
+	// Deleting SecretProviderClass used with secretproviderclass to reload with different config
+	err = testutil.DeleteSecretProviderClass(clients.CSIClient, arsNamespace, arsSecretProviderClassReloadedWithDifferentConfig)
+	if err != nil {
+		logrus.Errorf("Error while deleting the secretproviderclass used with secretproviderclass to reload with different config: %v", err)
 	}
 
 	// Deleting ConfigMap used with exclude configmap annotation
@@ -817,6 +1006,12 @@ func setupErs() {
 	_, err = testutil.CreateSecret(clients.KubernetesClient, ersNamespace, ersSecretName, data)
 	if err != nil {
 		logrus.Errorf("Error in secret creation: %v", err)
+	}
+
+	// Creating secretproviderclass
+	_, err = testutil.CreateSecretProviderClass(clients.CSIClient, ersNamespace, ersSecretProviderClassName, "testing")
+	if err != nil {
+		logrus.Errorf("Error in secretproviderclass creation: %v", err)
 	}
 
 	// Creating configmap will be used in projected volume
@@ -893,6 +1088,12 @@ func setupErs() {
 		logrus.Errorf("Error in secret creation: %v", err)
 	}
 
+	// Creating secretproviderclass
+	_, err = testutil.CreateSecretProviderClass(clients.CSIClient, ersNamespace, ersSecretProviderClassWithInitContainer, "testing")
+	if err != nil {
+		logrus.Errorf("Error in secretproviderclass creation: %v", err)
+	}
+
 	_, err = testutil.CreateConfigMap(clients.KubernetesClient, ersNamespace, ersConfigmapWithPodAnnotations, "www.google.com")
 	if err != nil {
 		logrus.Errorf("Error in configmap creation: %v", err)
@@ -910,6 +1111,12 @@ func setupErs() {
 		logrus.Errorf("Error in configmap creation: %v", err)
 	}
 
+	// Creating secretproviderclass used with secretproviderclass auto annotation
+	_, err = testutil.CreateSecretProviderClass(clients.CSIClient, ersNamespace, ersSecretProviderClassWithSPCAutoAnnotation, "testing")
+	if err != nil {
+		logrus.Errorf("Error in secretproviderclass creation: %v", err)
+	}
+
 	// Creating secret used with secret exclude annotation
 	_, err = testutil.CreateSecret(clients.KubernetesClient, ersNamespace, ersSecretWithSecretExcludeAnnotation, data)
 	if err != nil {
@@ -920,6 +1127,24 @@ func setupErs() {
 	_, err = testutil.CreateConfigMap(clients.KubernetesClient, ersNamespace, ersConfigmapWithConfigMapExcludeAnnotation, "www.google.com")
 	if err != nil {
 		logrus.Errorf("Error in configmap creation: %v", err)
+	}
+
+	// Creating secretproviderclass used with secret exclude annotation
+	_, err = testutil.CreateSecretProviderClass(clients.CSIClient, ersNamespace, ersSecretProviderClassWithExcludeSPCAnnotation, "testing")
+	if err != nil {
+		logrus.Errorf("Error in secretproviderclass creation: %v", err)
+	}
+
+	// Creating secretproviderclass to reload with same config
+	_, err = testutil.CreateSecretProviderClass(clients.CSIClient, ersNamespace, ersSecretProviderClassReloadedWithSameConfig, "testing")
+	if err != nil {
+		logrus.Errorf("Error in secretproviderclass creation: %v", err)
+	}
+
+	// Creating secretproviderclass to reload with different config
+	_, err = testutil.CreateSecretProviderClass(clients.CSIClient, ersNamespace, ersSecretProviderClassReloadedWithDifferentConfig, "testing")
+	if err != nil {
+		logrus.Errorf("Error in secretproviderclass creation: %v", err)
 	}
 
 	// Creating configmap with ignore annotation
@@ -992,6 +1217,12 @@ func setupErs() {
 		logrus.Errorf("Error in Deployment with secret creation: %v", err)
 	}
 
+	// Creating Deployment with secretproviderclass mounted in init container
+	_, err = testutil.CreateDeploymentWithInitContainer(clients.KubernetesClient, ersSecretProviderClassWithInitContainer, ersNamespace, true)
+	if err != nil {
+		logrus.Errorf("Error in Deployment with secretproviderclass creation: %v", err)
+	}
+
 	// Creating Deployment with configmap mounted as Env in init container
 	_, err = testutil.CreateDeploymentWithInitContainer(clients.KubernetesClient, ersConfigmapWithInitEnv, ersNamespace, false)
 	if err != nil {
@@ -1008,6 +1239,12 @@ func setupErs() {
 	_, err = testutil.CreateDeployment(clients.KubernetesClient, ersSecretName, ersNamespace, true)
 	if err != nil {
 		logrus.Errorf("Error in Deployment with secret creation: %v", err)
+	}
+
+	// Creating Deployment with secretproviderclass
+	_, err = testutil.CreateDeployment(clients.KubernetesClient, ersSecretProviderClassName, ersNamespace, true)
+	if err != nil {
+		logrus.Errorf("Error in Deployment with secretproviderclass creation: %v", err)
 	}
 
 	// Creating Deployment with env var source as configmap
@@ -1057,6 +1294,12 @@ func setupErs() {
 		logrus.Errorf("Error in Deployment with configmap and with configmap auto annotation: %v", err)
 	}
 
+	// Creating Deployment with secretproviderclass and with secretproviderclass auto annotation
+	_, err = testutil.CreateDeploymentWithTypedAutoAnnotation(clients.KubernetesClient, ersSecretProviderClassWithSPCAutoAnnotation, ersNamespace, testutil.SecretProviderClassPodStatusResourceType)
+	if err != nil {
+		logrus.Errorf("Error in Deployment with secretproviderclass and with secretproviderclass auto annotation: %v", err)
+	}
+
 	// Creating Deployment with secret and with secret exclude annotation
 	_, err = testutil.CreateDeploymentWithExcludeAnnotation(clients.KubernetesClient, ersSecretWithSecretExcludeAnnotation, ersNamespace, testutil.SecretResourceType)
 	if err != nil {
@@ -1067,6 +1310,12 @@ func setupErs() {
 	_, err = testutil.CreateDeploymentWithExcludeAnnotation(clients.KubernetesClient, ersConfigmapWithConfigMapExcludeAnnotation, ersNamespace, testutil.ConfigmapResourceType)
 	if err != nil {
 		logrus.Errorf("Error in Deployment with configmap and with configmap exclude annotation: %v", err)
+	}
+
+	// Creating Deployment with secretproviderclass and with secretproviderclass exclude annotation
+	_, err = testutil.CreateDeploymentWithExcludeAnnotation(clients.KubernetesClient, ersSecretProviderClassWithExcludeSPCAnnotation, ersNamespace, testutil.SecretProviderClassPodStatusResourceType)
+	if err != nil {
+		logrus.Errorf("Error in Deployment with secretproviderclass and with secretproviderclass exclude annotation: %v", err)
 	}
 
 	// Creating Deployment with pause annotation
@@ -1085,6 +1334,12 @@ func setupErs() {
 	_, err = testutil.CreateDaemonSet(clients.KubernetesClient, ersSecretName, ersNamespace, true)
 	if err != nil {
 		logrus.Errorf("Error in DaemonSet with secret creation: %v", err)
+	}
+
+	// Creating DaemonSet with secretproviderclass
+	_, err = testutil.CreateDaemonSet(clients.KubernetesClient, ersSecretProviderClassName, ersNamespace, true)
+	if err != nil {
+		logrus.Errorf("Error in DaemonSet with secretproviderclass creation: %v", err)
 	}
 
 	// Creating DaemonSet with configmap in projected volume
@@ -1123,6 +1378,12 @@ func setupErs() {
 		logrus.Errorf("Error in StatefulSet with secret creation: %v", err)
 	}
 
+	// Creating StatefulSet with secretproviderclass
+	_, err = testutil.CreateStatefulSet(clients.KubernetesClient, ersSecretProviderClassName, ersNamespace, true)
+	if err != nil {
+		logrus.Errorf("Error in StatefulSet with secretproviderclass creation: %v", err)
+	}
+
 	// Creating StatefulSet with configmap in projected volume
 	_, err = testutil.CreateStatefulSet(clients.KubernetesClient, ersProjectedConfigMapName, ersNamespace, true)
 	if err != nil {
@@ -1158,6 +1419,18 @@ func setupErs() {
 	if err != nil {
 		logrus.Errorf("Error in Deployment with both annotations: %v", err)
 	}
+
+	// Creating Deployment with secretproviderclass to reload with same config
+	_, err = testutil.CreateDeploymentWithTypedAutoAnnotation(clients.KubernetesClient, ersSecretProviderClassReloadedWithSameConfig, ersNamespace, testutil.SecretProviderClassPodStatusResourceType)
+	if err != nil {
+		logrus.Errorf("Error in Deployment with secretproviderclass to reload with same config: %v", err)
+	}
+
+	// Creating Deployment with secretproviderclass to reload with different config
+	_, err = testutil.CreateDeploymentWithTypedAutoAnnotation(clients.KubernetesClient, ersSecretProviderClassReloadedWithDifferentConfig, ersNamespace, testutil.SecretProviderClassPodStatusResourceType)
+	if err != nil {
+		logrus.Errorf("Error in Deployment with secretproviderclass to reload with different config: %v", err)
+	}
 }
 
 func teardownErs() {
@@ -1171,6 +1444,12 @@ func teardownErs() {
 	deploymentError = testutil.DeleteDeployment(clients.KubernetesClient, ersNamespace, ersSecretName)
 	if deploymentError != nil {
 		logrus.Errorf("Error while deleting deployment with secret %v", deploymentError)
+	}
+
+	// Deleting Deployment with secretproviderclass
+	deploymentError = testutil.DeleteDeployment(clients.KubernetesClient, ersNamespace, ersSecretProviderClassName)
+	if deploymentError != nil {
+		logrus.Errorf("Error while deleting deployment with secretprovider class %v", deploymentError)
 	}
 
 	// Deleting Deployment with configmap in projected volume
@@ -1219,6 +1498,12 @@ func teardownErs() {
 	deploymentError = testutil.DeleteDeployment(clients.KubernetesClient, ersNamespace, ersSecretWithInitContainer)
 	if deploymentError != nil {
 		logrus.Errorf("Error while deleting deployment with secret mounted in init container %v", deploymentError)
+	}
+
+	// Deleting Deployment with secretproviderclass mounted in init container
+	deploymentError = testutil.DeleteDeployment(clients.KubernetesClient, ersNamespace, ersSecretProviderClassWithInitContainer)
+	if deploymentError != nil {
+		logrus.Errorf("Error while deleting deployment with secretproviderclass mounted in init container %v", deploymentError)
 	}
 
 	// Deleting Deployment with configmap mounted as env in init container
@@ -1275,6 +1560,12 @@ func teardownErs() {
 		logrus.Errorf("Error while deleting deployment with configmap auto annotation %v", deploymentError)
 	}
 
+	// Deleting Deployment with secretproviderclass and secretproviderclass auto annotation
+	deploymentError = testutil.DeleteDeployment(clients.KubernetesClient, ersNamespace, ersSecretProviderClassWithSPCAutoAnnotation)
+	if deploymentError != nil {
+		logrus.Errorf("Error while deleting deployment with secretproviderclass auto annotation %v", deploymentError)
+	}
+
 	// Deleting Deployment with secret and secret exclude annotation
 	deploymentError = testutil.DeleteDeployment(clients.KubernetesClient, ersNamespace, ersSecretWithSecretExcludeAnnotation)
 	if deploymentError != nil {
@@ -1287,16 +1578,40 @@ func teardownErs() {
 		logrus.Errorf("Error while deleting deployment with configmap exclude annotation %v", deploymentError)
 	}
 
+	// Deleting Deployment with secretproviderclass and secretproviderclass exclude annotation
+	deploymentError = testutil.DeleteDeployment(clients.KubernetesClient, ersNamespace, ersSecretProviderClassWithExcludeSPCAnnotation)
+	if deploymentError != nil {
+		logrus.Errorf("Error while deleting deployment with secretproviderclass exclude annotation %v", deploymentError)
+	}
+
+	// Deleting Deployment with secretproviderclass to reload with same config
+	deploymentError = testutil.DeleteDeployment(clients.KubernetesClient, ersNamespace, ersSecretProviderClassReloadedWithSameConfig)
+	if deploymentError != nil {
+		logrus.Errorf("Error while deleting deployment with secretproviderclass to reload with same config %v", deploymentError)
+	}
+
+	// Deleting Deployment with secretproviderclass to reload with different config
+	deploymentError = testutil.DeleteDeployment(clients.KubernetesClient, ersNamespace, ersSecretProviderClassReloadedWithDifferentConfig)
+	if deploymentError != nil {
+		logrus.Errorf("Error while deleting deployment with secretproviderclass to reload with different config %v", deploymentError)
+	}
+
 	// Deleting DaemonSet with configmap
 	daemonSetError := testutil.DeleteDaemonSet(clients.KubernetesClient, ersNamespace, ersConfigmapName)
 	if daemonSetError != nil {
 		logrus.Errorf("Error while deleting daemonSet with configmap %v", daemonSetError)
 	}
 
-	// Deleting Deployment with secret
+	// Deleting DaemonSet with secret
 	daemonSetError = testutil.DeleteDaemonSet(clients.KubernetesClient, ersNamespace, ersSecretName)
 	if daemonSetError != nil {
 		logrus.Errorf("Error while deleting daemonSet with secret %v", daemonSetError)
+	}
+
+	// Deleting DaemonSet with secretproviderclass
+	daemonSetError = testutil.DeleteDaemonSet(clients.KubernetesClient, ersNamespace, ersSecretProviderClassName)
+	if daemonSetError != nil {
+		logrus.Errorf("Error while deleting daemonSet with secretproviderclass %v", daemonSetError)
 	}
 
 	// Deleting DaemonSet with configmap in projected volume
@@ -1329,10 +1644,16 @@ func teardownErs() {
 		logrus.Errorf("Error while deleting statefulSet with configmap %v", statefulSetError)
 	}
 
-	// Deleting Deployment with secret
+	// Deleting StatefulSet with secret
 	statefulSetError = testutil.DeleteStatefulSet(clients.KubernetesClient, ersNamespace, ersSecretName)
 	if statefulSetError != nil {
 		logrus.Errorf("Error while deleting statefulSet with secret %v", statefulSetError)
+	}
+
+	// Deleting StatefulSet with secretproviderclass
+	statefulSetError = testutil.DeleteStatefulSet(clients.KubernetesClient, ersNamespace, ersSecretProviderClassName)
+	if statefulSetError != nil {
+		logrus.Errorf("Error while deleting statefulSet with secretproviderclass %v", statefulSetError)
 	}
 
 	// Deleting StatefulSet with configmap in projected volume
@@ -1375,6 +1696,12 @@ func teardownErs() {
 	err = testutil.DeleteSecret(clients.KubernetesClient, ersNamespace, ersSecretName)
 	if err != nil {
 		logrus.Errorf("Error while deleting the secret %v", err)
+	}
+
+	// Deleting SecretProviderClass
+	err = testutil.DeleteSecretProviderClass(clients.CSIClient, ersNamespace, ersSecretProviderClassName)
+	if err != nil {
+		logrus.Errorf("Error while deleting the secretproviderclass %v", err)
 	}
 
 	// Deleting configmap used in projected volume
@@ -1425,6 +1752,12 @@ func teardownErs() {
 		logrus.Errorf("Error while deleting the secret used in init container %v", err)
 	}
 
+	// Deleting SecretProviderClass used in init container
+	err = testutil.DeleteSecretProviderClass(clients.CSIClient, ersNamespace, ersSecretProviderClassWithInitContainer)
+	if err != nil {
+		logrus.Errorf("Error while deleting the secretproviderclass used in init container %v", err)
+	}
+
 	// Deleting Configmap used as env var source
 	err = testutil.DeleteConfigMap(clients.KubernetesClient, ersNamespace, ersConfigmapWithEnvFromName)
 	if err != nil {
@@ -1466,6 +1799,12 @@ func teardownErs() {
 		logrus.Errorf("Error while deleting the configmap used with configmap auto annotation: %v", err)
 	}
 
+	// Deleting SecretProviderClass used with secretproviderclass auto annotation
+	err = testutil.DeleteSecretProviderClass(clients.CSIClient, ersNamespace, ersSecretProviderClassWithSPCAutoAnnotation)
+	if err != nil {
+		logrus.Errorf("Error while deleting the secretproviderclass used with secretproviderclass auto annotation: %v", err)
+	}
+
 	// Deleting Secret used with secret exclude annotation
 	err = testutil.DeleteSecret(clients.KubernetesClient, ersNamespace, ersSecretWithSecretExcludeAnnotation)
 	if err != nil {
@@ -1478,6 +1817,23 @@ func teardownErs() {
 		logrus.Errorf("Error while deleting the configmap used with configmap exclude annotation: %v", err)
 	}
 
+	// Deleting SecretProviderClass used with secretproviderclass exclude annotation
+	err = testutil.DeleteSecretProviderClass(clients.CSIClient, ersNamespace, ersSecretProviderClassWithExcludeSPCAnnotation)
+	if err != nil {
+		logrus.Errorf("Error while deleting the secretproviderclass used with secretproviderclass exclude annotation: %v", err)
+	}
+
+	// Deleting SecretProviderClass used with secretproviderclass to reload with same config
+	err = testutil.DeleteSecretProviderClass(clients.CSIClient, ersNamespace, ersSecretProviderClassReloadedWithSameConfig)
+	if err != nil {
+		logrus.Errorf("Error while deleting the secretproviderclass used with secretproviderclass to reload with same config: %v", err)
+	}
+
+	// Deleting SecretProviderClass used with secretproviderclass to reload with different config
+	err = testutil.DeleteSecretProviderClass(clients.CSIClient, ersNamespace, ersSecretProviderClassReloadedWithDifferentConfig)
+	if err != nil {
+		logrus.Errorf("Error while deleting the secretproviderclass used with secretproviderclass to reload with different config: %v", err)
+	}
 	// Deleting ConfigMap for testing pausing deployments
 	err = testutil.DeleteConfigMap(clients.KubernetesClient, ersNamespace, ersConfigmapWithPausedDeployment)
 	if err != nil {
@@ -2042,6 +2398,38 @@ func TestRollingUpgradeForDeploymentWithSecretUsingArs(t *testing.T) {
 	testRollingUpgradeInvokeDeleteStrategyArs(t, clients, config, deploymentFuncs, collectors, envVarPostfix)
 }
 
+func TestRollingUpgradeForDeploymentWithSecretProviderClassUsingArs(t *testing.T) {
+	options.ReloadStrategy = constants.AnnotationsReloadStrategy
+	envVarPostfix := constants.SecretProviderClassEnvVarPostfix
+
+	shaData := testutil.ConvertResourceToSHA(testutil.SecretProviderClassPodStatusResourceType, arsNamespace, arsSecretProviderClassName, "testing1")
+	config := getConfigWithAnnotations(envVarPostfix, arsSecretProviderClassName, shaData, options.SecretProviderClassUpdateOnChangeAnnotation, options.SecretProviderClassReloaderAutoAnnotation)
+	deploymentFuncs := GetDeploymentRollingUpgradeFuncs()
+	collectors := getCollectors()
+
+	err := PerformAction(clients, config, deploymentFuncs, collectors, nil, invokeReloadStrategy)
+	time.Sleep(5 * time.Second)
+	if err != nil {
+		t.Errorf("Rolling upgrade failed for Deployment with SecretProviderClass")
+	}
+
+	logrus.Infof("Verifying deployment update")
+	updated := testutil.VerifyResourceAnnotationUpdate(clients, config, deploymentFuncs)
+	if !updated {
+		t.Errorf("Deployment was not updated")
+	}
+
+	if promtestutil.ToFloat64(collectors.Reloaded.With(labelSucceeded)) != 1 {
+		t.Errorf("Counter was not increased")
+	}
+
+	if promtestutil.ToFloat64(collectors.ReloadedByNamespace.With(prometheus.Labels{"success": "true", "namespace": arsNamespace})) != 1 {
+		t.Errorf("Counter by namespace was not increased")
+	}
+
+	testRollingUpgradeInvokeDeleteStrategyArs(t, clients, config, deploymentFuncs, collectors, envVarPostfix)
+}
+
 func TestRollingUpgradeForDeploymentWithSecretInProjectedVolumeUsingArs(t *testing.T) {
 	options.ReloadStrategy = constants.AnnotationsReloadStrategy
 	envVarPostfix := constants.SecretEnvVarPostfix
@@ -2087,6 +2475,38 @@ func TestRollingUpgradeForDeploymentWithSecretinInitContainerUsingArs(t *testing
 	time.Sleep(5 * time.Second)
 	if err != nil {
 		t.Errorf("Rolling upgrade failed for Deployment with Secret")
+	}
+
+	logrus.Infof("Verifying deployment update")
+	updated := testutil.VerifyResourceAnnotationUpdate(clients, config, deploymentFuncs)
+	if !updated {
+		t.Errorf("Deployment was not updated")
+	}
+
+	if promtestutil.ToFloat64(collectors.Reloaded.With(labelSucceeded)) != 1 {
+		t.Errorf("Counter was not increased")
+	}
+
+	if promtestutil.ToFloat64(collectors.ReloadedByNamespace.With(prometheus.Labels{"success": "true", "namespace": arsNamespace})) != 1 {
+		t.Errorf("Counter by namespace was not increased")
+	}
+
+	testRollingUpgradeInvokeDeleteStrategyArs(t, clients, config, deploymentFuncs, collectors, envVarPostfix)
+}
+
+func TestRollingUpgradeForDeploymentWithSecretproviderclassInInitContainerUsingArs(t *testing.T) {
+	options.ReloadStrategy = constants.AnnotationsReloadStrategy
+	envVarPostfix := constants.SecretProviderClassEnvVarPostfix
+
+	shaData := testutil.ConvertResourceToSHA(testutil.SecretProviderClassPodStatusResourceType, arsNamespace, arsSecretProviderClassWithInitContainer, "testing1")
+	config := getConfigWithAnnotations(envVarPostfix, arsSecretProviderClassWithInitContainer, shaData, options.SecretProviderClassUpdateOnChangeAnnotation, options.SecretProviderClassReloaderAutoAnnotation)
+	deploymentFuncs := GetDeploymentRollingUpgradeFuncs()
+	collectors := getCollectors()
+
+	err := PerformAction(clients, config, deploymentFuncs, collectors, nil, invokeReloadStrategy)
+	time.Sleep(5 * time.Second)
+	if err != nil {
+		t.Errorf("Rolling upgrade failed for Deployment with SecretProviderClass")
 	}
 
 	logrus.Infof("Verifying deployment update")
@@ -2254,6 +2674,100 @@ func TestRollingUpgradeForDeploymentWithSecretExcludeAnnotationUsingArs(t *testi
 	}
 }
 
+func TestRollingUpgradeForDeploymentWithSecretproviderclassExcludeAnnotationUsingArs(t *testing.T) {
+	options.ReloadStrategy = constants.AnnotationsReloadStrategy
+	envVarPostfix := constants.SecretProviderClassEnvVarPostfix
+
+	shaData := testutil.ConvertResourceToSHA(testutil.SecretProviderClassPodStatusResourceType, arsNamespace, arsSecretProviderClassWithExcludeSPCAnnotation, "testing1")
+	config := getConfigWithAnnotations(envVarPostfix, arsSecretProviderClassWithExcludeSPCAnnotation, shaData, "", options.SecretProviderClassReloaderAutoAnnotation)
+	deploymentFuncs := GetDeploymentRollingUpgradeFuncs()
+	collectors := getCollectors()
+
+	err := PerformAction(clients, config, deploymentFuncs, collectors, nil, invokeReloadStrategy)
+	if err != nil {
+		t.Errorf("Rolling upgrade failed for Deployment with SecretProviderClass")
+	}
+
+	logrus.Infof("Verifying deployment did not update")
+	updated := testutil.VerifyResourceAnnotationUpdate(clients, config, deploymentFuncs)
+	if updated {
+		t.Errorf("Deployment which had to be exluded was updated")
+	}
+}
+
+func TestRollingUpgradeForDeploymentWithSecretProviderClassReloadedWithSameConfigUsingArs(t *testing.T) {
+	options.ReloadStrategy = constants.AnnotationsReloadStrategy
+	envVarPostfix := constants.SecretProviderClassEnvVarPostfix
+
+	shaData := testutil.ConvertResourceToSHA(testutil.SecretProviderClassPodStatusResourceType, arsNamespace, arsSecretProviderClassReloadedWithSameConfig, "testing1")
+	config := getConfigWithAnnotations(envVarPostfix, arsSecretProviderClassReloadedWithSameConfig, shaData, "", options.SecretProviderClassReloaderAutoAnnotation)
+	deploymentFuncs := GetDeploymentRollingUpgradeFuncs()
+	collectors := getCollectors()
+
+	err := PerformAction(clients, config, deploymentFuncs, collectors, nil, invokeReloadStrategy)
+	time.Sleep(5 * time.Second)
+	if err != nil {
+		t.Errorf("Rolling upgrade failed for Deployment with same config")
+	}
+
+	logrus.Infof("Verifying deployment did update")
+	updated := testutil.VerifyResourceAnnotationUpdate(clients, config, deploymentFuncs)
+	if !updated {
+		t.Errorf("Deployment was not updated")
+	}
+
+	logrus.Infof("Performing reload using same config")
+	err = PerformAction(clients, config, deploymentFuncs, collectors, nil, invokeReloadStrategy)
+	time.Sleep(5 * time.Second)
+	if err != nil {
+		t.Errorf("Second rolling upgrade failed for Deployment with same config")
+	}
+
+	logrus.Infof("Verifying second reload did not reload")
+	if promtestutil.ToFloat64(collectors.Reloaded.With(labelSucceeded)) != 1 &&
+		promtestutil.ToFloat64(collectors.Reloaded.With(labelFailed)) != 0 {
+		t.Errorf("Second reload with same config updated Deployment")
+	}
+}
+
+func TestRollingUpgradeForDeploymentWithSecretProviderClassReloadedWithDifferentConfigUsingArs(t *testing.T) {
+	options.ReloadStrategy = constants.AnnotationsReloadStrategy
+	envVarPostfix := constants.SecretProviderClassEnvVarPostfix
+
+	shaData := testutil.ConvertResourceToSHA(testutil.SecretProviderClassPodStatusResourceType, arsNamespace, arsSecretProviderClassReloadedWithDifferentConfig, "testing1")
+	config := getConfigWithAnnotations(envVarPostfix, arsSecretProviderClassReloadedWithDifferentConfig, shaData, "", options.SecretProviderClassReloaderAutoAnnotation)
+	deploymentFuncs := GetDeploymentRollingUpgradeFuncs()
+	collectors := getCollectors()
+
+	err := PerformAction(clients, config, deploymentFuncs, collectors, nil, invokeReloadStrategy)
+	time.Sleep(5 * time.Second)
+	if err != nil {
+		t.Errorf("Rolling upgrade failed for Deployment with different config")
+	}
+
+	logrus.Infof("Verifying deployment did update")
+	updated := testutil.VerifyResourceAnnotationUpdate(clients, config, deploymentFuncs)
+	if !updated {
+		t.Errorf("Deployment was not updated")
+	}
+
+	logrus.Infof("Applying different config")
+	shaData = testutil.ConvertResourceToSHA(testutil.SecretProviderClassPodStatusResourceType, arsNamespace, arsSecretProviderClassReloadedWithDifferentConfig, "testing2")
+	config.SHAValue = shaData
+
+	err = PerformAction(clients, config, deploymentFuncs, collectors, nil, invokeReloadStrategy)
+	time.Sleep(5 * time.Second)
+	if err != nil {
+		t.Errorf("Second rolling upgrade failed for Deployment with different config")
+	}
+
+	logrus.Infof("Verifying deployment did update")
+	if promtestutil.ToFloat64(collectors.Reloaded.With(labelSucceeded)) != 2 &&
+		promtestutil.ToFloat64(collectors.Reloaded.With(labelFailed)) != 0 {
+		t.Errorf("Second reload with different config did not update Deployment")
+	}
+}
+
 func TestRollingUpgradeForDeploymentWithSecretAutoAnnotationUsingArs(t *testing.T) {
 	options.ReloadStrategy = constants.AnnotationsReloadStrategy
 	envVarPostfix := constants.SecretEnvVarPostfix
@@ -2267,6 +2781,38 @@ func TestRollingUpgradeForDeploymentWithSecretAutoAnnotationUsingArs(t *testing.
 	time.Sleep(5 * time.Second)
 	if err != nil {
 		t.Errorf("Rolling upgrade failed for Deployment with Secret")
+	}
+
+	logrus.Infof("Verifying deployment update")
+	updated := testutil.VerifyResourceAnnotationUpdate(clients, config, deploymentFuncs)
+	if !updated {
+		t.Errorf("Deployment was not updated")
+	}
+
+	if promtestutil.ToFloat64(collectors.Reloaded.With(labelSucceeded)) != 1 {
+		t.Errorf("Counter was not increased")
+	}
+
+	if promtestutil.ToFloat64(collectors.ReloadedByNamespace.With(prometheus.Labels{"success": "true", "namespace": arsNamespace})) != 1 {
+		t.Errorf("Counter by namespace was not increased")
+	}
+
+	testRollingUpgradeInvokeDeleteStrategyArs(t, clients, config, deploymentFuncs, collectors, envVarPostfix)
+}
+
+func TestRollingUpgradeForDeploymentWithSecretProviderClassAutoAnnotationUsingArs(t *testing.T) {
+	options.ReloadStrategy = constants.AnnotationsReloadStrategy
+	envVarPostfix := constants.SecretProviderClassEnvVarPostfix
+
+	shaData := testutil.ConvertResourceToSHA(testutil.SecretProviderClassPodStatusResourceType, arsNamespace, arsSecretProviderClassWithSPCAutoAnnotation, "testing1")
+	config := getConfigWithAnnotations(envVarPostfix, arsSecretProviderClassWithSPCAutoAnnotation, shaData, "", options.SecretProviderClassReloaderAutoAnnotation)
+	deploymentFuncs := GetDeploymentRollingUpgradeFuncs()
+	collectors := getCollectors()
+
+	err := PerformAction(clients, config, deploymentFuncs, collectors, nil, invokeReloadStrategy)
+	time.Sleep(5 * time.Second)
+	if err != nil {
+		t.Errorf("Rolling upgrade failed for Deployment with SecretProviderClass")
 	}
 
 	logrus.Infof("Verifying deployment update")
@@ -2538,6 +3084,38 @@ func TestRollingUpgradeForDaemonSetWithSecretUsingArs(t *testing.T) {
 	testRollingUpgradeInvokeDeleteStrategyArs(t, clients, config, daemonSetFuncs, collectors, envVarPostfix)
 }
 
+func TestRollingUpgradeForDaemonSetWithSecretProviderClassUsingArs(t *testing.T) {
+	options.ReloadStrategy = constants.AnnotationsReloadStrategy
+	envVarPostfix := constants.SecretProviderClassEnvVarPostfix
+
+	shaData := testutil.ConvertResourceToSHA(testutil.SecretProviderClassPodStatusResourceType, arsNamespace, arsSecretProviderClassName, "testing1")
+	config := getConfigWithAnnotations(envVarPostfix, arsSecretProviderClassName, shaData, options.SecretProviderClassUpdateOnChangeAnnotation, options.SecretProviderClassReloaderAutoAnnotation)
+	daemonSetFuncs := GetDaemonSetRollingUpgradeFuncs()
+	collectors := getCollectors()
+
+	err := PerformAction(clients, config, daemonSetFuncs, collectors, nil, invokeReloadStrategy)
+	time.Sleep(5 * time.Second)
+	if err != nil {
+		t.Errorf("Rolling upgrade failed for DaemonSet with SecretProviderClass")
+	}
+
+	logrus.Infof("Verifying daemonSet update")
+	updated := testutil.VerifyResourceAnnotationUpdate(clients, config, daemonSetFuncs)
+	if !updated {
+		t.Errorf("DaemonSet was not updated")
+	}
+
+	if promtestutil.ToFloat64(collectors.Reloaded.With(labelSucceeded)) != 1 {
+		t.Errorf("Counter was not increased")
+	}
+
+	if promtestutil.ToFloat64(collectors.ReloadedByNamespace.With(prometheus.Labels{"success": "true", "namespace": arsNamespace})) != 1 {
+		t.Errorf("Counter by namespace was not increased")
+	}
+
+	testRollingUpgradeInvokeDeleteStrategyArs(t, clients, config, daemonSetFuncs, collectors, envVarPostfix)
+}
+
 func TestRollingUpgradeForDaemonSetWithSecretInProjectedVolumeUsingArs(t *testing.T) {
 	options.ReloadStrategy = constants.AnnotationsReloadStrategy
 	envVarPostfix := constants.SecretEnvVarPostfix
@@ -2732,6 +3310,38 @@ func TestRollingUpgradeForStatefulSetWithSecretUsingArs(t *testing.T) {
 
 	if promtestutil.ToFloat64(collectors.ReloadedByNamespace.With(prometheus.Labels{"success": "true", "namespace": arsNamespace})) != 1 {
 		t.Errorf("Counter by namespace was not increased")
+	}
+
+	testRollingUpgradeInvokeDeleteStrategyArs(t, clients, config, statefulSetFuncs, collectors, envVarPostfix)
+}
+
+func TestRollingUpgradeForStatefulSetWithSecretProviderClassUsingArs(t *testing.T) {
+	options.ReloadStrategy = constants.AnnotationsReloadStrategy
+	envVarPostfix := constants.SecretProviderClassEnvVarPostfix
+
+	shaData := testutil.ConvertResourceToSHA(testutil.SecretProviderClassPodStatusResourceType, arsNamespace, arsSecretProviderClassName, "testing1")
+	config := getConfigWithAnnotations(envVarPostfix, arsSecretProviderClassName, shaData, options.SecretProviderClassUpdateOnChangeAnnotation, options.SecretProviderClassReloaderAutoAnnotation)
+	statefulSetFuncs := GetStatefulSetRollingUpgradeFuncs()
+	collectors := getCollectors()
+
+	err := PerformAction(clients, config, statefulSetFuncs, collectors, nil, invokeReloadStrategy)
+	time.Sleep(5 * time.Second)
+	if err != nil {
+		t.Errorf("Rolling upgrade failed for StatefulSet with SecretProviderClass: %v", err)
+	}
+
+	logrus.Infof("Verifying statefulSet update")
+	updated := testutil.VerifyResourceAnnotationUpdate(clients, config, statefulSetFuncs)
+	if !updated {
+		t.Errorf("StatefulSet was not updated")
+	}
+
+	if promtestutil.ToFloat64(collectors.Reloaded.With(labelSucceeded)) != 1 {
+		t.Errorf("Counter was not increased, expected 1 but got %f", promtestutil.ToFloat64(collectors.Reloaded.With(labelSucceeded)))
+	}
+
+	if promtestutil.ToFloat64(collectors.ReloadedByNamespace.With(prometheus.Labels{"success": "true", "namespace": arsNamespace})) != 1 {
+		t.Errorf("Counter by namespace was not increased, expected 1 but got %f", promtestutil.ToFloat64(collectors.ReloadedByNamespace.With(prometheus.Labels{"success": "true", "namespace": arsNamespace})))
 	}
 
 	testRollingUpgradeInvokeDeleteStrategyArs(t, clients, config, statefulSetFuncs, collectors, envVarPostfix)
@@ -3349,6 +3959,38 @@ func TestRollingUpgradeForDeploymentWithSecretUsingErs(t *testing.T) {
 	testRollingUpgradeInvokeDeleteStrategyErs(t, clients, config, deploymentFuncs, collectors, envVarPostfix)
 }
 
+func TestRollingUpgradeForDeploymentWithSecretProviderClassUsingErs(t *testing.T) {
+	options.ReloadStrategy = constants.EnvVarsReloadStrategy
+	envVarPostfix := constants.SecretProviderClassEnvVarPostfix
+
+	shaData := testutil.ConvertResourceToSHA(testutil.SecretProviderClassPodStatusResourceType, ersNamespace, ersSecretProviderClassName, "testing1")
+	config := getConfigWithAnnotations(envVarPostfix, ersSecretProviderClassName, shaData, options.SecretProviderClassUpdateOnChangeAnnotation, options.SecretProviderClassReloaderAutoAnnotation)
+	deploymentFuncs := GetDeploymentRollingUpgradeFuncs()
+	collectors := getCollectors()
+
+	err := PerformAction(clients, config, deploymentFuncs, collectors, nil, invokeReloadStrategy)
+	time.Sleep(5 * time.Second)
+	if err != nil {
+		t.Errorf("Rolling upgrade failed for Deployment with SecretProviderClass")
+	}
+
+	logrus.Infof("Verifying deployment update")
+	updated := testutil.VerifyResourceEnvVarUpdate(clients, config, envVarPostfix, deploymentFuncs)
+	if !updated {
+		t.Errorf("Deployment was not updated")
+	}
+
+	if promtestutil.ToFloat64(collectors.Reloaded.With(labelSucceeded)) != 1 {
+		t.Errorf("Counter was not increased")
+	}
+
+	if promtestutil.ToFloat64(collectors.ReloadedByNamespace.With(prometheus.Labels{"success": "true", "namespace": ersNamespace})) != 1 {
+		t.Errorf("Counter by namespace was not increased")
+	}
+
+	testRollingUpgradeInvokeDeleteStrategyErs(t, clients, config, deploymentFuncs, collectors, envVarPostfix)
+}
+
 func TestRollingUpgradeForDeploymentWithSecretInProjectedVolumeUsingErs(t *testing.T) {
 	options.ReloadStrategy = constants.EnvVarsReloadStrategy
 	envVarPostfix := constants.SecretEnvVarPostfix
@@ -3394,6 +4036,38 @@ func TestRollingUpgradeForDeploymentWithSecretinInitContainerUsingErs(t *testing
 	time.Sleep(5 * time.Second)
 	if err != nil {
 		t.Errorf("Rolling upgrade failed for Deployment with Secret")
+	}
+
+	logrus.Infof("Verifying deployment update")
+	updated := testutil.VerifyResourceEnvVarUpdate(clients, config, envVarPostfix, deploymentFuncs)
+	if !updated {
+		t.Errorf("Deployment was not updated")
+	}
+
+	if promtestutil.ToFloat64(collectors.Reloaded.With(labelSucceeded)) != 1 {
+		t.Errorf("Counter was not increased")
+	}
+
+	if promtestutil.ToFloat64(collectors.ReloadedByNamespace.With(prometheus.Labels{"success": "true", "namespace": ersNamespace})) != 1 {
+		t.Errorf("Counter by namespace was not increased")
+	}
+
+	testRollingUpgradeInvokeDeleteStrategyErs(t, clients, config, deploymentFuncs, collectors, envVarPostfix)
+}
+
+func TestRollingUpgradeForDeploymentWithSecretProviderClassinInitContainerUsingErs(t *testing.T) {
+	options.ReloadStrategy = constants.EnvVarsReloadStrategy
+	envVarPostfix := constants.SecretProviderClassEnvVarPostfix
+
+	shaData := testutil.ConvertResourceToSHA(testutil.SecretProviderClassPodStatusResourceType, ersNamespace, ersSecretProviderClassWithInitContainer, "testing1")
+	config := getConfigWithAnnotations(envVarPostfix, ersSecretProviderClassWithInitContainer, shaData, options.SecretProviderClassUpdateOnChangeAnnotation, options.SecretProviderClassReloaderAutoAnnotation)
+	deploymentFuncs := GetDeploymentRollingUpgradeFuncs()
+	collectors := getCollectors()
+
+	err := PerformAction(clients, config, deploymentFuncs, collectors, nil, invokeReloadStrategy)
+	time.Sleep(5 * time.Second)
+	if err != nil {
+		t.Errorf("Rolling upgrade failed for Deployment with SecretProviderClass")
 	}
 
 	logrus.Infof("Verifying deployment update")
@@ -3563,6 +4237,101 @@ func TestRollingUpgradeForDeploymentWithSecretExcludeAnnotationUsingErs(t *testi
 	}
 }
 
+func TestRollingUpgradeForDeploymentWithSecretProviderClassExcludeAnnotationUsingErs(t *testing.T) {
+	options.ReloadStrategy = constants.EnvVarsReloadStrategy
+	envVarPostfix := constants.SecretProviderClassEnvVarPostfix
+
+	shaData := testutil.ConvertResourceToSHA(testutil.SecretProviderClassPodStatusResourceType, ersNamespace, ersSecretProviderClassWithExcludeSPCAnnotation, "testing1")
+	config := getConfigWithAnnotations(envVarPostfix, ersSecretProviderClassWithExcludeSPCAnnotation, shaData, "", options.SecretProviderClassReloaderAutoAnnotation)
+	deploymentFuncs := GetDeploymentRollingUpgradeFuncs()
+	collectors := getCollectors()
+
+	err := PerformAction(clients, config, deploymentFuncs, collectors, nil, invokeReloadStrategy)
+	time.Sleep(5 * time.Second)
+	if err != nil {
+		t.Errorf("Rolling upgrade failed for Deployment with exclude SecretProviderClass")
+	}
+
+	logrus.Infof("Verifying deployment did not update")
+	updated := testutil.VerifyResourceEnvVarUpdate(clients, config, envVarPostfix, deploymentFuncs)
+	if updated {
+		t.Errorf("Deployment that had to be excluded was updated")
+	}
+}
+
+func TestRollingUpgradeForDeploymentWithSecretProviderClassReloadedWithSameConfigUsingErs(t *testing.T) {
+	options.ReloadStrategy = constants.EnvVarsReloadStrategy
+	envVarPostfix := constants.SecretProviderClassEnvVarPostfix
+
+	shaData := testutil.ConvertResourceToSHA(testutil.SecretProviderClassPodStatusResourceType, ersNamespace, ersSecretProviderClassReloadedWithSameConfig, "testing1")
+	config := getConfigWithAnnotations(envVarPostfix, ersSecretProviderClassReloadedWithSameConfig, shaData, "", options.SecretProviderClassReloaderAutoAnnotation)
+	deploymentFuncs := GetDeploymentRollingUpgradeFuncs()
+	collectors := getCollectors()
+
+	err := PerformAction(clients, config, deploymentFuncs, collectors, nil, invokeReloadStrategy)
+	time.Sleep(5 * time.Second)
+	if err != nil {
+		t.Errorf("Rolling upgrade failed for Deployment with same config")
+	}
+
+	logrus.Infof("Verifying deployment did update")
+	updated := testutil.VerifyResourceEnvVarUpdate(clients, config, envVarPostfix, deploymentFuncs)
+	if !updated {
+		t.Errorf("Deployment was not updated")
+	}
+
+	logrus.Infof("Performing reload using same config")
+	err = PerformAction(clients, config, deploymentFuncs, collectors, nil, invokeReloadStrategy)
+	time.Sleep(5 * time.Second)
+	if err != nil {
+		t.Errorf("Second rolling upgrade failed for Deployment with same config")
+	}
+
+	logrus.Infof("Verifying second reload did not reload")
+	if promtestutil.ToFloat64(collectors.Reloaded.With(labelSucceeded)) != 1 &&
+		promtestutil.ToFloat64(collectors.Reloaded.With(labelFailed)) != 0 {
+		t.Errorf("Second reload with same config updated Deployment")
+	}
+}
+
+func TestRollingUpgradeForDeploymentWithSecretProviderClassReloadedWithDifferentConfigUsingErs(t *testing.T) {
+	options.ReloadStrategy = constants.EnvVarsReloadStrategy
+	envVarPostfix := constants.SecretProviderClassEnvVarPostfix
+
+	shaData := testutil.ConvertResourceToSHA(testutil.SecretProviderClassPodStatusResourceType, ersNamespace, ersSecretProviderClassReloadedWithDifferentConfig, "testing1")
+	config := getConfigWithAnnotations(envVarPostfix, ersSecretProviderClassReloadedWithDifferentConfig, shaData, "", options.SecretProviderClassReloaderAutoAnnotation)
+	deploymentFuncs := GetDeploymentRollingUpgradeFuncs()
+	collectors := getCollectors()
+
+	err := PerformAction(clients, config, deploymentFuncs, collectors, nil, invokeReloadStrategy)
+	time.Sleep(5 * time.Second)
+	if err != nil {
+		t.Errorf("Rolling upgrade failed for Deployment with different config")
+	}
+
+	logrus.Infof("Verifying deployment did update")
+	updated := testutil.VerifyResourceEnvVarUpdate(clients, config, envVarPostfix, deploymentFuncs)
+	if !updated {
+		t.Errorf("Deployment was not updated")
+	}
+
+	logrus.Infof("Applying different config")
+	shaData = testutil.ConvertResourceToSHA(testutil.SecretProviderClassPodStatusResourceType, ersNamespace, ersSecretProviderClassReloadedWithDifferentConfig, "testing2")
+	config.SHAValue = shaData
+
+	err = PerformAction(clients, config, deploymentFuncs, collectors, nil, invokeReloadStrategy)
+	time.Sleep(5 * time.Second)
+	if err != nil {
+		t.Errorf("Second rolling upgrade failed for Deployment with different config")
+	}
+
+	logrus.Infof("Verifying deployment did update")
+	if promtestutil.ToFloat64(collectors.Reloaded.With(labelSucceeded)) != 2 &&
+		promtestutil.ToFloat64(collectors.Reloaded.With(labelFailed)) != 0 {
+		t.Errorf("Second reload with different config did not update Deployment")
+	}
+}
+
 func TestRollingUpgradeForDeploymentWithSecretAutoAnnotationUsingErs(t *testing.T) {
 	options.ReloadStrategy = constants.EnvVarsReloadStrategy
 	envVarPostfix := constants.SecretEnvVarPostfix
@@ -3576,6 +4345,38 @@ func TestRollingUpgradeForDeploymentWithSecretAutoAnnotationUsingErs(t *testing.
 	time.Sleep(5 * time.Second)
 	if err != nil {
 		t.Errorf("Rolling upgrade failed for Deployment with Secret")
+	}
+
+	logrus.Infof("Verifying deployment update")
+	updated := testutil.VerifyResourceEnvVarUpdate(clients, config, envVarPostfix, deploymentFuncs)
+	if !updated {
+		t.Errorf("Deployment was not updated")
+	}
+
+	if promtestutil.ToFloat64(collectors.Reloaded.With(labelSucceeded)) != 1 {
+		t.Errorf("Counter was not increased")
+	}
+
+	if promtestutil.ToFloat64(collectors.ReloadedByNamespace.With(prometheus.Labels{"success": "true", "namespace": ersNamespace})) != 1 {
+		t.Errorf("Counter by namespace was not increased")
+	}
+
+	testRollingUpgradeInvokeDeleteStrategyErs(t, clients, config, deploymentFuncs, collectors, envVarPostfix)
+}
+
+func TestRollingUpgradeForDeploymentWithSecretProviderClassAutoAnnotationUsingErs(t *testing.T) {
+	options.ReloadStrategy = constants.EnvVarsReloadStrategy
+	envVarPostfix := constants.SecretProviderClassEnvVarPostfix
+
+	shaData := testutil.ConvertResourceToSHA(testutil.SecretProviderClassPodStatusResourceType, ersNamespace, ersSecretProviderClassWithSPCAutoAnnotation, "testing1")
+	config := getConfigWithAnnotations(envVarPostfix, ersSecretProviderClassWithSPCAutoAnnotation, shaData, "", options.SecretProviderClassReloaderAutoAnnotation)
+	deploymentFuncs := GetDeploymentRollingUpgradeFuncs()
+	collectors := getCollectors()
+
+	err := PerformAction(clients, config, deploymentFuncs, collectors, nil, invokeReloadStrategy)
+	time.Sleep(5 * time.Second)
+	if err != nil {
+		t.Errorf("Rolling upgrade failed for Deployment with SecretProviderClass")
 	}
 
 	logrus.Infof("Verifying deployment update")
@@ -3820,6 +4621,38 @@ func TestRollingUpgradeForDaemonSetWithSecretUsingErs(t *testing.T) {
 	testRollingUpgradeInvokeDeleteStrategyErs(t, clients, config, daemonSetFuncs, collectors, envVarPostfix)
 }
 
+func TestRollingUpgradeForDaemonSetWithSecretProviderClassUsingErs(t *testing.T) {
+	options.ReloadStrategy = constants.EnvVarsReloadStrategy
+	envVarPostfix := constants.SecretProviderClassEnvVarPostfix
+
+	shaData := testutil.ConvertResourceToSHA(testutil.SecretProviderClassPodStatusResourceType, ersNamespace, ersSecretProviderClassName, "testing1")
+	config := getConfigWithAnnotations(envVarPostfix, ersSecretProviderClassName, shaData, options.SecretProviderClassUpdateOnChangeAnnotation, options.SecretProviderClassReloaderAutoAnnotation)
+	daemonSetFuncs := GetDaemonSetRollingUpgradeFuncs()
+	collectors := getCollectors()
+
+	err := PerformAction(clients, config, daemonSetFuncs, collectors, nil, invokeReloadStrategy)
+	time.Sleep(5 * time.Second)
+	if err != nil {
+		t.Errorf("Rolling upgrade failed for DaemonSet with SecretProviderClass")
+	}
+
+	logrus.Infof("Verifying daemonSet update")
+	updated := testutil.VerifyResourceEnvVarUpdate(clients, config, envVarPostfix, daemonSetFuncs)
+	if !updated {
+		t.Errorf("DaemonSet was not updated")
+	}
+
+	if promtestutil.ToFloat64(collectors.Reloaded.With(labelSucceeded)) != 1 {
+		t.Errorf("Counter was not increased")
+	}
+
+	if promtestutil.ToFloat64(collectors.ReloadedByNamespace.With(prometheus.Labels{"success": "true", "namespace": ersNamespace})) != 1 {
+		t.Errorf("Counter by namespace was not increased")
+	}
+
+	testRollingUpgradeInvokeDeleteStrategyErs(t, clients, config, daemonSetFuncs, collectors, envVarPostfix)
+}
+
 func TestRollingUpgradeForDaemonSetWithSecretInProjectedVolumeUsingErs(t *testing.T) {
 	options.ReloadStrategy = constants.EnvVarsReloadStrategy
 	envVarPostfix := constants.SecretEnvVarPostfix
@@ -3972,6 +4805,38 @@ func TestRollingUpgradeForStatefulSetWithSecretUsingErs(t *testing.T) {
 	time.Sleep(5 * time.Second)
 	if err != nil {
 		t.Errorf("Rolling upgrade failed for StatefulSet with secret")
+	}
+
+	logrus.Infof("Verifying statefulSet update")
+	updated := testutil.VerifyResourceEnvVarUpdate(clients, config, envVarPostfix, statefulSetFuncs)
+	if !updated {
+		t.Errorf("StatefulSet was not updated")
+	}
+
+	if promtestutil.ToFloat64(collectors.Reloaded.With(labelSucceeded)) != 1 {
+		t.Errorf("Counter was not increased")
+	}
+
+	if promtestutil.ToFloat64(collectors.ReloadedByNamespace.With(prometheus.Labels{"success": "true", "namespace": ersNamespace})) != 1 {
+		t.Errorf("Counter by namespace was not increased")
+	}
+
+	testRollingUpgradeInvokeDeleteStrategyErs(t, clients, config, statefulSetFuncs, collectors, envVarPostfix)
+}
+
+func TestRollingUpgradeForStatefulSetWithSecretProviderClassUsingErs(t *testing.T) {
+	options.ReloadStrategy = constants.EnvVarsReloadStrategy
+	envVarPostfix := constants.SecretProviderClassEnvVarPostfix
+
+	shaData := testutil.ConvertResourceToSHA(testutil.SecretProviderClassPodStatusResourceType, ersNamespace, ersSecretProviderClassName, "testing1")
+	config := getConfigWithAnnotations(envVarPostfix, ersSecretProviderClassName, shaData, options.SecretProviderClassUpdateOnChangeAnnotation, options.SecretProviderClassReloaderAutoAnnotation)
+	statefulSetFuncs := GetStatefulSetRollingUpgradeFuncs()
+	collectors := getCollectors()
+
+	err := PerformAction(clients, config, statefulSetFuncs, collectors, nil, invokeReloadStrategy)
+	time.Sleep(5 * time.Second)
+	if err != nil {
+		t.Errorf("Rolling upgrade failed for StatefulSet with SecretProviderClass")
 	}
 
 	logrus.Infof("Verifying statefulSet update")

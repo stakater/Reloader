@@ -93,6 +93,17 @@ rules:
       - get
       - update
 {{- end}}
+{{- if .Values.reloader.enableCSIIntegration }}
+  - apiGroups:
+      - "secrets-store.csi.x-k8s.io"
+    resources:
+      - secretproviderclasspodstatuses
+      - secretproviderclasses
+    verbs:
+      - list
+      - get
+      - watch
+{{- end}}
   - apiGroups:
       - ""
     resources:
