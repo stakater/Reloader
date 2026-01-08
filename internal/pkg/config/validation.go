@@ -4,8 +4,9 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/stakater/Reloader/internal/pkg/workload"
 	"k8s.io/apimachinery/pkg/labels"
+
+	"github.com/stakater/Reloader/internal/pkg/workload"
 )
 
 // ValidationError represents a configuration validation error.

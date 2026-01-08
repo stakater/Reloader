@@ -173,10 +173,12 @@ spec:
         ports:
         - name: http
           containerPort: 9090
+        - name: health
+          containerPort: 8080
         livenessProbe:
           httpGet:
-            path: /live
-            port: http
+            path: /healthz
+            port: health
           timeoutSeconds: {{ .Values.reloader.deployment.livenessProbe.timeoutSeconds | default "5" }}
           failureThreshold: {{ .Values.reloader.deployment.livenessProbe.failureThreshold | default "5" }}
           periodSeconds: {{ .Values.reloader.deployment.livenessProbe.periodSeconds | default "10" }}
@@ -184,8 +186,8 @@ spec:
           initialDelaySeconds: {{ .Values.reloader.deployment.livenessProbe.initialDelaySeconds | default "10" }}
         readinessProbe:
           httpGet:
-            path: /metrics
-            port: http
+            path: /readyz
+            port: health
           timeoutSeconds: {{ .Values.reloader.deployment.readinessProbe.timeoutSeconds | default "5" }}
           failureThreshold: {{ .Values.reloader.deployment.readinessProbe.failureThreshold | default "5" }}
           periodSeconds: {{ .Values.reloader.deployment.readinessProbe.periodSeconds | default "10" }}
@@ -235,7 +237,7 @@ spec:
           - "--namespaces-to-ignore={{ .Values.reloader.ignoreNamespaces }}"
           {{- end }}
           {{- if (include "reloader-namespaceSelector" .) }}
-          - "--namespace-selector=\"{{ include "reloader-namespaceSelector" . }}\""
+          - "--namespace-selector={{ include "reloader-namespaceSelector" . }}"
           {{- end }}
           {{- if .Values.reloader.resourceLabelSelector }}
           - "--resource-label-selector={{ .Values.reloader.resourceLabelSelector }}"

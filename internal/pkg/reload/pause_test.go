@@ -4,10 +4,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stakater/Reloader/internal/pkg/config"
-	"github.com/stakater/Reloader/internal/pkg/workload"
 	appsv1 "k8s.io/api/apps/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
+	"github.com/stakater/Reloader/internal/pkg/config"
+	"github.com/stakater/Reloader/internal/pkg/workload"
 )
 
 func TestPauseHandler_ShouldPause(t *testing.T) {

@@ -7,13 +7,6 @@ import (
 	argorolloutsv1alpha1 "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/go-logr/logr"
 	openshiftv1 "github.com/openshift/api/apps/v1"
-	"github.com/stakater/Reloader/internal/pkg/alerting"
-	"github.com/stakater/Reloader/internal/pkg/config"
-	"github.com/stakater/Reloader/internal/pkg/events"
-	"github.com/stakater/Reloader/internal/pkg/metrics"
-	"github.com/stakater/Reloader/internal/pkg/reload"
-	"github.com/stakater/Reloader/internal/pkg/webhook"
-	"github.com/stakater/Reloader/internal/pkg/workload"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
@@ -22,6 +15,14 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	ctrlmetrics "sigs.k8s.io/controller-runtime/pkg/metrics/server"
+
+	"github.com/stakater/Reloader/internal/pkg/alerting"
+	"github.com/stakater/Reloader/internal/pkg/config"
+	"github.com/stakater/Reloader/internal/pkg/events"
+	"github.com/stakater/Reloader/internal/pkg/metrics"
+	"github.com/stakater/Reloader/internal/pkg/reload"
+	"github.com/stakater/Reloader/internal/pkg/webhook"
+	"github.com/stakater/Reloader/internal/pkg/workload"
 )
 
 var runtimeScheme = runtime.NewScheme()

@@ -1,10 +1,11 @@
 package controller
 
 import (
-	"github.com/stakater/Reloader/internal/pkg/config"
-	"github.com/stakater/Reloader/internal/pkg/reload"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
+
+	"github.com/stakater/Reloader/internal/pkg/config"
+	"github.com/stakater/Reloader/internal/pkg/reload"
 )
 
 // BuildEventFilter combines a resource-specific predicate with common filters.

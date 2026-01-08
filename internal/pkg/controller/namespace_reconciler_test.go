@@ -3,10 +3,11 @@ package controller_test
 import (
 	"testing"
 
+	"k8s.io/apimachinery/pkg/labels"
+
 	"github.com/stakater/Reloader/internal/pkg/config"
 	"github.com/stakater/Reloader/internal/pkg/controller"
 	"github.com/stakater/Reloader/internal/pkg/testutil"
-	"k8s.io/apimachinery/pkg/labels"
 )
 
 func TestNamespaceCache_Basic(t *testing.T) {

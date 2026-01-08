@@ -6,6 +6,11 @@ import (
 	"time"
 
 	"github.com/go-logr/logr"
+	"k8s.io/apimachinery/pkg/api/errors"
+	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/predicate"
+
 	"github.com/stakater/Reloader/internal/pkg/alerting"
 	"github.com/stakater/Reloader/internal/pkg/config"
 	"github.com/stakater/Reloader/internal/pkg/events"
@@ -13,10 +18,6 @@ import (
 	"github.com/stakater/Reloader/internal/pkg/reload"
 	"github.com/stakater/Reloader/internal/pkg/webhook"
 	"github.com/stakater/Reloader/internal/pkg/workload"
-	"k8s.io/apimachinery/pkg/api/errors"
-	ctrl "sigs.k8s.io/controller-runtime"
-	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/predicate"
 )
 
 // ResourceReconcilerDeps holds shared dependencies for resource reconcilers.
@@ -197,6 +198,6 @@ func (r *ResourceReconciler[T]) SetupWithManager(mgr ctrl.Manager, forObject T) 
 				r.CreatePredicates(r.Config, r.ReloadService.Hasher()),
 				r.Config, r.Initialized(),
 			),
-	).
+		).
 		Complete(r)
 }

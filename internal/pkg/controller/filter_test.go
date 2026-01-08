@@ -3,10 +3,11 @@ package controller
 import (
 	"testing"
 
-	"github.com/stakater/Reloader/internal/pkg/config"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/event"
+
+	"github.com/stakater/Reloader/internal/pkg/config"
 )
 
 func TestCreateEventPredicate_CreateEvent(t *testing.T) {

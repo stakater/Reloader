@@ -7,8 +7,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/stakater/Reloader/internal/pkg/config"
 	corev1 "k8s.io/api/core/v1"
+
+	"github.com/stakater/Reloader/internal/pkg/config"
 )
 
 const (

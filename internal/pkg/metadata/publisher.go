@@ -6,11 +6,12 @@ import (
 	"os"
 
 	"github.com/go-logr/logr"
-	"github.com/stakater/Reloader/internal/pkg/config"
-	"github.com/stakater/Reloader/internal/pkg/workload"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	"github.com/stakater/Reloader/internal/pkg/config"
+	"github.com/stakater/Reloader/internal/pkg/workload"
 )
 
 // Publisher handles creating and updating the metadata ConfigMap.

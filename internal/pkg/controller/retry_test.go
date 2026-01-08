@@ -5,11 +5,6 @@ import (
 	"testing"
 
 	"github.com/go-logr/logr/testr"
-	"github.com/stakater/Reloader/internal/pkg/config"
-	"github.com/stakater/Reloader/internal/pkg/controller"
-	"github.com/stakater/Reloader/internal/pkg/reload"
-	"github.com/stakater/Reloader/internal/pkg/testutil"
-	"github.com/stakater/Reloader/internal/pkg/workload"
 	appsv1 "k8s.io/api/apps/v1"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -17,6 +12,12 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
+
+	"github.com/stakater/Reloader/internal/pkg/config"
+	"github.com/stakater/Reloader/internal/pkg/controller"
+	"github.com/stakater/Reloader/internal/pkg/reload"
+	"github.com/stakater/Reloader/internal/pkg/testutil"
+	"github.com/stakater/Reloader/internal/pkg/workload"
 )
 
 func TestUpdateWorkloadWithRetry_WorkloadTypes(t *testing.T) {

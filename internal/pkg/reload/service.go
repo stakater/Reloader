@@ -7,9 +7,10 @@ import (
 	"time"
 
 	"github.com/go-logr/logr"
+	corev1 "k8s.io/api/core/v1"
+
 	"github.com/stakater/Reloader/internal/pkg/config"
 	"github.com/stakater/Reloader/internal/pkg/workload"
-	corev1 "k8s.io/api/core/v1"
 )
 
 // Service orchestrates the reload logic for ConfigMaps and Secrets.

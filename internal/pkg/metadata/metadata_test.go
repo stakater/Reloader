@@ -6,11 +6,12 @@ import (
 	"testing"
 
 	"github.com/go-logr/logr"
-	"github.com/stakater/Reloader/internal/pkg/config"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
+
+	"github.com/stakater/Reloader/internal/pkg/config"
 )
 
 // testLogger returns a no-op logger for testing.

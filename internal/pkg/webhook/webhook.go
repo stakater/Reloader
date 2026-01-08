@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/go-logr/logr"
+
 	httputil "github.com/stakater/Reloader/internal/pkg/http"
 )
 

@@ -162,6 +162,7 @@ func (b *BaseWorkload[T]) Update(ctx context.Context, c client.Client) error {
 
 // ResetOriginal resets the original state to the current object state.
 func (b *BaseWorkload[T]) ResetOriginal() {
+	//nolint:errcheck // Type assertion is safe: DeepCopyObject returns same type T
 	b.original = b.object.DeepCopyObject().(T)
 }
 

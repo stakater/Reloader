@@ -4,8 +4,9 @@ import (
 	"encoding/json"
 	"testing"
 
-	"github.com/stakater/Reloader/internal/pkg/config"
 	corev1 "k8s.io/api/core/v1"
+
+	"github.com/stakater/Reloader/internal/pkg/config"
 )
 
 func TestEnvVarStrategy_Apply(t *testing.T) {

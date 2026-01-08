@@ -1,6 +1,7 @@
 package config
 
 import (
+	"errors"
 	"strings"
 	"testing"
 )
@@ -205,7 +206,8 @@ func TestConfig_Validate_MultipleErrors(t *testing.T) {
 		t.Fatal("Validate() should return error for multiple invalid values")
 	}
 
-	errs, ok := err.(ValidationErrors)
+	var errs ValidationErrors
+	ok := errors.As(err, &errs)
 	if !ok {
 		t.Fatalf("Expected ValidationErrors, got %T", err)
 	}
