@@ -1,4 +1,4 @@
-name: Load Test
+name: Load Test (Full)
 
 on:
   issue_comment:
@@ -10,6 +10,7 @@ permissions:
   issues: write
 
 jobs:
+  # Full load test suite triggered by /loadtest command
   loadtest:
     # Only run on PR comments with /loadtest command
     if: |
@@ -45,6 +46,12 @@ jobs:
             core.setOutput('base_sha', pr.data.base.sha);
             console.log(`PR #${context.issue.number}: ${pr.data.head.ref} -> ${pr.data.base.ref}`);
 
+      - name: Checkout PR branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.pr.outputs.head_sha }}
+          fetch-depth: 0  # Full history for building from base ref
+
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
@@ -66,151 +73,23 @@ jobs:
           chmod +x kubectl
           sudo mv kubectl /usr/local/bin/kubectl
 
-      # Build OLD image from base branch (e.g., main)
-      - name: Checkout base branch (old)
-        uses: actions/checkout@v4
-        with:
-          ref: ${{ steps.pr.outputs.base_ref }}
-          path: old
-
-      - name: Build old image
-        run: |
-          cd old
-          docker build -t localhost/reloader:old -f Dockerfile .
-          echo "Built old image from ${{ steps.pr.outputs.base_ref }} (${{ steps.pr.outputs.base_sha }})"
-
-      # Build NEW image from PR branch
-      - name: Checkout PR branch (new)
-        uses: actions/checkout@v4
-        with:
-          ref: ${{ steps.pr.outputs.head_ref }}
-          path: new
-
-      - name: Build new image
-        run: |
-          cd new
-          docker build -t localhost/reloader:new -f Dockerfile .
-          echo "Built new image from ${{ steps.pr.outputs.head_ref }} (${{ steps.pr.outputs.head_sha }})"
-
-      # Build and run loadtest from PR branch
-      - name: Build loadtest tool
-        run: |
-          cd new/test/loadtest
-          go build -o loadtest ./cmd/loadtest
-
-      - name: Run A/B comparison load test
+      - name: Run full A/B comparison load test
         id: loadtest
-        run: |
-          cd new/test/loadtest
-          ./loadtest run \
-            --old-image=localhost/reloader:old \
-            --new-image=localhost/reloader:new \
-            --scenario=all \
-            --duration=60 2>&1 | tee loadtest-output.txt
-          echo "exitcode=${PIPESTATUS[0]}" >> $GITHUB_OUTPUT
-
-      - name: Upload results
-        uses: actions/upload-artifact@v4
-        if: always()
+        uses: ./.github/actions/loadtest
         with:
-          name: loadtest-results
-          path: |
-            new/test/loadtest/results/
-            new/test/loadtest/loadtest-output.txt
-          retention-days: 30
-
-      - name: Post results comment
-        uses: actions/github-script@v7
-        if: always()
-        with:
-          script: |
-            const fs = require('fs');
-
-            let results = '';
-            const resultsDir = 'new/test/loadtest/results';
-
-            // Collect summary of all scenarios
-            let passCount = 0;
-            let failCount = 0;
-            const summaries = [];
-
-            if (fs.existsSync(resultsDir)) {
-              const scenarios = fs.readdirSync(resultsDir).sort();
-              for (const scenario of scenarios) {
-                const reportPath = `${resultsDir}/${scenario}/report.txt`;
-                if (fs.existsSync(reportPath)) {
-                  const report = fs.readFileSync(reportPath, 'utf8');
-
-                  // Extract status from report
-                  const statusMatch = report.match(/Status:\s+(PASS|FAIL)/);
-                  const status = statusMatch ? statusMatch[1] : 'UNKNOWN';
-
-                  if (status === 'PASS') passCount++;
-                  else failCount++;
-
-                  // Extract key metrics for summary
-                  const actionMatch = report.match(/action_total\s+[\d.]+\s+[\d.]+\s+[\d.]+/);
-                  const errorsMatch = report.match(/errors_total\s+[\d.]+\s+[\d.]+/);
-
-                  summaries.push(`| ${scenario} | ${status === 'PASS' ? '✅' : '❌'} ${status} |`);
-
-                  results += `\n<details>\n<summary>${status === 'PASS' ? '✅' : '❌'} ${scenario}</summary>\n\n\`\`\`\n${report}\n\`\`\`\n</details>\n`;
-                }
-              }
-            }
-
-            if (!results) {
-              // Read raw output if no reports
-              if (fs.existsSync('new/test/loadtest/loadtest-output.txt')) {
-                const output = fs.readFileSync('new/test/loadtest/loadtest-output.txt', 'utf8');
-                const maxLen = 60000;
-                results = output.length > maxLen
-                  ? output.substring(output.length - maxLen)
-                  : output;
-                results = `\`\`\`\n${results}\n\`\`\``;
-              } else {
-                results = 'No results available';
-              }
-            }
-
-            const overallStatus = failCount === 0 ? '✅ ALL PASSED' : `❌ ${failCount} FAILED`;
-
-            const body = [
-              `## Load Test Results ${overallStatus}`,
-              '',
-              `**Comparing:** \`${{ steps.pr.outputs.base_ref }}\` (old) vs \`${{ steps.pr.outputs.head_ref }}\` (new)`,
-              `**Old commit:** ${{ steps.pr.outputs.base_sha }}`,
-              `**New commit:** ${{ steps.pr.outputs.head_sha }}`,
-              `**Triggered by:** @${{ github.event.comment.user.login }}`,
-              '',
-              '### Summary',
-              '',
-              '| Scenario | Status |',
-              '|----------|--------|',
-              summaries.join('\n'),
-              '',
-              `**Total:** ${passCount} passed, ${failCount} failed`,
-              '',
-              '### Detailed Results',
-              '',
-              results,
-              '',
-              '<details>',
-              '<summary>📦 Download full results</summary>',
-              '',
-              `Artifacts are available in the [workflow run](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}).`,
-              '</details>',
-            ].join('\n');
-
-            await github.rest.issues.createComment({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: context.issue.number,
-              body: body
-            });
+          old-ref: ${{ steps.pr.outputs.base_sha }}
+          new-ref: ${{ steps.pr.outputs.head_sha }}
+          scenarios: 'all'
+          test-type: 'full'
+          post-comment: 'true'
+          pr-number: ${{ github.event.issue.number }}
+          comment-header: |
+            ## Load Test Results (Full A/B Comparison)
+            **Comparing:** `${{ steps.pr.outputs.base_ref }}` → `${{ steps.pr.outputs.head_ref }}`
+            **Triggered by:** @${{ github.event.comment.user.login }}
 
       - name: Add success reaction
-        if: success()
+        if: steps.loadtest.outputs.status == 'pass'
         uses: actions/github-script@v7
         with:
           script: |
@@ -222,7 +101,7 @@ jobs:
             });
 
       - name: Add failure reaction
-        if: failure()
+        if: steps.loadtest.outputs.status == 'fail'
         uses: actions/github-script@v7
         with:
           script: |

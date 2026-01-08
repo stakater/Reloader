@@ -30,6 +30,15 @@ const (
 	testNamespace = "reloader-test"
 )
 
+// OutputFormat defines the output format for reports.
+type OutputFormat string
+
+const (
+	OutputFormatText     OutputFormat = "text"
+	OutputFormatJSON     OutputFormat = "json"
+	OutputFormatMarkdown OutputFormat = "markdown"
+)
+
 // workerContext holds all resources for a single worker (cluster + prometheus).
 type workerContext struct {
 	id          int
@@ -47,6 +56,7 @@ type Config struct {
 	Scenario     string
 	Duration     int
 	SkipCluster  bool
+	ClusterName  string // Custom cluster name (default: reloader-loadtest)
 	ResultsDir   string
 	ManifestsDir string
 	Parallelism  int // Number of parallel clusters (1 = sequential)
@@ -64,6 +74,8 @@ func main() {
 		runCommand(os.Args[2:])
 	case "report":
 		reportCommand(os.Args[2:])
+	case "summary":
+		summaryCommand(os.Args[2:])
 	case "help", "--help", "-h":
 		printUsage()
 	default:
@@ -78,7 +90,8 @@ func printUsage() {
 
 Usage:
   loadtest run [options]     Run A/B comparison tests
-  loadtest report [options]  Generate comparison report
+  loadtest report [options]  Generate comparison report for a scenario
+  loadtest summary [options] Generate summary across all scenarios (for CI)
   loadtest help              Show this help
 
 Run Options:
@@ -87,13 +100,21 @@ Run Options:
   --scenario=ID         Test scenario: S1-S13 or "all" (default: all)
   --duration=SECONDS    Test duration in seconds (default: 60)
   --parallelism=N       Run N scenarios in parallel on N clusters (default: 1)
-  --skip-cluster        Skip kind cluster creation (use existing, only for parallelism=1)
+  --skip-cluster        Skip kind cluster creation (use existing)
+  --cluster-name=NAME   Kind cluster name (default: reloader-loadtest)
   --results-dir=DIR     Directory for results (default: ./results)
 
 Report Options:
   --scenario=ID         Scenario to report on (required)
   --results-dir=DIR     Directory containing results (default: ./results)
   --output=FILE         Output file (default: stdout)
+  --format=FORMAT       Output format: text, json, markdown (default: text)
+
+Summary Options:
+  --results-dir=DIR     Directory containing results (default: ./results)
+  --output=FILE         Output file (default: stdout)
+  --format=FORMAT       Output format: text, json, markdown (default: markdown)
+  --test-type=TYPE      Test type label: quick, full (default: full)
 
 Examples:
   # Compare two images
@@ -111,8 +132,14 @@ Examples:
   # Run all 13 scenarios in parallel (one cluster per scenario)
   loadtest run --new-image=localhost/reloader:test --parallelism=13
 
-  # Generate report
+  # Generate report for a scenario
   loadtest report --scenario=S2 --results-dir=./results
+
+  # Generate JSON report
+  loadtest report --scenario=S2 --format=json
+
+  # Generate markdown summary for CI
+  loadtest summary --results-dir=./results --format=markdown
 `)
 }
 
@@ -122,6 +149,7 @@ func parseArgs(args []string) Config {
 		Duration:    60,
 		ResultsDir:  "./results",
 		Parallelism: 1,
+		ClusterName: clusterName, // default
 	}
 
 	// Find manifests dir relative to executable or current dir
@@ -151,6 +179,8 @@ func parseArgs(args []string) Config {
 			}
 		case arg == "--skip-cluster":
 			cfg.SkipCluster = true
+		case strings.HasPrefix(arg, "--cluster-name="):
+			cfg.ClusterName = strings.TrimPrefix(arg, "--cluster-name=")
 		case strings.HasPrefix(arg, "--results-dir="):
 			cfg.ResultsDir = strings.TrimPrefix(arg, "--results-dir=")
 		case strings.HasPrefix(arg, "--manifests-dir="):
@@ -234,15 +264,15 @@ func runCommand(args []string) {
 func runSequential(ctx context.Context, cfg Config, scenariosToRun []string, runtime string, runOld, runNew, runBoth bool) {
 	// Create cluster manager
 	clusterMgr := cluster.NewManager(cluster.Config{
-		Name:             clusterName,
+		Name:             cfg.ClusterName,
 		ContainerRuntime: runtime,
 	})
 
 	// Create/verify cluster
 	if cfg.SkipCluster {
-		log.Println("Skipping cluster creation (using existing)")
+		log.Printf("Skipping cluster creation (using existing cluster: %s)", cfg.ClusterName)
 		if !clusterMgr.Exists() {
-			log.Fatalf("Cluster %s does not exist. Remove --skip-cluster to create it.", clusterName)
+			log.Fatalf("Cluster %s does not exist. Remove --skip-cluster to create it.", cfg.ClusterName)
 		}
 	} else {
 		log.Println("Creating kind cluster...")
@@ -781,6 +811,7 @@ func cleanupReloader(ctx context.Context, version string, kubeContext string) {
 
 func reportCommand(args []string) {
 	var scenarioID, resultsDir, outputFile string
+	format := OutputFormatText
 	resultsDir = "./results"
 
 	for _, arg := range args {
@@ -791,6 +822,8 @@ func reportCommand(args []string) {
 			resultsDir = strings.TrimPrefix(arg, "--results-dir=")
 		case strings.HasPrefix(arg, "--output="):
 			outputFile = strings.TrimPrefix(arg, "--output=")
+		case strings.HasPrefix(arg, "--format="):
+			format = OutputFormat(strings.TrimPrefix(arg, "--format="))
 		}
 	}
 
@@ -803,7 +836,15 @@ func reportCommand(args []string) {
 		log.Fatalf("Failed to generate report: %v", err)
 	}
 
-	output := renderScenarioReport(report)
+	var output string
+	switch format {
+	case OutputFormatJSON:
+		output = renderScenarioReportJSON(report)
+	case OutputFormatMarkdown:
+		output = renderScenarioReportMarkdown(report)
+	default:
+		output = renderScenarioReport(report)
+	}
 
 	if outputFile != "" {
 		if err := os.WriteFile(outputFile, []byte(output), 0644); err != nil {
@@ -1581,6 +1622,305 @@ func renderScenarioReport(report *ScenarioReport) string {
 	}
 
 	sb.WriteString("\n================================================================================\n")
+
+	return sb.String()
+}
+
+// renderScenarioReportJSON renders a scenario report as JSON.
+func renderScenarioReportJSON(report *ScenarioReport) string {
+	data, err := json.MarshalIndent(report, "", "  ")
+	if err != nil {
+		return fmt.Sprintf(`{"error": "%s"}`, err.Error())
+	}
+	return string(data)
+}
+
+// renderScenarioReportMarkdown renders a scenario report as concise markdown.
+func renderScenarioReportMarkdown(report *ScenarioReport) string {
+	var sb strings.Builder
+
+	// Status emoji
+	emoji := "✅"
+	if report.OverallStatus != "PASS" {
+		emoji = "❌"
+	}
+
+	sb.WriteString(fmt.Sprintf("## %s %s: %s\n\n", emoji, report.Scenario, report.OverallStatus))
+
+	if report.TestDescription != "" {
+		sb.WriteString(fmt.Sprintf("> %s\n\n", report.TestDescription))
+	}
+
+	// Key metrics table
+	sb.WriteString("| Metric | Value | Expected | Status |\n")
+	sb.WriteString("|--------|------:|:--------:|:------:|\n")
+
+	// Show only key metrics
+	keyMetrics := []string{"action_total", "reload_executed_total", "errors_total", "reconcile_total"}
+	for _, name := range keyMetrics {
+		for _, c := range report.Comparisons {
+			if c.Name == name {
+				value := fmt.Sprintf("%.0f", c.NewValue)
+				expected := "-"
+				if c.Expected > 0 {
+					expected = fmt.Sprintf("%.0f", c.Expected)
+				}
+				status := "✅"
+				if c.Status == "fail" {
+					status = "❌"
+				} else if c.Status == "info" {
+					status = "ℹ️"
+				}
+				sb.WriteString(fmt.Sprintf("| %s | %s | %s | %s |\n", c.DisplayName, value, expected, status))
+				break
+			}
+		}
+	}
+
+	return sb.String()
+}
+
+// ============================================================================
+// SUMMARY COMMAND
+// ============================================================================
+
+// SummaryReport aggregates results from multiple scenarios.
+type SummaryReport struct {
+	Timestamp  time.Time         `json:"timestamp"`
+	TestType   string            `json:"test_type"`
+	PassCount  int               `json:"pass_count"`
+	FailCount  int               `json:"fail_count"`
+	TotalCount int               `json:"total_count"`
+	Scenarios  []ScenarioSummary `json:"scenarios"`
+}
+
+// ScenarioSummary provides a brief summary of a single scenario.
+type ScenarioSummary struct {
+	ID          string  `json:"id"`
+	Status      string  `json:"status"`
+	Description string  `json:"description"`
+	ActionTotal float64 `json:"action_total"`
+	ActionExp   float64 `json:"action_expected"`
+	ErrorsTotal float64 `json:"errors_total"`
+}
+
+func summaryCommand(args []string) {
+	var resultsDir, outputFile, testType string
+	format := OutputFormatMarkdown // Default to markdown for CI
+	resultsDir = "./results"
+	testType = "full"
+
+	for _, arg := range args {
+		switch {
+		case strings.HasPrefix(arg, "--results-dir="):
+			resultsDir = strings.TrimPrefix(arg, "--results-dir=")
+		case strings.HasPrefix(arg, "--output="):
+			outputFile = strings.TrimPrefix(arg, "--output=")
+		case strings.HasPrefix(arg, "--format="):
+			format = OutputFormat(strings.TrimPrefix(arg, "--format="))
+		case strings.HasPrefix(arg, "--test-type="):
+			testType = strings.TrimPrefix(arg, "--test-type=")
+		}
+	}
+
+	summary, err := generateSummaryReport(resultsDir, testType)
+	if err != nil {
+		log.Fatalf("Failed to generate summary: %v", err)
+	}
+
+	var output string
+	switch format {
+	case OutputFormatJSON:
+		output = renderSummaryJSON(summary)
+	case OutputFormatText:
+		output = renderSummaryText(summary)
+	default:
+		output = renderSummaryMarkdown(summary)
+	}
+
+	if outputFile != "" {
+		if err := os.WriteFile(outputFile, []byte(output), 0644); err != nil {
+			log.Fatalf("Failed to write output file: %v", err)
+		}
+		log.Printf("Summary written to %s", outputFile)
+	} else {
+		fmt.Print(output)
+	}
+
+	// Exit with non-zero status if any tests failed
+	if summary.FailCount > 0 {
+		os.Exit(1)
+	}
+}
+
+func generateSummaryReport(resultsDir, testType string) (*SummaryReport, error) {
+	summary := &SummaryReport{
+		Timestamp: time.Now(),
+		TestType:  testType,
+	}
+
+	// Find all scenario directories
+	entries, err := os.ReadDir(resultsDir)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read results directory: %w", err)
+	}
+
+	for _, entry := range entries {
+		if !entry.IsDir() || !strings.HasPrefix(entry.Name(), "S") {
+			continue
+		}
+
+		scenarioID := entry.Name()
+		report, err := generateScenarioReport(scenarioID, resultsDir)
+		if err != nil {
+			log.Printf("Warning: failed to load scenario %s: %v", scenarioID, err)
+			continue
+		}
+
+		scenarioSummary := ScenarioSummary{
+			ID:          scenarioID,
+			Status:      report.OverallStatus,
+			Description: report.TestDescription,
+		}
+
+		// Extract key metrics
+		for _, c := range report.Comparisons {
+			switch c.Name {
+			case "action_total":
+				scenarioSummary.ActionTotal = c.NewValue
+				scenarioSummary.ActionExp = c.Expected
+			case "errors_total":
+				scenarioSummary.ErrorsTotal = c.NewValue
+			}
+		}
+
+		summary.Scenarios = append(summary.Scenarios, scenarioSummary)
+		summary.TotalCount++
+		if report.OverallStatus == "PASS" {
+			summary.PassCount++
+		} else {
+			summary.FailCount++
+		}
+	}
+
+	// Sort scenarios by ID
+	sort.Slice(summary.Scenarios, func(i, j int) bool {
+		return naturalSort(summary.Scenarios[i].ID, summary.Scenarios[j].ID)
+	})
+
+	return summary, nil
+}
+
+// naturalSort compares two scenario IDs (S1, S2, ..., S10, S11)
+func naturalSort(a, b string) bool {
+	var aNum, bNum int
+	fmt.Sscanf(a, "S%d", &aNum)
+	fmt.Sscanf(b, "S%d", &bNum)
+	return aNum < bNum
+}
+
+func renderSummaryJSON(summary *SummaryReport) string {
+	data, err := json.MarshalIndent(summary, "", "  ")
+	if err != nil {
+		return fmt.Sprintf(`{"error": "%s"}`, err.Error())
+	}
+	return string(data)
+}
+
+func renderSummaryText(summary *SummaryReport) string {
+	var sb strings.Builder
+
+	sb.WriteString("================================================================================\n")
+	sb.WriteString("                       LOAD TEST SUMMARY\n")
+	sb.WriteString("================================================================================\n\n")
+
+	passRate := 0
+	if summary.TotalCount > 0 {
+		passRate = summary.PassCount * 100 / summary.TotalCount
+	}
+
+	fmt.Fprintf(&sb, "Test Type: %s\n", summary.TestType)
+	fmt.Fprintf(&sb, "Results:   %d/%d passed (%d%%)\n\n", summary.PassCount, summary.TotalCount, passRate)
+
+	fmt.Fprintf(&sb, "%-6s %-8s %-45s %10s %8s\n", "ID", "Status", "Description", "Actions", "Errors")
+	fmt.Fprintf(&sb, "%-6s %-8s %-45s %10s %8s\n", "------", "--------", strings.Repeat("-", 45), "----------", "--------")
+
+	for _, s := range summary.Scenarios {
+		desc := s.Description
+		if len(desc) > 45 {
+			desc = desc[:42] + "..."
+		}
+		actions := fmt.Sprintf("%.0f", s.ActionTotal)
+		if s.ActionExp > 0 {
+			actions = fmt.Sprintf("%.0f/%.0f", s.ActionTotal, s.ActionExp)
+		}
+		fmt.Fprintf(&sb, "%-6s %-8s %-45s %10s %8.0f\n", s.ID, s.Status, desc, actions, s.ErrorsTotal)
+	}
+
+	sb.WriteString("\n================================================================================\n")
+	return sb.String()
+}
+
+func renderSummaryMarkdown(summary *SummaryReport) string {
+	var sb strings.Builder
+
+	// Overall status
+	emoji := "✅"
+	title := "ALL TESTS PASSED"
+	if summary.FailCount > 0 {
+		emoji = "❌"
+		title = fmt.Sprintf("%d TEST(S) FAILED", summary.FailCount)
+	} else if summary.TotalCount == 0 {
+		emoji = "⚠️"
+		title = "NO RESULTS"
+	}
+
+	sb.WriteString(fmt.Sprintf("## %s Load Test Results: %s\n\n", emoji, title))
+
+	// Test type note
+	if summary.TestType == "quick" {
+		sb.WriteString("> 🚀 **Quick Test** (S1, S4, S6) — Use `/loadtest` for full suite\n\n")
+	}
+
+	// Pass rate
+	passRate := 0
+	if summary.TotalCount > 0 {
+		passRate = summary.PassCount * 100 / summary.TotalCount
+	}
+	sb.WriteString(fmt.Sprintf("**%d/%d passed** (%d%%)\n\n", summary.PassCount, summary.TotalCount, passRate))
+
+	// Results table
+	sb.WriteString("| | Scenario | Description | Actions | Errors |\n")
+	sb.WriteString("|:-:|:--------:|-------------|:-------:|:------:|\n")
+
+	for _, s := range summary.Scenarios {
+		icon := "✅"
+		if s.Status != "PASS" {
+			icon = "❌"
+		}
+
+		// Truncate description
+		desc := s.Description
+		if len(desc) > 45 {
+			desc = desc[:42] + "..."
+		}
+
+		// Format actions
+		actions := fmt.Sprintf("%.0f", s.ActionTotal)
+		if s.ActionExp > 0 {
+			actions = fmt.Sprintf("%.0f/%.0f", s.ActionTotal, s.ActionExp)
+		}
+
+		// Format errors
+		errors := fmt.Sprintf("%.0f", s.ErrorsTotal)
+		if s.ErrorsTotal > 0 {
+			errors = fmt.Sprintf("⚠️ %.0f", s.ErrorsTotal)
+		}
+
+		sb.WriteString(fmt.Sprintf("| %s | **%s** | %s | %s | %s |\n", icon, s.ID, desc, actions, errors))
+	}
+
+	sb.WriteString("\n📦 **[Download detailed results](../artifacts)**\n")
 
 	return sb.String()
 }
