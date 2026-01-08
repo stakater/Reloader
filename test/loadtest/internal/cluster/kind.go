@@ -29,14 +29,24 @@ func NewManager(cfg Config) *Manager {
 }
 
 // DetectContainerRuntime finds available container runtime.
+// It checks if the runtime daemon is actually running, not just if the binary exists.
 func DetectContainerRuntime() (string, error) {
-	if _, err := exec.LookPath("podman"); err == nil {
-		return "podman", nil
-	}
+	// Prefer docker as it's more commonly used with kind
 	if _, err := exec.LookPath("docker"); err == nil {
-		return "docker", nil
+		// Verify docker daemon is running
+		cmd := exec.Command("docker", "info")
+		if err := cmd.Run(); err == nil {
+			return "docker", nil
+		}
 	}
-	return "", fmt.Errorf("neither docker nor podman found in PATH")
+	if _, err := exec.LookPath("podman"); err == nil {
+		// Verify podman is functional (check if we can run a basic command)
+		cmd := exec.Command("podman", "info")
+		if err := cmd.Run(); err == nil {
+			return "podman", nil
+		}
+	}
+	return "", fmt.Errorf("neither docker nor podman is running")
 }
 
 // Exists checks if the cluster already exists.

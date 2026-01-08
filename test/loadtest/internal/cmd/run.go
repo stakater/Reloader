@@ -24,15 +24,16 @@ import (
 
 // RunConfig holds CLI configuration for the run command.
 type RunConfig struct {
-	OldImage     string
-	NewImage     string
-	Scenario     string
-	Duration     int
-	SkipCluster  bool
-	ClusterName  string
-	ResultsDir   string
-	ManifestsDir string
-	Parallelism  int
+	OldImage      string
+	NewImage      string
+	Scenario      string
+	Duration      int
+	SkipCluster   bool
+	SkipImageLoad bool
+	ClusterName   string
+	ResultsDir    string
+	ManifestsDir  string
+	Parallelism   int
 }
 
 // workerContext holds all resources for a single worker (cluster + prometheus).
@@ -76,6 +77,7 @@ func init() {
 	runCmd.Flags().IntVar(&runCfg.Duration, "duration", 60, "Test duration in seconds")
 	runCmd.Flags().IntVar(&runCfg.Parallelism, "parallelism", 1, "Run N scenarios in parallel on N clusters")
 	runCmd.Flags().BoolVar(&runCfg.SkipCluster, "skip-cluster", false, "Skip kind cluster creation (use existing)")
+	runCmd.Flags().BoolVar(&runCfg.SkipImageLoad, "skip-image-load", false, "Skip loading images into kind (use when images already loaded)")
 	runCmd.Flags().StringVar(&runCfg.ClusterName, "cluster-name", DefaultClusterName, "Kind cluster name")
 	runCmd.Flags().StringVar(&runCfg.ResultsDir, "results-dir", "./results", "Directory for results")
 	runCmd.Flags().StringVar(&runCfg.ManifestsDir, "manifests-dir", "", "Directory containing manifests (auto-detected if not set)")
@@ -179,23 +181,27 @@ func runSequential(ctx context.Context, cfg RunConfig, scenariosToRun []string, 
 	}
 	defer promMgr.StopPortForward()
 
-	log.Println("Loading images into kind cluster...")
-	if runOld {
-		log.Printf("Loading old image: %s", cfg.OldImage)
-		if err := clusterMgr.LoadImage(ctx, cfg.OldImage); err != nil {
-			log.Fatalf("Failed to load old image: %v", err)
+	if cfg.SkipImageLoad {
+		log.Println("Skipping image loading (--skip-image-load)")
+	} else {
+		log.Println("Loading images into kind cluster...")
+		if runOld {
+			log.Printf("Loading old image: %s", cfg.OldImage)
+			if err := clusterMgr.LoadImage(ctx, cfg.OldImage); err != nil {
+				log.Fatalf("Failed to load old image: %v", err)
+			}
 		}
-	}
-	if runNew {
-		log.Printf("Loading new image: %s", cfg.NewImage)
-		if err := clusterMgr.LoadImage(ctx, cfg.NewImage); err != nil {
-			log.Fatalf("Failed to load new image: %v", err)
+		if runNew {
+			log.Printf("Loading new image: %s", cfg.NewImage)
+			if err := clusterMgr.LoadImage(ctx, cfg.NewImage); err != nil {
+				log.Fatalf("Failed to load new image: %v", err)
+			}
 		}
-	}
 
-	log.Println("Pre-loading test images...")
-	testImage := "gcr.io/google-containers/busybox:1.27"
-	clusterMgr.LoadImage(ctx, testImage)
+		log.Println("Pre-loading test images...")
+		testImage := "gcr.io/google-containers/busybox:1.27"
+		clusterMgr.LoadImage(ctx, testImage)
+	}
 
 	kubeClient, err := getKubeClient("")
 	if err != nil {
@@ -422,20 +428,24 @@ func setupWorker(ctx context.Context, cfg RunConfig, workerID int, runtime strin
 		return nil, fmt.Errorf("starting prometheus port-forward: %w", err)
 	}
 
-	log.Printf("[Worker %d] Loading images...", workerID)
-	if runOld {
-		if err := clusterMgr.LoadImage(ctx, cfg.OldImage); err != nil {
-			log.Printf("[Worker %d] Warning: failed to load old image: %v", workerID, err)
+	if cfg.SkipImageLoad {
+		log.Printf("[Worker %d] Skipping image loading (--skip-image-load)", workerID)
+	} else {
+		log.Printf("[Worker %d] Loading images...", workerID)
+		if runOld {
+			if err := clusterMgr.LoadImage(ctx, cfg.OldImage); err != nil {
+				log.Printf("[Worker %d] Warning: failed to load old image: %v", workerID, err)
+			}
 		}
-	}
-	if runNew {
-		if err := clusterMgr.LoadImage(ctx, cfg.NewImage); err != nil {
-			log.Printf("[Worker %d] Warning: failed to load new image: %v", workerID, err)
+		if runNew {
+			if err := clusterMgr.LoadImage(ctx, cfg.NewImage); err != nil {
+				log.Printf("[Worker %d] Warning: failed to load new image: %v", workerID, err)
+			}
 		}
-	}
 
-	testImage := "gcr.io/google-containers/busybox:1.27"
-	clusterMgr.LoadImage(ctx, testImage)
+		testImage := "gcr.io/google-containers/busybox:1.27"
+		clusterMgr.LoadImage(ctx, testImage)
+	}
 
 	kubeClient, err := getKubeClient(kubeContext)
 	if err != nil {

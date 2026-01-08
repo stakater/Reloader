@@ -162,6 +162,7 @@ runs:
         ARGS="$ARGS --scenario=${{ inputs.scenarios }}"
         ARGS="$ARGS --duration=${{ inputs.duration }}"
         ARGS="$ARGS --cluster-name=${{ steps.cluster.outputs.name }}"
+        ARGS="$ARGS --skip-image-load"
 
         if [ -n "${{ steps.images.outputs.old }}" ]; then
           ARGS="$ARGS --old-image=${{ steps.images.outputs.old }}"
