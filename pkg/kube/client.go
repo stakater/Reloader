@@ -11,6 +11,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
+	csiclient "sigs.k8s.io/secrets-store-csi-driver/pkg/client/clientset/versioned"
 )
 
 // Clients struct exposes interfaces for kubernetes as well as openshift if available
@@ -18,11 +19,14 @@ type Clients struct {
 	KubernetesClient    kubernetes.Interface
 	OpenshiftAppsClient appsclient.Interface
 	ArgoRolloutClient   argorollout.Interface
+	CSIClient           csiclient.Interface
 }
 
 var (
 	// IsOpenshift is true if environment is Openshift, it is false if environment is Kubernetes
 	IsOpenshift = isOpenshift()
+	// IsCSIEnabled is true if environment has CSI provider installed, otherwise false
+	IsCSIInstalled = isCSIInstalled()
 )
 
 // GetClients returns a `Clients` object containing both openshift and kubernetes clients with an openshift identifier
@@ -48,10 +52,20 @@ func GetClients() Clients {
 		logrus.Warnf("Unable to create ArgoRollout client error = %v", err)
 	}
 
+	var csiClient *csiclient.Clientset
+
+	if IsCSIInstalled {
+		csiClient, err = GetCSIClient()
+		if err != nil {
+			logrus.Warnf("Unable to create CSI client error = %v", err)
+		}
+	}
+
 	return Clients{
 		KubernetesClient:    client,
 		OpenshiftAppsClient: appsClient,
 		ArgoRolloutClient:   rolloutClient,
+		CSIClient:           csiClient,
 	}
 }
 
@@ -61,6 +75,28 @@ func GetArgoRolloutClient() (*argorollout.Clientset, error) {
 		return nil, err
 	}
 	return argorollout.NewForConfig(config)
+}
+
+func isCSIInstalled() bool {
+	client, err := GetKubernetesClient()
+	if err != nil {
+		logrus.Fatalf("Unable to create Kubernetes client error = %v", err)
+	}
+	_, err = client.RESTClient().Get().AbsPath("/apis/secrets-store.csi.x-k8s.io/v1").Do(context.TODO()).Raw()
+	if err == nil {
+		logrus.Info("CSI provider is installed")
+		return true
+	}
+	logrus.Info("CSI provider is not installed")
+	return false
+}
+
+func GetCSIClient() (*csiclient.Clientset, error) {
+	config, err := getConfig()
+	if err != nil {
+		return nil, err
+	}
+	return csiclient.NewForConfig(config)
 }
 
 func isOpenshift() bool {

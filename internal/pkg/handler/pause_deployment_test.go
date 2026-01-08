@@ -244,7 +244,7 @@ func TestHandleMissingTimerSimple(t *testing.T) {
 		}()
 
 		t.Run(test.name, func(t *testing.T) {
-			fakeClient := testclient.NewSimpleClientset()
+			fakeClient := testclient.NewClientset()
 			clients := kube.Clients{
 				KubernetesClient: fakeClient,
 			}
@@ -337,7 +337,7 @@ func TestPauseDeployment(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			fakeClient := testclient.NewSimpleClientset()
+			fakeClient := testclient.NewClientset()
 			clients := kube.Clients{
 				KubernetesClient: fakeClient,
 			}

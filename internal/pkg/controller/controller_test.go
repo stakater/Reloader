@@ -26,14 +26,15 @@ import (
 )
 
 var (
-	clients             = kube.GetClients()
-	namespace           = "test-reloader-" + testutil.RandSeq(5)
-	configmapNamePrefix = "testconfigmap-reloader"
-	secretNamePrefix    = "testsecret-reloader"
-	data                = "dGVzdFNlY3JldEVuY29kaW5nRm9yUmVsb2FkZXI="
-	newData             = "dGVzdE5ld1NlY3JldEVuY29kaW5nRm9yUmVsb2FkZXI="
-	updatedData         = "dGVzdFVwZGF0ZWRTZWNyZXRFbmNvZGluZ0ZvclJlbG9hZGVy"
-	collectors          = metrics.NewCollectors()
+	clients                            = kube.GetClients()
+	namespace                          = "test-reloader-" + testutil.RandSeq(5)
+	configmapNamePrefix                = "testconfigmap-reloader"
+	secretNamePrefix                   = "testsecret-reloader"
+	secretProviderClassPodStatusPrefix = "testsecretproviderclasspodstatus-reloader"
+	data                               = "dGVzdFNlY3JldEVuY29kaW5nRm9yUmVsb2FkZXI="
+	newData                            = "dGVzdE5ld1NlY3JldEVuY29kaW5nRm9yUmVsb2FkZXI="
+	updatedData                        = "dGVzdFVwZGF0ZWRTZWNyZXRFbmNvZGluZ0ZvclJlbG9hZGVy"
+	collectors                         = metrics.NewCollectors()
 )
 
 const (
@@ -46,6 +47,10 @@ func TestMain(m *testing.M) {
 
 	logrus.Infof("Creating controller")
 	for k := range kube.ResourceMap {
+		// Don't create controller if CSI provider is not installed
+		if k == "secretproviderclasspodstatuses" && !kube.IsCSIInstalled {
+			continue
+		}
 		if k == "namespaces" {
 			continue
 		}
@@ -575,6 +580,217 @@ func TestControllerUpdatingSecretLabelsShouldNotCreateOrUpdatePodAnnotationInDep
 	err = testutil.DeleteSecret(clients.KubernetesClient, namespace, secretName)
 	if err != nil {
 		logrus.Errorf("Error while deleting the secret %v", err)
+	}
+	time.Sleep(sleepDuration)
+}
+
+// Perform rolling upgrade on deployment and create pod annotation var upon updating the secretclassproviderpodstatus
+func TestControllerUpdatingSecretProviderClassPodStatusShouldCreatePodAnnotationInDeployment(t *testing.T) {
+	options.ReloadStrategy = constants.AnnotationsReloadStrategy
+
+	if !kube.IsCSIInstalled {
+		return
+	}
+
+	// Creating secretproviderclass
+	secretproviderclasspodstatusName := secretProviderClassPodStatusPrefix + "-update-" + testutil.RandSeq(5)
+	_, err := testutil.CreateSecretProviderClass(clients.CSIClient, namespace, secretproviderclasspodstatusName, data)
+	if err != nil {
+		t.Errorf("Error while creating the secretproviderclass %v", err)
+	}
+
+	// Creating secretproviderclasspodstatus
+	spcpsClient, err := testutil.CreateSecretProviderClassPodStatus(clients.CSIClient, namespace, secretproviderclasspodstatusName, data)
+	if err != nil {
+		t.Errorf("Error while creating the secretclasssproviderpodstatus %v", err)
+	}
+
+	// Creating deployment
+	_, err = testutil.CreateDeployment(clients.KubernetesClient, secretproviderclasspodstatusName, namespace, true)
+	if err != nil {
+		t.Errorf("Error in deployment creation: %v", err)
+	}
+
+	// Updating secretproviderclasspodstatus for first time
+	updateErr := testutil.UpdateSecretProviderClassPodStatus(spcpsClient, namespace, secretproviderclasspodstatusName, "", newData)
+	if updateErr != nil {
+		t.Errorf("Secretproviderclasspodstatus was not updated")
+	}
+
+	// Verifying deployment update
+	logrus.Infof("Verifying pod annotation has been created")
+	shaData := testutil.ConvertResourceToSHA(testutil.SecretProviderClassPodStatusResourceType, namespace, secretproviderclasspodstatusName, newData)
+	config := common.Config{
+		Namespace:    namespace,
+		ResourceName: secretproviderclasspodstatusName,
+		SHAValue:     shaData,
+		Annotation:   options.SecretProviderClassUpdateOnChangeAnnotation,
+	}
+	deploymentFuncs := handler.GetDeploymentRollingUpgradeFuncs()
+	updated := testutil.VerifyResourceAnnotationUpdate(clients, config, deploymentFuncs)
+	if !updated {
+		t.Errorf("Deployment was not updated")
+	}
+	time.Sleep(sleepDuration)
+
+	// Deleting deployment
+	err = testutil.DeleteDeployment(clients.KubernetesClient, namespace, secretproviderclasspodstatusName)
+	if err != nil {
+		logrus.Errorf("Error while deleting the deployment %v", err)
+	}
+
+	// Deleting secretproviderclass
+	err = testutil.DeleteSecretProviderClass(clients.CSIClient, namespace, secretproviderclasspodstatusName)
+	if err != nil {
+		logrus.Errorf("Error while deleting the secretproviderclass %v", err)
+	}
+
+	// Deleting secretproviderclasspodstatus
+	err = testutil.DeleteSecretProviderClassPodStatus(clients.CSIClient, namespace, secretproviderclasspodstatusName)
+	if err != nil {
+		logrus.Errorf("Error while deleting the secretproviderclasspodstatus %v", err)
+	}
+	time.Sleep(sleepDuration)
+}
+
+// Perform rolling upgrade on deployment and update pod annotation var upon updating the secretproviderclasspodstatus
+func TestControllerUpdatingSecretProviderClassPodStatusShouldUpdatePodAnnotationInDeployment(t *testing.T) {
+	options.ReloadStrategy = constants.AnnotationsReloadStrategy
+
+	if !kube.IsCSIInstalled {
+		return
+	}
+
+	// Creating secretproviderclass
+	secretproviderclasspodstatusName := secretProviderClassPodStatusPrefix + "-update-" + testutil.RandSeq(5)
+	_, err := testutil.CreateSecretProviderClass(clients.CSIClient, namespace, secretproviderclasspodstatusName, data)
+	if err != nil {
+		t.Errorf("Error while creating the secretproviderclass %v", err)
+	}
+
+	// Creating secretproviderclasspodstatus
+	spcpsClient, err := testutil.CreateSecretProviderClassPodStatus(clients.CSIClient, namespace, secretproviderclasspodstatusName, data)
+	if err != nil {
+		t.Errorf("Error while creating the secretclasssproviderpodstatus %v", err)
+	}
+
+	// Creating deployment
+	_, err = testutil.CreateDeployment(clients.KubernetesClient, secretproviderclasspodstatusName, namespace, true)
+	if err != nil {
+		t.Errorf("Error in deployment creation: %v", err)
+	}
+
+	// Updating Secret
+	err = testutil.UpdateSecretProviderClassPodStatus(spcpsClient, namespace, secretproviderclasspodstatusName, "", newData)
+	if err != nil {
+		t.Errorf("Error while updating secretproviderclasspodstatus %v", err)
+	}
+
+	// Updating Secret
+	err = testutil.UpdateSecretProviderClassPodStatus(spcpsClient, namespace, secretproviderclasspodstatusName, "", updatedData)
+	if err != nil {
+		t.Errorf("Error while updating secretproviderclasspodstatus %v", err)
+	}
+
+	// Verifying Upgrade
+	logrus.Infof("Verifying pod annotation has been updated")
+	shaData := testutil.ConvertResourceToSHA(testutil.SecretProviderClassPodStatusResourceType, namespace, secretproviderclasspodstatusName, updatedData)
+	config := common.Config{
+		Namespace:    namespace,
+		ResourceName: secretproviderclasspodstatusName,
+		SHAValue:     shaData,
+		Annotation:   options.SecretProviderClassUpdateOnChangeAnnotation,
+	}
+	deploymentFuncs := handler.GetDeploymentRollingUpgradeFuncs()
+	updated := testutil.VerifyResourceAnnotationUpdate(clients, config, deploymentFuncs)
+	if !updated {
+		t.Errorf("Deployment was not updated")
+	}
+
+	// Deleting Deployment
+	err = testutil.DeleteDeployment(clients.KubernetesClient, namespace, secretproviderclasspodstatusName)
+	if err != nil {
+		logrus.Errorf("Error while deleting the deployment %v", err)
+	}
+
+	// Deleting secretproviderclass
+	err = testutil.DeleteSecretProviderClass(clients.CSIClient, namespace, secretproviderclasspodstatusName)
+	if err != nil {
+		logrus.Errorf("Error while deleting the secretproviderclass %v", err)
+	}
+
+	// Deleting secretproviderclasspodstatus
+	err = testutil.DeleteSecretProviderClassPodStatus(clients.CSIClient, namespace, secretproviderclasspodstatusName)
+	if err != nil {
+		logrus.Errorf("Error while deleting the secretproviderclasspodstatus %v", err)
+	}
+	time.Sleep(sleepDuration)
+
+}
+
+// Do not Perform rolling upgrade on pod and create or update a pod annotation upon updating the label in secretproviderclasspodstatus
+func TestControllerUpdatingSecretProviderClassPodStatusWithSameDataShouldNotCreateOrUpdatePodAnnotationInDeployment(t *testing.T) {
+	options.ReloadStrategy = constants.AnnotationsReloadStrategy
+
+	if !kube.IsCSIInstalled {
+		return
+	}
+
+	// Creating secretproviderclass
+	secretproviderclasspodstatusName := secretProviderClassPodStatusPrefix + "-update-" + testutil.RandSeq(5)
+	_, err := testutil.CreateSecretProviderClass(clients.CSIClient, namespace, secretproviderclasspodstatusName, data)
+	if err != nil {
+		t.Errorf("Error while creating the secretproviderclass %v", err)
+	}
+
+	// Creating secretproviderclasspodstatus
+	spcpsClient, err := testutil.CreateSecretProviderClassPodStatus(clients.CSIClient, namespace, secretproviderclasspodstatusName, data)
+	if err != nil {
+		t.Errorf("Error while creating the secretclasssproviderpodstatus %v", err)
+	}
+
+	// Creating deployment
+	_, err = testutil.CreateDeployment(clients.KubernetesClient, secretproviderclasspodstatusName, namespace, true)
+	if err != nil {
+		t.Errorf("Error in deployment creation: %v", err)
+	}
+
+	err = testutil.UpdateSecretProviderClassPodStatus(spcpsClient, namespace, secretproviderclasspodstatusName, "", data)
+	if err != nil {
+		t.Errorf("Error while updating secretproviderclasspodstatus %v", err)
+	}
+
+	// Verifying Upgrade
+	logrus.Infof("Verifying pod annotation has been created")
+	shaData := testutil.ConvertResourceToSHA(testutil.SecretProviderClassPodStatusResourceType, namespace, secretproviderclasspodstatusName, data)
+	config := common.Config{
+		Namespace:    namespace,
+		ResourceName: secretproviderclasspodstatusName,
+		SHAValue:     shaData,
+		Annotation:   options.SecretProviderClassUpdateOnChangeAnnotation,
+	}
+	deploymentFuncs := handler.GetDeploymentRollingUpgradeFuncs()
+	updated := testutil.VerifyResourceAnnotationUpdate(clients, config, deploymentFuncs)
+	if updated {
+		t.Errorf("Deployment should not be updated by changing in secretproviderclasspodstatus")
+	}
+
+	// Deleting Deployment
+	err = testutil.DeleteDeployment(clients.KubernetesClient, namespace, secretproviderclasspodstatusName)
+	if err != nil {
+		logrus.Errorf("Error while deleting the deployment %v", err)
+	}
+
+	// Deleting secretproviderclass
+	err = testutil.DeleteSecretProviderClass(clients.CSIClient, namespace, secretproviderclasspodstatusName)
+	if err != nil {
+		logrus.Errorf("Error while deleting the secretproviderclass %v", err)
+	}
+
+	// Deleting secretproviderclasspodstatus
+	err = testutil.DeleteSecretProviderClassPodStatus(clients.CSIClient, namespace, secretproviderclasspodstatusName)
+	if err != nil {
+		logrus.Errorf("Error while deleting the secretproviderclasspodstatus %v", err)
 	}
 	time.Sleep(sleepDuration)
 }
@@ -1531,6 +1747,215 @@ func TestControllerUpdatingSecretLabelsShouldNotCreateOrUpdateEnvInDeployment(t 
 	time.Sleep(sleepDuration)
 }
 
+// Perform rolling upgrade on pod and create a env var upon updating the secretproviderclasspodstatus
+func TestControllerUpdatingSecretProviderClassPodStatusShouldCreateEnvInDeployment(t *testing.T) {
+	options.ReloadStrategy = constants.EnvVarsReloadStrategy
+
+	if !kube.IsCSIInstalled {
+		return
+	}
+
+	// Creating secretproviderclass
+	secretproviderclasspodstatusName := secretProviderClassPodStatusPrefix + "-update-" + testutil.RandSeq(5)
+	_, err := testutil.CreateSecretProviderClass(clients.CSIClient, namespace, secretproviderclasspodstatusName, data)
+	if err != nil {
+		t.Errorf("Error while creating the secretproviderclass %v", err)
+	}
+
+	// Creating secretproviderclasspodstatus
+	spcpsClient, err := testutil.CreateSecretProviderClassPodStatus(clients.CSIClient, namespace, secretproviderclasspodstatusName, data)
+	if err != nil {
+		t.Errorf("Error while creating the secretclasssproviderpodstatus %v", err)
+	}
+
+	// Creating deployment
+	_, err = testutil.CreateDeployment(clients.KubernetesClient, secretproviderclasspodstatusName, namespace, true)
+	if err != nil {
+		t.Errorf("Error in deployment creation: %v", err)
+	}
+
+	// Updating Secret
+	err = testutil.UpdateSecretProviderClassPodStatus(spcpsClient, namespace, secretproviderclasspodstatusName, "", newData)
+	if err != nil {
+		t.Errorf("Error while updating secretproviderclasspodstatus %v", err)
+	}
+
+	// Verifying Upgrade
+	logrus.Infof("Verifying env var has been created")
+	shaData := testutil.ConvertResourceToSHA(testutil.SecretProviderClassPodStatusResourceType, namespace, secretproviderclasspodstatusName, newData)
+	config := common.Config{
+		Namespace:    namespace,
+		ResourceName: secretproviderclasspodstatusName,
+		SHAValue:     shaData,
+		Annotation:   options.SecretProviderClassUpdateOnChangeAnnotation,
+	}
+	deploymentFuncs := handler.GetDeploymentRollingUpgradeFuncs()
+	updated := testutil.VerifyResourceEnvVarUpdate(clients, config, constants.SecretProviderClassEnvVarPostfix, deploymentFuncs)
+	if !updated {
+		t.Errorf("Deployment was not updated")
+	}
+
+	// Deleting Deployment
+	err = testutil.DeleteDeployment(clients.KubernetesClient, namespace, secretproviderclasspodstatusName)
+	if err != nil {
+		logrus.Errorf("Error while deleting the deployment %v", err)
+	}
+
+	// Deleting secretproviderclass
+	err = testutil.DeleteSecretProviderClass(clients.CSIClient, namespace, secretproviderclasspodstatusName)
+	if err != nil {
+		logrus.Errorf("Error while deleting the secretproviderclass %v", err)
+	}
+
+	// Deleting secretproviderclasspodstatus
+	err = testutil.DeleteSecretProviderClassPodStatus(clients.CSIClient, namespace, secretproviderclasspodstatusName)
+	if err != nil {
+		logrus.Errorf("Error while deleting the secretproviderclasspodstatus %v", err)
+	}
+	time.Sleep(sleepDuration)
+}
+
+// Perform rolling upgrade on deployment and update env var upon updating the secretproviderclasspodstatus
+func TestControllerUpdatingSecretProviderClassPodStatusShouldUpdateEnvInDeployment(t *testing.T) {
+	options.ReloadStrategy = constants.EnvVarsReloadStrategy
+
+	if !kube.IsCSIInstalled {
+		return
+	}
+
+	// Creating secretproviderclass
+	secretproviderclasspodstatusName := secretProviderClassPodStatusPrefix + "-update-" + testutil.RandSeq(5)
+	_, err := testutil.CreateSecretProviderClass(clients.CSIClient, namespace, secretproviderclasspodstatusName, data)
+	if err != nil {
+		t.Errorf("Error while creating the secretproviderclass %v", err)
+	}
+
+	// Creating secretproviderclasspodstatus
+	spcpsClient, err := testutil.CreateSecretProviderClassPodStatus(clients.CSIClient, namespace, secretproviderclasspodstatusName, data)
+	if err != nil {
+		t.Errorf("Error while creating the secretclasssproviderpodstatus %v", err)
+	}
+
+	// Creating deployment
+	_, err = testutil.CreateDeployment(clients.KubernetesClient, secretproviderclasspodstatusName, namespace, true)
+	if err != nil {
+		t.Errorf("Error in deployment creation: %v", err)
+	}
+
+	// Updating secretproviderclasspodstatus
+	err = testutil.UpdateSecretProviderClassPodStatus(spcpsClient, namespace, secretproviderclasspodstatusName, "", newData)
+	if err != nil {
+		t.Errorf("Error while updating secretproviderclasspodstatus %v", err)
+	}
+
+	// Updating secretproviderclasspodstatus
+	err = testutil.UpdateSecretProviderClassPodStatus(spcpsClient, namespace, secretproviderclasspodstatusName, "", updatedData)
+	if err != nil {
+		t.Errorf("Error while updating secretproviderclasspodstatus %v", err)
+	}
+
+	// Verifying Upgrade
+	logrus.Infof("Verifying env var has been updated")
+	shaData := testutil.ConvertResourceToSHA(testutil.SecretProviderClassPodStatusResourceType, namespace, secretproviderclasspodstatusName, updatedData)
+	config := common.Config{
+		Namespace:    namespace,
+		ResourceName: secretproviderclasspodstatusName,
+		SHAValue:     shaData,
+		Annotation:   options.SecretProviderClassUpdateOnChangeAnnotation,
+	}
+	deploymentFuncs := handler.GetDeploymentRollingUpgradeFuncs()
+	updated := testutil.VerifyResourceEnvVarUpdate(clients, config, constants.SecretProviderClassEnvVarPostfix, deploymentFuncs)
+	if !updated {
+		t.Errorf("Deployment was not updated")
+	}
+
+	// Deleting Deployment
+	err = testutil.DeleteDeployment(clients.KubernetesClient, namespace, secretproviderclasspodstatusName)
+	if err != nil {
+		logrus.Errorf("Error while deleting the deployment %v", err)
+	}
+
+	// Deleting secretproviderclass
+	err = testutil.DeleteSecretProviderClass(clients.CSIClient, namespace, secretproviderclasspodstatusName)
+	if err != nil {
+		logrus.Errorf("Error while deleting the secretproviderclass %v", err)
+	}
+
+	// Deleting secretproviderclasspodstatus
+	err = testutil.DeleteSecretProviderClassPodStatus(clients.CSIClient, namespace, secretproviderclasspodstatusName)
+	if err != nil {
+		logrus.Errorf("Error while deleting the secretproviderclasspodstatus %v", err)
+	}
+	time.Sleep(sleepDuration)
+}
+
+// Do not Perform rolling upgrade on pod and create or update a env var upon updating the label in secretclasssproviderpodstatus
+func TestControllerUpdatingSecretProviderClassPodStatusLabelsShouldNotCreateOrUpdateEnvInDeployment(t *testing.T) {
+	options.ReloadStrategy = constants.EnvVarsReloadStrategy
+
+	if !kube.IsCSIInstalled {
+		return
+	}
+
+	// Creating secretproviderclass
+	secretproviderclasspodstatusName := secretProviderClassPodStatusPrefix + "-update-" + testutil.RandSeq(5)
+	_, err := testutil.CreateSecretProviderClass(clients.CSIClient, namespace, secretproviderclasspodstatusName, data)
+	if err != nil {
+		t.Errorf("Error while creating the secretproviderclass %v", err)
+	}
+
+	// Creating secretproviderclasspodstatus
+	spcpsClient, err := testutil.CreateSecretProviderClassPodStatus(clients.CSIClient, namespace, secretproviderclasspodstatusName, data)
+	if err != nil {
+		t.Errorf("Error while creating the secretclasssproviderpodstatus %v", err)
+	}
+
+	// Creating deployment
+	_, err = testutil.CreateDeployment(clients.KubernetesClient, secretproviderclasspodstatusName, namespace, true)
+	if err != nil {
+		t.Errorf("Error in deployment creation: %v", err)
+	}
+
+	err = testutil.UpdateSecretProviderClassPodStatus(spcpsClient, namespace, secretproviderclasspodstatusName, "test", data)
+	if err != nil {
+		t.Errorf("Error while updating secretproviderclasspodstatus %v", err)
+	}
+
+	// Verifying Upgrade
+	logrus.Infof("Verifying env var has been created")
+	shaData := testutil.ConvertResourceToSHA(testutil.SecretProviderClassPodStatusResourceType, namespace, secretproviderclasspodstatusName, data)
+	config := common.Config{
+		Namespace:    namespace,
+		ResourceName: secretproviderclasspodstatusName,
+		SHAValue:     shaData,
+		Annotation:   options.SecretProviderClassUpdateOnChangeAnnotation,
+	}
+	deploymentFuncs := handler.GetDeploymentRollingUpgradeFuncs()
+	updated := testutil.VerifyResourceEnvVarUpdate(clients, config, constants.SecretProviderClassEnvVarPostfix, deploymentFuncs)
+	if updated {
+		t.Errorf("Deployment should not be updated by changing label in secretproviderclasspodstatus")
+	}
+
+	// Deleting Deployment
+	err = testutil.DeleteDeployment(clients.KubernetesClient, namespace, secretproviderclasspodstatusName)
+	if err != nil {
+		logrus.Errorf("Error while deleting the deployment %v", err)
+	}
+
+	// Deleting secretproviderclass
+	err = testutil.DeleteSecretProviderClass(clients.CSIClient, namespace, secretproviderclasspodstatusName)
+	if err != nil {
+		logrus.Errorf("Error while deleting the secretproviderclass %v", err)
+	}
+
+	// Deleting secretproviderclasspodstatus
+	err = testutil.DeleteSecretProviderClassPodStatus(clients.CSIClient, namespace, secretproviderclasspodstatusName)
+	if err != nil {
+		logrus.Errorf("Error while deleting the secretproviderclasspodstatus %v", err)
+	}
+	time.Sleep(sleepDuration)
+}
+
 // Perform rolling upgrade on DaemonSet and create env var upon updating the configmap
 func TestControllerUpdatingConfigmapShouldCreateEnvInDaemonSet(t *testing.T) {
 	options.ReloadStrategy = constants.EnvVarsReloadStrategy
@@ -2332,7 +2757,7 @@ func TestController_resourceInNamespaceSelector(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			fakeClient := fake.NewSimpleClientset()
+			fakeClient := fake.NewClientset()
 			namespace, _ := fakeClient.CoreV1().Namespaces().Create(context.Background(), &tt.fields.namespace, metav1.CreateOptions{})
 			logrus.Infof("created fakeClient namespace for testing = %s", namespace.Name)
 

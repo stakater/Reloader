@@ -49,6 +49,7 @@ reloader:
   enableHA: false
   # Set to true to enable pprof for profiling
   enablePProf: false
+  enableCSIIntegration: false
   # Address to start pprof server on. Default is ":6060"
   pprofAddr: ":6060"
   # Set to true if you have a pod security policy that enforces readOnlyRootFilesystem
