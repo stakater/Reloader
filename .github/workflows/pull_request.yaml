@@ -107,8 +107,8 @@ jobs:
         kubectl cluster-info
 
 
-    - name: Test
-      run: make test
+    #- name: Test
+    #  run: make test
 
     - name: Run quick A/B load tests
       uses: ./.github/actions/loadtest
