@@ -608,7 +608,11 @@ func compareMetricWithExpected(name string, oldValue, newValue, expected float64
 	oldMeetsExp := meetsExpected(oldValue, expected)
 	newMeetsExp := meetsExpected(newValue, expected)
 
-	if expected > 0 && threshold.metricType == ShouldMatch {
+	isNewMetric := info.isCounter && oldValue == 0 && newValue > 0 && expected == 0
+
+	if isNewMetric {
+		status = "info"
+	} else if expected > 0 && threshold.metricType == ShouldMatch {
 		if newMeetsExp == "✗" {
 			status = "fail"
 		}
