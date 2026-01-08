@@ -242,15 +242,14 @@ func PerformAction(clients kube.Clients, config common.Config, upgradeFuncs call
 
 	matchedCount := 0
 	for _, item := range items {
-		err := retryOnConflict(retry.DefaultRetry, func(fetchResource bool) (bool, error) {
-			matched, err := upgradeResource(clients, config, upgradeFuncs, collectors, recorder, strategy, item, fetchResource)
-			if matched {
-				matchedCount++
-			}
-			return matched, err
+		matched, err := retryOnConflict(retry.DefaultRetry, func(fetchResource bool) (bool, error) {
+			return upgradeResource(clients, config, upgradeFuncs, collectors, recorder, strategy, item, fetchResource)
 		})
 		if err != nil {
 			return err
+		}
+		if matched {
+			matchedCount++
 		}
 	}
 
@@ -260,11 +259,13 @@ func PerformAction(clients kube.Clients, config common.Config, upgradeFuncs call
 	return nil
 }
 
-func retryOnConflict(backoff wait.Backoff, fn func(_ bool) (bool, error)) error {
+func retryOnConflict(backoff wait.Backoff, fn func(_ bool) (bool, error)) (bool, error) {
 	var lastError error
+	var matched bool
 	fetchResource := false // do not fetch resource on first attempt, already done by ItemsFunc
 	err := wait.ExponentialBackoff(backoff, func() (bool, error) {
-		_, err := fn(fetchResource)
+		var err error
+		matched, err = fn(fetchResource)
 		fetchResource = true
 		switch {
 		case err == nil:
@@ -279,7 +280,7 @@ func retryOnConflict(backoff wait.Backoff, fn func(_ bool) (bool, error)) error 
 	if wait.Interrupted(err) {
 		err = lastError
 	}
-	return err
+	return matched, err
 }
 
 func upgradeResource(clients kube.Clients, config common.Config, upgradeFuncs callbacks.RollingUpgradeFuncs, collectors metrics.Collectors, recorder record.EventRecorder, strategy invokeStrategy, resource runtime.Object, fetchResource bool) (bool, error) {
