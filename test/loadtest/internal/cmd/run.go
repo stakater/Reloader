@@ -133,9 +133,16 @@ func runCommand() {
 		cancel()
 	}()
 
-	scenariosToRun := []string{runCfg.Scenario}
+	var scenariosToRun []string
 	if runCfg.Scenario == "all" {
 		scenariosToRun = []string{"S1", "S2", "S3", "S4", "S5", "S6", "S7", "S8", "S9", "S10", "S11", "S12", "S13"}
+	} else {
+		// Split comma-separated scenarios (e.g., "S1,S4,S6")
+		for _, s := range strings.Split(runCfg.Scenario, ",") {
+			if trimmed := strings.TrimSpace(s); trimmed != "" {
+				scenariosToRun = append(scenariosToRun, trimmed)
+			}
+		}
 	}
 
 	if runCfg.SkipCluster && runCfg.Parallelism > 1 {
