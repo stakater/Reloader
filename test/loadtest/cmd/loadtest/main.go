@@ -142,9 +142,13 @@ func parseArgs(args []string) Config {
 		case strings.HasPrefix(arg, "--scenario="):
 			cfg.Scenario = strings.TrimPrefix(arg, "--scenario=")
 		case strings.HasPrefix(arg, "--duration="):
-			fmt.Sscanf(strings.TrimPrefix(arg, "--duration="), "%d", &cfg.Duration)
+			if n, _ := fmt.Sscanf(strings.TrimPrefix(arg, "--duration="), "%d", &cfg.Duration); n != 1 {
+				log.Printf("Warning: invalid --duration value, using default (%d)", cfg.Duration)
+			}
 		case strings.HasPrefix(arg, "--parallelism="):
-			fmt.Sscanf(strings.TrimPrefix(arg, "--parallelism="), "%d", &cfg.Parallelism)
+			if n, _ := fmt.Sscanf(strings.TrimPrefix(arg, "--parallelism="), "%d", &cfg.Parallelism); n != 1 {
+				log.Printf("Warning: invalid --parallelism value, using default (%d)", cfg.Parallelism)
+			}
 		case arg == "--skip-cluster":
 			cfg.SkipCluster = true
 		case strings.HasPrefix(arg, "--results-dir="):
