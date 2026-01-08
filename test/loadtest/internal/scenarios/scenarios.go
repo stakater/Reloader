@@ -1137,7 +1137,7 @@ func (s *SecretsAndMixedScenario) Run(ctx context.Context, client kubernetes.Int
 	for time.Now().Before(endTime) {
 		select {
 		case <-ctx.Done():
-			return s.calculateExpected(secretUpdateCount, cmUpdateCount, numSecretOnlyDeploys, numConfigMapOnlyDeploys, numMixedDeploys), nil
+			return s.calculateExpected(secretUpdateCount, cmUpdateCount, numSecrets, numConfigMaps, numSecretOnlyDeploys, numConfigMapOnlyDeploys, numMixedDeploys), nil
 		case <-ticker.C:
 			if updateSecret {
 				// Update a random Secret
@@ -1169,21 +1169,25 @@ func (s *SecretsAndMixedScenario) Run(ctx context.Context, client kubernetes.Int
 	}
 
 	log.Printf("S10: Completed %d Secret updates and %d ConfigMap updates", secretUpdateCount, cmUpdateCount)
-	return s.calculateExpected(secretUpdateCount, cmUpdateCount, numSecretOnlyDeploys, numConfigMapOnlyDeploys, numMixedDeploys), nil
+	return s.calculateExpected(secretUpdateCount, cmUpdateCount, numSecrets, numConfigMaps, numSecretOnlyDeploys, numConfigMapOnlyDeploys, numMixedDeploys), nil
 }
 
-func (s *SecretsAndMixedScenario) calculateExpected(secretUpdates, cmUpdates, secretOnlyDeploys, cmOnlyDeploys, mixedDeploys int) ExpectedMetrics {
-	// Secret updates trigger: secret-only deploys + mixed deploys
-	secretTriggeredReloads := secretUpdates * (secretOnlyDeploys + mixedDeploys)
-	// ConfigMap updates trigger: cm-only deploys + mixed deploys
-	cmTriggeredReloads := cmUpdates * (cmOnlyDeploys + mixedDeploys)
+func (s *SecretsAndMixedScenario) calculateExpected(secretUpdates, cmUpdates, numSecrets, numConfigMaps, secretOnlyDeploys, cmOnlyDeploys, mixedDeploys int) ExpectedMetrics {
+	// Average deploys triggered per random secret update
+	avgSecretReloads := float64(secretOnlyDeploys)/float64(numSecrets) + float64(mixedDeploys)/float64(numSecrets)
+	secretTriggeredReloads := int(float64(secretUpdates) * avgSecretReloads)
+
+	// Average deploys triggered per random CM update
+	avgCMReloads := float64(cmOnlyDeploys)/float64(numConfigMaps) + float64(mixedDeploys)/float64(numConfigMaps)
+	cmTriggeredReloads := int(float64(cmUpdates) * avgCMReloads)
+
 	totalExpectedReloads := secretTriggeredReloads + cmTriggeredReloads
 
 	return ExpectedMetrics{
 		ActionTotal:         totalExpectedReloads,
 		ReloadExecutedTotal: totalExpectedReloads,
-		Description: fmt.Sprintf("S10: %d Secret updates (→%d reloads) + %d CM updates (→%d reloads) = %d total",
-			secretUpdates, secretTriggeredReloads, cmUpdates, cmTriggeredReloads, totalExpectedReloads),
+		Description: fmt.Sprintf("S10: %d Secret updates (→%d reloads, avg %.1f/update) + %d CM updates (→%d reloads, avg %.1f/update) = %d total",
+			secretUpdates, secretTriggeredReloads, avgSecretReloads, cmUpdates, cmTriggeredReloads, avgCMReloads, totalExpectedReloads),
 	}
 }
 
