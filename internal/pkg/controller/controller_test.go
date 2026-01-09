@@ -2582,19 +2582,21 @@ func TestController_resourceInIgnoredNamespace(t *testing.T) {
 		},
 	}
 	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			c := &Controller{
-				client:            tt.fields.client,
-				indexer:           tt.fields.indexer,
-				queue:             tt.fields.queue,
-				informer:          tt.fields.informer,
-				namespace:         tt.fields.namespace,
-				ignoredNamespaces: tt.fields.ignoredNamespaces,
-			}
-			if got := c.resourceInIgnoredNamespace(tt.args.raw); got != tt.want {
-				t.Errorf("Controller.resourceInIgnoredNamespace() = %v, want %v", got, tt.want)
-			}
-		})
+		t.Run(
+			tt.name, func(t *testing.T) {
+				c := &Controller{
+					client:            tt.fields.client,
+					indexer:           tt.fields.indexer,
+					queue:             tt.fields.queue,
+					informer:          tt.fields.informer,
+					namespace:         tt.fields.namespace,
+					ignoredNamespaces: tt.fields.ignoredNamespaces,
+				}
+				if got := c.resourceInIgnoredNamespace(tt.args.raw); got != tt.want {
+					t.Errorf("Controller.resourceInIgnoredNamespace() = %v, want %v", got, tt.want)
+				}
+			},
+		)
 	}
 }
 
@@ -2756,35 +2758,37 @@ func TestController_resourceInNamespaceSelector(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			fakeClient := fake.NewClientset()
-			namespace, _ := fakeClient.CoreV1().Namespaces().Create(context.Background(), &tt.fields.namespace, metav1.CreateOptions{})
-			logrus.Infof("created fakeClient namespace for testing = %s", namespace.Name)
+		t.Run(
+			tt.name, func(t *testing.T) {
+				fakeClient := fake.NewClientset()
+				namespace, _ := fakeClient.CoreV1().Namespaces().Create(context.Background(), &tt.fields.namespace, metav1.CreateOptions{})
+				logrus.Infof("created fakeClient namespace for testing = %s", namespace.Name)
 
-			c := &Controller{
-				client:            fakeClient,
-				indexer:           tt.fields.indexer,
-				queue:             tt.fields.queue,
-				informer:          tt.fields.informer,
-				namespace:         tt.fields.namespace.Name,
-				namespaceSelector: tt.fields.namespaceSelector,
-			}
+				c := &Controller{
+					client:            fakeClient,
+					indexer:           tt.fields.indexer,
+					queue:             tt.fields.queue,
+					informer:          tt.fields.informer,
+					namespace:         tt.fields.namespace.Name,
+					namespaceSelector: tt.fields.namespaceSelector,
+				}
 
-			listOptions := metav1.ListOptions{}
-			listOptions.LabelSelector = tt.fields.namespaceSelector
-			namespaces, _ := fakeClient.CoreV1().Namespaces().List(context.Background(), listOptions)
+				listOptions := metav1.ListOptions{}
+				listOptions.LabelSelector = tt.fields.namespaceSelector
+				namespaces, _ := fakeClient.CoreV1().Namespaces().List(context.Background(), listOptions)
 
-			for _, ns := range namespaces.Items {
-				c.addSelectedNamespaceToCache(ns)
-			}
+				for _, ns := range namespaces.Items {
+					c.addSelectedNamespaceToCache(ns)
+				}
 
-			if got := c.resourceInSelectedNamespaces(tt.args.raw); got != tt.want {
-				t.Errorf("Controller.resourceInNamespaceSelector() = %v, want %v", got, tt.want)
-			}
+				if got := c.resourceInSelectedNamespaces(tt.args.raw); got != tt.want {
+					t.Errorf("Controller.resourceInNamespaceSelector() = %v, want %v", got, tt.want)
+				}
 
-			for _, ns := range namespaces.Items {
-				c.removeSelectedNamespaceFromCache(ns)
-			}
-		})
+				for _, ns := range namespaces.Items {
+					c.removeSelectedNamespaceFromCache(ns)
+				}
+			},
+		)
 	}
 }
