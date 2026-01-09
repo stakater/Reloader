@@ -35,7 +35,7 @@ func (r ResourceDeleteHandler) GetEnqueueTime() time.Time {
 // Handle processes resources being deleted
 func (r ResourceDeleteHandler) Handle() error {
 	startTime := time.Now()
-	result := "success"
+	result := "error"
 
 	defer func() {
 		r.Collectors.RecordReconcile(result, time.Since(startTime))
@@ -43,25 +43,24 @@ func (r ResourceDeleteHandler) Handle() error {
 
 	if r.Resource == nil {
 		logrus.Errorf("Resource delete handler received nil resource")
-		result = "error"
-	} else {
-		config, _ := r.GetConfig()
-		// Send webhook
-		if options.WebhookUrl != "" {
-			err := sendUpgradeWebhook(config, options.WebhookUrl)
-			if err != nil {
-				result = "error"
-			}
-			return err
-		}
-		// process resource based on its type
-		err := doRollingUpgrade(config, r.Collectors, r.Recorder, invokeDeleteStrategy)
-		if err != nil {
-			result = "error"
+		return nil
+	}
+
+	config, _ := r.GetConfig()
+	// Send webhook
+	if options.WebhookUrl != "" {
+		err := sendUpgradeWebhook(config, options.WebhookUrl)
+		if err == nil {
+			result = "success"
 		}
 		return err
 	}
-	return nil
+	// process resource based on its type
+	err := doRollingUpgrade(config, r.Collectors, r.Recorder, invokeDeleteStrategy)
+	if err == nil {
+		result = "success"
+	}
+	return err
 }
 
 // GetConfig gets configurations containing SHA, annotations, namespace and resource name

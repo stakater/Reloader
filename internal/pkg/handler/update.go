@@ -30,7 +30,7 @@ func (r ResourceUpdatedHandler) GetEnqueueTime() time.Time {
 // Handle processes the updated resource
 func (r ResourceUpdatedHandler) Handle() error {
 	startTime := time.Now()
-	result := "success"
+	result := "error"
 
 	defer func() {
 		r.Collectors.RecordReconcile(result, time.Since(startTime))
@@ -38,30 +38,30 @@ func (r ResourceUpdatedHandler) Handle() error {
 
 	if r.Resource == nil || r.OldResource == nil {
 		logrus.Errorf("Resource update handler received nil resource")
-		result = "error"
-	} else {
-		config, oldSHAData := r.GetConfig()
-		if config.SHAValue != oldSHAData {
-			// Send a webhook if update
-			if options.WebhookUrl != "" {
-				err := sendUpgradeWebhook(config, options.WebhookUrl)
-				if err != nil {
-					result = "error"
-				}
-				return err
-			}
-			// process resource based on its type
-			err := doRollingUpgrade(config, r.Collectors, r.Recorder, invokeReloadStrategy)
-			if err != nil {
-				result = "error"
+		return nil
+	}
+
+	config, oldSHAData := r.GetConfig()
+	if config.SHAValue != oldSHAData {
+		// Send a webhook if update
+		if options.WebhookUrl != "" {
+			err := sendUpgradeWebhook(config, options.WebhookUrl)
+			if err == nil {
+				result = "success"
 			}
 			return err
-		} else {
-			// No data change - skip
-			result = "skipped"
-			r.Collectors.RecordSkipped("no_data_change")
 		}
+		// process resource based on its type
+		err := doRollingUpgrade(config, r.Collectors, r.Recorder, invokeReloadStrategy)
+		if err == nil {
+			result = "success"
+		}
+		return err
 	}
+
+	// No data change - skip
+	result = "skipped"
+	r.Collectors.RecordSkipped("no_data_change")
 	return nil
 }
 

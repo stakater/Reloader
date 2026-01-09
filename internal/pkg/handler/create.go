@@ -27,7 +27,7 @@ func (r ResourceCreatedHandler) GetEnqueueTime() time.Time {
 // Handle processes the newly created resource
 func (r ResourceCreatedHandler) Handle() error {
 	startTime := time.Now()
-	result := "success"
+	result := "error"
 
 	defer func() {
 		r.Collectors.RecordReconcile(result, time.Since(startTime))
@@ -35,25 +35,24 @@ func (r ResourceCreatedHandler) Handle() error {
 
 	if r.Resource == nil {
 		logrus.Errorf("Resource creation handler received nil resource")
-		result = "error"
-	} else {
-		config, _ := r.GetConfig()
-		// Send webhook
-		if options.WebhookUrl != "" {
-			err := sendUpgradeWebhook(config, options.WebhookUrl)
-			if err != nil {
-				result = "error"
-			}
-			return err
-		}
-		// process resource based on its type
-		err := doRollingUpgrade(config, r.Collectors, r.Recorder, invokeReloadStrategy)
-		if err != nil {
-			result = "error"
+		return nil
+	}
+
+	config, _ := r.GetConfig()
+	// Send webhook
+	if options.WebhookUrl != "" {
+		err := sendUpgradeWebhook(config, options.WebhookUrl)
+		if err == nil {
+			result = "success"
 		}
 		return err
 	}
-	return nil
+	// process resource based on its type
+	err := doRollingUpgrade(config, r.Collectors, r.Recorder, invokeReloadStrategy)
+	if err == nil {
+		result = "success"
+	}
+	return err
 }
 
 // GetConfig gets configurations containing SHA, annotations, namespace and resource name
