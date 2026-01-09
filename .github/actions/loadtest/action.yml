@@ -1,0 +1,267 @@
+name: 'Reloader Load Test'
+description: 'Run Reloader load tests with A/B comparison support'
+
+inputs:
+  old-ref:
+    description: 'Git ref for "old" version (optional, enables A/B comparison)'
+    required: false
+    default: ''
+  new-ref:
+    description: 'Git ref for "new" version (defaults to current checkout)'
+    required: false
+    default: ''
+  old-image:
+    description: 'Pre-built container image for "old" version (alternative to old-ref)'
+    required: false
+    default: ''
+  new-image:
+    description: 'Pre-built container image for "new" version (alternative to new-ref)'
+    required: false
+    default: ''
+  scenarios:
+    description: 'Scenarios to run: S1,S4,S6 or all'
+    required: false
+    default: 'S1,S4,S6'
+  test-type:
+    description: 'Test type label for summary: quick or full'
+    required: false
+    default: 'quick'
+  duration:
+    description: 'Test duration in seconds'
+    required: false
+    default: '60'
+  kind-cluster:
+    description: 'Name of existing Kind cluster (if empty, creates new one)'
+    required: false
+    default: ''
+  post-comment:
+    description: 'Post results as PR comment'
+    required: false
+    default: 'false'
+  pr-number:
+    description: 'PR number for commenting (required if post-comment is true)'
+    required: false
+    default: ''
+  github-token:
+    description: 'GitHub token for posting comments'
+    required: false
+    default: ${{ github.token }}
+  comment-header:
+    description: 'Optional header text for the comment'
+    required: false
+    default: ''
+
+outputs:
+  status:
+    description: 'Overall test status: pass or fail'
+    value: ${{ steps.run.outputs.status }}
+  summary:
+    description: 'Markdown summary of results'
+    value: ${{ steps.summary.outputs.summary }}
+  pass-count:
+    description: 'Number of passed scenarios'
+    value: ${{ steps.summary.outputs.pass_count }}
+  fail-count:
+    description: 'Number of failed scenarios'
+    value: ${{ steps.summary.outputs.fail_count }}
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Determine images to use
+      id: images
+      shell: bash
+      run: |
+        # Determine old image
+        if [ -n "${{ inputs.old-image }}" ]; then
+          echo "old=${{ inputs.old-image }}" >> $GITHUB_OUTPUT
+        elif [ -n "${{ inputs.old-ref }}" ]; then
+          echo "old=localhost/reloader:old" >> $GITHUB_OUTPUT
+          echo "build_old=true" >> $GITHUB_OUTPUT
+        else
+          echo "old=" >> $GITHUB_OUTPUT
+        fi
+
+        # Determine new image
+        if [ -n "${{ inputs.new-image }}" ]; then
+          echo "new=${{ inputs.new-image }}" >> $GITHUB_OUTPUT
+        elif [ -n "${{ inputs.new-ref }}" ]; then
+          echo "new=localhost/reloader:new" >> $GITHUB_OUTPUT
+          echo "build_new=true" >> $GITHUB_OUTPUT
+        else
+          # Default: build from current checkout
+          echo "new=localhost/reloader:new" >> $GITHUB_OUTPUT
+          echo "build_new_current=true" >> $GITHUB_OUTPUT
+        fi
+
+    - name: Build old image from ref
+      if: steps.images.outputs.build_old == 'true'
+      shell: bash
+      run: |
+        CURRENT_SHA=$(git rev-parse HEAD)
+        git checkout ${{ inputs.old-ref }}
+        docker build -t localhost/reloader:old .
+        echo "Built old image from ref: ${{ inputs.old-ref }}"
+        git checkout $CURRENT_SHA
+
+    - name: Build new image from ref
+      if: steps.images.outputs.build_new == 'true'
+      shell: bash
+      run: |
+        CURRENT_SHA=$(git rev-parse HEAD)
+        git checkout ${{ inputs.new-ref }}
+        docker build -t localhost/reloader:new .
+        echo "Built new image from ref: ${{ inputs.new-ref }}"
+        git checkout $CURRENT_SHA
+
+    - name: Build new image from current checkout
+      if: steps.images.outputs.build_new_current == 'true'
+      shell: bash
+      run: |
+        docker build -t localhost/reloader:new .
+        echo "Built new image from current checkout"
+
+    - name: Build loadtest binary
+      shell: bash
+      run: |
+        cd ${{ github.workspace }}/test/loadtest
+        go build -o loadtest ./cmd/loadtest
+
+    - name: Determine cluster name
+      id: cluster
+      shell: bash
+      run: |
+        if [ -n "${{ inputs.kind-cluster }}" ]; then
+          echo "name=${{ inputs.kind-cluster }}" >> $GITHUB_OUTPUT
+          echo "skip=true" >> $GITHUB_OUTPUT
+        else
+          echo "name=reloader-loadtest" >> $GITHUB_OUTPUT
+          echo "skip=false" >> $GITHUB_OUTPUT
+        fi
+
+    - name: Load images into Kind
+      shell: bash
+      run: |
+        CLUSTER="${{ steps.cluster.outputs.name }}"
+
+        if [ -n "${{ steps.images.outputs.old }}" ]; then
+          echo "Loading old image: ${{ steps.images.outputs.old }}"
+          kind load docker-image "${{ steps.images.outputs.old }}" --name "$CLUSTER" || true
+        fi
+
+        echo "Loading new image: ${{ steps.images.outputs.new }}"
+        kind load docker-image "${{ steps.images.outputs.new }}" --name "$CLUSTER" || true
+
+    - name: Run load tests
+      id: run
+      shell: bash
+      run: |
+        cd ${{ github.workspace }}/test/loadtest
+
+        ARGS="--new-image=${{ steps.images.outputs.new }}"
+        ARGS="$ARGS --scenario=${{ inputs.scenarios }}"
+        ARGS="$ARGS --duration=${{ inputs.duration }}"
+        ARGS="$ARGS --cluster-name=${{ steps.cluster.outputs.name }}"
+        ARGS="$ARGS --skip-image-load"
+
+        if [ -n "${{ steps.images.outputs.old }}" ]; then
+          ARGS="$ARGS --old-image=${{ steps.images.outputs.old }}"
+        fi
+
+        if [ "${{ steps.cluster.outputs.skip }}" = "true" ]; then
+          ARGS="$ARGS --skip-cluster"
+        fi
+
+        echo "Running: ./loadtest run $ARGS"
+        if ./loadtest run $ARGS; then
+          echo "status=pass" >> $GITHUB_OUTPUT
+        else
+          echo "status=fail" >> $GITHUB_OUTPUT
+        fi
+
+    - name: Generate summary
+      id: summary
+      shell: bash
+      run: |
+        cd ${{ github.workspace }}/test/loadtest
+
+        # Generate markdown summary
+        ./loadtest summary \
+          --results-dir=./results \
+          --test-type=${{ inputs.test-type }} \
+          --format=markdown > summary.md 2>/dev/null || true
+
+        # Output to GitHub Step Summary
+        cat summary.md >> $GITHUB_STEP_SUMMARY
+
+        # Store summary for output (using heredoc for multiline)
+        {
+          echo 'summary<<EOF'
+          cat summary.md
+          echo 'EOF'
+        } >> $GITHUB_OUTPUT
+
+        # Get pass/fail counts from JSON
+        COUNTS=$(./loadtest summary --format=json 2>/dev/null | head -20 || echo '{}')
+        echo "pass_count=$(echo "$COUNTS" | grep -o '"pass_count": [0-9]*' | grep -o '[0-9]*' || echo 0)" >> $GITHUB_OUTPUT
+        echo "fail_count=$(echo "$COUNTS" | grep -o '"fail_count": [0-9]*' | grep -o '[0-9]*' || echo 0)" >> $GITHUB_OUTPUT
+
+    - name: Post PR comment
+      if: inputs.post-comment == 'true' && inputs.pr-number != ''
+      continue-on-error: true
+      uses: actions/github-script@v7
+      with:
+        github-token: ${{ inputs.github-token }}
+        script: |
+          const fs = require('fs');
+          const summaryPath = '${{ github.workspace }}/test/loadtest/summary.md';
+          let summary = 'No results available';
+          try {
+            summary = fs.readFileSync(summaryPath, 'utf8');
+          } catch (e) {
+            console.log('Could not read summary file:', e.message);
+          }
+
+          const header = '${{ inputs.comment-header }}';
+          const status = '${{ steps.run.outputs.status }}';
+          const statusEmoji = status === 'pass' ? ':white_check_mark:' : ':x:';
+
+          const body = [
+            header ? header : `## ${statusEmoji} Load Test Results (${{ inputs.test-type }})`,
+            '',
+            summary,
+            '',
+            '---',
+            `**Artifacts:** [Download](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})`,
+          ].join('\n');
+
+          try {
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: ${{ inputs.pr-number }},
+              body: body
+            });
+            console.log('Comment posted successfully');
+          } catch (error) {
+            if (error.status === 403) {
+              console.log('Could not post comment (fork PR with restricted permissions). Use /loadtest command to run with comment posting.');
+            } else {
+              throw error;
+            }
+          }
+
+    - name: Upload results
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: loadtest-${{ inputs.test-type }}-results
+        path: |
+          ${{ github.workspace }}/test/loadtest/results/
+        retention-days: 30
+
+    - name: Cleanup Kind cluster (only if we created it)
+      if: always() && steps.cluster.outputs.skip == 'false'
+      shell: bash
+      run: |
+        kind delete cluster --name ${{ steps.cluster.outputs.name }} || true

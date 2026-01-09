@@ -228,3 +228,43 @@ yq-install:
 	@curl -sL $(YQ_DOWNLOAD_URL) -o $(YQ_BIN)
 	@chmod +x $(YQ_BIN)
 	@echo "yq $(YQ_VERSION) installed at $(YQ_BIN)"
+
+# =============================================================================
+# Load Testing
+# =============================================================================
+
+LOADTEST_BIN = test/loadtest/loadtest
+LOADTEST_OLD_IMAGE ?= localhost/reloader:old
+LOADTEST_NEW_IMAGE ?= localhost/reloader:new
+LOADTEST_DURATION ?= 60
+LOADTEST_SCENARIOS ?= all
+
+.PHONY: loadtest-build loadtest-quick loadtest-full loadtest loadtest-clean
+
+loadtest-build: ## Build loadtest binary
+	cd test/loadtest && $(GOCMD) build -o loadtest ./cmd/loadtest
+
+loadtest-quick: loadtest-build ## Run quick load tests (S1, S4, S6)
+	cd test/loadtest && ./loadtest run \
+		--old-image=$(LOADTEST_OLD_IMAGE) \
+		--new-image=$(LOADTEST_NEW_IMAGE) \
+		--scenario=S1,S4,S6 \
+		--duration=$(LOADTEST_DURATION)
+
+loadtest-full: loadtest-build ## Run full load test suite
+	cd test/loadtest && ./loadtest run \
+		--old-image=$(LOADTEST_OLD_IMAGE) \
+		--new-image=$(LOADTEST_NEW_IMAGE) \
+		--scenario=all \
+		--duration=$(LOADTEST_DURATION)
+
+loadtest: loadtest-build ## Run load tests with configurable scenarios (default: all)
+	cd test/loadtest && ./loadtest run \
+		--old-image=$(LOADTEST_OLD_IMAGE) \
+		--new-image=$(LOADTEST_NEW_IMAGE) \
+		--scenario=$(LOADTEST_SCENARIOS) \
+		--duration=$(LOADTEST_DURATION)
+
+loadtest-clean: ## Clean loadtest binary and results
+	rm -f $(LOADTEST_BIN)
+	rm -rf test/loadtest/results

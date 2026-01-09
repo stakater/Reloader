@@ -11,9 +11,14 @@ vendor
 dist
 Reloader
 !**/chart/reloader
+!**/internal/reloader
 *.tgz
 styles/
 site/
 /mkdocs.yml
 yq
 bin
+test/loadtest/results
+test/loadtest/loadtest
+# Temporary NFS files
+.nfs*
