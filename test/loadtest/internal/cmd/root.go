@@ -1,4 +1,3 @@
-// Package cmd implements the CLI commands for the load test tool.
 package cmd
 
 import (

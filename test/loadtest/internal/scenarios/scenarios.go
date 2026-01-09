@@ -197,7 +197,6 @@ func (s *FanOutScenario) Run(ctx context.Context, client kubernetes.Interface, n
 
 	log.Println("S2: Updating shared ConfigMap...")
 
-	// Check context state before starting update loop
 	if ctx.Err() != nil {
 		log.Printf("S2: WARNING - Context already done before update loop: %v", ctx.Err())
 	}
@@ -503,14 +502,7 @@ func (s *WorkloadChurnScenario) Run(ctx context.Context, client kubernetes.Inter
 	wg.Wait()
 	log.Printf("S5: Created %d, deleted %d deployments, %d CM updates", deployCounter, deleteCounter, cmUpdateCount)
 
-	// S5 does NOT set expected values for action_total/reload_executed_total because:
-	// - There are ~10 active deployments at any time (creates new, deletes old)
-	// - Each CM update triggers reloads on ALL active deployments
-	// - Exact counts depend on timing of creates/deletes vs CM updates
-	// - "Not found" errors are expected when a deployment is deleted during processing
-	// Instead, S5 pass/fail compares old vs new (both should be similar)
 	return ExpectedMetrics{
-		// No expected values - churn makes exact counts unpredictable
 		Description: fmt.Sprintf("S5: Churn test - %d deploys created, %d deleted, %d CM updates, ~10 active deploys at any time", deployCounter, deleteCounter, cmUpdateCount),
 	}, nil
 }
@@ -764,8 +756,6 @@ func (s *LargeObjectScenario) Run(ctx context.Context, client kubernetes.Interfa
 		Description:         fmt.Sprintf("S8: %d large object (100KB) updates", updateCount),
 	}, nil
 }
-
-// Helper functions
 
 func waitForDeploymentsReady(ctx context.Context, client kubernetes.Interface, namespace string, timeout time.Duration) error {
 	log.Printf("Waiting for all deployments in %s to be ready (timeout: %v)...", namespace, timeout)
@@ -1051,7 +1041,6 @@ func (s *SecretsAndMixedScenario) Run(ctx context.Context, client kubernetes.Int
 
 	setupCtx := context.Background()
 
-	// Create Secrets
 	for i := 0; i < numSecrets; i++ {
 		secret := &corev1.Secret{
 			ObjectMeta: metav1.ObjectMeta{
@@ -1067,7 +1056,6 @@ func (s *SecretsAndMixedScenario) Run(ctx context.Context, client kubernetes.Int
 		}
 	}
 
-	// Create ConfigMaps
 	for i := 0; i < numConfigMaps; i++ {
 		cm := &corev1.ConfigMap{
 			ObjectMeta: metav1.ObjectMeta{
@@ -1083,7 +1071,6 @@ func (s *SecretsAndMixedScenario) Run(ctx context.Context, client kubernetes.Int
 		}
 	}
 
-	// Create Secret-only deployments
 	for i := 0; i < numSecretOnlyDeploys; i++ {
 		deploy := createDeploymentWithSecret(
 			fmt.Sprintf("secret-only-deploy-%d", i),
@@ -1095,7 +1082,6 @@ func (s *SecretsAndMixedScenario) Run(ctx context.Context, client kubernetes.Int
 		}
 	}
 
-	// Create ConfigMap-only deployments
 	for i := 0; i < numConfigMapOnlyDeploys; i++ {
 		deploy := createDeployment(
 			fmt.Sprintf("cm-only-deploy-%d", i),
@@ -1107,7 +1093,6 @@ func (s *SecretsAndMixedScenario) Run(ctx context.Context, client kubernetes.Int
 		}
 	}
 
-	// Create mixed deployments (using both Secret and ConfigMap)
 	for i := 0; i < numMixedDeploys; i++ {
 		deploy := createDeploymentWithBoth(
 			fmt.Sprintf("mixed-deploy-%d", i),
@@ -1131,7 +1116,7 @@ func (s *SecretsAndMixedScenario) Run(ctx context.Context, client kubernetes.Int
 	ticker := time.NewTicker(500 * time.Millisecond)
 	defer ticker.Stop()
 
-	updateSecret := true // Alternate between Secret and ConfigMap updates
+	updateSecret := true
 
 	endTime := time.Now().Add(duration - 5*time.Second)
 	for time.Now().Before(endTime) {
@@ -1140,7 +1125,6 @@ func (s *SecretsAndMixedScenario) Run(ctx context.Context, client kubernetes.Int
 			return s.calculateExpected(secretUpdateCount, cmUpdateCount, numSecrets, numConfigMaps, numSecretOnlyDeploys, numConfigMapOnlyDeploys, numMixedDeploys), nil
 		case <-ticker.C:
 			if updateSecret {
-				// Update a random Secret
 				secretIndex := rand.Intn(numSecrets)
 				secret, err := client.CoreV1().Secrets(namespace).Get(setupCtx, fmt.Sprintf("mixed-secret-%d", secretIndex), metav1.GetOptions{})
 				if err != nil {
@@ -1153,7 +1137,6 @@ func (s *SecretsAndMixedScenario) Run(ctx context.Context, client kubernetes.Int
 					secretUpdateCount++
 				}
 			} else {
-				// Update a random ConfigMap
 				cmIndex := rand.Intn(numConfigMaps)
 				cm, err := client.CoreV1().ConfigMaps(namespace).Get(setupCtx, fmt.Sprintf("mixed-cm-%d", cmIndex), metav1.GetOptions{})
 				if err != nil {
@@ -1173,11 +1156,9 @@ func (s *SecretsAndMixedScenario) Run(ctx context.Context, client kubernetes.Int
 }
 
 func (s *SecretsAndMixedScenario) calculateExpected(secretUpdates, cmUpdates, numSecrets, numConfigMaps, secretOnlyDeploys, cmOnlyDeploys, mixedDeploys int) ExpectedMetrics {
-	// Average deploys triggered per random secret update
 	avgSecretReloads := float64(secretOnlyDeploys)/float64(numSecrets) + float64(mixedDeploys)/float64(numSecrets)
 	secretTriggeredReloads := int(float64(secretUpdates) * avgSecretReloads)
 
-	// Average deploys triggered per random CM update
 	avgCMReloads := float64(cmOnlyDeploys)/float64(numConfigMaps) + float64(mixedDeploys)/float64(numConfigMaps)
 	cmTriggeredReloads := int(float64(cmUpdates) * avgCMReloads)
 
@@ -1208,7 +1189,6 @@ func (s *MultiWorkloadTypeScenario) Run(ctx context.Context, client kubernetes.I
 
 	setupCtx := context.Background()
 
-	// Create shared ConfigMap
 	cm := &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "multi-type-cm",
@@ -1220,7 +1200,6 @@ func (s *MultiWorkloadTypeScenario) Run(ctx context.Context, client kubernetes.I
 		return ExpectedMetrics{}, fmt.Errorf("failed to create shared ConfigMap: %w", err)
 	}
 
-	// Create Deployments
 	for i := 0; i < numDeployments; i++ {
 		deploy := createDeployment(fmt.Sprintf("multi-deploy-%d", i), namespace, "multi-type-cm")
 		if _, err := client.AppsV1().Deployments(namespace).Create(setupCtx, deploy, metav1.CreateOptions{}); err != nil {
@@ -1228,7 +1207,6 @@ func (s *MultiWorkloadTypeScenario) Run(ctx context.Context, client kubernetes.I
 		}
 	}
 
-	// Create StatefulSets
 	for i := 0; i < numStatefulSets; i++ {
 		sts := createStatefulSet(fmt.Sprintf("multi-sts-%d", i), namespace, "multi-type-cm")
 		if _, err := client.AppsV1().StatefulSets(namespace).Create(setupCtx, sts, metav1.CreateOptions{}); err != nil {
@@ -1236,7 +1214,6 @@ func (s *MultiWorkloadTypeScenario) Run(ctx context.Context, client kubernetes.I
 		}
 	}
 
-	// Create DaemonSets
 	for i := 0; i < numDaemonSets; i++ {
 		ds := createDaemonSet(fmt.Sprintf("multi-ds-%d", i), namespace, "multi-type-cm")
 		if _, err := client.AppsV1().DaemonSets(namespace).Create(setupCtx, ds, metav1.CreateOptions{}); err != nil {
@@ -1244,7 +1221,6 @@ func (s *MultiWorkloadTypeScenario) Run(ctx context.Context, client kubernetes.I
 		}
 	}
 
-	// Wait for workloads to be ready
 	if err := waitForDeploymentsReady(setupCtx, client, namespace, 3*time.Minute); err != nil {
 		log.Printf("Warning: %v - continuing anyway", err)
 	}
@@ -1286,7 +1262,6 @@ func (s *MultiWorkloadTypeScenario) Run(ctx context.Context, client kubernetes.I
 }
 
 func (s *MultiWorkloadTypeScenario) calculateExpected(updateCount, numDeployments, numStatefulSets, numDaemonSets int) ExpectedMetrics {
-	// Each CM update triggers reload on all workloads
 	totalWorkloads := numDeployments + numStatefulSets + numDaemonSets
 	expectedReloads := updateCount * totalWorkloads
 
@@ -1376,7 +1351,6 @@ func createDaemonSet(name, namespace, configMapName string) *appsv1.DaemonSet {
 				},
 				Spec: corev1.PodSpec{
 					TerminationGracePeriodSeconds: &terminationGracePeriod,
-					// Use tolerations to run on all nodes including control-plane
 					Tolerations: []corev1.Toleration{
 						{
 							Key:      "node-role.kubernetes.io/control-plane",
@@ -1509,7 +1483,6 @@ func (s *ComplexReferencesScenario) Run(ctx context.Context, client kubernetes.I
 
 	setupCtx := context.Background()
 
-	// Create ConfigMaps with multiple keys
 	for i := 0; i < numConfigMaps; i++ {
 		cm := &corev1.ConfigMap{
 			ObjectMeta: metav1.ObjectMeta{
@@ -1527,9 +1500,7 @@ func (s *ComplexReferencesScenario) Run(ctx context.Context, client kubernetes.I
 		}
 	}
 
-	// Create complex deployments with various reference types
 	for i := 0; i < numDeployments; i++ {
-		// Each deployment references multiple ConfigMaps in different ways
 		primaryCM := fmt.Sprintf("complex-cm-%d", i)
 		secondaryCM := fmt.Sprintf("complex-cm-%d", (i+1)%numConfigMaps)
 
@@ -1560,7 +1531,6 @@ func (s *ComplexReferencesScenario) Run(ctx context.Context, client kubernetes.I
 		case <-ctx.Done():
 			return s.calculateExpected(updateCount, numConfigMaps, numDeployments), nil
 		case <-ticker.C:
-			// Update a random ConfigMap
 			cmIndex := rand.Intn(numConfigMaps)
 			cm, err := client.CoreV1().ConfigMaps(namespace).Get(setupCtx, fmt.Sprintf("complex-cm-%d", cmIndex), metav1.GetOptions{})
 			if err != nil {
@@ -1582,11 +1552,6 @@ func (s *ComplexReferencesScenario) Run(ctx context.Context, client kubernetes.I
 }
 
 func (s *ComplexReferencesScenario) calculateExpected(updateCount, numConfigMaps, numDeployments int) ExpectedMetrics {
-	// Each ConfigMap is referenced by:
-	// - 1 deployment as primary (envFrom in init + valueFrom in main + volume mount)
-	// - 1 deployment as secondary (projected volume)
-	// So each CM update triggers 2 deployments (on average with random updates)
-	// But since we're randomly updating, each update affects those 2 deployments
 	expectedReloadsPerUpdate := 2
 	expectedReloads := updateCount * expectedReloadsPerUpdate
 
@@ -1616,7 +1581,6 @@ func (s *PauseResumeScenario) Run(ctx context.Context, client kubernetes.Interfa
 
 	setupCtx := context.Background()
 
-	// Create ConfigMaps
 	for i := 0; i < numConfigMaps; i++ {
 		cm := &corev1.ConfigMap{
 			ObjectMeta: metav1.ObjectMeta{
@@ -1630,7 +1594,6 @@ func (s *PauseResumeScenario) Run(ctx context.Context, client kubernetes.Interfa
 		}
 	}
 
-	// Create Deployments with pause-period annotation
 	for i := 0; i < numDeployments; i++ {
 		deploy := createDeploymentWithPause(
 			fmt.Sprintf("pause-deploy-%d", i),
@@ -1659,7 +1622,6 @@ func (s *PauseResumeScenario) Run(ctx context.Context, client kubernetes.Interfa
 		case <-ctx.Done():
 			return s.calculateExpected(updateCount, duration, updateInterval, pausePeriod), nil
 		case <-ticker.C:
-			// Update a random ConfigMap
 			cmIndex := rand.Intn(numConfigMaps)
 			cm, err := client.CoreV1().ConfigMaps(namespace).Get(setupCtx, fmt.Sprintf("pause-cm-%d", cmIndex), metav1.GetOptions{})
 			if err != nil {
@@ -1679,12 +1641,6 @@ func (s *PauseResumeScenario) Run(ctx context.Context, client kubernetes.Interfa
 }
 
 func (s *PauseResumeScenario) calculateExpected(updateCount int, duration, updateInterval, pausePeriod time.Duration) ExpectedMetrics {
-	// With pause-period, we expect fewer reloads than updates
-	// Each deployment gets updates at random, and pause-period prevents rapid consecutive reloads
-	// The exact count depends on the distribution of updates across ConfigMaps
-	// Rough estimate: each CM gets updated ~(updateCount/10) times
-	// With 15s pause and 2s interval, we get roughly 1 reload per pause period per CM
-	// So expected reloads ≈ duration / pausePeriod per deployment = (duration/pausePeriod) * numDeployments
 
 	// This is an approximation - the actual value depends on random distribution
 	expectedCycles := int(duration / pausePeriod)
@@ -1693,8 +1649,6 @@ func (s *PauseResumeScenario) calculateExpected(updateCount int, duration, updat
 	}
 
 	return ExpectedMetrics{
-		// Don't set exact expected values since pause-period makes counts unpredictable
-		// The scenario validates that reloads << updates due to pause behavior
 		Description: fmt.Sprintf("S12: %d updates with %v pause-period (expect ~%d reload cycles, actual reloads << updates)",
 			updateCount, pausePeriod, expectedCycles),
 	}
@@ -1703,7 +1657,6 @@ func (s *PauseResumeScenario) calculateExpected(updateCount int, duration, updat
 // AnnotationStrategyScenario - Tests annotation-based reload strategy.
 // This scenario deploys its own Reloader instance with --reload-strategy=annotations.
 type AnnotationStrategyScenario struct {
-	// Image is the Reloader image to use. Must be set before running.
 	Image string
 }
 
@@ -1719,7 +1672,6 @@ func (s *AnnotationStrategyScenario) Run(ctx context.Context, client kubernetes.
 
 	log.Println("S11: Deploying Reloader with --reload-strategy=annotations...")
 
-	// Deploy S11's own Reloader instance
 	reloaderNS := "reloader-s11"
 	mgr := reloader.NewManager(reloader.Config{
 		Version:        "s11",
@@ -1732,7 +1684,6 @@ func (s *AnnotationStrategyScenario) Run(ctx context.Context, client kubernetes.
 		return ExpectedMetrics{}, fmt.Errorf("deploying S11 reloader: %w", err)
 	}
 
-	// Ensure cleanup on exit
 	defer func() {
 		log.Println("S11: Cleaning up S11-specific Reloader...")
 		cleanupCtx := context.Background()
@@ -1748,7 +1699,6 @@ func (s *AnnotationStrategyScenario) Run(ctx context.Context, client kubernetes.
 
 	setupCtx := context.Background()
 
-	// Create ConfigMaps
 	for i := 0; i < numConfigMaps; i++ {
 		cm := &corev1.ConfigMap{
 			ObjectMeta: metav1.ObjectMeta{
@@ -1762,7 +1712,6 @@ func (s *AnnotationStrategyScenario) Run(ctx context.Context, client kubernetes.
 		}
 	}
 
-	// Create Deployments
 	for i := 0; i < numDeployments; i++ {
 		deploy := createDeployment(fmt.Sprintf("annot-deploy-%d", i), namespace, fmt.Sprintf("annot-cm-%d", i))
 		if _, err := client.AppsV1().Deployments(namespace).Create(setupCtx, deploy, metav1.CreateOptions{}); err != nil {
@@ -1781,13 +1730,12 @@ func (s *AnnotationStrategyScenario) Run(ctx context.Context, client kubernetes.
 	ticker := time.NewTicker(500 * time.Millisecond)
 	defer ticker.Stop()
 
-	endTime := time.Now().Add(duration - 10*time.Second) // Extra time for cleanup
+	endTime := time.Now().Add(duration - 10*time.Second)
 	for time.Now().Before(endTime) {
 		select {
 		case <-ctx.Done():
 			return s.calculateExpected(updateCount, annotationUpdatesSeen), nil
 		case <-ticker.C:
-			// Update a random ConfigMap
 			cmIndex := rand.Intn(numConfigMaps)
 			cm, err := client.CoreV1().ConfigMaps(namespace).Get(setupCtx, fmt.Sprintf("annot-cm-%d", cmIndex), metav1.GetOptions{})
 			if err != nil {
@@ -1800,7 +1748,6 @@ func (s *AnnotationStrategyScenario) Run(ctx context.Context, client kubernetes.
 				updateCount++
 			}
 
-			// Periodically check for annotation updates on deployments
 			if updateCount%10 == 0 {
 				deploy, err := client.AppsV1().Deployments(namespace).Get(setupCtx, fmt.Sprintf("annot-deploy-%d", cmIndex), metav1.GetOptions{})
 				if err == nil {
@@ -1812,9 +1759,8 @@ func (s *AnnotationStrategyScenario) Run(ctx context.Context, client kubernetes.
 		}
 	}
 
-	// Final check: verify annotation strategy is working
 	log.Println("S11: Verifying annotation-based reload...")
-	time.Sleep(5 * time.Second) // Allow time for final updates to propagate
+	time.Sleep(5 * time.Second)
 
 	deploysWithAnnotation := 0
 	for i := 0; i < numDeployments; i++ {
@@ -1945,7 +1891,6 @@ func createComplexDeployment(name, namespace, primaryCM, secondaryCM string) *ap
 				},
 				Spec: corev1.PodSpec{
 					TerminationGracePeriodSeconds: &terminationGracePeriod,
-					// Init container using envFrom
 					InitContainers: []corev1.Container{
 						{
 							Name:    "init",
@@ -1973,7 +1918,6 @@ func createComplexDeployment(name, namespace, primaryCM, secondaryCM string) *ap
 						},
 					},
 					Containers: []corev1.Container{
-						// Main container using valueFrom (individual keys)
 						{
 							Name:    "main",
 							Image:   "gcr.io/google-containers/busybox:1.27",
@@ -2013,7 +1957,6 @@ func createComplexDeployment(name, namespace, primaryCM, secondaryCM string) *ap
 								},
 							},
 						},
-						// Sidecar using volume mount
 						{
 							Name:    "sidecar",
 							Image:   "gcr.io/google-containers/busybox:1.27",
@@ -2041,7 +1984,6 @@ func createComplexDeployment(name, namespace, primaryCM, secondaryCM string) *ap
 						},
 					},
 					Volumes: []corev1.Volume{
-						// Regular ConfigMap volume
 						{
 							Name: "config-volume",
 							VolumeSource: corev1.VolumeSource{
@@ -2052,7 +1994,6 @@ func createComplexDeployment(name, namespace, primaryCM, secondaryCM string) *ap
 								},
 							},
 						},
-						// Projected volume combining multiple ConfigMaps
 						{
 							Name: "projected-volume",
 							VolumeSource: corev1.VolumeSource{

@@ -21,14 +21,14 @@ type Manager struct {
 	manifestPath string
 	portForward  *exec.Cmd
 	localPort    int
-	kubeContext  string // Optional: use specific kubeconfig context
+	kubeContext  string
 }
 
 // NewManager creates a new Prometheus manager.
 func NewManager(manifestPath string) *Manager {
 	return &Manager{
 		manifestPath: manifestPath,
-		localPort:    9091, // Use 9091 to avoid conflicts
+		localPort:    9091,
 	}
 }
 
@@ -51,7 +51,6 @@ func (m *Manager) kubectl(args ...string) []string {
 
 // Deploy deploys Prometheus to the cluster.
 func (m *Manager) Deploy(ctx context.Context) error {
-	// Create namespace
 	cmd := exec.CommandContext(ctx, "kubectl", m.kubectl("create", "namespace", "monitoring", "--dry-run=client", "-o", "yaml")...)
 	out, err := cmd.Output()
 	if err != nil {
@@ -64,7 +63,6 @@ func (m *Manager) Deploy(ctx context.Context) error {
 		return fmt.Errorf("applying namespace: %w", err)
 	}
 
-	// Apply Prometheus manifest
 	applyCmd = exec.CommandContext(ctx, "kubectl", m.kubectl("apply", "-f", m.manifestPath)...)
 	applyCmd.Stdout = os.Stdout
 	applyCmd.Stderr = os.Stderr
@@ -72,7 +70,6 @@ func (m *Manager) Deploy(ctx context.Context) error {
 		return fmt.Errorf("applying prometheus manifest: %w", err)
 	}
 
-	// Wait for Prometheus to be ready
 	fmt.Println("Waiting for Prometheus to be ready...")
 	waitCmd := exec.CommandContext(ctx, "kubectl", m.kubectl("wait", "--for=condition=ready", "pod",
 		"-l", "app=prometheus", "-n", "monitoring", "--timeout=120s")...)
@@ -89,7 +86,6 @@ func (m *Manager) Deploy(ctx context.Context) error {
 func (m *Manager) StartPortForward(ctx context.Context) error {
 	m.StopPortForward()
 
-	// Start port-forward
 	m.portForward = exec.CommandContext(ctx, "kubectl", m.kubectl("port-forward",
 		"-n", "monitoring", "svc/prometheus", fmt.Sprintf("%d:9090", m.localPort))...)
 
@@ -97,7 +93,6 @@ func (m *Manager) StartPortForward(ctx context.Context) error {
 		return fmt.Errorf("starting port-forward: %w", err)
 	}
 
-	// Wait for port-forward to be ready
 	for i := 0; i < 30; i++ {
 		time.Sleep(time.Second)
 		if m.isAccessible() {
@@ -115,7 +110,6 @@ func (m *Manager) StopPortForward() {
 		m.portForward.Process.Kill()
 		m.portForward = nil
 	}
-	// Also kill any lingering port-forwards
 	exec.Command("pkill", "-f", fmt.Sprintf("kubectl port-forward.*prometheus.*%d", m.localPort)).Run()
 }
 
@@ -123,12 +117,10 @@ func (m *Manager) StopPortForward() {
 func (m *Manager) Reset(ctx context.Context) error {
 	m.StopPortForward()
 
-	// Delete Prometheus pod to reset metrics
 	cmd := exec.CommandContext(ctx, "kubectl", m.kubectl("delete", "pod", "-n", "monitoring",
 		"-l", "app=prometheus", "--grace-period=0", "--force")...)
-	cmd.Run() // Ignore errors
+	cmd.Run()
 
-	// Wait for new pod
 	fmt.Println("Waiting for Prometheus to restart...")
 	waitCmd := exec.CommandContext(ctx, "kubectl", m.kubectl("wait", "--for=condition=ready", "pod",
 		"-l", "app=prometheus", "-n", "monitoring", "--timeout=120s")...)
@@ -136,12 +128,10 @@ func (m *Manager) Reset(ctx context.Context) error {
 		return fmt.Errorf("waiting for prometheus restart: %w", err)
 	}
 
-	// Restart port-forward
 	if err := m.StartPortForward(ctx); err != nil {
 		return err
 	}
 
-	// Wait for scraping to initialize
 	fmt.Println("Waiting 5s for Prometheus to initialize scraping...")
 	time.Sleep(5 * time.Second)
 
@@ -155,7 +145,6 @@ func (m *Manager) isAccessible() bool {
 	}
 	conn.Close()
 
-	// Also try HTTP
 	resp, err := http.Get(fmt.Sprintf("http://localhost:%d/api/v1/status/config", m.localPort))
 	if err != nil {
 		return false
@@ -186,7 +175,6 @@ func (m *Manager) WaitForTarget(ctx context.Context, job string, timeout time.Du
 		}
 	}
 
-	// Print debug info on timeout
 	m.printTargetStatus(job)
 	return fmt.Errorf("timeout waiting for Prometheus to scrape job '%s'", job)
 }
@@ -338,7 +326,6 @@ func (m *Manager) CollectMetrics(ctx context.Context, job, outputDir, scenario s
 	// For S6 (restart scenario), use increase() to handle counter resets
 	useIncrease := scenario == "S6"
 
-	// Counter metrics
 	counterMetrics := []string{
 		"reloader_reconcile_total",
 		"reloader_action_total",
@@ -363,7 +350,6 @@ func (m *Manager) CollectMetrics(ctx context.Context, job, outputDir, scenario s
 		}
 	}
 
-	// Histogram percentiles
 	histogramMetrics := []struct {
 		name   string
 		prefix string
@@ -384,7 +370,6 @@ func (m *Manager) CollectMetrics(ctx context.Context, job, outputDir, scenario s
 		}
 	}
 
-	// REST client metrics
 	restQueries := map[string]string{
 		"rest_client_requests_total.json":  fmt.Sprintf(`sum(rest_client_requests_total{job="%s"})`, job),
 		"rest_client_requests_get.json":    fmt.Sprintf(`sum(rest_client_requests_total{job="%s",method="GET"})`, job),
@@ -399,30 +384,23 @@ func (m *Manager) CollectMetrics(ctx context.Context, job, outputDir, scenario s
 		}
 	}
 
-	// Resource consumption metrics (memory, CPU, goroutines)
 	resourceQueries := map[string]string{
-		// Memory metrics (in bytes)
 		"memory_rss_bytes_avg.json": fmt.Sprintf(`avg_over_time(process_resident_memory_bytes{job="%s"}[%s])`, job, timeRange),
 		"memory_rss_bytes_max.json": fmt.Sprintf(`max_over_time(process_resident_memory_bytes{job="%s"}[%s])`, job, timeRange),
 		"memory_rss_bytes_cur.json": fmt.Sprintf(`process_resident_memory_bytes{job="%s"}`, job),
 
-		// Heap memory (Go runtime)
 		"memory_heap_bytes_avg.json": fmt.Sprintf(`avg_over_time(go_memstats_heap_alloc_bytes{job="%s"}[%s])`, job, timeRange),
 		"memory_heap_bytes_max.json": fmt.Sprintf(`max_over_time(go_memstats_heap_alloc_bytes{job="%s"}[%s])`, job, timeRange),
 
-		// CPU metrics (rate of CPU seconds used)
 		"cpu_usage_cores_avg.json": fmt.Sprintf(`rate(process_cpu_seconds_total{job="%s"}[%s])`, job, timeRange),
 		"cpu_usage_cores_max.json": fmt.Sprintf(`max_over_time(rate(process_cpu_seconds_total{job="%s"}[1m])[%s:1m])`, job, timeRange),
 
-		// Goroutines (concurrency indicator)
 		"goroutines_avg.json": fmt.Sprintf(`avg_over_time(go_goroutines{job="%s"}[%s])`, job, timeRange),
 		"goroutines_max.json": fmt.Sprintf(`max_over_time(go_goroutines{job="%s"}[%s])`, job, timeRange),
 		"goroutines_cur.json": fmt.Sprintf(`go_goroutines{job="%s"}`, job),
 
-		// GC metrics
 		"gc_duration_seconds_p99.json": fmt.Sprintf(`histogram_quantile(0.99, sum(rate(go_gc_duration_seconds_bucket{job="%s"}[%s])) by (le))`, job, timeRange),
 
-		// Threads
 		"threads_cur.json": fmt.Sprintf(`go_threads{job="%s"}`, job),
 	}
 
@@ -438,7 +416,6 @@ func (m *Manager) CollectMetrics(ctx context.Context, job, outputDir, scenario s
 func (m *Manager) queryAndSave(ctx context.Context, query, outputPath string) error {
 	result, err := m.Query(ctx, query)
 	if err != nil {
-		// Write empty result on error
 		emptyResult := `{"status":"success","data":{"resultType":"vector","result":[]}}`
 		return os.WriteFile(outputPath, []byte(emptyResult), 0644)
 	}

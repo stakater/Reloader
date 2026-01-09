@@ -110,7 +110,6 @@ func NewController(
 
 // Add function to add a new object to the queue in case of creating a resource
 func (c *Controller) Add(obj interface{}) {
-	// Record event received
 	c.collectors.RecordEventReceived("add", c.resource)
 
 	switch object := obj.(type) {
@@ -127,7 +126,7 @@ func (c *Controller) Add(obj interface{}) {
 				Resource:    obj,
 				Collectors:  c.collectors,
 				Recorder:    c.recorder,
-				EnqueueTime: time.Now(), // Track when item was enqueued
+				EnqueueTime: time.Now(),
 			})
 		} else {
 			c.collectors.RecordSkipped("ignored_or_not_selected")
@@ -186,7 +185,6 @@ func (c *Controller) removeSelectedNamespaceFromCache(namespace v1.Namespace) {
 
 // Update function to add an old object and a new object to the queue in case of updating a resource
 func (c *Controller) Update(old interface{}, new interface{}) {
-	// Record event received
 	c.collectors.RecordEventReceived("update", c.resource)
 
 	switch new.(type) {
@@ -200,7 +198,7 @@ func (c *Controller) Update(old interface{}, new interface{}) {
 			OldResource: old,
 			Collectors:  c.collectors,
 			Recorder:    c.recorder,
-			EnqueueTime: time.Now(), // Track when item was enqueued
+			EnqueueTime: time.Now(),
 		})
 	} else {
 		c.collectors.RecordSkipped("ignored_or_not_selected")
@@ -209,7 +207,6 @@ func (c *Controller) Update(old interface{}, new interface{}) {
 
 // Delete function to add an object to the queue in case of deleting a resource
 func (c *Controller) Delete(old interface{}) {
-	// Record event received
 	c.collectors.RecordEventReceived("delete", c.resource)
 
 	if _, ok := old.(*csiv1.SecretProviderClassPodStatus); ok {
@@ -222,7 +219,7 @@ func (c *Controller) Delete(old interface{}) {
 				Resource:    old,
 				Collectors:  c.collectors,
 				Recorder:    c.recorder,
-				EnqueueTime: time.Now(), // Track when item was enqueued
+				EnqueueTime: time.Now(),
 			})
 		} else {
 			c.collectors.RecordSkipped("ignored_or_not_selected")
@@ -285,7 +282,6 @@ func (c *Controller) processNextItem() bool {
 		return false
 	}
 
-	// Update queue depth after getting item
 	c.collectors.SetQueueDepth(c.queue.Len())
 
 	// Tell the queue that we are done with processing this key. This unblocks the key for other workers
@@ -307,7 +303,6 @@ func (c *Controller) processNextItem() bool {
 
 	duration := time.Since(startTime)
 
-	// Record reconcile metrics
 	if err != nil {
 		c.collectors.RecordReconcile("error", duration)
 	} else {
@@ -355,7 +350,6 @@ func (c *Controller) handleErr(err error, key interface{}) {
 	logrus.Errorf("Dropping key out of the queue: %v", err)
 	logrus.Debugf("Dropping the key %q out of the queue: %v", key, err)
 
-	// Record failed event processing
 	c.collectors.RecordEventProcessed("unknown", c.resource, "dropped")
 }
 

@@ -31,16 +31,13 @@ func NewManager(cfg Config) *Manager {
 // DetectContainerRuntime finds available container runtime.
 // It checks if the runtime daemon is actually running, not just if the binary exists.
 func DetectContainerRuntime() (string, error) {
-	// Prefer docker as it's more commonly used with kind
 	if _, err := exec.LookPath("docker"); err == nil {
-		// Verify docker daemon is running
 		cmd := exec.Command("docker", "info")
 		if err := cmd.Run(); err == nil {
 			return "docker", nil
 		}
 	}
 	if _, err := exec.LookPath("podman"); err == nil {
-		// Verify podman is functional (check if we can run a basic command)
 		cmd := exec.Command("podman", "info")
 		if err := cmd.Run(); err == nil {
 			return "podman", nil
@@ -85,7 +82,6 @@ func (m *Manager) Create(ctx context.Context) error {
 		}
 	}
 
-	// Calculate unique ports based on offset (for parallel clusters)
 	httpPort := 8080 + m.cfg.PortOffset
 	httpsPort := 8443 + m.cfg.PortOffset
 
@@ -231,7 +227,6 @@ func (m *Manager) Name() string {
 
 // LoadImage loads a container image into the kind cluster.
 func (m *Manager) LoadImage(ctx context.Context, image string) error {
-	// First check if image exists locally
 	if !m.imageExistsLocally(image) {
 		fmt.Printf("  Image not found locally, pulling: %s\n", image)
 		pullCmd := exec.CommandContext(ctx, m.cfg.ContainerRuntime, "pull", image)
@@ -247,7 +242,6 @@ func (m *Manager) LoadImage(ctx context.Context, image string) error {
 	fmt.Printf("  Copying image to kind cluster...\n")
 
 	if m.cfg.ContainerRuntime == "podman" {
-		// For podman, save to archive and load
 		tmpFile := fmt.Sprintf("/tmp/kind-image-%d.tar", time.Now().UnixNano())
 		defer os.Remove(tmpFile)
 
@@ -276,19 +270,16 @@ func (m *Manager) LoadImage(ctx context.Context, image string) error {
 
 // imageExistsLocally checks if an image exists in the local container runtime.
 func (m *Manager) imageExistsLocally(image string) bool {
-	// Try "image exists" command (works for podman)
 	cmd := exec.Command(m.cfg.ContainerRuntime, "image", "exists", image)
 	if err := cmd.Run(); err == nil {
 		return true
 	}
 
-	// Try "image inspect" (works for both docker and podman)
 	cmd = exec.Command(m.cfg.ContainerRuntime, "image", "inspect", image)
 	if err := cmd.Run(); err == nil {
 		return true
 	}
 
-	// Try listing images and grep
 	cmd = exec.Command(m.cfg.ContainerRuntime, "images", "--format", "{{.Repository}}:{{.Tag}}")
 	out, err := cmd.Output()
 	if err == nil {

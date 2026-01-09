@@ -10,7 +10,6 @@ permissions:
   issues: write
 
 jobs:
-  # Full load test suite triggered by /loadtest command
   loadtest:
     # Only run on PR comments with /loadtest command
     if: |

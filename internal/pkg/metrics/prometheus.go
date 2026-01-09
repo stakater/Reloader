@@ -219,8 +219,6 @@ func NewCollectors() Collectors {
 		[]string{"success", "namespace"},
 	)
 
-	// === NEW: Comprehensive metrics ===
-
 	reconcileTotal := prometheus.NewCounterVec(
 		prometheus.CounterOpts{
 			Namespace: "reloader",
@@ -372,7 +370,6 @@ func NewCollectors() Collectors {
 func SetupPrometheusEndpoint() Collectors {
 	collectors := NewCollectors()
 
-	// Register all metrics
 	prometheus.MustRegister(collectors.Reloaded)
 	prometheus.MustRegister(collectors.ReconcileTotal)
 	prometheus.MustRegister(collectors.ReconcileDuration)
