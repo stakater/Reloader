@@ -57,38 +57,24 @@ func init() {
 
 // Collectors holds all Prometheus metrics collectors for Reloader.
 type Collectors struct {
-	// Existing metrics (preserved for backward compatibility)
 	Reloaded            *prometheus.CounterVec
 	ReloadedByNamespace *prometheus.CounterVec
 	countByNamespace    bool
 
-	// Reconcile/Handler metrics
 	ReconcileTotal    *prometheus.CounterVec   // Total reconcile calls by result
 	ReconcileDuration *prometheus.HistogramVec // Time spent in reconcile/handler
-
-	// Action metrics
-	ActionTotal   *prometheus.CounterVec   // Total actions by workload kind and result
-	ActionLatency *prometheus.HistogramVec // Time from event to action applied
-
-	// Skip metrics
-	SkippedTotal *prometheus.CounterVec // Skipped operations by reason
-
-	// Queue metrics
-	QueueDepth   prometheus.Gauge         // Current queue depth
-	QueueAdds    prometheus.Counter       // Total items added to queue
-	QueueLatency *prometheus.HistogramVec // Time spent in queue
-
-	// Error and retry metrics
-	ErrorsTotal  *prometheus.CounterVec // Errors by type
-	RetriesTotal prometheus.Counter     // Total retries
-
-	// Event processing metrics
-	EventsReceived  *prometheus.CounterVec // Events received by type (add/update/delete)
-	EventsProcessed *prometheus.CounterVec // Events processed by type and result
-
-	// Resource discovery metrics
-	WorkloadsScanned *prometheus.CounterVec // Workloads scanned by kind
-	WorkloadsMatched *prometheus.CounterVec // Workloads matched for reload by kind
+	ActionTotal       *prometheus.CounterVec   // Total actions by workload kind and result
+	ActionLatency     *prometheus.HistogramVec // Time from event to action applied
+	SkippedTotal      *prometheus.CounterVec   // Skipped operations by reason
+	QueueDepth        prometheus.Gauge         // Current queue depth
+	QueueAdds         prometheus.Counter       // Total items added to queue
+	QueueLatency      *prometheus.HistogramVec // Time spent in queue
+	ErrorsTotal       *prometheus.CounterVec   // Errors by type
+	RetriesTotal      prometheus.Counter       // Total retries
+	EventsReceived    *prometheus.CounterVec   // Events received by type (add/update/delete)
+	EventsProcessed   *prometheus.CounterVec   // Events processed by type and result
+	WorkloadsScanned  *prometheus.CounterVec   // Workloads scanned by kind
+	WorkloadsMatched  *prometheus.CounterVec   // Workloads matched for reload by kind
 }
 
 // RecordReload records a reload event with the given success status and namespace.
