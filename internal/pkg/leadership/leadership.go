@@ -7,10 +7,11 @@ import (
 	"time"
 
 	"github.com/sirupsen/logrus"
-	"github.com/stakater/Reloader/internal/pkg/controller"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/tools/leaderelection"
 	"k8s.io/client-go/tools/leaderelection/resourcelock"
+
+	"github.com/stakater/Reloader/internal/pkg/controller"
 
 	coordinationv1 "k8s.io/client-go/kubernetes/typed/coordination/v1"
 )
@@ -75,7 +76,7 @@ func RunLeaderElection(lock *resourcelock.LeaseLock, ctx context.Context, cancel
 
 func runControllers(controllers []*controller.Controller, stopChannels []chan struct{}) {
 	for i, c := range controllers {
-		c := c
+
 		go c.Run(1, stopChannels[i])
 	}
 }

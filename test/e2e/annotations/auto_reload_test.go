@@ -1,30 +1,40 @@
 package annotations
 
 import (
+	"fmt"
 	"time"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+
 	"github.com/stakater/Reloader/test/e2e/utils"
 )
 
 var _ = Describe("Auto Reload Annotation Tests", func() {
 	var (
-		deploymentName string
-		configMapName  string
-		secretName     string
+		deploymentName  string
+		configMapName   string
+		secretName      string
+		spcName         string
+		vaultSecretPath string
 	)
 
 	BeforeEach(func() {
 		deploymentName = utils.RandName("deploy")
 		configMapName = utils.RandName("cm")
 		secretName = utils.RandName("secret")
+		spcName = utils.RandName("spc")
+		vaultSecretPath = fmt.Sprintf("secret/%s", utils.RandName("test"))
 	})
 
 	AfterEach(func() {
 		_ = utils.DeleteDeployment(ctx, kubeClient, testNamespace, deploymentName)
 		_ = utils.DeleteConfigMap(ctx, kubeClient, testNamespace, configMapName)
 		_ = utils.DeleteSecret(ctx, kubeClient, testNamespace, secretName)
+		if csiClient != nil {
+			_ = utils.DeleteSecretProviderClass(ctx, csiClient, testNamespace, spcName)
+		}
+		_ = utils.DeleteVaultSecret(ctx, kubeClient, restConfig, vaultSecretPath)
 	})
 
 	Context("with reloader.stakater.com/auto=true annotation", func() {
@@ -222,6 +232,176 @@ var _ = Describe("Auto Reload Annotation Tests", func() {
 				utils.AnnotationLastReloadedFrom, utils.ReloadTimeout)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(reloaded).To(BeTrue(), "Deployment should have been reloaded for Secret change")
+		})
+	})
+
+	Context("with secretproviderclass.reloader.stakater.com/auto=true annotation", Label("csi"), func() {
+		BeforeEach(func() {
+			if !utils.IsCSIDriverInstalled(ctx, csiClient) {
+				Skip("CSI secrets store driver not installed")
+			}
+			if !utils.IsVaultProviderInstalled(ctx, kubeClient) {
+				Skip("Vault CSI provider not installed")
+			}
+		})
+
+		It("should reload Deployment when SecretProviderClassPodStatus changes", func() {
+			By("Creating a secret in Vault")
+			err := utils.CreateVaultSecret(ctx, kubeClient, restConfig, vaultSecretPath,
+				map[string]string{"api_key": "initial-value-v1"})
+			Expect(err).NotTo(HaveOccurred())
+
+			By("Creating a SecretProviderClass pointing to Vault secret")
+			_, err = utils.CreateSecretProviderClassWithSecret(ctx, csiClient, testNamespace, spcName,
+				vaultSecretPath, "api_key")
+			Expect(err).NotTo(HaveOccurred())
+
+			By("Creating a Deployment with secretproviderclass auto=true annotation")
+			_, err = utils.CreateDeployment(ctx, kubeClient, testNamespace, deploymentName,
+				utils.WithCSIVolume(spcName),
+				utils.WithAnnotations(utils.BuildSecretProviderClassAutoAnnotation()),
+			)
+			Expect(err).NotTo(HaveOccurred())
+
+			By("Waiting for Deployment to be ready")
+			err = utils.WaitForDeploymentReady(ctx, kubeClient, testNamespace, deploymentName, utils.DeploymentReady)
+			Expect(err).NotTo(HaveOccurred())
+
+			By("Finding the SPCPS created by CSI driver")
+			spcpsName, err := utils.FindSPCPSForDeployment(ctx, csiClient, kubeClient, testNamespace, deploymentName, utils.DeploymentReady)
+			Expect(err).NotTo(HaveOccurred())
+			GinkgoWriter.Printf("Found SPCPS: %s\n", spcpsName)
+
+			By("Getting initial SPCPS version")
+			initialVersion, err := utils.GetSPCPSVersion(ctx, csiClient, testNamespace, spcpsName)
+			Expect(err).NotTo(HaveOccurred())
+			GinkgoWriter.Printf("Initial SPCPS version: %s\n", initialVersion)
+
+			By("Updating the Vault secret")
+			err = utils.UpdateVaultSecret(ctx, kubeClient, restConfig, vaultSecretPath,
+				map[string]string{"api_key": "updated-value-v2"})
+			Expect(err).NotTo(HaveOccurred())
+
+			By("Waiting for CSI driver to sync the new secret version")
+			err = utils.WaitForSPCPSVersionChange(ctx, csiClient, testNamespace, spcpsName, initialVersion, 10*time.Second)
+			Expect(err).NotTo(HaveOccurred())
+			GinkgoWriter.Println("CSI driver synced new secret version")
+
+			By("Waiting for Deployment to be reloaded")
+			reloaded, err := utils.WaitForDeploymentReloaded(ctx, kubeClient, testNamespace, deploymentName,
+				utils.AnnotationLastReloadedFrom, utils.ReloadTimeout)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(reloaded).To(BeTrue(), "Deployment should have been reloaded for Vault secret change")
+		})
+
+		It("should NOT reload Deployment when ConfigMap changes (only SPC auto enabled)", func() {
+			By("Creating a secret in Vault")
+			err := utils.CreateVaultSecret(ctx, kubeClient, restConfig, vaultSecretPath,
+				map[string]string{"api_key": "initial-value-v1"})
+			Expect(err).NotTo(HaveOccurred())
+
+			By("Creating a SecretProviderClass pointing to Vault secret")
+			_, err = utils.CreateSecretProviderClassWithSecret(ctx, csiClient, testNamespace, spcName,
+				vaultSecretPath, "api_key")
+			Expect(err).NotTo(HaveOccurred())
+
+			By("Creating a ConfigMap")
+			_, err = utils.CreateConfigMap(ctx, kubeClient, testNamespace, configMapName,
+				map[string]string{"key": "initial"}, nil)
+			Expect(err).NotTo(HaveOccurred())
+
+			By("Creating a Deployment with CSI volume AND ConfigMap, but only SPC auto annotation")
+			_, err = utils.CreateDeployment(ctx, kubeClient, testNamespace, deploymentName,
+				utils.WithCSIVolume(spcName),
+				utils.WithConfigMapEnvFrom(configMapName),
+				utils.WithAnnotations(utils.BuildSecretProviderClassAutoAnnotation()),
+			)
+			Expect(err).NotTo(HaveOccurred())
+
+			By("Waiting for Deployment to be ready")
+			err = utils.WaitForDeploymentReady(ctx, kubeClient, testNamespace, deploymentName, utils.DeploymentReady)
+			Expect(err).NotTo(HaveOccurred())
+
+			By("Finding the SPCPS created by CSI driver")
+			spcpsName, err := utils.FindSPCPSForDeployment(ctx, csiClient, kubeClient, testNamespace, deploymentName, utils.DeploymentReady)
+			Expect(err).NotTo(HaveOccurred())
+
+			By("Updating the ConfigMap (should NOT trigger reload with SPC auto only)")
+			err = utils.UpdateConfigMap(ctx, kubeClient, testNamespace, configMapName,
+				map[string]string{"key": "updated"})
+			Expect(err).NotTo(HaveOccurred())
+
+			By("Verifying Deployment was NOT reloaded for ConfigMap change")
+			time.Sleep(utils.NegativeTestWait)
+			reloaded, err := utils.WaitForDeploymentReloaded(ctx, kubeClient, testNamespace, deploymentName,
+				utils.AnnotationLastReloadedFrom, utils.ShortTimeout)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(reloaded).To(BeFalse(), "Deployment with SPC auto only should NOT have been reloaded for ConfigMap change")
+
+			By("Getting initial SPCPS version")
+			initialVersion, err := utils.GetSPCPSVersion(ctx, csiClient, testNamespace, spcpsName)
+			Expect(err).NotTo(HaveOccurred())
+
+			By("Updating the Vault secret (should trigger reload)")
+			err = utils.UpdateVaultSecret(ctx, kubeClient, restConfig, vaultSecretPath,
+				map[string]string{"api_key": "updated-value-v2"})
+			Expect(err).NotTo(HaveOccurred())
+
+			By("Waiting for CSI driver to sync the new secret version")
+			err = utils.WaitForSPCPSVersionChange(ctx, csiClient, testNamespace, spcpsName, initialVersion, 10*time.Second)
+			Expect(err).NotTo(HaveOccurred())
+
+			By("Waiting for Deployment to be reloaded for SPC change")
+			reloaded, err = utils.WaitForDeploymentReloaded(ctx, kubeClient, testNamespace, deploymentName,
+				utils.AnnotationLastReloadedFrom, utils.ReloadTimeout)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(reloaded).To(BeTrue(), "Deployment should have been reloaded for Vault secret change")
+		})
+
+		It("should reload when using combined auto=true annotation for SPC", func() {
+			By("Creating a secret in Vault")
+			err := utils.CreateVaultSecret(ctx, kubeClient, restConfig, vaultSecretPath,
+				map[string]string{"api_key": "initial-value-v1"})
+			Expect(err).NotTo(HaveOccurred())
+
+			By("Creating a SecretProviderClass pointing to Vault secret")
+			_, err = utils.CreateSecretProviderClassWithSecret(ctx, csiClient, testNamespace, spcName,
+				vaultSecretPath, "api_key")
+			Expect(err).NotTo(HaveOccurred())
+
+			By("Creating a Deployment with CSI volume and general auto=true annotation")
+			_, err = utils.CreateDeployment(ctx, kubeClient, testNamespace, deploymentName,
+				utils.WithCSIVolume(spcName),
+				utils.WithAnnotations(utils.BuildAutoTrueAnnotation()),
+			)
+			Expect(err).NotTo(HaveOccurred())
+
+			By("Waiting for Deployment to be ready")
+			err = utils.WaitForDeploymentReady(ctx, kubeClient, testNamespace, deploymentName, utils.DeploymentReady)
+			Expect(err).NotTo(HaveOccurred())
+
+			By("Finding the SPCPS created by CSI driver")
+			spcpsName, err := utils.FindSPCPSForDeployment(ctx, csiClient, kubeClient, testNamespace, deploymentName, utils.DeploymentReady)
+			Expect(err).NotTo(HaveOccurred())
+
+			By("Getting initial SPCPS version")
+			initialVersion, err := utils.GetSPCPSVersion(ctx, csiClient, testNamespace, spcpsName)
+			Expect(err).NotTo(HaveOccurred())
+
+			By("Updating the Vault secret")
+			err = utils.UpdateVaultSecret(ctx, kubeClient, restConfig, vaultSecretPath,
+				map[string]string{"api_key": "updated-value-v2"})
+			Expect(err).NotTo(HaveOccurred())
+
+			By("Waiting for CSI driver to sync the new secret version")
+			err = utils.WaitForSPCPSVersionChange(ctx, csiClient, testNamespace, spcpsName, initialVersion, 10*time.Second)
+			Expect(err).NotTo(HaveOccurred())
+
+			By("Waiting for Deployment to be reloaded")
+			reloaded, err := utils.WaitForDeploymentReloaded(ctx, kubeClient, testNamespace, deploymentName,
+				utils.AnnotationLastReloadedFrom, utils.ReloadTimeout)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(reloaded).To(BeTrue(), "Deployment with auto=true should have been reloaded for Vault secret change")
 		})
 	})
 

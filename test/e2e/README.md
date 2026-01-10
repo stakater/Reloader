@@ -1,319 +1,259 @@
 # Reloader E2E Tests
 
-These tests verify that Reloader actually works in a real Kubernetes cluster. They spin up a Kind cluster, build and deploy Reloader, then create workloads and change their ConfigMaps/Secrets to make sure everything reloads correctly.
+End-to-end tests that verify Reloader works correctly in a real Kubernetes cluster. Tests create workloads, modify their referenced ConfigMaps/Secrets/SecretProviderClasses, and verify that Reloader triggers the appropriate rolling updates.
 
-## Running the Tests
+## Table of Contents
+
+- [Quick Start](#quick-start)
+- [Prerequisites](#prerequisites)
+- [Running Tests](#running-tests)
+- [Test Coverage](#test-coverage)
+  - [Workload Types](#workload-types)
+  - [Resource Types](#resource-types)
+  - [Reload Strategies](#reload-strategies)
+  - [Reference Methods](#reference-methods)
+  - [Annotations](#annotations)
+  - [CLI Flags](#cli-flags)
+- [Test Organization](#test-organization)
+- [Debugging](#debugging)
+- [Writing Tests](#writing-tests)
+
+---
+
+## Quick Start
 
 ```bash
-# Run everything (creates Kind cluster, builds image, runs tests)
+# One-time setup: create Kind cluster and install dependencies
+make e2e-setup
+
+# Run all e2e tests
 make e2e
 
-# Test a specific image without building
-SKIP_BUILD=true RELOADER_IMAGE=stakater/reloader:v1.0.0 make e2e
-
-# Run just one test suite
-go test -v -timeout 30m ./test/e2e/core/...
-go test -v -timeout 30m ./test/e2e/annotations/...
-go test -v -timeout 30m ./test/e2e/flags/...
-
-# Skip Argo/OpenShift tests (if you don't have them installed)
-go test -v ./test/e2e/core/... --ginkgo.label-filter="!argo && !openshift"
+# Cleanup when done
+make e2e-cleanup
 ```
 
-## What You Need
+---
 
-- Go 1.21+
-- Docker
-- [Kind](https://kind.sigs.k8s.io/)
-- kubectl
-- Helm 3
-- Argo Rollouts (optional, for Argo tests)
-- OpenShift (optional, for DeploymentConfig tests)
+## Prerequisites
+
+| Requirement | Version | Purpose |
+|------------|---------|---------|
+| Go | 1.25+ | Test execution |
+| Docker/Podman | Latest | Image building |
+| [Kind](https://kind.sigs.k8s.io/) | 0.20+ | Local Kubernetes cluster |
+| kubectl | Latest | Cluster interaction |
+| Helm | 3.x | Reloader deployment |
+
+### Optional Dependencies
+
+| Component | Purpose | Auto-installed by |
+|-----------|---------|-------------------|
+| [Argo Rollouts](https://argoproj.github.io/rollouts/) | Argo Rollout tests | `make e2e-setup` |
+| [CSI Secrets Store Driver](https://secrets-store-csi-driver.sigs.k8s.io/) | SecretProviderClass tests | `make e2e-setup` |
+| [Vault](https://www.vaultproject.io/) | CSI provider backend | `make e2e-setup` |
+| OpenShift | DeploymentConfig tests | Requires OpenShift cluster |
 
 ---
 
-## What Gets Tested
+## Running Tests
 
-### Deployments
+### Make Targets
 
-Deployments are the most thoroughly tested workload. Here's everything we verify:
+| Target | Description |
+|--------|-------------|
+| `make e2e-setup` | Create Kind cluster and install all dependencies (Argo, CSI, Vault) |
+| `make e2e` | Build image, load to Kind, run all tests |
+| `make e2e-cleanup` | Remove test resources and delete Kind cluster |
+| `make e2e-ci` | Full CI pipeline: setup → test → cleanup |
 
-**Basic Reload Behavior**
-- Reloads when a referenced ConfigMap's data changes
-- Reloads when a referenced Secret's data changes
-- Reloads when using `auto=true` annotation (auto-detects all mounted ConfigMaps/Secrets)
-- Does NOT reload when only ConfigMap/Secret labels change (data must change)
-- Does NOT reload when `auto=false` is set
+### Common Workflows
 
-**Different Ways to Reference ConfigMaps/Secrets**
-- `envFrom` - inject all keys as environment variables
-- `valueFrom.configMapKeyRef` - single key as env var
-- `valueFrom.secretKeyRef` - single key as env var
-- Volume mounts - mount ConfigMap/Secret as files
-- Projected volumes - multiple sources combined into one mount
-- Init containers with envFrom
-- Init containers with volume mounts
+```bash
+# Development workflow
+make e2e-setup          # Once at the start
+make e2e                # Run tests (repeat as needed)
+make e2e                # ...iterate...
+make e2e-cleanup        # When done
 
-**Annotation Variations**
-- `configmap.reloader.stakater.com/reload: my-config` - explicit ConfigMap
-- `secret.reloader.stakater.com/reload: my-secret` - explicit Secret
-- `reloader.stakater.com/auto: "true"` - auto-detect everything
-- `configmap.reloader.stakater.com/auto: "true"` - auto-detect only ConfigMaps
-- `secret.reloader.stakater.com/auto: "true"` - auto-detect only Secrets
-- Multiple ConfigMaps/Secrets in one annotation (comma-separated)
-- Annotations on pod template vs deployment metadata (both work)
+# CI workflow
+make e2e-ci             # Does everything
 
-**Search & Match**
-- Deployments with `search` annotation find ConfigMaps with `match` annotation
-- Only reloads if both sides have the right annotations
+# Test specific image
+SKIP_BUILD=true RELOADER_IMAGE=ghcr.io/stakater/reloader:v1.2.0 make e2e
+```
 
-**Exclude & Ignore**
-- Exclude specific ConfigMaps/Secrets from auto-reload
-- Ignore annotation on ConfigMap/Secret prevents any reload
+### Running Specific Tests
 
-**Pause Period**
-- Deployment gets paused after reload when pause-period annotation is set
+```bash
+# Run a specific test suite
+go tool ginkgo -v ./test/e2e/core/...
+go tool ginkgo -v ./test/e2e/annotations/...
+go tool ginkgo -v ./test/e2e/csi/...
 
-**Regex Patterns**
-- Pattern matching for ConfigMap/Secret names (e.g., `app-config-.*`)
+# Run tests matching a pattern
+go tool ginkgo -v --focus="should reload when ConfigMap" ./test/e2e/...
 
-**Multi-Container**
-- Works when multiple containers share the same ConfigMap
-- Works when different containers use different ConfigMaps
+# Run tests with specific labels
+go tool ginkgo -v --label-filter="csi" ./test/e2e/...
+go tool ginkgo -v --label-filter="!argo && !openshift" ./test/e2e/...
 
-**EnvVars Strategy**
-- Adds `STAKATER_` environment variables instead of pod annotations
-- Verifies the env var appears after ConfigMap/Secret change
+# Run all tests, continue on failure
+go tool ginkgo --keep-going -v ./test/e2e/...
+```
 
-### DaemonSets
+### Environment Variables
 
-DaemonSets get the same treatment as Deployments:
-
-- Reloads when ConfigMap data changes
-- Reloads when Secret data changes
-- Works with `auto=true` annotation
-- Does NOT reload on label-only changes
-- Supports all reference methods (envFrom, valueFrom, volumes, projected, init containers)
-- EnvVars strategy works
-
-### StatefulSets
-
-StatefulSets are tested identically to Deployments and DaemonSets:
-
-- Reloads when ConfigMap data changes
-- Reloads when Secret data changes
-- Works with `auto=true` annotation
-- Does NOT reload on label-only changes
-- Supports all reference methods
-- EnvVars strategy works
-
-### CronJobs
-
-CronJobs are a bit special - when a CronJob's ConfigMap changes, Reloader updates the CronJob spec so the *next* Job it creates will have the new config.
-
-**What's Tested**
-- CronJob spec updates when referenced ConfigMap changes
-- CronJob spec updates when referenced Secret changes
-- Works with `auto=true` annotation
-- Works with explicit reload annotations
-- Does NOT update on label-only changes
-
-**Note:** CronJobs don't support the EnvVars strategy since they don't have running pods to inject env vars into.
-
-### Jobs
-
-Jobs require special handling - since you can't modify a running Job, Reloader deletes and recreates it with the new config.
-
-**What's Tested**
-- Job gets recreated (new UID) when ConfigMap changes
-- Job gets recreated when Secret changes
-- Works with `auto=true` annotation
-- Works with explicit reload annotations
-- Works with `valueFrom.configMapKeyRef` references
-- Works with `valueFrom.secretKeyRef` references
-
-**Note:** Jobs don't support the EnvVars strategy.
-
-### Argo Rollouts
-
-Argo Rollouts are Kubernetes Deployments on steroids with advanced deployment strategies. Tests require Argo Rollouts to be installed.
-
-**What's Tested**
-- Reloads when ConfigMap data changes
-- Reloads when Secret data changes
-- Works with `auto=true` annotation
-- Does NOT reload on label-only changes
-- Default strategy (annotation-based, like Deployments)
-- Restart strategy (sets `spec.restartAt` field instead of annotations)
-- Supports all reference methods
-- EnvVars strategy works
-
-### DeploymentConfigs (OpenShift)
-
-OpenShift's legacy workload type. Tests only run on OpenShift clusters.
-
-**What's Tested**
-- Reloads when ConfigMap data changes
-- Reloads when Secret data changes
-- Works with `auto=true` annotation
-- Does NOT reload on label-only changes
-- Supports all reference methods
-- EnvVars strategy works
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `RELOADER_IMAGE` | Image to test | `ghcr.io/stakater/reloader:test` |
+| `SKIP_BUILD` | Skip image build | `false` |
+| `KIND_CLUSTER` | Kind cluster name | `reloader-e2e` |
+| `KUBECONFIG` | Kubernetes config path | `~/.kube/config` |
+| `E2E_TIMEOUT` | Test timeout | `45m` |
 
 ---
 
-## CLI Flag Tests
+## Test Coverage
 
-These tests verify Reloader's command-line options work correctly. Each test deploys Reloader with different flags.
+### Workload Types
 
-### Namespace Filtering
+| Workload | Annotations | EnvVars | CSI | Special Handling |
+|----------|-------------|---------|-----|------------------|
+| Deployment | ✅ | ✅ | ✅ | Standard rolling update |
+| DaemonSet | ✅ | ✅ | ✅ | Standard rolling update |
+| StatefulSet | ✅ | ✅ | ✅ | Standard rolling update |
+| CronJob | ✅ | ❌ | ❌ | Updates job template |
+| Job | ✅ | ❌ | ❌ | Recreates job |
+| Argo Rollout | ✅ | ✅ | ❌ | Supports restart strategy |
+| DeploymentConfig | ✅ | ✅ | ❌ | OpenShift only |
 
-**`namespaceSelector`**
-- Only watches namespaces with matching labels
-- Ignores ConfigMap changes in non-matching namespaces
+### Resource Types
 
-**`ignoreNamespaces`**
-- Skips specified namespaces entirely
-- Still watches all other namespaces
+#### ConfigMaps & Secrets
 
-**`watchGlobally`**
-- `true` (default): watches all namespaces
-- `false`: only watches Reloader's own namespace
+Standard Kubernetes resources that trigger reloads when their data changes.
 
-### Resource Filtering
+**Tested Scenarios:**
+- Data changes trigger reload
+- Label-only changes do NOT trigger reload
+- Annotation-only changes do NOT trigger reload
+- Multiple resources in single annotation (comma-separated)
+- Regex patterns for resource names
 
-**`resourceLabelSelector`**
-- Only watches ConfigMaps/Secrets with matching labels
-- Ignores changes to resources without the label
+#### SecretProviderClass (CSI)
 
-**`ignoreSecrets`**
-- Completely ignores all Secret changes
-- Still watches ConfigMaps
+CSI Secrets Store Driver integration for external secret providers (Vault, Azure, AWS, etc.).
 
-**`ignoreConfigMaps`**
-- Completely ignores all ConfigMap changes
-- Still watches Secrets
+**Tested Scenarios:**
+- SecretProviderClassPodStatus changes trigger reload
+- Label-only changes on SPCPS do NOT trigger reload
+- Auto-detection with `secretproviderclass.reloader.stakater.com/auto: "true"`
+- Exclude specific SPCs from auto-reload
+- Init containers with CSI volumes
+- Multiple CSI volumes per workload
 
-### Workload Filtering
+### Reload Strategies
 
-**`ignoreCronJobs`**
-- Skips CronJobs, still handles Deployments/etc
+#### Annotations Strategy (Default)
 
-**`ignoreJobs`**
-- Skips Jobs, still handles other workloads
+Adds/updates `reloader.stakater.com/last-reloaded-from` annotation on pod template.
 
-### Reload Triggers
+```yaml
+spec:
+  template:
+    metadata:
+      annotations:
+        reloader.stakater.com/last-reloaded-from: "my-configmap"
+```
 
-**`reloadOnCreate`**
-- `true`: triggers reload when a new ConfigMap/Secret is created
-- `false` (default): only triggers on updates
+#### EnvVars Strategy
 
-**`reloadOnDelete`**
-- `true`: triggers reload when a ConfigMap/Secret is deleted
-- `false` (default): only triggers on updates
+Adds `STAKATER_<RESOURCE>_<TYPE>` environment variable to containers.
 
-### Global Auto-Reload
+```yaml
+spec:
+  template:
+    spec:
+      containers:
+      - env:
+        - name: STAKATER_MY_CONFIGMAP_CONFIGMAP
+          value: "<sha256-hash>"
+```
 
-**`autoReloadAll`**
-- `true`: all workloads auto-reload without needing annotations
-- `auto=false` on a workload still opts it out
+### Reference Methods
 
----
+All methods are tested for Deployment, DaemonSet, and StatefulSet:
 
-## Annotation-Specific Tests
+| Method | Description | ConfigMap | Secret | CSI |
+|--------|-------------|-----------|--------|-----|
+| `envFrom` | All keys as env vars | ✅ | ✅ | - |
+| `valueFrom.configMapKeyRef` | Single key as env var | ✅ | - | - |
+| `valueFrom.secretKeyRef` | Single key as env var | - | ✅ | - |
+| Volume mount | Mount as files | ✅ | ✅ | ✅ |
+| Projected volume | Combined sources | ✅ | ✅ | - |
+| Init container (envFrom) | Init container env | ✅ | ✅ | - |
+| Init container (volume) | Init container mount | ✅ | ✅ | ✅ |
 
-### Auto Reload Variations
+### Annotations
 
-- `reloader.stakater.com/auto: "true"` - watches both ConfigMaps and Secrets
-- `reloader.stakater.com/auto: "false"` - completely disables reload
-- `configmap.reloader.stakater.com/auto: "true"` - only watches ConfigMaps
-- `secret.reloader.stakater.com/auto: "true"` - only watches Secrets
+#### Reload Triggers
 
-### Combining Annotations
+| Annotation | Description |
+|------------|-------------|
+| `configmap.reloader.stakater.com/reload` | Reload on specific ConfigMap(s) change |
+| `secret.reloader.stakater.com/reload` | Reload on specific Secret(s) change |
+| `secretproviderclass.reloader.stakater.com/reload` | Reload on specific SPC(s) change |
 
-- `auto=true` + explicit reload annotation work together
-- Auto-detected resources + explicitly listed resources both trigger reload
-- Exclude annotations override auto-detection
+#### Auto-Detection
 
-### Search & Match
+| Annotation | Description |
+|------------|-------------|
+| `reloader.stakater.com/auto: "true"` | Auto-detect all mounted resources |
+| `configmap.reloader.stakater.com/auto: "true"` | Auto-detect ConfigMaps only |
+| `secret.reloader.stakater.com/auto: "true"` | Auto-detect Secrets only |
+| `secretproviderclass.reloader.stakater.com/auto: "true"` | Auto-detect SPCs only |
 
-The search/match system lets you decouple workloads from specific resource names:
+#### Exclusions
 
-1. Workload has `reloader.stakater.com/search: "true"`
-2. ConfigMap has `reloader.stakater.com/match: "true"`
-3. When ConfigMap changes, workload reloads
+| Annotation | Description |
+|------------|-------------|
+| `configmaps.exclude.reloader.stakater.com/reload` | Exclude ConfigMaps from auto |
+| `secrets.exclude.reloader.stakater.com/reload` | Exclude Secrets from auto |
+| `secretproviderclasses.exclude.reloader.stakater.com/reload` | Exclude SPCs from auto |
+| `reloader.stakater.com/ignore: "true"` | On resource: prevents any reload |
 
-**Tests verify:**
-- Reload happens when both annotations present
-- No reload when workload has search but ConfigMap lacks match
-- No reload when ConfigMap has match but no workload has search
-- Multiple workloads can have search, only ones with search reload
+#### Search & Match
 
-### Exclude Annotations
+| Annotation | Target | Description |
+|------------|--------|-------------|
+| `reloader.stakater.com/search: "true"` | Workload | Watch for matching resources |
+| `reloader.stakater.com/match: "true"` | Resource | Trigger watchers on change |
 
-Exclude specific resources from auto-reload:
+#### Other
 
-- `configmap.reloader.stakater.com/exclude: "config-to-skip"`
-- `secret.reloader.stakater.com/exclude: "secret-to-skip"`
+| Annotation | Description |
+|------------|-------------|
+| `reloader.stakater.com/pause-period` | Pause deployment after reload |
 
-**Tests verify:**
-- Excluded ConfigMap changes don't trigger reload
-- Non-excluded ConfigMap changes still trigger reload
-- Same behavior for Secrets
+### CLI Flags
 
-### Resource Ignore
+Tests verify these Reloader command-line flags:
 
-Put this on the ConfigMap/Secret itself to prevent any reload:
-
-- `reloader.stakater.com/ignore: "true"`
-
-**Tests verify:**
-- ConfigMap with ignore annotation never triggers reload
-- Secret with ignore annotation never triggers reload
-- Even with explicit reload annotation on workload
-
-### Pause Period
-
-Delay between detecting change and triggering reload:
-
-- `reloader.stakater.com/pause-period: "10s"`
-
-**Tests verify:**
-- Deployment gets paused-at annotation after reload
-- Without pause-period, no paused-at annotation
-
----
-
-## Advanced Scenarios
-
-### Pod Template Annotations
-
-Reloader reads annotations from both places:
-
-1. Deployment/DaemonSet/etc metadata
-2. Pod template metadata (inside spec.template.metadata)
-
-**Tests verify:**
-- Annotation only on pod template still works
-- Annotation on both locations works
-- Mismatched annotations (ConfigMap annotation but updating Secret) correctly doesn't reload
-
-### Regex Patterns
-
-Use regex in the reload annotation:
-
-- `configmap.reloader.stakater.com/reload: "app-config-.*"`
-- `secret.reloader.stakater.com/reload: "db-creds-.*"`
-
-**Tests verify:**
-- Matching ConfigMap/Secret triggers reload
-- Non-matching ConfigMap/Secret doesn't trigger reload
-
-### Multiple Containers
-
-**Tests verify:**
-- Multiple containers sharing one ConfigMap - changes trigger reload
-- Multiple containers with different ConfigMaps - change to either triggers reload
+| Flag | Description |
+|------|-------------|
+| `--namespaces-to-ignore` | Skip specified namespaces |
+| `--namespace-selector` | Only watch namespaces with matching labels |
+| `--watch-globally` | Watch all namespaces vs own namespace only |
+| `--resource-label-selector` | Only watch resources with matching labels |
+| `--ignore-secrets` | Ignore all Secret changes |
+| `--ignore-configmaps` | Ignore all ConfigMap changes |
+| `--ignore-cronjobs` | Skip CronJob workloads |
+| `--ignore-jobs` | Skip Job workloads |
+| `--reload-on-create` | Trigger reload on resource creation |
+| `--reload-on-delete` | Trigger reload on resource deletion |
+| `--auto-reload-all` | Auto-reload all workloads without annotations |
+| `--enable-csi-integration` | Enable SecretProviderClass support |
 
 ---
 
@@ -321,99 +261,163 @@ Use regex in the reload annotation:
 
 ```
 test/e2e/
-├── core/                    # Main tests (all workload types)
-│   ├── workloads_test.go    # Basic reload behavior
-│   └── reference_methods_test.go  # envFrom, volumes, etc.
-├── annotations/             # Annotation-specific behavior
-│   ├── auto_reload_test.go
-│   ├── combination_test.go
-│   ├── exclude_test.go
-│   ├── search_match_test.go
-│   ├── pause_period_test.go
-│   └── resource_ignore_test.go
-├── flags/                   # CLI flag behavior
-│   ├── namespace_selector_test.go
-│   ├── namespace_ignore_test.go
-│   ├── resource_selector_test.go
+├── core/                          # Core workload tests
+│   ├── core_suite_test.go
+│   └── workloads_test.go          # All workload types, both strategies
+│
+├── annotations/                   # Annotation behavior tests
+│   ├── annotations_suite_test.go
+│   ├── auto_reload_test.go        # Auto-detection variations
+│   ├── combination_test.go        # Multiple annotations together
+│   ├── exclude_test.go            # Exclude annotations
+│   ├── pause_period_test.go       # Pause after reload
+│   ├── resource_ignore_test.go    # Ignore annotation on resources
+│   └── search_match_test.go       # Search/match pattern
+│
+├── flags/                         # CLI flag tests
+│   ├── flags_suite_test.go
+│   ├── auto_reload_all_test.go
 │   ├── ignore_resources_test.go
 │   ├── ignored_workloads_test.go
-│   ├── auto_reload_all_test.go
+│   ├── namespace_ignore_test.go
+│   ├── namespace_selector_test.go
 │   ├── reload_on_create_test.go
 │   ├── reload_on_delete_test.go
+│   ├── resource_selector_test.go
 │   └── watch_globally_test.go
-├── advanced/                # Edge cases
-│   ├── job_reload_test.go
-│   ├── multi_container_test.go
-│   ├── pod_annotations_test.go
-│   └── regex_test.go
-├── argo/                    # Argo Rollouts (requires installation)
+│
+├── advanced/                      # Advanced scenarios
+│   ├── advanced_suite_test.go
+│   ├── job_reload_test.go         # Job recreation
+│   ├── multi_container_test.go    # Multiple containers
+│   ├── pod_annotations_test.go    # Pod template annotations
+│   └── regex_test.go              # Regex patterns
+│
+├── csi/                           # CSI SecretProviderClass tests
+│   ├── csi_suite_test.go
+│   └── csi_test.go                # SPC-specific scenarios
+│
+├── argo/                          # Argo Rollouts (requires installation)
+│   ├── argo_suite_test.go
 │   └── rollout_test.go
-├── openshift/               # OpenShift (requires cluster)
-│   └── deploymentconfig_test.go
-└── utils/                   # Shared test helpers
+│
+└── utils/                         # Shared test utilities
+    ├── annotations.go             # Annotation builders
+    ├── constants.go               # Test constants
+    ├── csi.go                     # CSI client and helpers
+    ├── resources.go               # Resource creation helpers
+    ├── testenv.go                 # Test environment setup
+    ├── wait.go                    # Wait/polling utilities
+    ├── workload_adapter.go        # Workload abstraction interface
+    ├── workload_deployment.go     # Deployment adapter
+    ├── workload_daemonset.go      # DaemonSet adapter
+    ├── workload_statefulset.go    # StatefulSet adapter
+    ├── workload_cronjob.go        # CronJob adapter
+    ├── workload_job.go            # Job adapter
+    ├── workload_argo.go           # Argo Rollout adapter
+    └── workload_openshift.go      # DeploymentConfig adapter
 ```
 
 ---
 
-## Debugging Failed Tests
+## Debugging
 
-### See What's Happening
+### View Test Output
 
 ```bash
 # Verbose output
-go test -v ./test/e2e/core/...
+go tool ginkgo -v ./test/e2e/core/...
 
-# Run one specific test
-go test -v ./test/e2e/core/... --ginkgo.focus="should reload when ConfigMap"
+# Focus on specific test
+go tool ginkgo -v --focus="should reload when ConfigMap" ./test/e2e/...
 
-# Keep the cluster around after tests
-SKIP_CLEANUP=true make e2e
+# Show all spec names
+go tool ginkgo -v --dry-run ./test/e2e/...
 ```
 
 ### Check Reloader Logs
 
 ```bash
-# Find the Reloader pod
+# Find Reloader pod
 kubectl get pods -A | grep reloader
 
-# Check its logs
-kubectl logs -n <namespace> -l app=reloader-reloader --tail=100
+# View logs
+kubectl logs -n <namespace> -l app.kubernetes.io/name=reloader --tail=100 -f
+
+# Check events
+kubectl get events -n <namespace> --sort-by='.lastTimestamp'
 ```
 
-### Common Problems
+### Inspect Test Resources
 
-| Problem | Solution |
-|---------|----------|
-| Test timeout | Reloader might not be running - check pod status |
-| Argo tests skipped | Install Argo Rollouts first |
-| OpenShift tests skipped | Only work on OpenShift clusters |
-| "resource not found" | Missing CRDs (Argo, OpenShift) |
+```bash
+# List test namespaces
+kubectl get ns | grep reloader
+
+# Check workloads in test namespace
+kubectl get deploy,ds,sts,cronjob,job -n <test-namespace>
+
+# Check ConfigMaps/Secrets
+kubectl get cm,secret -n <test-namespace>
+
+# Check CSI resources
+kubectl get secretproviderclass,secretproviderclasspodstatus -n <test-namespace>
+```
+
+### Common Issues
+
+| Issue | Cause | Solution |
+|-------|-------|----------|
+| Tests timeout | Reloader not running | Check pod status and logs |
+| CSI tests skipped | CSI driver not installed | Run `make e2e-setup` |
+| Argo tests skipped | Argo Rollouts not installed | Run `make e2e-setup` |
+| OpenShift tests skipped | Not an OpenShift cluster | Expected on Kind |
+| "resource not found" | Missing CRDs | Install required components |
+| Duplicate volume names | Test bug | Check CSI volume naming |
 
 ---
 
-## Environment Variables
+## Writing Tests
 
-| Variable | What it does | Default |
-|----------|--------------|---------|
-| `RELOADER_IMAGE` | Image to test | `ghcr.io/stakater/reloader:test` |
-| `SKIP_BUILD` | Don't build the image | `false` |
-| `SKIP_CLEANUP` | Keep cluster after tests | `false` |
-| `KIND_CLUSTER` | Kind cluster name | `kind` |
-| `KUBECONFIG` | Kubernetes config path | `~/.kube/config` |
+### Using the Workload Adapter Pattern
 
----
-
-## Writing New Tests
-
-### For Multiple Workload Types
-
-Use the adapter pattern to test the same behavior across Deployments, DaemonSets, etc:
+Test the same behavior across multiple workload types:
 
 ```go
 DescribeTable("should reload when ConfigMap changes",
     func(workloadType utils.WorkloadType) {
         adapter := registry.Get(workloadType)
-        // ... create ConfigMap, workload, update ConfigMap, verify reload
+        if adapter == nil {
+            Skip(fmt.Sprintf("%s not available", workloadType))
+        }
+
+        // Create ConfigMap
+        _, err := utils.CreateConfigMap(ctx, kubeClient, testNamespace, configMapName,
+            map[string]string{"key": "initial"}, nil)
+        Expect(err).NotTo(HaveOccurred())
+
+        // Create workload via adapter
+        err = adapter.Create(ctx, testNamespace, workloadName, utils.WorkloadConfig{
+            ConfigMapName:       configMapName,
+            UseConfigMapEnvFrom: true,
+            Annotations:         utils.BuildConfigMapReloadAnnotation(configMapName),
+        })
+        Expect(err).NotTo(HaveOccurred())
+
+        // Wait for ready
+        err = adapter.WaitReady(ctx, testNamespace, workloadName, utils.DeploymentReady)
+        Expect(err).NotTo(HaveOccurred())
+
+        // Update ConfigMap
+        err = utils.UpdateConfigMap(ctx, kubeClient, testNamespace, configMapName,
+            map[string]string{"key": "updated"})
+        Expect(err).NotTo(HaveOccurred())
+
+        // Verify reload
+        reloaded, err := adapter.WaitReloaded(ctx, testNamespace, workloadName,
+            utils.AnnotationLastReloadedFrom, utils.ReloadTimeout)
+        Expect(err).NotTo(HaveOccurred())
+        Expect(reloaded).To(BeTrue())
     },
     Entry("Deployment", utils.WorkloadDeployment),
     Entry("DaemonSet", utils.WorkloadDaemonSet),
@@ -421,25 +425,66 @@ DescribeTable("should reload when ConfigMap changes",
 )
 ```
 
-### For Deployment-Only Tests
+### Direct Resource Creation
 
-Use the direct creation helpers:
+For Deployment-specific tests:
 
 ```go
-It("should reload with my specific setup", func() {
+It("should reload with custom setup", func() {
     _, err := utils.CreateConfigMap(ctx, kubeClient, testNamespace, configMapName,
         map[string]string{"key": "value"}, nil)
+    Expect(err).NotTo(HaveOccurred())
 
     _, err = utils.CreateDeployment(ctx, kubeClient, testNamespace, deploymentName,
         utils.WithConfigMapEnvFrom(configMapName),
         utils.WithAnnotations(utils.BuildAutoTrueAnnotation()),
     )
+    Expect(err).NotTo(HaveOccurred())
 
-    // Update and verify...
+    // ... test logic ...
 })
 ```
 
-### Negative Tests (Verifying Nothing Happens)
+### CSI Tests
+
+```go
+It("should reload when SecretProviderClassPodStatus changes", func() {
+    if !utils.IsCSIDriverInstalled(ctx, csiClient) {
+        Skip("CSI driver not installed")
+    }
+
+    // Create SPC
+    _, err := utils.CreateSecretProviderClass(ctx, csiClient, testNamespace, spcName, nil)
+    Expect(err).NotTo(HaveOccurred())
+
+    // Create SPCPS
+    _, err = utils.CreateSecretProviderClassPodStatus(ctx, csiClient, testNamespace, spcpsName, spcName,
+        utils.NewSPCPSObjects("secret1", "v1"))
+    Expect(err).NotTo(HaveOccurred())
+
+    // Create Deployment with CSI volume
+    _, err = utils.CreateDeployment(ctx, kubeClient, testNamespace, deploymentName,
+        utils.WithCSIVolume(spcName),
+        utils.WithAnnotations(utils.BuildSecretProviderClassReloadAnnotation(spcName)),
+    )
+    Expect(err).NotTo(HaveOccurred())
+
+    // Update SPCPS
+    err = utils.UpdateSecretProviderClassPodStatus(ctx, csiClient, testNamespace, spcpsName,
+        utils.NewSPCPSObjects("secret1", "v2"))
+    Expect(err).NotTo(HaveOccurred())
+
+    // Verify reload
+    reloaded, err := utils.WaitForDeploymentReloaded(ctx, kubeClient, testNamespace, deploymentName,
+        utils.AnnotationLastReloadedFrom, utils.ReloadTimeout)
+    Expect(err).NotTo(HaveOccurred())
+    Expect(reloaded).To(BeTrue())
+})
+```
+
+### Negative Tests
+
+Verify that something does NOT trigger a reload:
 
 ```go
 It("should NOT reload when only labels change", func() {
@@ -448,10 +493,29 @@ It("should NOT reload when only labels change", func() {
     // Make a change that shouldn't trigger reload
     err = utils.UpdateConfigMapLabels(ctx, kubeClient, testNamespace, configMapName,
         map[string]string{"new-label": "value"})
+    Expect(err).NotTo(HaveOccurred())
 
-    // Wait a bit, then verify NO reload happened
+    // Wait briefly, then verify NO reload
     time.Sleep(utils.NegativeTestWait)
-    reloaded, _ := utils.WaitForDeploymentReloaded(...)
-    Expect(reloaded).To(BeFalse())
+    reloaded, err := utils.WaitForDeploymentReloaded(ctx, kubeClient, testNamespace, deploymentName,
+        utils.AnnotationLastReloadedFrom, utils.ShortTimeout)
+    Expect(err).NotTo(HaveOccurred())
+    Expect(reloaded).To(BeFalse(), "Should NOT have reloaded")
 })
+```
+
+### Test Labels
+
+Use labels to categorize tests:
+
+```go
+Entry("Deployment", Label("csi"), utils.WorkloadDeployment),
+Entry("with OpenShift", Label("openshift"), utils.WorkloadDeploymentConfig),
+Entry("with Argo", Label("argo"), utils.WorkloadArgoRollout),
+```
+
+Run by label:
+```bash
+go tool ginkgo --label-filter="csi" ./test/e2e/...
+go tool ginkgo --label-filter="!openshift && !argo" ./test/e2e/...
 ```

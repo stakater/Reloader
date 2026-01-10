@@ -5,6 +5,7 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+
 	"github.com/stakater/Reloader/test/e2e/utils"
 )
 
@@ -33,7 +34,9 @@ var _ = Describe("Reference Method Tests", func() {
 		DescribeTable("should reload when ConfigMap referenced via valueFrom.configMapKeyRef changes",
 			func(workloadType utils.WorkloadType) {
 				adapter := registry.Get(workloadType)
-				if adapter == nil { Skip(fmt.Sprintf("%s adapter not available (CRD not installed)", workloadType)) }
+				if adapter == nil {
+					Skip(fmt.Sprintf("%s adapter not available (CRD not installed)", workloadType))
+				}
 
 				By("Creating a ConfigMap")
 				_, err := utils.CreateConfigMap(ctx, kubeClient, testNamespace, configMapName,
@@ -46,7 +49,7 @@ var _ = Describe("Reference Method Tests", func() {
 					UseConfigMapKeyRef: true,
 					ConfigMapKey:       "config_key",
 					EnvVarName:         "MY_CONFIG_VAR",
-					Annotations: utils.BuildConfigMapReloadAnnotation(configMapName),
+					Annotations:        utils.BuildConfigMapReloadAnnotation(configMapName),
 				})
 				Expect(err).NotTo(HaveOccurred())
 				DeferCleanup(func() { _ = adapter.Delete(ctx, testNamespace, workloadName) })
@@ -81,7 +84,9 @@ var _ = Describe("Reference Method Tests", func() {
 		DescribeTable("should reload when Secret referenced via valueFrom.secretKeyRef changes",
 			func(workloadType utils.WorkloadType) {
 				adapter := registry.Get(workloadType)
-				if adapter == nil { Skip(fmt.Sprintf("%s adapter not available (CRD not installed)", workloadType)) }
+				if adapter == nil {
+					Skip(fmt.Sprintf("%s adapter not available (CRD not installed)", workloadType))
+				}
 
 				By("Creating a Secret")
 				_, err := utils.CreateSecretFromStrings(ctx, kubeClient, testNamespace, secretName,
@@ -90,11 +95,11 @@ var _ = Describe("Reference Method Tests", func() {
 
 				By("Creating workload with valueFrom.secretKeyRef")
 				err = adapter.Create(ctx, testNamespace, workloadName, utils.WorkloadConfig{
-					SecretName:    secretName,
+					SecretName:      secretName,
 					UseSecretKeyRef: true,
-					SecretKey:     "secret_key",
-					EnvVarName:    "MY_SECRET_VAR",
-					Annotations: utils.BuildSecretReloadAnnotation(secretName),
+					SecretKey:       "secret_key",
+					EnvVarName:      "MY_SECRET_VAR",
+					Annotations:     utils.BuildSecretReloadAnnotation(secretName),
 				})
 				Expect(err).NotTo(HaveOccurred())
 				DeferCleanup(func() { _ = adapter.Delete(ctx, testNamespace, workloadName) })
@@ -129,7 +134,9 @@ var _ = Describe("Reference Method Tests", func() {
 		DescribeTable("should reload when ConfigMap in projected volume changes",
 			func(workloadType utils.WorkloadType) {
 				adapter := registry.Get(workloadType)
-				if adapter == nil { Skip(fmt.Sprintf("%s adapter not available (CRD not installed)", workloadType)) }
+				if adapter == nil {
+					Skip(fmt.Sprintf("%s adapter not available (CRD not installed)", workloadType))
+				}
 
 				By("Creating a ConfigMap")
 				_, err := utils.CreateConfigMap(ctx, kubeClient, testNamespace, configMapName,
@@ -140,7 +147,7 @@ var _ = Describe("Reference Method Tests", func() {
 				err = adapter.Create(ctx, testNamespace, workloadName, utils.WorkloadConfig{
 					ConfigMapName:      configMapName,
 					UseProjectedVolume: true,
-					Annotations: utils.BuildConfigMapReloadAnnotation(configMapName),
+					Annotations:        utils.BuildConfigMapReloadAnnotation(configMapName),
 				})
 				Expect(err).NotTo(HaveOccurred())
 				DeferCleanup(func() { _ = adapter.Delete(ctx, testNamespace, workloadName) })
@@ -170,7 +177,9 @@ var _ = Describe("Reference Method Tests", func() {
 		DescribeTable("should reload when Secret in projected volume changes",
 			func(workloadType utils.WorkloadType) {
 				adapter := registry.Get(workloadType)
-				if adapter == nil { Skip(fmt.Sprintf("%s adapter not available (CRD not installed)", workloadType)) }
+				if adapter == nil {
+					Skip(fmt.Sprintf("%s adapter not available (CRD not installed)", workloadType))
+				}
 
 				By("Creating a Secret")
 				_, err := utils.CreateSecretFromStrings(ctx, kubeClient, testNamespace, secretName,
@@ -181,7 +190,7 @@ var _ = Describe("Reference Method Tests", func() {
 				err = adapter.Create(ctx, testNamespace, workloadName, utils.WorkloadConfig{
 					SecretName:         secretName,
 					UseProjectedVolume: true,
-					Annotations: utils.BuildSecretReloadAnnotation(secretName),
+					Annotations:        utils.BuildSecretReloadAnnotation(secretName),
 				})
 				Expect(err).NotTo(HaveOccurred())
 				DeferCleanup(func() { _ = adapter.Delete(ctx, testNamespace, workloadName) })
@@ -211,7 +220,9 @@ var _ = Describe("Reference Method Tests", func() {
 		DescribeTable("should reload when ConfigMap changes in mixed projected volume",
 			func(workloadType utils.WorkloadType) {
 				adapter := registry.Get(workloadType)
-				if adapter == nil { Skip(fmt.Sprintf("%s adapter not available (CRD not installed)", workloadType)) }
+				if adapter == nil {
+					Skip(fmt.Sprintf("%s adapter not available (CRD not installed)", workloadType))
+				}
 
 				By("Creating a ConfigMap and Secret")
 				_, err := utils.CreateConfigMap(ctx, kubeClient, testNamespace, configMapName,
@@ -260,7 +271,9 @@ var _ = Describe("Reference Method Tests", func() {
 		DescribeTable("should reload when Secret changes in mixed projected volume",
 			func(workloadType utils.WorkloadType) {
 				adapter := registry.Get(workloadType)
-				if adapter == nil { Skip(fmt.Sprintf("%s adapter not available (CRD not installed)", workloadType)) }
+				if adapter == nil {
+					Skip(fmt.Sprintf("%s adapter not available (CRD not installed)", workloadType))
+				}
 
 				By("Creating a ConfigMap and Secret")
 				_, err := utils.CreateConfigMap(ctx, kubeClient, testNamespace, configMapName,
@@ -314,7 +327,9 @@ var _ = Describe("Reference Method Tests", func() {
 		DescribeTable("should reload when ConfigMap referenced by init container changes",
 			func(workloadType utils.WorkloadType) {
 				adapter := registry.Get(workloadType)
-				if adapter == nil { Skip(fmt.Sprintf("%s adapter not available (CRD not installed)", workloadType)) }
+				if adapter == nil {
+					Skip(fmt.Sprintf("%s adapter not available (CRD not installed)", workloadType))
+				}
 
 				By("Creating a ConfigMap")
 				_, err := utils.CreateConfigMap(ctx, kubeClient, testNamespace, configMapName,
@@ -325,7 +340,7 @@ var _ = Describe("Reference Method Tests", func() {
 				err = adapter.Create(ctx, testNamespace, workloadName, utils.WorkloadConfig{
 					ConfigMapName:    configMapName,
 					UseInitContainer: true,
-					Annotations: utils.BuildConfigMapReloadAnnotation(configMapName),
+					Annotations:      utils.BuildConfigMapReloadAnnotation(configMapName),
 				})
 				Expect(err).NotTo(HaveOccurred())
 				DeferCleanup(func() { _ = adapter.Delete(ctx, testNamespace, workloadName) })
@@ -355,7 +370,9 @@ var _ = Describe("Reference Method Tests", func() {
 		DescribeTable("should reload when Secret referenced by init container changes",
 			func(workloadType utils.WorkloadType) {
 				adapter := registry.Get(workloadType)
-				if adapter == nil { Skip(fmt.Sprintf("%s adapter not available (CRD not installed)", workloadType)) }
+				if adapter == nil {
+					Skip(fmt.Sprintf("%s adapter not available (CRD not installed)", workloadType))
+				}
 
 				By("Creating a Secret")
 				_, err := utils.CreateSecretFromStrings(ctx, kubeClient, testNamespace, secretName,
@@ -366,7 +383,7 @@ var _ = Describe("Reference Method Tests", func() {
 				err = adapter.Create(ctx, testNamespace, workloadName, utils.WorkloadConfig{
 					SecretName:       secretName,
 					UseInitContainer: true,
-					Annotations: utils.BuildSecretReloadAnnotation(secretName),
+					Annotations:      utils.BuildSecretReloadAnnotation(secretName),
 				})
 				Expect(err).NotTo(HaveOccurred())
 				DeferCleanup(func() { _ = adapter.Delete(ctx, testNamespace, workloadName) })
@@ -398,7 +415,9 @@ var _ = Describe("Reference Method Tests", func() {
 		DescribeTable("should reload when ConfigMap volume mounted in init container changes",
 			func(workloadType utils.WorkloadType) {
 				adapter := registry.Get(workloadType)
-				if adapter == nil { Skip(fmt.Sprintf("%s adapter not available (CRD not installed)", workloadType)) }
+				if adapter == nil {
+					Skip(fmt.Sprintf("%s adapter not available (CRD not installed)", workloadType))
+				}
 
 				By("Creating a ConfigMap")
 				_, err := utils.CreateConfigMap(ctx, kubeClient, testNamespace, configMapName,
@@ -409,7 +428,7 @@ var _ = Describe("Reference Method Tests", func() {
 				err = adapter.Create(ctx, testNamespace, workloadName, utils.WorkloadConfig{
 					ConfigMapName:          configMapName,
 					UseInitContainerVolume: true,
-					Annotations: utils.BuildConfigMapReloadAnnotation(configMapName),
+					Annotations:            utils.BuildConfigMapReloadAnnotation(configMapName),
 				})
 				Expect(err).NotTo(HaveOccurred())
 				DeferCleanup(func() { _ = adapter.Delete(ctx, testNamespace, workloadName) })
@@ -439,7 +458,9 @@ var _ = Describe("Reference Method Tests", func() {
 		DescribeTable("should reload when Secret volume mounted in init container changes",
 			func(workloadType utils.WorkloadType) {
 				adapter := registry.Get(workloadType)
-				if adapter == nil { Skip(fmt.Sprintf("%s adapter not available (CRD not installed)", workloadType)) }
+				if adapter == nil {
+					Skip(fmt.Sprintf("%s adapter not available (CRD not installed)", workloadType))
+				}
 
 				By("Creating a Secret")
 				_, err := utils.CreateSecretFromStrings(ctx, kubeClient, testNamespace, secretName,
@@ -450,7 +471,7 @@ var _ = Describe("Reference Method Tests", func() {
 				err = adapter.Create(ctx, testNamespace, workloadName, utils.WorkloadConfig{
 					SecretName:             secretName,
 					UseInitContainerVolume: true,
-					Annotations: utils.BuildSecretReloadAnnotation(secretName),
+					Annotations:            utils.BuildSecretReloadAnnotation(secretName),
 				})
 				Expect(err).NotTo(HaveOccurred())
 				DeferCleanup(func() { _ = adapter.Delete(ctx, testNamespace, workloadName) })
@@ -485,7 +506,9 @@ var _ = Describe("Reference Method Tests", func() {
 		DescribeTable("should reload with auto=true when ConfigMap referenced via valueFrom changes",
 			func(workloadType utils.WorkloadType) {
 				adapter := registry.Get(workloadType)
-				if adapter == nil { Skip(fmt.Sprintf("%s adapter not available (CRD not installed)", workloadType)) }
+				if adapter == nil {
+					Skip(fmt.Sprintf("%s adapter not available (CRD not installed)", workloadType))
+				}
 
 				By("Creating a ConfigMap")
 				_, err := utils.CreateConfigMap(ctx, kubeClient, testNamespace, configMapName,
@@ -498,7 +521,7 @@ var _ = Describe("Reference Method Tests", func() {
 					UseConfigMapKeyRef: true,
 					ConfigMapKey:       "auto_config_key",
 					EnvVarName:         "AUTO_CONFIG_VAR",
-					Annotations: utils.BuildAutoTrueAnnotation(),
+					Annotations:        utils.BuildAutoTrueAnnotation(),
 				})
 				Expect(err).NotTo(HaveOccurred())
 				DeferCleanup(func() { _ = adapter.Delete(ctx, testNamespace, workloadName) })

@@ -5,7 +5,6 @@ import (
 	"time"
 
 	batchv1 "k8s.io/api/batch/v1"
-	corev1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/kubernetes"
 )
 
@@ -83,125 +82,18 @@ func (a *JobAdapter) WaitForRecreation(ctx context.Context, namespace, name, ori
 
 // buildJobOptions converts WorkloadConfig to JobOption slice.
 func buildJobOptions(cfg WorkloadConfig) []JobOption {
-	var opts []JobOption
-
-	// Add annotations
-	if len(cfg.Annotations) > 0 {
-		opts = append(opts, WithJobAnnotations(cfg.Annotations))
-	}
-
-	// Add envFrom references
-	if cfg.UseConfigMapEnvFrom && cfg.ConfigMapName != "" {
-		opts = append(opts, WithJobConfigMapEnvFrom(cfg.ConfigMapName))
-	}
-	if cfg.UseSecretEnvFrom && cfg.SecretName != "" {
-		opts = append(opts, WithJobSecretEnvFrom(cfg.SecretName))
-	}
-
-	// Add volume mounts
-	if cfg.UseConfigMapVolume && cfg.ConfigMapName != "" {
-		opts = append(opts, WithJobConfigMapVolume(cfg.ConfigMapName))
-	}
-	if cfg.UseSecretVolume && cfg.SecretName != "" {
-		opts = append(opts, WithJobSecretVolume(cfg.SecretName))
-	}
-
-	// Add projected volume
-	if cfg.UseProjectedVolume {
-		opts = append(opts, WithJobProjectedVolume(cfg.ConfigMapName, cfg.SecretName))
-	}
-
-	return opts
-}
-
-// WithJobConfigMapVolume adds a volume mount for a ConfigMap to a Job.
-func WithJobConfigMapVolume(name string) JobOption {
-	return func(j *batchv1.Job) {
-		volumeName := "cm-" + name
-		j.Spec.Template.Spec.Volumes = append(
-			j.Spec.Template.Spec.Volumes,
-			corev1.Volume{
-				Name: volumeName,
-				VolumeSource: corev1.VolumeSource{
-					ConfigMap: &corev1.ConfigMapVolumeSource{
-						LocalObjectReference: corev1.LocalObjectReference{Name: name},
-					},
-				},
-			},
-		)
-		j.Spec.Template.Spec.Containers[0].VolumeMounts = append(
-			j.Spec.Template.Spec.Containers[0].VolumeMounts,
-			corev1.VolumeMount{
-				Name:      volumeName,
-				MountPath: "/etc/config/" + name,
-			},
-		)
-	}
-}
-
-// WithJobSecretVolume adds a volume mount for a Secret to a Job.
-func WithJobSecretVolume(name string) JobOption {
-	return func(j *batchv1.Job) {
-		volumeName := "secret-" + name
-		j.Spec.Template.Spec.Volumes = append(
-			j.Spec.Template.Spec.Volumes,
-			corev1.Volume{
-				Name: volumeName,
-				VolumeSource: corev1.VolumeSource{
-					Secret: &corev1.SecretVolumeSource{
-						SecretName: name,
-					},
-				},
-			},
-		)
-		j.Spec.Template.Spec.Containers[0].VolumeMounts = append(
-			j.Spec.Template.Spec.Containers[0].VolumeMounts,
-			corev1.VolumeMount{
-				Name:      volumeName,
-				MountPath: "/etc/secrets/" + name,
-			},
-		)
-	}
-}
-
-// WithJobProjectedVolume adds a projected volume with ConfigMap and/or Secret sources to a Job.
-func WithJobProjectedVolume(cmName, secretName string) JobOption {
-	return func(j *batchv1.Job) {
-		volumeName := "projected-config"
-		sources := []corev1.VolumeProjection{}
-
-		if cmName != "" {
-			sources = append(sources, corev1.VolumeProjection{
-				ConfigMap: &corev1.ConfigMapProjection{
-					LocalObjectReference: corev1.LocalObjectReference{Name: cmName},
-				},
-			})
-		}
-		if secretName != "" {
-			sources = append(sources, corev1.VolumeProjection{
-				Secret: &corev1.SecretProjection{
-					LocalObjectReference: corev1.LocalObjectReference{Name: secretName},
-				},
-			})
-		}
-
-		j.Spec.Template.Spec.Volumes = append(
-			j.Spec.Template.Spec.Volumes,
-			corev1.Volume{
-				Name: volumeName,
-				VolumeSource: corev1.VolumeSource{
-					Projected: &corev1.ProjectedVolumeSource{
-						Sources: sources,
-					},
-				},
-			},
-		)
-		j.Spec.Template.Spec.Containers[0].VolumeMounts = append(
-			j.Spec.Template.Spec.Containers[0].VolumeMounts,
-			corev1.VolumeMount{
-				Name:      volumeName,
-				MountPath: "/etc/projected",
-			},
-		)
+	return []JobOption{
+		func(job *batchv1.Job) {
+			// Set annotations on Job level (where Reloader checks them)
+			if len(cfg.Annotations) > 0 {
+				if job.Annotations == nil {
+					job.Annotations = make(map[string]string)
+				}
+				for k, v := range cfg.Annotations {
+					job.Annotations[k] = v
+				}
+			}
+			ApplyWorkloadConfig(&job.Spec.Template.Spec, cfg)
+		},
 	}
 }

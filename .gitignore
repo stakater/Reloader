@@ -22,3 +22,4 @@ test/loadtest/results
 test/loadtest/loadtest
 # Temporary NFS files
 .nfs*
+*.test

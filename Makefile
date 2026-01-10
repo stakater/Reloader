@@ -143,59 +143,44 @@ manifest:
 	docker manifest annotate --arch $(ARCH) $(REPOSITORY_GENERIC)  $(REPOSITORY_ARCH)
 
 test:
-	"$(GOCMD)" test -timeout 1800s -v -short ./internal/... ./test/e2e/utils/...
+	"$(GOCMD)" test -timeout 1800s -v -short -count=1 ./internal/... ./test/e2e/utils/...
 
 ##@ E2E Tests
 
 E2E_IMG ?= ghcr.io/stakater/reloader:test
 E2E_TIMEOUT ?= 45m
-KIND_CLUSTER ?= kind
-
-# Detect container runtime (docker or podman)
+KIND_CLUSTER ?= reloader-e2e
 CONTAINER_RUNTIME ?= $(shell command -v docker 2>/dev/null || command -v podman 2>/dev/null)
 
-.PHONY: e2e-build
-e2e-build: ## Build container image for e2e testing (uses docker or podman)
-	$(CONTAINER_RUNTIME) build -t $(E2E_IMG) -f Dockerfile .
+.PHONY: e2e-setup
+e2e-setup: ## One-time setup: create Kind cluster and install dependencies (Argo, CSI, Vault)
+	@if kind get clusters 2>/dev/null | grep -q "^$(KIND_CLUSTER)$$"; then \
+		echo "Kind cluster $(KIND_CLUSTER) already exists"; \
+	else \
+		echo "Creating Kind cluster $(KIND_CLUSTER)..."; \
+		kind create cluster --name $(KIND_CLUSTER); \
+	fi
+	./scripts/e2e-cluster-setup.sh
 
-.PHONY: e2e-load
-e2e-load: ## Load e2e image to Kind cluster (handles both docker and podman)
+.PHONY: e2e
+e2e: ## Run e2e tests (builds image, loads to Kind, runs tests in parallel)
+	$(CONTAINER_RUNTIME) build -t $(E2E_IMG) -f Dockerfile .
 ifeq ($(notdir $(CONTAINER_RUNTIME)),podman)
-	@echo "Using podman: loading via image-archive..."
 	$(CONTAINER_RUNTIME) save $(E2E_IMG) -o /tmp/reloader-e2e.tar
 	kind load image-archive /tmp/reloader-e2e.tar --name $(KIND_CLUSTER)
 	rm -f /tmp/reloader-e2e.tar
 else
 	kind load docker-image $(E2E_IMG) --name $(KIND_CLUSTER)
 endif
+	SKIP_BUILD=true RELOADER_IMAGE=$(E2E_IMG) "$(GOCMD)" tool ginkgo --keep-going -v --timeout=$(E2E_TIMEOUT) ./test/e2e/...
 
-.PHONY: e2e-setup
-e2e-setup: e2e-build e2e-load ## Build image and load to Kind (run once before tests)
-	@echo "E2E setup complete. Image $(E2E_IMG) loaded to Kind cluster $(KIND_CLUSTER)"
-
-.PHONY: e2e-cluster-setup
-e2e-cluster-setup: ## Setup e2e cluster prerequisites (Argo Rollouts, etc.)
-	./scripts/e2e-cluster-setup.sh
-
-.PHONY: e2e-cluster-cleanup
-e2e-cluster-cleanup: ## Cleanup e2e cluster resources (Argo Rollouts, test namespaces, etc.)
+.PHONY: e2e-cleanup
+e2e-cleanup: ## Cleanup: remove test resources and delete Kind cluster
 	./scripts/e2e-cluster-cleanup.sh
-
-.PHONY: e2e
-e2e: e2e-setup e2e-cluster-setup ## Run all e2e tests (builds image, loads to Kind, sets up cluster, runs tests)
-	SKIP_BUILD=true RELOADER_IMAGE=$(E2E_IMG) "$(GOCMD)" test -v -count=1 -p 1 -timeout $(E2E_TIMEOUT) ./test/e2e/...
-	@echo "E2E tests complete. Run 'make e2e-cluster-cleanup' to cleanup cluster resources."
-
-.PHONY: e2e-kind-create
-e2e-kind-create: ## Create Kind cluster for e2e tests
-	kind create cluster --name $(KIND_CLUSTER) || true
+	kind delete cluster --name $(KIND_CLUSTER)
 
 .PHONY: e2e-ci
-e2e-ci: e2e-kind-create e2e e2e-cluster-cleanup ## Full CI pipeline: create Kind cluster, build, load, run tests, cleanup
-
-.PHONY: e2e-kind-delete
-e2e-kind-delete: ## Delete Kind cluster used for e2e tests
-	kind delete cluster --name $(KIND_CLUSTER)
+e2e-ci: e2e-setup e2e e2e-cleanup ## CI pipeline: setup, run tests, cleanup
 
 .PHONY: docker-build
 docker-build: ## Build Docker image

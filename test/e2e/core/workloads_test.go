@@ -6,25 +6,34 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+
 	"github.com/stakater/Reloader/test/e2e/utils"
 )
 
 var _ = Describe("Workload Reload Tests", func() {
 	var (
-		configMapName string
-		secretName    string
-		workloadName  string
+		configMapName   string
+		secretName      string
+		workloadName    string
+		spcName         string
+		vaultSecretPath string
 	)
 
 	BeforeEach(func() {
 		configMapName = utils.RandName("cm")
 		secretName = utils.RandName("secret")
 		workloadName = utils.RandName("workload")
+		spcName = utils.RandName("spc")
+		vaultSecretPath = fmt.Sprintf("secret/%s", utils.RandName("test"))
 	})
 
 	AfterEach(func() {
 		_ = utils.DeleteConfigMap(ctx, kubeClient, testNamespace, configMapName)
 		_ = utils.DeleteSecret(ctx, kubeClient, testNamespace, secretName)
+		if csiClient != nil {
+			_ = utils.DeleteSecretProviderClass(ctx, csiClient, testNamespace, spcName)
+		}
+		_ = utils.DeleteVaultSecret(ctx, kubeClient, restConfig, vaultSecretPath)
 	})
 
 	// ============================================================
@@ -39,94 +48,160 @@ var _ = Describe("Workload Reload Tests", func() {
 		}
 
 		// ConfigMap reload tests for standard workloads
-		DescribeTable("should reload when ConfigMap changes",
-			func(workloadType utils.WorkloadType) {
-				adapter := registry.Get(workloadType)
-				if adapter == nil { Skip(fmt.Sprintf("%s adapter not available (CRD not installed)", workloadType)) }
+		DescribeTable("should reload when ConfigMap changes", func(workloadType utils.WorkloadType) {
+			adapter := registry.Get(workloadType)
+			if adapter == nil {
+				Skip(fmt.Sprintf("%s adapter not available (CRD not installed)", workloadType))
+			}
 
-				By("Creating a ConfigMap")
-				_, err := utils.CreateConfigMap(ctx, kubeClient, testNamespace, configMapName,
-					map[string]string{"key": "initial"}, nil)
-				Expect(err).NotTo(HaveOccurred())
+			By("Creating a ConfigMap")
+			_, err := utils.CreateConfigMap(ctx, kubeClient, testNamespace, configMapName,
+				map[string]string{"key": "initial"}, nil)
+			Expect(err).NotTo(HaveOccurred())
 
-				By("Creating workload with ConfigMap reference annotation")
-				err = adapter.Create(ctx, testNamespace, workloadName, utils.WorkloadConfig{
-					ConfigMapName:       configMapName,
-					UseConfigMapEnvFrom: true,
-					Annotations: utils.BuildConfigMapReloadAnnotation(configMapName),
-				})
-				Expect(err).NotTo(HaveOccurred())
-				DeferCleanup(func() { _ = adapter.Delete(ctx, testNamespace, workloadName) })
+			By("Creating workload with ConfigMap reference annotation")
+			err = adapter.Create(ctx, testNamespace, workloadName, utils.WorkloadConfig{
+				ConfigMapName:       configMapName,
+				UseConfigMapEnvFrom: true,
+				Annotations:         utils.BuildConfigMapReloadAnnotation(configMapName),
+			})
+			Expect(err).NotTo(HaveOccurred())
+			DeferCleanup(func() { _ = adapter.Delete(ctx, testNamespace, workloadName) })
 
-				By("Waiting for workload to be ready")
-				err = adapter.WaitReady(ctx, testNamespace, workloadName, utils.DeploymentReady)
-				Expect(err).NotTo(HaveOccurred())
+			By("Waiting for workload to be ready")
+			err = adapter.WaitReady(ctx, testNamespace, workloadName, utils.DeploymentReady)
+			Expect(err).NotTo(HaveOccurred())
 
-				By("Updating the ConfigMap data")
-				err = utils.UpdateConfigMap(ctx, kubeClient, testNamespace, configMapName,
-					map[string]string{"key": "updated"})
-				Expect(err).NotTo(HaveOccurred())
+			By("Updating the ConfigMap data")
+			err = utils.UpdateConfigMap(ctx, kubeClient, testNamespace, configMapName,
+				map[string]string{"key": "updated"})
+			Expect(err).NotTo(HaveOccurred())
 
-				By("Waiting for workload to be reloaded")
-				reloaded, err := adapter.WaitReloaded(ctx, testNamespace, workloadName,
-					utils.AnnotationLastReloadedFrom, utils.ReloadTimeout)
-				Expect(err).NotTo(HaveOccurred())
-				Expect(reloaded).To(BeTrue(), "%s should have been reloaded", workloadType)
-			},
-			Entry("Deployment", utils.WorkloadDeployment),
-			Entry("DaemonSet", utils.WorkloadDaemonSet),
+			By("Waiting for workload to be reloaded")
+			reloaded, err := adapter.WaitReloaded(ctx, testNamespace, workloadName, utils.AnnotationLastReloadedFrom,
+				utils.ReloadTimeout)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(reloaded).To(BeTrue(), "%s should have been reloaded", workloadType)
+		}, Entry("Deployment", utils.WorkloadDeployment), Entry("DaemonSet", utils.WorkloadDaemonSet),
 			Entry("StatefulSet", utils.WorkloadStatefulSet),
 			Entry("ArgoRollout", Label("argo"), utils.WorkloadArgoRollout),
-			Entry("DeploymentConfig", Label("openshift"), utils.WorkloadDeploymentConfig),
-		)
+			Entry("DeploymentConfig", Label("openshift"), utils.WorkloadDeploymentConfig))
 
 		// Secret reload tests for standard workloads
-		DescribeTable("should reload when Secret changes",
-			func(workloadType utils.WorkloadType) {
-				adapter := registry.Get(workloadType)
-				if adapter == nil { Skip(fmt.Sprintf("%s adapter not available (CRD not installed)", workloadType)) }
+		DescribeTable("should reload when Secret changes", func(workloadType utils.WorkloadType) {
+			adapter := registry.Get(workloadType)
+			if adapter == nil {
+				Skip(fmt.Sprintf("%s adapter not available (CRD not installed)", workloadType))
+			}
 
-				By("Creating a Secret")
-				_, err := utils.CreateSecretFromStrings(ctx, kubeClient, testNamespace, secretName,
-					map[string]string{"password": "initial"}, nil)
-				Expect(err).NotTo(HaveOccurred())
+			By("Creating a Secret")
+			_, err := utils.CreateSecretFromStrings(ctx, kubeClient, testNamespace, secretName,
+				map[string]string{"password": "initial"}, nil)
+			Expect(err).NotTo(HaveOccurred())
 
-				By("Creating workload with Secret reference annotation")
-				err = adapter.Create(ctx, testNamespace, workloadName, utils.WorkloadConfig{
-					SecretName:       secretName,
-					UseSecretEnvFrom: true,
-					Annotations: utils.BuildSecretReloadAnnotation(secretName),
-				})
-				Expect(err).NotTo(HaveOccurred())
-				DeferCleanup(func() { _ = adapter.Delete(ctx, testNamespace, workloadName) })
+			By("Creating workload with Secret reference annotation")
+			err = adapter.Create(ctx, testNamespace, workloadName, utils.WorkloadConfig{
+				SecretName:       secretName,
+				UseSecretEnvFrom: true,
+				Annotations:      utils.BuildSecretReloadAnnotation(secretName),
+			})
+			Expect(err).NotTo(HaveOccurred())
+			DeferCleanup(func() { _ = adapter.Delete(ctx, testNamespace, workloadName) })
 
-				By("Waiting for workload to be ready")
-				err = adapter.WaitReady(ctx, testNamespace, workloadName, utils.DeploymentReady)
-				Expect(err).NotTo(HaveOccurred())
+			By("Waiting for workload to be ready")
+			err = adapter.WaitReady(ctx, testNamespace, workloadName, utils.DeploymentReady)
+			Expect(err).NotTo(HaveOccurred())
 
-				By("Updating the Secret data")
-				err = utils.UpdateSecretFromStrings(ctx, kubeClient, testNamespace, secretName,
-					map[string]string{"password": "updated"})
-				Expect(err).NotTo(HaveOccurred())
+			By("Updating the Secret data")
+			err = utils.UpdateSecretFromStrings(ctx, kubeClient, testNamespace, secretName,
+				map[string]string{"password": "updated"})
+			Expect(err).NotTo(HaveOccurred())
 
-				By("Waiting for workload to be reloaded")
-				reloaded, err := adapter.WaitReloaded(ctx, testNamespace, workloadName,
-					utils.AnnotationLastReloadedFrom, utils.ReloadTimeout)
-				Expect(err).NotTo(HaveOccurred())
-				Expect(reloaded).To(BeTrue(), "%s should have been reloaded", workloadType)
-			},
-			Entry("Deployment", utils.WorkloadDeployment),
-			Entry("DaemonSet", utils.WorkloadDaemonSet),
+			By("Waiting for workload to be reloaded")
+			reloaded, err := adapter.WaitReloaded(ctx, testNamespace, workloadName, utils.AnnotationLastReloadedFrom,
+				utils.ReloadTimeout)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(reloaded).To(BeTrue(), "%s should have been reloaded", workloadType)
+		}, Entry("Deployment", utils.WorkloadDeployment), Entry("DaemonSet", utils.WorkloadDaemonSet),
 			Entry("StatefulSet", utils.WorkloadStatefulSet),
 			Entry("ArgoRollout", Label("argo"), utils.WorkloadArgoRollout),
-			Entry("DeploymentConfig", Label("openshift"), utils.WorkloadDeploymentConfig),
-		)
+			Entry("DeploymentConfig", Label("openshift"), utils.WorkloadDeploymentConfig))
+
+		// SecretProviderClassPodStatus (CSI) reload tests with real Vault
+		DescribeTable("should reload when SecretProviderClassPodStatus changes", func(workloadType utils.WorkloadType) {
+			if !utils.IsCSIDriverInstalled(ctx, csiClient) {
+				Skip("CSI secrets store driver not installed")
+			}
+			if !utils.IsVaultProviderInstalled(ctx, kubeClient) {
+				Skip("Vault CSI provider not installed")
+			}
+
+			adapter := registry.Get(workloadType)
+			if adapter == nil {
+				Skip(fmt.Sprintf("%s adapter not available (CRD not installed)", workloadType))
+			}
+
+			By("Creating a secret in Vault")
+			err := utils.CreateVaultSecret(ctx, kubeClient, restConfig, vaultSecretPath,
+				map[string]string{"api_key": "initial-value-v1"})
+			Expect(err).NotTo(HaveOccurred())
+
+			By("Creating a SecretProviderClass pointing to Vault secret")
+			_, err = utils.CreateSecretProviderClassWithSecret(ctx, csiClient, testNamespace, spcName, vaultSecretPath,
+				"api_key")
+			Expect(err).NotTo(HaveOccurred())
+
+			By("Creating workload with CSI volume and SPC reload annotation")
+			err = adapter.Create(ctx, testNamespace, workloadName, utils.WorkloadConfig{
+				SPCName:      spcName,
+				UseCSIVolume: true,
+				Annotations:  utils.BuildSecretProviderClassReloadAnnotation(spcName),
+			})
+			Expect(err).NotTo(HaveOccurred())
+			DeferCleanup(func() { _ = adapter.Delete(ctx, testNamespace, workloadName) })
+
+			By("Waiting for workload to be ready")
+			err = adapter.WaitReady(ctx, testNamespace, workloadName, utils.DeploymentReady)
+			Expect(err).NotTo(HaveOccurred())
+
+			By("Finding the SPCPS created by CSI driver")
+			spcpsName, err := utils.FindSPCPSForDeployment(ctx, csiClient, kubeClient, testNamespace, workloadName,
+				utils.DeploymentReady)
+			Expect(err).NotTo(HaveOccurred())
+			GinkgoWriter.Printf("Found SPCPS: %s\n", spcpsName)
+
+			By("Getting initial SPCPS version")
+			initialVersion, err := utils.GetSPCPSVersion(ctx, csiClient, testNamespace, spcpsName)
+			Expect(err).NotTo(HaveOccurred())
+			GinkgoWriter.Printf("Initial SPCPS version: %s\n", initialVersion)
+
+			By("Updating the Vault secret")
+			err = utils.UpdateVaultSecret(ctx, kubeClient, restConfig, vaultSecretPath,
+				map[string]string{"api_key": "updated-value-v2"})
+			Expect(err).NotTo(HaveOccurred())
+
+			By("Waiting for CSI driver to sync the new secret version")
+			err = utils.WaitForSPCPSVersionChange(ctx, csiClient, testNamespace, spcpsName, initialVersion,
+				10*time.Second)
+			Expect(err).NotTo(HaveOccurred())
+			GinkgoWriter.Println("CSI driver synced new secret version")
+
+			By("Waiting for workload to be reloaded")
+			reloaded, err := adapter.WaitReloaded(ctx, testNamespace, workloadName, utils.AnnotationLastReloadedFrom,
+				utils.ReloadTimeout)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(reloaded).To(BeTrue(), "%s should have been reloaded when Vault secret changed", workloadType)
+		}, Entry("Deployment", Label("csi"), utils.WorkloadDeployment),
+			Entry("DaemonSet", Label("csi"), utils.WorkloadDaemonSet),
+			Entry("StatefulSet", Label("csi"), utils.WorkloadStatefulSet))
 
 		// Auto=true annotation tests
 		DescribeTable("should reload with auto=true annotation when ConfigMap changes",
 			func(workloadType utils.WorkloadType) {
 				adapter := registry.Get(workloadType)
-				if adapter == nil { Skip(fmt.Sprintf("%s adapter not available (CRD not installed)", workloadType)) }
+				if adapter == nil {
+					Skip(fmt.Sprintf("%s adapter not available (CRD not installed)", workloadType))
+				}
 
 				By("Creating a ConfigMap")
 				_, err := utils.CreateConfigMap(ctx, kubeClient, testNamespace, configMapName,
@@ -137,7 +212,7 @@ var _ = Describe("Workload Reload Tests", func() {
 				err = adapter.Create(ctx, testNamespace, workloadName, utils.WorkloadConfig{
 					ConfigMapName:       configMapName,
 					UseConfigMapEnvFrom: true,
-					Annotations: utils.BuildAutoTrueAnnotation(),
+					Annotations:         utils.BuildAutoTrueAnnotation(),
 				})
 				Expect(err).NotTo(HaveOccurred())
 				DeferCleanup(func() { _ = adapter.Delete(ctx, testNamespace, workloadName) })
@@ -156,19 +231,18 @@ var _ = Describe("Workload Reload Tests", func() {
 					utils.AnnotationLastReloadedFrom, utils.ReloadTimeout)
 				Expect(err).NotTo(HaveOccurred())
 				Expect(reloaded).To(BeTrue(), "%s with auto=true should have been reloaded", workloadType)
-			},
-			Entry("Deployment", utils.WorkloadDeployment),
-			Entry("DaemonSet", utils.WorkloadDaemonSet),
+			}, Entry("Deployment", utils.WorkloadDeployment), Entry("DaemonSet", utils.WorkloadDaemonSet),
 			Entry("StatefulSet", utils.WorkloadStatefulSet),
 			Entry("ArgoRollout", Label("argo"), utils.WorkloadArgoRollout),
-			Entry("DeploymentConfig", Label("openshift"), utils.WorkloadDeploymentConfig),
-		)
+			Entry("DeploymentConfig", Label("openshift"), utils.WorkloadDeploymentConfig))
 
 		// Negative tests: label-only changes should NOT trigger reload
 		DescribeTable("should NOT reload when only ConfigMap labels change (no data change)",
 			func(workloadType utils.WorkloadType) {
 				adapter := registry.Get(workloadType)
-				if adapter == nil { Skip(fmt.Sprintf("%s adapter not available (CRD not installed)", workloadType)) }
+				if adapter == nil {
+					Skip(fmt.Sprintf("%s adapter not available (CRD not installed)", workloadType))
+				}
 
 				By("Creating a ConfigMap")
 				_, err := utils.CreateConfigMap(ctx, kubeClient, testNamespace, configMapName,
@@ -179,7 +253,7 @@ var _ = Describe("Workload Reload Tests", func() {
 				err = adapter.Create(ctx, testNamespace, workloadName, utils.WorkloadConfig{
 					ConfigMapName:       configMapName,
 					UseConfigMapEnvFrom: true,
-					Annotations: utils.BuildConfigMapReloadAnnotation(configMapName),
+					Annotations:         utils.BuildConfigMapReloadAnnotation(configMapName),
 				})
 				Expect(err).NotTo(HaveOccurred())
 				DeferCleanup(func() { _ = adapter.Delete(ctx, testNamespace, workloadName) })
@@ -199,18 +273,17 @@ var _ = Describe("Workload Reload Tests", func() {
 					utils.AnnotationLastReloadedFrom, utils.ShortTimeout)
 				Expect(err).NotTo(HaveOccurred())
 				Expect(reloaded).To(BeFalse(), "%s should NOT reload when only ConfigMap labels change", workloadType)
-			},
-			Entry("Deployment", utils.WorkloadDeployment),
-			Entry("DaemonSet", utils.WorkloadDaemonSet),
+			}, Entry("Deployment", utils.WorkloadDeployment), Entry("DaemonSet", utils.WorkloadDaemonSet),
 			Entry("StatefulSet", utils.WorkloadStatefulSet),
 			Entry("ArgoRollout", Label("argo"), utils.WorkloadArgoRollout),
-			Entry("DeploymentConfig", Label("openshift"), utils.WorkloadDeploymentConfig),
-		)
+			Entry("DeploymentConfig", Label("openshift"), utils.WorkloadDeploymentConfig))
 
 		DescribeTable("should NOT reload when only Secret labels change (no data change)",
 			func(workloadType utils.WorkloadType) {
 				adapter := registry.Get(workloadType)
-				if adapter == nil { Skip(fmt.Sprintf("%s adapter not available (CRD not installed)", workloadType)) }
+				if adapter == nil {
+					Skip(fmt.Sprintf("%s adapter not available (CRD not installed)", workloadType))
+				}
 
 				By("Creating a Secret")
 				_, err := utils.CreateSecretFromStrings(ctx, kubeClient, testNamespace, secretName,
@@ -221,7 +294,7 @@ var _ = Describe("Workload Reload Tests", func() {
 				err = adapter.Create(ctx, testNamespace, workloadName, utils.WorkloadConfig{
 					SecretName:       secretName,
 					UseSecretEnvFrom: true,
-					Annotations: utils.BuildSecretReloadAnnotation(secretName),
+					Annotations:      utils.BuildSecretReloadAnnotation(secretName),
 				})
 				Expect(err).NotTo(HaveOccurred())
 				DeferCleanup(func() { _ = adapter.Delete(ctx, testNamespace, workloadName) })
@@ -241,13 +314,68 @@ var _ = Describe("Workload Reload Tests", func() {
 					utils.AnnotationLastReloadedFrom, utils.ShortTimeout)
 				Expect(err).NotTo(HaveOccurred())
 				Expect(reloaded).To(BeFalse(), "%s should NOT reload when only Secret labels change", workloadType)
-			},
-			Entry("Deployment", utils.WorkloadDeployment),
-			Entry("DaemonSet", utils.WorkloadDaemonSet),
+			}, Entry("Deployment", utils.WorkloadDeployment), Entry("DaemonSet", utils.WorkloadDaemonSet),
 			Entry("StatefulSet", utils.WorkloadStatefulSet),
 			Entry("ArgoRollout", Label("argo"), utils.WorkloadArgoRollout),
-			Entry("DeploymentConfig", Label("openshift"), utils.WorkloadDeploymentConfig),
-		)
+			Entry("DeploymentConfig", Label("openshift"), utils.WorkloadDeploymentConfig))
+
+		// Negative test: SPCPS label-only changes should NOT trigger reload
+		DescribeTable("should NOT reload when only SecretProviderClassPodStatus labels change",
+			func(workloadType utils.WorkloadType) {
+				if !utils.IsCSIDriverInstalled(ctx, csiClient) {
+					Skip("CSI secrets store driver not installed")
+				}
+				if !utils.IsVaultProviderInstalled(ctx, kubeClient) {
+					Skip("Vault CSI provider not installed")
+				}
+
+				adapter := registry.Get(workloadType)
+				if adapter == nil {
+					Skip(fmt.Sprintf("%s adapter not available (CRD not installed)", workloadType))
+				}
+
+				By("Creating a secret in Vault")
+				err := utils.CreateVaultSecret(ctx, kubeClient, restConfig, vaultSecretPath,
+					map[string]string{"api_key": "initial-value"})
+				Expect(err).NotTo(HaveOccurred())
+
+				By("Creating a SecretProviderClass pointing to Vault secret")
+				_, err = utils.CreateSecretProviderClassWithSecret(ctx, csiClient, testNamespace, spcName,
+					vaultSecretPath, "api_key")
+				Expect(err).NotTo(HaveOccurred())
+
+				By("Creating workload with CSI volume and SPC reload annotation")
+				err = adapter.Create(ctx, testNamespace, workloadName, utils.WorkloadConfig{
+					SPCName:      spcName,
+					UseCSIVolume: true,
+					Annotations:  utils.BuildSecretProviderClassReloadAnnotation(spcName),
+				})
+				Expect(err).NotTo(HaveOccurred())
+				DeferCleanup(func() { _ = adapter.Delete(ctx, testNamespace, workloadName) })
+
+				By("Waiting for workload to be ready")
+				err = adapter.WaitReady(ctx, testNamespace, workloadName, utils.DeploymentReady)
+				Expect(err).NotTo(HaveOccurred())
+
+				By("Finding the SPCPS created by CSI driver")
+				spcpsName, err := utils.FindSPCPSForDeployment(ctx, csiClient, kubeClient, testNamespace, workloadName,
+					utils.DeploymentReady)
+				Expect(err).NotTo(HaveOccurred())
+
+				By("Updating only the SPCPS labels (no objects change)")
+				err = utils.UpdateSecretProviderClassPodStatusLabels(ctx, csiClient, testNamespace, spcpsName,
+					map[string]string{"new-label": "new-value"})
+				Expect(err).NotTo(HaveOccurred())
+
+				By("Verifying workload was NOT reloaded (negative test)")
+				time.Sleep(utils.NegativeTestWait)
+				reloaded, err := adapter.WaitReloaded(ctx, testNamespace, workloadName,
+					utils.AnnotationLastReloadedFrom, utils.ShortTimeout)
+				Expect(err).NotTo(HaveOccurred())
+				Expect(reloaded).To(BeFalse(), "%s should NOT reload when only SPCPS labels change", workloadType)
+			}, Entry("Deployment", Label("csi"), utils.WorkloadDeployment),
+			Entry("DaemonSet", Label("csi"), utils.WorkloadDaemonSet),
+			Entry("StatefulSet", Label("csi"), utils.WorkloadStatefulSet))
 
 		// CronJob special handling - triggers a Job instead of annotation
 		Context("CronJob (special handling)", func() {
@@ -282,7 +410,8 @@ var _ = Describe("Workload Reload Tests", func() {
 				Expect(err).NotTo(HaveOccurred())
 
 				By("Waiting for a Job to be created by CronJob reload")
-				triggered, err := cronJobAdapter.WaitForTriggeredJob(ctx, testNamespace, workloadName, utils.ReloadTimeout)
+				triggered, err := cronJobAdapter.WaitForTriggeredJob(ctx, testNamespace, workloadName,
+					utils.ReloadTimeout)
 				Expect(err).NotTo(HaveOccurred())
 				Expect(triggered).To(BeTrue(), "CronJob should have triggered a Job creation")
 			})
@@ -308,7 +437,8 @@ var _ = Describe("Workload Reload Tests", func() {
 				Expect(err).NotTo(HaveOccurred())
 
 				By("Waiting for a Job to be created by CronJob reload")
-				triggered, err := cronJobAdapter.WaitForTriggeredJob(ctx, testNamespace, workloadName, utils.ReloadTimeout)
+				triggered, err := cronJobAdapter.WaitForTriggeredJob(ctx, testNamespace, workloadName,
+					utils.ReloadTimeout)
 				Expect(err).NotTo(HaveOccurred())
 				Expect(triggered).To(BeTrue(), "CronJob should have triggered a Job creation")
 			})
@@ -334,135 +464,131 @@ var _ = Describe("Workload Reload Tests", func() {
 				Expect(err).NotTo(HaveOccurred())
 
 				By("Waiting for a Job to be created by CronJob reload")
-				triggered, err := cronJobAdapter.WaitForTriggeredJob(ctx, testNamespace, workloadName, utils.ReloadTimeout)
+				triggered, err := cronJobAdapter.WaitForTriggeredJob(ctx, testNamespace, workloadName,
+					utils.ReloadTimeout)
 				Expect(err).NotTo(HaveOccurred())
 				Expect(triggered).To(BeTrue(), "CronJob with auto=true should have triggered a Job creation")
 			})
 		})
 
 		// Volume mount tests
-		DescribeTable("should reload when volume-mounted ConfigMap changes",
-			func(workloadType utils.WorkloadType) {
-				adapter := registry.Get(workloadType)
-				if adapter == nil { Skip(fmt.Sprintf("%s adapter not available (CRD not installed)", workloadType)) }
+		DescribeTable("should reload when volume-mounted ConfigMap changes", func(workloadType utils.WorkloadType) {
+			adapter := registry.Get(workloadType)
+			if adapter == nil {
+				Skip(fmt.Sprintf("%s adapter not available (CRD not installed)", workloadType))
+			}
 
-				By("Creating a ConfigMap")
-				_, err := utils.CreateConfigMap(ctx, kubeClient, testNamespace, configMapName,
-					map[string]string{"config.yaml": "setting: initial"}, nil)
-				Expect(err).NotTo(HaveOccurred())
+			By("Creating a ConfigMap")
+			_, err := utils.CreateConfigMap(ctx, kubeClient, testNamespace, configMapName,
+				map[string]string{"config.yaml": "setting: initial"}, nil)
+			Expect(err).NotTo(HaveOccurred())
 
-				By("Creating workload with ConfigMap volume")
-				err = adapter.Create(ctx, testNamespace, workloadName, utils.WorkloadConfig{
-					ConfigMapName:      configMapName,
-					UseConfigMapVolume: true,
-					Annotations:        utils.BuildConfigMapReloadAnnotation(configMapName),
-				})
-				Expect(err).NotTo(HaveOccurred())
-				DeferCleanup(func() { _ = adapter.Delete(ctx, testNamespace, workloadName) })
+			By("Creating workload with ConfigMap volume")
+			err = adapter.Create(ctx, testNamespace, workloadName, utils.WorkloadConfig{
+				ConfigMapName:      configMapName,
+				UseConfigMapVolume: true,
+				Annotations:        utils.BuildConfigMapReloadAnnotation(configMapName),
+			})
+			Expect(err).NotTo(HaveOccurred())
+			DeferCleanup(func() { _ = adapter.Delete(ctx, testNamespace, workloadName) })
 
-				By("Waiting for workload to be ready")
-				err = adapter.WaitReady(ctx, testNamespace, workloadName, utils.DeploymentReady)
-				Expect(err).NotTo(HaveOccurred())
+			By("Waiting for workload to be ready")
+			err = adapter.WaitReady(ctx, testNamespace, workloadName, utils.DeploymentReady)
+			Expect(err).NotTo(HaveOccurred())
 
-				By("Updating the ConfigMap data")
-				err = utils.UpdateConfigMap(ctx, kubeClient, testNamespace, configMapName,
-					map[string]string{"config.yaml": "setting: updated"})
-				Expect(err).NotTo(HaveOccurred())
+			By("Updating the ConfigMap data")
+			err = utils.UpdateConfigMap(ctx, kubeClient, testNamespace, configMapName,
+				map[string]string{"config.yaml": "setting: updated"})
+			Expect(err).NotTo(HaveOccurred())
 
-				By("Waiting for workload to be reloaded")
-				reloaded, err := adapter.WaitReloaded(ctx, testNamespace, workloadName,
-					utils.AnnotationLastReloadedFrom, utils.ReloadTimeout)
-				Expect(err).NotTo(HaveOccurred())
-				Expect(reloaded).To(BeTrue(), "%s with volume-mounted ConfigMap should have been reloaded", workloadType)
-			},
-			Entry("Deployment", utils.WorkloadDeployment),
-			Entry("DaemonSet", utils.WorkloadDaemonSet),
+			By("Waiting for workload to be reloaded")
+			reloaded, err := adapter.WaitReloaded(ctx, testNamespace, workloadName, utils.AnnotationLastReloadedFrom,
+				utils.ReloadTimeout)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(reloaded).To(BeTrue(), "%s with volume-mounted ConfigMap should have been reloaded", workloadType)
+		}, Entry("Deployment", utils.WorkloadDeployment), Entry("DaemonSet", utils.WorkloadDaemonSet),
 			Entry("StatefulSet", utils.WorkloadStatefulSet),
 			Entry("ArgoRollout", Label("argo"), utils.WorkloadArgoRollout),
-			Entry("DeploymentConfig", Label("openshift"), utils.WorkloadDeploymentConfig),
-		)
+			Entry("DeploymentConfig", Label("openshift"), utils.WorkloadDeploymentConfig))
 
-		DescribeTable("should reload when volume-mounted Secret changes",
-			func(workloadType utils.WorkloadType) {
-				adapter := registry.Get(workloadType)
-				if adapter == nil { Skip(fmt.Sprintf("%s adapter not available (CRD not installed)", workloadType)) }
+		DescribeTable("should reload when volume-mounted Secret changes", func(workloadType utils.WorkloadType) {
+			adapter := registry.Get(workloadType)
+			if adapter == nil {
+				Skip(fmt.Sprintf("%s adapter not available (CRD not installed)", workloadType))
+			}
 
-				By("Creating a Secret")
-				_, err := utils.CreateSecretFromStrings(ctx, kubeClient, testNamespace, secretName,
-					map[string]string{"credentials.yaml": "secret: initial"}, nil)
-				Expect(err).NotTo(HaveOccurred())
+			By("Creating a Secret")
+			_, err := utils.CreateSecretFromStrings(ctx, kubeClient, testNamespace, secretName,
+				map[string]string{"credentials.yaml": "secret: initial"}, nil)
+			Expect(err).NotTo(HaveOccurred())
 
-				By("Creating workload with Secret volume")
-				err = adapter.Create(ctx, testNamespace, workloadName, utils.WorkloadConfig{
-					SecretName:      secretName,
-					UseSecretVolume: true,
-					Annotations:     utils.BuildSecretReloadAnnotation(secretName),
-				})
-				Expect(err).NotTo(HaveOccurred())
-				DeferCleanup(func() { _ = adapter.Delete(ctx, testNamespace, workloadName) })
+			By("Creating workload with Secret volume")
+			err = adapter.Create(ctx, testNamespace, workloadName, utils.WorkloadConfig{
+				SecretName:      secretName,
+				UseSecretVolume: true,
+				Annotations:     utils.BuildSecretReloadAnnotation(secretName),
+			})
+			Expect(err).NotTo(HaveOccurred())
+			DeferCleanup(func() { _ = adapter.Delete(ctx, testNamespace, workloadName) })
 
-				By("Waiting for workload to be ready")
-				err = adapter.WaitReady(ctx, testNamespace, workloadName, utils.DeploymentReady)
-				Expect(err).NotTo(HaveOccurred())
+			By("Waiting for workload to be ready")
+			err = adapter.WaitReady(ctx, testNamespace, workloadName, utils.DeploymentReady)
+			Expect(err).NotTo(HaveOccurred())
 
-				By("Updating the Secret data")
-				err = utils.UpdateSecretFromStrings(ctx, kubeClient, testNamespace, secretName,
-					map[string]string{"credentials.yaml": "secret: updated"})
-				Expect(err).NotTo(HaveOccurred())
+			By("Updating the Secret data")
+			err = utils.UpdateSecretFromStrings(ctx, kubeClient, testNamespace, secretName,
+				map[string]string{"credentials.yaml": "secret: updated"})
+			Expect(err).NotTo(HaveOccurred())
 
-				By("Waiting for workload to be reloaded")
-				reloaded, err := adapter.WaitReloaded(ctx, testNamespace, workloadName,
-					utils.AnnotationLastReloadedFrom, utils.ReloadTimeout)
-				Expect(err).NotTo(HaveOccurred())
-				Expect(reloaded).To(BeTrue(), "%s with volume-mounted Secret should have been reloaded", workloadType)
-			},
-			Entry("Deployment", utils.WorkloadDeployment),
-			Entry("DaemonSet", utils.WorkloadDaemonSet),
+			By("Waiting for workload to be reloaded")
+			reloaded, err := adapter.WaitReloaded(ctx, testNamespace, workloadName, utils.AnnotationLastReloadedFrom,
+				utils.ReloadTimeout)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(reloaded).To(BeTrue(), "%s with volume-mounted Secret should have been reloaded", workloadType)
+		}, Entry("Deployment", utils.WorkloadDeployment), Entry("DaemonSet", utils.WorkloadDaemonSet),
 			Entry("StatefulSet", utils.WorkloadStatefulSet),
 			Entry("ArgoRollout", Label("argo"), utils.WorkloadArgoRollout),
-			Entry("DeploymentConfig", Label("openshift"), utils.WorkloadDeploymentConfig),
-		)
+			Entry("DeploymentConfig", Label("openshift"), utils.WorkloadDeploymentConfig))
 
 		// Test for workloads without Reloader annotation
-		DescribeTable("should NOT reload without Reloader annotation",
-			func(workloadType utils.WorkloadType) {
-				adapter := registry.Get(workloadType)
-				if adapter == nil { Skip(fmt.Sprintf("%s adapter not available (CRD not installed)", workloadType)) }
+		DescribeTable("should NOT reload without Reloader annotation", func(workloadType utils.WorkloadType) {
+			adapter := registry.Get(workloadType)
+			if adapter == nil {
+				Skip(fmt.Sprintf("%s adapter not available (CRD not installed)", workloadType))
+			}
 
-				By("Creating a ConfigMap")
-				_, err := utils.CreateConfigMap(ctx, kubeClient, testNamespace, configMapName,
-					map[string]string{"key": "value"}, nil)
-				Expect(err).NotTo(HaveOccurred())
+			By("Creating a ConfigMap")
+			_, err := utils.CreateConfigMap(ctx, kubeClient, testNamespace, configMapName,
+				map[string]string{"key": "value"}, nil)
+			Expect(err).NotTo(HaveOccurred())
 
-				By("Creating workload WITHOUT Reloader annotation")
-				err = adapter.Create(ctx, testNamespace, workloadName, utils.WorkloadConfig{
-					ConfigMapName:       configMapName,
-					UseConfigMapEnvFrom: true,
-					// No Reloader annotations
-				})
-				Expect(err).NotTo(HaveOccurred())
-				DeferCleanup(func() { _ = adapter.Delete(ctx, testNamespace, workloadName) })
+			By("Creating workload WITHOUT Reloader annotation")
+			err = adapter.Create(ctx, testNamespace, workloadName, utils.WorkloadConfig{
+				ConfigMapName:       configMapName,
+				UseConfigMapEnvFrom: true, // No Reloader annotations
+			})
+			Expect(err).NotTo(HaveOccurred())
+			DeferCleanup(func() {
+				_ = adapter.Delete(ctx, testNamespace, workloadName)
+			})
 
-				By("Waiting for workload to be ready")
-				err = adapter.WaitReady(ctx, testNamespace, workloadName, utils.DeploymentReady)
-				Expect(err).NotTo(HaveOccurred())
+			By("Waiting for workload to be ready")
+			err = adapter.WaitReady(ctx, testNamespace, workloadName, utils.DeploymentReady)
+			Expect(err).NotTo(HaveOccurred())
 
-				By("Updating the ConfigMap data")
-				err = utils.UpdateConfigMap(ctx, kubeClient, testNamespace, configMapName,
-					map[string]string{"key": "updated"})
-				Expect(err).NotTo(HaveOccurred())
+			By("Updating the ConfigMap data")
+			err = utils.UpdateConfigMap(ctx, kubeClient, testNamespace, configMapName,
+				map[string]string{"key": "updated"})
+			Expect(err).NotTo(HaveOccurred())
 
-				By("Verifying workload is NOT reloaded (negative test)")
-				time.Sleep(utils.NegativeTestWait)
-				reloaded, err := adapter.WaitReloaded(ctx, testNamespace, workloadName,
-					utils.AnnotationLastReloadedFrom, utils.ShortTimeout)
-				Expect(err).NotTo(HaveOccurred())
-				Expect(reloaded).To(BeFalse(), "%s without Reloader annotation should NOT be reloaded", workloadType)
-			},
-			Entry("Deployment", utils.WorkloadDeployment),
-			Entry("DaemonSet", utils.WorkloadDaemonSet),
-			Entry("StatefulSet", utils.WorkloadStatefulSet),
-		)
+			By("Verifying workload is NOT reloaded (negative test)")
+			time.Sleep(utils.NegativeTestWait)
+			reloaded, err := adapter.WaitReloaded(ctx, testNamespace, workloadName, utils.AnnotationLastReloadedFrom,
+				utils.ShortTimeout)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(reloaded).To(BeFalse(), "%s without Reloader annotation should NOT be reloaded", workloadType)
+		}, Entry("Deployment", utils.WorkloadDeployment), Entry("DaemonSet", utils.WorkloadDaemonSet),
+			Entry("StatefulSet", utils.WorkloadStatefulSet))
 
 		// Variable to track for use in lint
 		_ = standardWorkloads
@@ -603,10 +729,8 @@ var _ = Describe("Workload Reload Tests", func() {
 						return ""
 					}
 					return deploy.Spec.Template.Annotations[utils.AnnotationLastReloadedFrom]
-				}, utils.ReloadTimeout, utils.DefaultInterval).ShouldNot(
-					Equal(firstReloadValue),
-					"Reload annotation should change after second update",
-				)
+				}, utils.ReloadTimeout, utils.DefaultInterval).ShouldNot(Equal(firstReloadValue),
+					"Reload annotation should change after second update")
 			})
 
 			It("should reload deployment when either ConfigMap or Secret changes", func() {
@@ -628,10 +752,8 @@ var _ = Describe("Workload Reload Tests", func() {
 					SecretName:          secretName,
 					UseConfigMapEnvFrom: true,
 					UseSecretEnvFrom:    true,
-					Annotations: utils.MergeAnnotations(
-						utils.BuildConfigMapReloadAnnotation(configMapName),
-						utils.BuildSecretReloadAnnotation(secretName),
-					),
+					Annotations: utils.MergeAnnotations(utils.BuildConfigMapReloadAnnotation(configMapName),
+						utils.BuildSecretReloadAnnotation(secretName)),
 				})
 				Expect(err).NotTo(HaveOccurred())
 				DeferCleanup(func() { _ = adapter.Delete(ctx, testNamespace, workloadName) })
@@ -692,7 +814,7 @@ var _ = Describe("Workload Reload Tests", func() {
 	// ============================================================
 	// ENVVARS STRATEGY TESTS
 	// ============================================================
-	Context("EnvVars Strategy", Label("envvars"), Ordered, func() {
+	Context("EnvVars Strategy", Label("envvars"), Ordered, ContinueOnFailure, func() {
 		// Redeploy Reloader with envvars strategy for this context
 		BeforeAll(func() {
 			By("Redeploying Reloader with envvars strategy")
@@ -700,8 +822,12 @@ var _ = Describe("Workload Reload Tests", func() {
 				"reloader.reloadStrategy": "env-vars",
 			}
 			// Preserve Argo support if available
-			if utils.IsArgoRolloutsInstalled(ctx, dynamicClient) {
+			if utils.IsArgoRolloutsInstalled(ctx, testEnv.RolloutsClient) {
 				deployValues["reloader.isArgoRollouts"] = "true"
+			}
+			// Enable CSI integration if CSI driver is installed
+			if utils.IsCSIDriverInstalled(ctx, csiClient) {
+				deployValues["reloader.enableCSIIntegration"] = "true"
 			}
 			err := testEnv.DeployAndWait(deployValues)
 			Expect(err).NotTo(HaveOccurred(), "Failed to redeploy Reloader with envvars strategy")
@@ -713,39 +839,137 @@ var _ = Describe("Workload Reload Tests", func() {
 				"reloader.reloadStrategy": "annotations",
 			}
 			// Preserve Argo support if available
-			if utils.IsArgoRolloutsInstalled(ctx, dynamicClient) {
+			if utils.IsArgoRolloutsInstalled(ctx, testEnv.RolloutsClient) {
 				deployValues["reloader.isArgoRollouts"] = "true"
+			}
+			// Preserve CSI integration if CSI driver is installed
+			if utils.IsCSIDriverInstalled(ctx, csiClient) {
+				deployValues["reloader.enableCSIIntegration"] = "true"
 			}
 			err := testEnv.DeployAndWait(deployValues)
 			Expect(err).NotTo(HaveOccurred(), "Failed to restore Reloader to annotations strategy")
 		})
 
-		// EnvVar workloads (CronJob does NOT support env var strategy)
-		envVarWorkloads := []utils.WorkloadType{
-			utils.WorkloadDeployment,
-			utils.WorkloadDaemonSet,
-			utils.WorkloadStatefulSet,
-		}
+		DescribeTable("should add STAKATER_ env var when ConfigMap changes", func(workloadType utils.WorkloadType) {
+			adapter := registry.Get(workloadType)
+			if adapter == nil {
+				Skip(fmt.Sprintf("%s adapter not available (CRD not installed)", workloadType))
+			}
 
-		DescribeTable("should add STAKATER_ env var when ConfigMap changes",
+			if !adapter.SupportsEnvVarStrategy() {
+				Skip("Workload type does not support env var strategy")
+			}
+
+			By("Creating a ConfigMap")
+			_, err := utils.CreateConfigMap(ctx, kubeClient, testNamespace, configMapName,
+				map[string]string{"key": "initial"}, nil)
+			Expect(err).NotTo(HaveOccurred())
+
+			By("Creating workload with ConfigMap reference annotation")
+			err = adapter.Create(ctx, testNamespace, workloadName, utils.WorkloadConfig{
+				ConfigMapName:       configMapName,
+				UseConfigMapEnvFrom: true,
+				Annotations:         utils.BuildConfigMapReloadAnnotation(configMapName),
+			})
+			Expect(err).NotTo(HaveOccurred())
+			DeferCleanup(func() { _ = adapter.Delete(ctx, testNamespace, workloadName) })
+
+			By("Waiting for workload to be ready")
+			err = adapter.WaitReady(ctx, testNamespace, workloadName, utils.DeploymentReady)
+			Expect(err).NotTo(HaveOccurred())
+
+			By("Updating the ConfigMap data")
+			err = utils.UpdateConfigMap(ctx, kubeClient, testNamespace, configMapName,
+				map[string]string{"key": "updated"})
+			Expect(err).NotTo(HaveOccurred())
+
+			By("Waiting for workload to have STAKATER_ env var")
+			found, err := adapter.WaitEnvVar(ctx, testNamespace, workloadName, utils.StakaterEnvVarPrefix,
+				utils.ReloadTimeout)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(found).To(BeTrue(), "%s should have STAKATER_ env var after ConfigMap change", workloadType)
+		}, Entry("Deployment", utils.WorkloadDeployment), Entry("DaemonSet", utils.WorkloadDaemonSet),
+			Entry("StatefulSet", utils.WorkloadStatefulSet),
+			Entry("ArgoRollout", Label("argo"), utils.WorkloadArgoRollout),
+			Entry("DeploymentConfig", Label("openshift"), utils.WorkloadDeploymentConfig))
+
+		DescribeTable("should add STAKATER_ env var when Secret changes", func(workloadType utils.WorkloadType) {
+			adapter := registry.Get(workloadType)
+			if adapter == nil {
+				Skip(fmt.Sprintf("%s adapter not available (CRD not installed)", workloadType))
+			}
+
+			if !adapter.SupportsEnvVarStrategy() {
+				Skip("Workload type does not support env var strategy")
+			}
+
+			By("Creating a Secret")
+			_, err := utils.CreateSecretFromStrings(ctx, kubeClient, testNamespace, secretName,
+				map[string]string{"password": "initial"}, nil)
+			Expect(err).NotTo(HaveOccurred())
+
+			By("Creating workload with Secret reference annotation")
+			err = adapter.Create(ctx, testNamespace, workloadName, utils.WorkloadConfig{
+				SecretName:       secretName,
+				UseSecretEnvFrom: true,
+				Annotations:      utils.BuildSecretReloadAnnotation(secretName),
+			})
+			Expect(err).NotTo(HaveOccurred())
+			DeferCleanup(func() { _ = adapter.Delete(ctx, testNamespace, workloadName) })
+
+			By("Waiting for workload to be ready")
+			err = adapter.WaitReady(ctx, testNamespace, workloadName, utils.DeploymentReady)
+			Expect(err).NotTo(HaveOccurred())
+
+			By("Updating the Secret data")
+			err = utils.UpdateSecretFromStrings(ctx, kubeClient, testNamespace, secretName,
+				map[string]string{"password": "updated"})
+			Expect(err).NotTo(HaveOccurred())
+
+			By("Waiting for workload to have STAKATER_ env var")
+			found, err := adapter.WaitEnvVar(ctx, testNamespace, workloadName, utils.StakaterEnvVarPrefix,
+				utils.ReloadTimeout)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(found).To(BeTrue(), "%s should have STAKATER_ env var after Secret change", workloadType)
+		}, Entry("Deployment", utils.WorkloadDeployment), Entry("DaemonSet", utils.WorkloadDaemonSet),
+			Entry("StatefulSet", utils.WorkloadStatefulSet),
+			Entry("ArgoRollout", Label("argo"), utils.WorkloadArgoRollout),
+			Entry("DeploymentConfig", Label("openshift"), utils.WorkloadDeploymentConfig))
+
+		// CSI SecretProviderClassPodStatus env var tests with real Vault
+		DescribeTable("should add STAKATER_ env var when SecretProviderClassPodStatus changes",
 			func(workloadType utils.WorkloadType) {
+				if !utils.IsCSIDriverInstalled(ctx, csiClient) {
+					Skip("CSI secrets store driver not installed")
+				}
+				if !utils.IsVaultProviderInstalled(ctx, kubeClient) {
+					Skip("Vault CSI provider not installed")
+				}
+
 				adapter := registry.Get(workloadType)
-				if adapter == nil { Skip(fmt.Sprintf("%s adapter not available (CRD not installed)", workloadType)) }
+				if adapter == nil {
+					Skip(fmt.Sprintf("%s adapter not available (CRD not installed)", workloadType))
+				}
 
 				if !adapter.SupportsEnvVarStrategy() {
 					Skip("Workload type does not support env var strategy")
 				}
 
-				By("Creating a ConfigMap")
-				_, err := utils.CreateConfigMap(ctx, kubeClient, testNamespace, configMapName,
-					map[string]string{"key": "initial"}, nil)
+				By("Creating a secret in Vault")
+				err := utils.CreateVaultSecret(ctx, kubeClient, restConfig, vaultSecretPath,
+					map[string]string{"api_key": "initial-value-v1"})
 				Expect(err).NotTo(HaveOccurred())
 
-				By("Creating workload with ConfigMap reference annotation")
+				By("Creating a SecretProviderClass pointing to Vault secret")
+				_, err = utils.CreateSecretProviderClassWithSecret(ctx, csiClient, testNamespace, spcName,
+					vaultSecretPath, "api_key")
+				Expect(err).NotTo(HaveOccurred())
+
+				By("Creating workload with CSI volume and SPC reload annotation")
 				err = adapter.Create(ctx, testNamespace, workloadName, utils.WorkloadConfig{
-					ConfigMapName:       configMapName,
-					UseConfigMapEnvFrom: true,
-					Annotations:         utils.BuildConfigMapReloadAnnotation(configMapName),
+					SPCName:      spcName,
+					UseCSIVolume: true,
+					Annotations:  utils.BuildSecretProviderClassReloadAnnotation(spcName),
 				})
 				Expect(err).NotTo(HaveOccurred())
 				DeferCleanup(func() { _ = adapter.Delete(ctx, testNamespace, workloadName) })
@@ -754,74 +978,41 @@ var _ = Describe("Workload Reload Tests", func() {
 				err = adapter.WaitReady(ctx, testNamespace, workloadName, utils.DeploymentReady)
 				Expect(err).NotTo(HaveOccurred())
 
-				By("Updating the ConfigMap data")
-				err = utils.UpdateConfigMap(ctx, kubeClient, testNamespace, configMapName,
-					map[string]string{"key": "updated"})
+				By("Finding the SPCPS created by CSI driver")
+				spcpsName, err := utils.FindSPCPSForDeployment(ctx, csiClient, kubeClient, testNamespace, workloadName,
+					utils.DeploymentReady)
+				Expect(err).NotTo(HaveOccurred())
+
+				By("Getting initial SPCPS version")
+				initialVersion, err := utils.GetSPCPSVersion(ctx, csiClient, testNamespace, spcpsName)
+				Expect(err).NotTo(HaveOccurred())
+
+				By("Updating the Vault secret")
+				err = utils.UpdateVaultSecret(ctx, kubeClient, restConfig, vaultSecretPath,
+					map[string]string{"api_key": "updated-value-v2"})
+				Expect(err).NotTo(HaveOccurred())
+
+				By("Waiting for CSI driver to sync the new secret version")
+				err = utils.WaitForSPCPSVersionChange(ctx, csiClient, testNamespace, spcpsName, initialVersion,
+					10*time.Second)
 				Expect(err).NotTo(HaveOccurred())
 
 				By("Waiting for workload to have STAKATER_ env var")
-				found, err := adapter.WaitEnvVar(ctx, testNamespace, workloadName,
-					utils.StakaterEnvVarPrefix, utils.ReloadTimeout)
+				found, err := adapter.WaitEnvVar(ctx, testNamespace, workloadName, utils.StakaterEnvVarPrefix,
+					utils.ReloadTimeout)
 				Expect(err).NotTo(HaveOccurred())
-				Expect(found).To(BeTrue(), "%s should have STAKATER_ env var after ConfigMap change", workloadType)
-			},
-			Entry("Deployment", utils.WorkloadDeployment),
-			Entry("DaemonSet", utils.WorkloadDaemonSet),
-			Entry("StatefulSet", utils.WorkloadStatefulSet),
-			Entry("ArgoRollout", Label("argo"), utils.WorkloadArgoRollout),
-			Entry("DeploymentConfig", Label("openshift"), utils.WorkloadDeploymentConfig),
-		)
-
-		DescribeTable("should add STAKATER_ env var when Secret changes",
-			func(workloadType utils.WorkloadType) {
-				adapter := registry.Get(workloadType)
-				if adapter == nil { Skip(fmt.Sprintf("%s adapter not available (CRD not installed)", workloadType)) }
-
-				if !adapter.SupportsEnvVarStrategy() {
-					Skip("Workload type does not support env var strategy")
-				}
-
-				By("Creating a Secret")
-				_, err := utils.CreateSecretFromStrings(ctx, kubeClient, testNamespace, secretName,
-					map[string]string{"password": "initial"}, nil)
-				Expect(err).NotTo(HaveOccurred())
-
-				By("Creating workload with Secret reference annotation")
-				err = adapter.Create(ctx, testNamespace, workloadName, utils.WorkloadConfig{
-					SecretName:       secretName,
-					UseSecretEnvFrom: true,
-					Annotations:      utils.BuildSecretReloadAnnotation(secretName),
-				})
-				Expect(err).NotTo(HaveOccurred())
-				DeferCleanup(func() { _ = adapter.Delete(ctx, testNamespace, workloadName) })
-
-				By("Waiting for workload to be ready")
-				err = adapter.WaitReady(ctx, testNamespace, workloadName, utils.DeploymentReady)
-				Expect(err).NotTo(HaveOccurred())
-
-				By("Updating the Secret data")
-				err = utils.UpdateSecretFromStrings(ctx, kubeClient, testNamespace, secretName,
-					map[string]string{"password": "updated"})
-				Expect(err).NotTo(HaveOccurred())
-
-				By("Waiting for workload to have STAKATER_ env var")
-				found, err := adapter.WaitEnvVar(ctx, testNamespace, workloadName,
-					utils.StakaterEnvVarPrefix, utils.ReloadTimeout)
-				Expect(err).NotTo(HaveOccurred())
-				Expect(found).To(BeTrue(), "%s should have STAKATER_ env var after Secret change", workloadType)
-			},
-			Entry("Deployment", utils.WorkloadDeployment),
-			Entry("DaemonSet", utils.WorkloadDaemonSet),
-			Entry("StatefulSet", utils.WorkloadStatefulSet),
-			Entry("ArgoRollout", Label("argo"), utils.WorkloadArgoRollout),
-			Entry("DeploymentConfig", Label("openshift"), utils.WorkloadDeploymentConfig),
-		)
+				Expect(found).To(BeTrue(), "%s should have STAKATER_ env var after Vault secret change", workloadType)
+			}, Entry("Deployment", Label("csi"), utils.WorkloadDeployment),
+			Entry("DaemonSet", Label("csi"), utils.WorkloadDaemonSet),
+			Entry("StatefulSet", Label("csi"), utils.WorkloadStatefulSet))
 
 		// Negative tests for env var strategy
 		DescribeTable("should NOT add STAKATER_ env var when only ConfigMap labels change",
 			func(workloadType utils.WorkloadType) {
 				adapter := registry.Get(workloadType)
-				if adapter == nil { Skip(fmt.Sprintf("%s adapter not available (CRD not installed)", workloadType)) }
+				if adapter == nil {
+					Skip(fmt.Sprintf("%s adapter not available (CRD not installed)", workloadType))
+				}
 
 				if !adapter.SupportsEnvVarStrategy() {
 					Skip("Workload type does not support env var strategy")
@@ -852,20 +1043,19 @@ var _ = Describe("Workload Reload Tests", func() {
 
 				By("Verifying workload does NOT have STAKATER_ env var")
 				time.Sleep(utils.NegativeTestWait)
-				found, err := adapter.WaitEnvVar(ctx, testNamespace, workloadName,
-					utils.StakaterEnvVarPrefix, utils.ShortTimeout)
+				found, err := adapter.WaitEnvVar(ctx, testNamespace, workloadName, utils.StakaterEnvVarPrefix,
+					utils.ShortTimeout)
 				Expect(err).NotTo(HaveOccurred())
 				Expect(found).To(BeFalse(), "%s should NOT have STAKATER_ env var for label-only change", workloadType)
-			},
-			Entry("Deployment", utils.WorkloadDeployment),
-			Entry("DaemonSet", utils.WorkloadDaemonSet),
-			Entry("StatefulSet", utils.WorkloadStatefulSet),
-		)
+			}, Entry("Deployment", utils.WorkloadDeployment), Entry("DaemonSet", utils.WorkloadDaemonSet),
+			Entry("StatefulSet", utils.WorkloadStatefulSet))
 
 		DescribeTable("should NOT add STAKATER_ env var when only Secret labels change",
 			func(workloadType utils.WorkloadType) {
 				adapter := registry.Get(workloadType)
-				if adapter == nil { Skip(fmt.Sprintf("%s adapter not available (CRD not installed)", workloadType)) }
+				if adapter == nil {
+					Skip(fmt.Sprintf("%s adapter not available (CRD not installed)", workloadType))
+				}
 
 				if !adapter.SupportsEnvVarStrategy() {
 					Skip("Workload type does not support env var strategy")
@@ -896,17 +1086,255 @@ var _ = Describe("Workload Reload Tests", func() {
 
 				By("Verifying workload does NOT have STAKATER_ env var")
 				time.Sleep(utils.NegativeTestWait)
-				found, err := adapter.WaitEnvVar(ctx, testNamespace, workloadName,
-					utils.StakaterEnvVarPrefix, utils.ShortTimeout)
+				found, err := adapter.WaitEnvVar(ctx, testNamespace, workloadName, utils.StakaterEnvVarPrefix,
+					utils.ShortTimeout)
 				Expect(err).NotTo(HaveOccurred())
 				Expect(found).To(BeFalse(), "%s should NOT have STAKATER_ env var for label-only change", workloadType)
-			},
-			Entry("Deployment", utils.WorkloadDeployment),
-			Entry("DaemonSet", utils.WorkloadDaemonSet),
-			Entry("StatefulSet", utils.WorkloadStatefulSet),
-		)
+			}, Entry("Deployment", utils.WorkloadDeployment), Entry("DaemonSet", utils.WorkloadDaemonSet),
+			Entry("StatefulSet", utils.WorkloadStatefulSet))
 
-		// Variable to track for use in lint
-		_ = envVarWorkloads
+		// CSI SPCPS label-only change negative test with real Vault
+		DescribeTable("should NOT add STAKATER_ env var when only SecretProviderClassPodStatus labels change",
+			func(workloadType utils.WorkloadType) {
+				if !utils.IsCSIDriverInstalled(ctx, csiClient) {
+					Skip("CSI secrets store driver not installed")
+				}
+				if !utils.IsVaultProviderInstalled(ctx, kubeClient) {
+					Skip("Vault CSI provider not installed")
+				}
+
+				adapter := registry.Get(workloadType)
+				if adapter == nil {
+					Skip(fmt.Sprintf("%s adapter not available (CRD not installed)", workloadType))
+				}
+
+				if !adapter.SupportsEnvVarStrategy() {
+					Skip("Workload type does not support env var strategy")
+				}
+
+				By("Creating a secret in Vault")
+				err := utils.CreateVaultSecret(ctx, kubeClient, restConfig, vaultSecretPath,
+					map[string]string{"api_key": "initial-value"})
+				Expect(err).NotTo(HaveOccurred())
+
+				By("Creating a SecretProviderClass pointing to Vault secret")
+				_, err = utils.CreateSecretProviderClassWithSecret(ctx, csiClient, testNamespace, spcName,
+					vaultSecretPath, "api_key")
+				Expect(err).NotTo(HaveOccurred())
+
+				By("Creating workload with CSI volume and SPC reload annotation")
+				err = adapter.Create(ctx, testNamespace, workloadName, utils.WorkloadConfig{
+					SPCName:      spcName,
+					UseCSIVolume: true,
+					Annotations:  utils.BuildSecretProviderClassReloadAnnotation(spcName),
+				})
+				Expect(err).NotTo(HaveOccurred())
+				DeferCleanup(func() { _ = adapter.Delete(ctx, testNamespace, workloadName) })
+
+				By("Waiting for workload to be ready")
+				err = adapter.WaitReady(ctx, testNamespace, workloadName, utils.DeploymentReady)
+				Expect(err).NotTo(HaveOccurred())
+
+				By("Finding the SPCPS created by CSI driver")
+				spcpsName, err := utils.FindSPCPSForDeployment(ctx, csiClient, kubeClient, testNamespace, workloadName,
+					utils.DeploymentReady)
+				Expect(err).NotTo(HaveOccurred())
+
+				By("Updating only the SPCPS labels (should NOT trigger reload)")
+				err = utils.UpdateSecretProviderClassPodStatusLabels(ctx, csiClient, testNamespace, spcpsName,
+					map[string]string{"new-label": "new-value"})
+				Expect(err).NotTo(HaveOccurred())
+
+				By("Verifying workload does NOT have STAKATER_ env var")
+				time.Sleep(utils.NegativeTestWait)
+				found, err := adapter.WaitEnvVar(ctx, testNamespace, workloadName, utils.StakaterEnvVarPrefix,
+					utils.ShortTimeout)
+				Expect(err).NotTo(HaveOccurred())
+				Expect(found).To(BeFalse(), "%s should NOT have STAKATER_ env var for SPCPS label-only change",
+					workloadType)
+			}, Entry("Deployment", Label("csi"), utils.WorkloadDeployment),
+			Entry("DaemonSet", Label("csi"), utils.WorkloadDaemonSet),
+			Entry("StatefulSet", Label("csi"), utils.WorkloadStatefulSet))
+
+		// CSI auto annotation with EnvVar strategy and real Vault
+		It("should add STAKATER_ env var with secretproviderclass auto annotation", Label("csi"), func() {
+			if !utils.IsCSIDriverInstalled(ctx, csiClient) {
+				Skip("CSI secrets store driver not installed")
+			}
+			if !utils.IsVaultProviderInstalled(ctx, kubeClient) {
+				Skip("Vault CSI provider not installed")
+			}
+
+			adapter := registry.Get(utils.WorkloadDeployment)
+			Expect(adapter).NotTo(BeNil())
+
+			By("Creating a secret in Vault")
+			err := utils.CreateVaultSecret(ctx, kubeClient, restConfig, vaultSecretPath,
+				map[string]string{"api_key": "initial-value-v1"})
+			Expect(err).NotTo(HaveOccurred())
+
+			By("Creating a SecretProviderClass pointing to Vault secret")
+			_, err = utils.CreateSecretProviderClassWithSecret(ctx, csiClient, testNamespace, spcName, vaultSecretPath,
+				"api_key")
+			Expect(err).NotTo(HaveOccurred())
+
+			By("Creating Deployment with CSI volume and SPC auto annotation")
+			err = adapter.Create(ctx, testNamespace, workloadName, utils.WorkloadConfig{
+				SPCName:      spcName,
+				UseCSIVolume: true,
+				Annotations:  utils.BuildSecretProviderClassAutoAnnotation(),
+			})
+			Expect(err).NotTo(HaveOccurred())
+			DeferCleanup(func() { _ = adapter.Delete(ctx, testNamespace, workloadName) })
+
+			By("Waiting for Deployment to be ready")
+			err = adapter.WaitReady(ctx, testNamespace, workloadName, utils.DeploymentReady)
+			Expect(err).NotTo(HaveOccurred())
+
+			By("Finding the SPCPS created by CSI driver")
+			spcpsName, err := utils.FindSPCPSForDeployment(ctx, csiClient, kubeClient, testNamespace, workloadName,
+				utils.DeploymentReady)
+			Expect(err).NotTo(HaveOccurred())
+
+			By("Getting initial SPCPS version")
+			initialVersion, err := utils.GetSPCPSVersion(ctx, csiClient, testNamespace, spcpsName)
+			Expect(err).NotTo(HaveOccurred())
+
+			By("Updating the Vault secret")
+			err = utils.UpdateVaultSecret(ctx, kubeClient, restConfig, vaultSecretPath,
+				map[string]string{"api_key": "updated-value-v2"})
+			Expect(err).NotTo(HaveOccurred())
+
+			By("Waiting for CSI driver to sync the new secret version")
+			err = utils.WaitForSPCPSVersionChange(ctx, csiClient, testNamespace, spcpsName, initialVersion,
+				10*time.Second)
+			Expect(err).NotTo(HaveOccurred())
+
+			By("Waiting for Deployment to have STAKATER_ env var")
+			found, err := adapter.WaitEnvVar(ctx, testNamespace, workloadName, utils.StakaterEnvVarPrefix,
+				utils.ReloadTimeout)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(found).To(BeTrue(), "Deployment with SPC auto annotation should have STAKATER_ env var")
+		})
+
+		// CSI exclude annotation with EnvVar strategy and real Vault
+		It("should NOT add STAKATER_ env var when excluded SecretProviderClassPodStatus changes", Label("csi"), func() {
+			if !utils.IsCSIDriverInstalled(ctx, csiClient) {
+				Skip("CSI secrets store driver not installed")
+			}
+			if !utils.IsVaultProviderInstalled(ctx, kubeClient) {
+				Skip("Vault CSI provider not installed")
+			}
+
+			adapter := registry.Get(utils.WorkloadDeployment)
+			Expect(adapter).NotTo(BeNil())
+
+			By("Creating a secret in Vault")
+			err := utils.CreateVaultSecret(ctx, kubeClient, restConfig, vaultSecretPath,
+				map[string]string{"api_key": "initial-value-v1"})
+			Expect(err).NotTo(HaveOccurred())
+
+			By("Creating a SecretProviderClass pointing to Vault secret")
+			_, err = utils.CreateSecretProviderClassWithSecret(ctx, csiClient, testNamespace, spcName, vaultSecretPath,
+				"api_key")
+			Expect(err).NotTo(HaveOccurred())
+
+			By("Creating Deployment with auto=true and SPC exclude annotation")
+			err = adapter.Create(ctx, testNamespace, workloadName, utils.WorkloadConfig{
+				SPCName:      spcName,
+				UseCSIVolume: true,
+				Annotations: utils.MergeAnnotations(utils.BuildAutoTrueAnnotation(),
+					utils.BuildSecretProviderClassExcludeAnnotation(spcName)),
+			})
+			Expect(err).NotTo(HaveOccurred())
+			DeferCleanup(func() { _ = adapter.Delete(ctx, testNamespace, workloadName) })
+
+			By("Waiting for Deployment to be ready")
+			err = adapter.WaitReady(ctx, testNamespace, workloadName, utils.DeploymentReady)
+			Expect(err).NotTo(HaveOccurred())
+
+			By("Finding the SPCPS created by CSI driver")
+			spcpsName, err := utils.FindSPCPSForDeployment(ctx, csiClient, kubeClient, testNamespace, workloadName,
+				utils.DeploymentReady)
+			Expect(err).NotTo(HaveOccurred())
+
+			By("Getting initial SPCPS version")
+			initialVersion, err := utils.GetSPCPSVersion(ctx, csiClient, testNamespace, spcpsName)
+			Expect(err).NotTo(HaveOccurred())
+
+			By("Updating the Vault secret (excluded SPC - should NOT trigger reload)")
+			err = utils.UpdateVaultSecret(ctx, kubeClient, restConfig, vaultSecretPath,
+				map[string]string{"api_key": "updated-value-v2"})
+			Expect(err).NotTo(HaveOccurred())
+
+			By("Waiting for CSI driver to sync the new secret version")
+			err = utils.WaitForSPCPSVersionChange(ctx, csiClient, testNamespace, spcpsName, initialVersion,
+				10*time.Second)
+			Expect(err).NotTo(HaveOccurred())
+
+			By("Verifying Deployment does NOT have STAKATER_ env var")
+			time.Sleep(utils.NegativeTestWait)
+			found, err := adapter.WaitEnvVar(ctx, testNamespace, workloadName, utils.StakaterEnvVarPrefix,
+				utils.ShortTimeout)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(found).To(BeFalse(), "Deployment should NOT have STAKATER_ env var for excluded SPCPS change")
+		})
+
+		// CSI init container with EnvVar strategy and real Vault
+		It("should add STAKATER_ env var when SecretProviderClassPodStatus used by init container changes",
+			Label("csi"), func() {
+				if !utils.IsCSIDriverInstalled(ctx, csiClient) {
+					Skip("CSI secrets store driver not installed")
+				}
+				if !utils.IsVaultProviderInstalled(ctx, kubeClient) {
+					Skip("Vault CSI provider not installed")
+				}
+
+				By("Creating a secret in Vault")
+				err := utils.CreateVaultSecret(ctx, kubeClient, restConfig, vaultSecretPath,
+					map[string]string{"api_key": "initial-value-v1"})
+				Expect(err).NotTo(HaveOccurred())
+
+				By("Creating a SecretProviderClass pointing to Vault secret")
+				_, err = utils.CreateSecretProviderClassWithSecret(ctx, csiClient, testNamespace, spcName,
+					vaultSecretPath, "api_key")
+				Expect(err).NotTo(HaveOccurred())
+
+				By("Creating Deployment with init container using CSI volume")
+				_, err = utils.CreateDeployment(ctx, kubeClient, testNamespace, workloadName,
+					utils.WithInitContainerCSIVolume(spcName),
+					utils.WithAnnotations(utils.BuildSecretProviderClassReloadAnnotation(spcName)))
+				Expect(err).NotTo(HaveOccurred())
+				DeferCleanup(func() { _ = utils.DeleteDeployment(ctx, kubeClient, testNamespace, workloadName) })
+
+				By("Waiting for Deployment to be ready")
+				err = utils.WaitForDeploymentReady(ctx, kubeClient, testNamespace, workloadName, utils.DeploymentReady)
+				Expect(err).NotTo(HaveOccurred())
+
+				By("Finding the SPCPS created by CSI driver")
+				spcpsName, err := utils.FindSPCPSForDeployment(ctx, csiClient, kubeClient, testNamespace, workloadName,
+					utils.DeploymentReady)
+				Expect(err).NotTo(HaveOccurred())
+
+				By("Getting initial SPCPS version")
+				initialVersion, err := utils.GetSPCPSVersion(ctx, csiClient, testNamespace, spcpsName)
+				Expect(err).NotTo(HaveOccurred())
+
+				By("Updating the Vault secret")
+				err = utils.UpdateVaultSecret(ctx, kubeClient, restConfig, vaultSecretPath,
+					map[string]string{"api_key": "updated-value-v2"})
+				Expect(err).NotTo(HaveOccurred())
+
+				By("Waiting for CSI driver to sync the new secret version")
+				err = utils.WaitForSPCPSVersionChange(ctx, csiClient, testNamespace, spcpsName, initialVersion,
+					10*time.Second)
+				Expect(err).NotTo(HaveOccurred())
+
+				By("Waiting for Deployment to have STAKATER_ env var")
+				found, err := utils.WaitForDeploymentEnvVar(ctx, kubeClient, testNamespace, workloadName,
+					utils.StakaterEnvVarPrefix, utils.ReloadTimeout)
+				Expect(err).NotTo(HaveOccurred())
+				Expect(found).To(BeTrue(), "Deployment with init container CSI should have STAKATER_ env var")
+			})
 	})
 })

@@ -6,15 +6,17 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-	"github.com/stakater/Reloader/test/e2e/utils"
-	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
-)
+	"k8s.io/client-go/rest"
+	csiclient "sigs.k8s.io/secrets-store-csi-driver/pkg/client/clientset/versioned"
 
+	"github.com/stakater/Reloader/test/e2e/utils"
+)
 
 var (
 	kubeClient    kubernetes.Interface
-	dynamicClient dynamic.Interface
+	csiClient     csiclient.Interface
+	restConfig    *rest.Config
 	testNamespace string
 	ctx           context.Context
 	cancel        context.CancelFunc
@@ -31,44 +33,43 @@ var _ = BeforeSuite(func() {
 	var err error
 	ctx, cancel = context.WithCancel(context.Background())
 
-	// Setup test environment
 	testEnv, err = utils.SetupTestEnvironment(ctx, "reloader-core-test")
 	Expect(err).NotTo(HaveOccurred(), "Failed to setup test environment")
 
-	// Export for use in tests
 	kubeClient = testEnv.KubeClient
-	dynamicClient = testEnv.DynamicClient
+	csiClient = testEnv.CSIClient
+	restConfig = testEnv.RestConfig
 	testNamespace = testEnv.Namespace
 
-	// Create adapter registry
-	registry = utils.NewAdapterRegistry(kubeClient, dynamicClient)
+	registry = utils.NewAdapterRegistry(kubeClient)
 
-	// Register ArgoRolloutAdapter if Argo Rollouts is installed
-	if utils.IsArgoRolloutsInstalled(ctx, dynamicClient) {
+	if utils.IsArgoRolloutsInstalled(ctx, testEnv.RolloutsClient) {
 		GinkgoWriter.Println("Argo Rollouts detected, registering ArgoRolloutAdapter")
-		registry.RegisterAdapter(utils.NewArgoRolloutAdapter(dynamicClient))
+		registry.RegisterAdapter(utils.NewArgoRolloutAdapter(testEnv.RolloutsClient))
 	} else {
 		GinkgoWriter.Println("Argo Rollouts not detected, skipping ArgoRolloutAdapter registration")
 	}
 
-	// Register DeploymentConfigAdapter if OpenShift is available
-	if utils.HasDeploymentConfigSupport(testEnv.DiscoveryClient) {
+	if utils.HasDeploymentConfigSupport(testEnv.DiscoveryClient) && testEnv.OpenShiftClient != nil {
 		GinkgoWriter.Println("OpenShift detected, registering DeploymentConfigAdapter")
-		registry.RegisterAdapter(utils.NewDeploymentConfigAdapter(dynamicClient))
+		registry.RegisterAdapter(utils.NewDeploymentConfigAdapter(testEnv.OpenShiftClient))
 	} else {
 		GinkgoWriter.Println("OpenShift not detected, skipping DeploymentConfigAdapter registration")
 	}
 
-	// Deploy Reloader with default annotations strategy
-	// Individual test contexts will redeploy with different strategies if needed
 	deployValues := map[string]string{
 		"reloader.reloadStrategy": "annotations",
+		"reloader.watchGlobally":  "false", // Only watch own namespace to prevent cross-talk between test suites
 	}
 
-	// Enable Argo Rollouts support if Argo is installed
-	if utils.IsArgoRolloutsInstalled(ctx, dynamicClient) {
+	if utils.IsArgoRolloutsInstalled(ctx, testEnv.RolloutsClient) {
 		deployValues["reloader.isArgoRollouts"] = "true"
 		GinkgoWriter.Println("Deploying Reloader with Argo Rollouts support")
+	}
+
+	if utils.IsCSIDriverInstalled(ctx, csiClient) {
+		deployValues["reloader.enableCSIIntegration"] = "true"
+		GinkgoWriter.Println("Deploying Reloader with CSI integration support")
 	}
 
 	err = testEnv.DeployAndWait(deployValues)

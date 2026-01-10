@@ -3,20 +3,21 @@ package handler
 import (
 	"testing"
 
-	"github.com/stakater/Reloader/internal/pkg/constants"
-	"github.com/stakater/Reloader/internal/pkg/metrics"
 	"github.com/stretchr/testify/assert"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
+	"github.com/stakater/Reloader/internal/pkg/constants"
+	"github.com/stakater/Reloader/internal/pkg/metrics"
 )
 
 func TestResourceCreatedHandler_GetConfig(t *testing.T) {
 	tests := []struct {
-		name             string
-		resource         interface{}
-		expectedName     string
-		expectedNS       string
-		expectedType     string
+		name              string
+		resource          interface{}
+		expectedName      string
+		expectedNS        string
+		expectedType      string
 		expectSHANotEmpty bool
 		expectOldSHAEmpty bool
 	}{

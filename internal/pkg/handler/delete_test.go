@@ -3,15 +3,16 @@ package handler
 import (
 	"testing"
 
-	"github.com/stakater/Reloader/internal/pkg/callbacks"
-	"github.com/stakater/Reloader/internal/pkg/constants"
-	"github.com/stakater/Reloader/internal/pkg/options"
-	"github.com/stakater/Reloader/pkg/common"
 	"github.com/stretchr/testify/assert"
 	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+
+	"github.com/stakater/Reloader/internal/pkg/callbacks"
+	"github.com/stakater/Reloader/internal/pkg/constants"
+	"github.com/stakater/Reloader/internal/pkg/options"
+	"github.com/stakater/Reloader/pkg/common"
 )
 
 // mockDeploymentForDelete creates a deployment with containers for testing delete strategies

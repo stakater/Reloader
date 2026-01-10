@@ -5,6 +5,7 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+
 	"github.com/stakater/Reloader/test/e2e/utils"
 )
 
@@ -58,7 +59,7 @@ var _ = Describe("Pause Period Tests", func() {
 
 			By("Verifying Deployment has paused-at annotation")
 			paused, err := utils.WaitForDeploymentPaused(ctx, kubeClient, testNamespace, deploymentName,
-				"utils.AnnotationDeploymentPausedAt", utils.ShortTimeout)
+				utils.AnnotationDeploymentPausedAt, utils.ShortTimeout)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(paused).To(BeTrue(), "Deployment should have paused-at annotation after reload")
 		})
@@ -94,7 +95,7 @@ var _ = Describe("Pause Period Tests", func() {
 			By("Verifying Deployment does NOT have paused-at annotation")
 			time.Sleep(utils.NegativeTestWait)
 			paused, err := utils.WaitForDeploymentPaused(ctx, kubeClient, testNamespace, deploymentName,
-				"utils.AnnotationDeploymentPausedAt", utils.ShortTimeout)
+				utils.AnnotationDeploymentPausedAt, utils.ShortTimeout)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(paused).To(BeFalse(), "Deployment should NOT have paused-at annotation without pause-period")
 		})

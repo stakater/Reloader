@@ -3,6 +3,7 @@ package advanced
 import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+
 	"github.com/stakater/Reloader/test/e2e/utils"
 )
 
@@ -35,8 +36,7 @@ var _ = Describe("Job Workload Recreation Tests", func() {
 			By("Creating a Job with ConfigMap envFrom")
 			job, err := utils.CreateJob(ctx, kubeClient, testNamespace, jobName,
 				utils.WithJobConfigMapEnvFrom(configMapName),
-				utils.WithJobAnnotations(utils.BuildConfigMapReloadAnnotation(configMapName)),
-			)
+				utils.WithJobAnnotations(utils.BuildConfigMapReloadAnnotation(configMapName)))
 			Expect(err).NotTo(HaveOccurred())
 			originalUID := string(job.UID)
 
@@ -50,8 +50,8 @@ var _ = Describe("Job Workload Recreation Tests", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Waiting for Job to be recreated (new UID)")
-			_, recreated, err := utils.WaitForJobRecreated(ctx, kubeClient, testNamespace, jobName,
-				originalUID, utils.ReloadTimeout)
+			_, recreated, err := utils.WaitForJobRecreated(ctx, kubeClient, testNamespace, jobName, originalUID,
+				utils.ReloadTimeout)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(recreated).To(BeTrue(), "Job should be recreated with new UID when ConfigMap changes")
 		})
@@ -65,10 +65,8 @@ var _ = Describe("Job Workload Recreation Tests", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Creating a Job with Secret envFrom")
-			job, err := utils.CreateJob(ctx, kubeClient, testNamespace, jobName,
-				utils.WithJobSecretEnvFrom(secretName),
-				utils.WithJobAnnotations(utils.BuildSecretReloadAnnotation(secretName)),
-			)
+			job, err := utils.CreateJob(ctx, kubeClient, testNamespace, jobName, utils.WithJobSecretEnvFrom(secretName),
+				utils.WithJobAnnotations(utils.BuildSecretReloadAnnotation(secretName)))
 			Expect(err).NotTo(HaveOccurred())
 			originalUID := string(job.UID)
 
@@ -82,8 +80,8 @@ var _ = Describe("Job Workload Recreation Tests", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Waiting for Job to be recreated (new UID)")
-			_, recreated, err := utils.WaitForJobRecreated(ctx, kubeClient, testNamespace, jobName,
-				originalUID, utils.ReloadTimeout)
+			_, recreated, err := utils.WaitForJobRecreated(ctx, kubeClient, testNamespace, jobName, originalUID,
+				utils.ReloadTimeout)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(recreated).To(BeTrue(), "Job should be recreated with new UID when Secret changes")
 		})
@@ -99,8 +97,7 @@ var _ = Describe("Job Workload Recreation Tests", func() {
 			By("Creating a Job with auto annotation")
 			job, err := utils.CreateJob(ctx, kubeClient, testNamespace, jobName,
 				utils.WithJobConfigMapEnvFrom(configMapName),
-				utils.WithJobAnnotations(utils.BuildAutoTrueAnnotation()),
-			)
+				utils.WithJobAnnotations(utils.BuildAutoTrueAnnotation()))
 			Expect(err).NotTo(HaveOccurred())
 			originalUID := string(job.UID)
 
@@ -114,8 +111,8 @@ var _ = Describe("Job Workload Recreation Tests", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Waiting for Job to be recreated (new UID)")
-			_, recreated, err := utils.WaitForJobRecreated(ctx, kubeClient, testNamespace, jobName,
-				originalUID, utils.ReloadTimeout)
+			_, recreated, err := utils.WaitForJobRecreated(ctx, kubeClient, testNamespace, jobName, originalUID,
+				utils.ReloadTimeout)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(recreated).To(BeTrue(), "Job with auto=true should be recreated when ConfigMap changes")
 		})
@@ -131,8 +128,7 @@ var _ = Describe("Job Workload Recreation Tests", func() {
 			By("Creating a Job with valueFrom.configMapKeyRef")
 			job, err := utils.CreateJob(ctx, kubeClient, testNamespace, jobName,
 				utils.WithJobConfigMapKeyRef(configMapName, "config_key", "MY_CONFIG"),
-				utils.WithJobAnnotations(utils.BuildConfigMapReloadAnnotation(configMapName)),
-			)
+				utils.WithJobAnnotations(utils.BuildConfigMapReloadAnnotation(configMapName)))
 			Expect(err).NotTo(HaveOccurred())
 			originalUID := string(job.UID)
 
@@ -146,10 +142,11 @@ var _ = Describe("Job Workload Recreation Tests", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Waiting for Job to be recreated (new UID)")
-			_, recreated, err := utils.WaitForJobRecreated(ctx, kubeClient, testNamespace, jobName,
-				originalUID, utils.ReloadTimeout)
+			_, recreated, err := utils.WaitForJobRecreated(ctx, kubeClient, testNamespace, jobName, originalUID,
+				utils.ReloadTimeout)
 			Expect(err).NotTo(HaveOccurred())
-			Expect(recreated).To(BeTrue(), "Job with valueFrom.configMapKeyRef should be recreated when ConfigMap changes")
+			Expect(recreated).To(BeTrue(),
+				"Job with valueFrom.configMapKeyRef should be recreated when ConfigMap changes")
 		})
 	})
 
@@ -163,8 +160,7 @@ var _ = Describe("Job Workload Recreation Tests", func() {
 			By("Creating a Job with valueFrom.secretKeyRef")
 			job, err := utils.CreateJob(ctx, kubeClient, testNamespace, jobName,
 				utils.WithJobSecretKeyRef(secretName, "secret_key", "MY_SECRET"),
-				utils.WithJobAnnotations(utils.BuildSecretReloadAnnotation(secretName)),
-			)
+				utils.WithJobAnnotations(utils.BuildSecretReloadAnnotation(secretName)))
 			Expect(err).NotTo(HaveOccurred())
 			originalUID := string(job.UID)
 
@@ -178,8 +174,8 @@ var _ = Describe("Job Workload Recreation Tests", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Waiting for Job to be recreated (new UID)")
-			_, recreated, err := utils.WaitForJobRecreated(ctx, kubeClient, testNamespace, jobName,
-				originalUID, utils.ReloadTimeout)
+			_, recreated, err := utils.WaitForJobRecreated(ctx, kubeClient, testNamespace, jobName, originalUID,
+				utils.ReloadTimeout)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(recreated).To(BeTrue(), "Job with valueFrom.secretKeyRef should be recreated when Secret changes")
 		})

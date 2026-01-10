@@ -4,6 +4,7 @@ import (
 	"context"
 	"time"
 
+	appsv1 "k8s.io/api/apps/v1"
 	"k8s.io/client-go/kubernetes"
 )
 
@@ -61,72 +62,18 @@ func (a *DeploymentAdapter) RequiresSpecialHandling() bool {
 
 // buildDeploymentOptions converts WorkloadConfig to DeploymentOption slice.
 func buildDeploymentOptions(cfg WorkloadConfig) []DeploymentOption {
-	var opts []DeploymentOption
-
-	// Add annotations
-	if len(cfg.Annotations) > 0 {
-		opts = append(opts, WithAnnotations(cfg.Annotations))
+	return []DeploymentOption{
+		func(d *appsv1.Deployment) {
+			// Set annotations on deployment level (where Reloader checks them)
+			if len(cfg.Annotations) > 0 {
+				if d.Annotations == nil {
+					d.Annotations = make(map[string]string)
+				}
+				for k, v := range cfg.Annotations {
+					d.Annotations[k] = v
+				}
+			}
+			ApplyWorkloadConfig(&d.Spec.Template.Spec, cfg)
+		},
 	}
-
-	// Add envFrom references
-	if cfg.UseConfigMapEnvFrom && cfg.ConfigMapName != "" {
-		opts = append(opts, WithConfigMapEnvFrom(cfg.ConfigMapName))
-	}
-	if cfg.UseSecretEnvFrom && cfg.SecretName != "" {
-		opts = append(opts, WithSecretEnvFrom(cfg.SecretName))
-	}
-
-	// Add volume mounts
-	if cfg.UseConfigMapVolume && cfg.ConfigMapName != "" {
-		opts = append(opts, WithConfigMapVolume(cfg.ConfigMapName))
-	}
-	if cfg.UseSecretVolume && cfg.SecretName != "" {
-		opts = append(opts, WithSecretVolume(cfg.SecretName))
-	}
-
-	// Add projected volume
-	if cfg.UseProjectedVolume {
-		opts = append(opts, WithProjectedVolume(cfg.ConfigMapName, cfg.SecretName))
-	}
-
-	// Add valueFrom references
-	if cfg.UseConfigMapKeyRef && cfg.ConfigMapName != "" {
-		key := cfg.ConfigMapKey
-		if key == "" {
-			key = "key"
-		}
-		envVar := cfg.EnvVarName
-		if envVar == "" {
-			envVar = "CONFIG_VAR"
-		}
-		opts = append(opts, WithConfigMapKeyRef(cfg.ConfigMapName, key, envVar))
-	}
-	if cfg.UseSecretKeyRef && cfg.SecretName != "" {
-		key := cfg.SecretKey
-		if key == "" {
-			key = "key"
-		}
-		envVar := cfg.EnvVarName
-		if envVar == "" {
-			envVar = "SECRET_VAR"
-		}
-		opts = append(opts, WithSecretKeyRef(cfg.SecretName, key, envVar))
-	}
-
-	// Add init container with envFrom
-	if cfg.UseInitContainer {
-		opts = append(opts, WithInitContainer(cfg.ConfigMapName, cfg.SecretName))
-	}
-
-	// Add init container with volume mount
-	if cfg.UseInitContainerVolume {
-		opts = append(opts, WithInitContainerVolume(cfg.ConfigMapName, cfg.SecretName))
-	}
-
-	// Add multiple containers
-	if cfg.MultipleContainers > 1 {
-		opts = append(opts, WithMultipleContainers(cfg.MultipleContainers))
-	}
-
-	return opts
 }

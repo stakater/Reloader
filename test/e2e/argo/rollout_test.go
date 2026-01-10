@@ -3,6 +3,7 @@ package argo
 import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+
 	"github.com/stakater/Reloader/test/e2e/utils"
 )
 
@@ -22,7 +23,7 @@ var _ = Describe("Argo Rollout Strategy Tests", func() {
 	})
 
 	AfterEach(func() {
-		_ = utils.DeleteArgoRollout(ctx, dynamicClient, testNamespace, rolloutName)
+		_ = utils.DeleteRollout(ctx, rolloutsClient, testNamespace, rolloutName)
 		_ = utils.DeleteConfigMap(ctx, kubeClient, testNamespace, configMapName)
 	})
 
@@ -36,14 +37,14 @@ var _ = Describe("Argo Rollout Strategy Tests", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Creating an Argo Rollout with auto=true (default strategy)")
-			err = utils.CreateArgoRollout(ctx, dynamicClient, testNamespace, rolloutName,
+			_, err = utils.CreateRollout(ctx, rolloutsClient, testNamespace, rolloutName,
 				utils.WithRolloutConfigMapEnvFrom(configMapName),
 				utils.WithRolloutAnnotations(utils.BuildAutoTrueAnnotation()),
 			)
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Waiting for Rollout to be ready")
-			err = utils.WaitForRolloutReady(ctx, dynamicClient, testNamespace, rolloutName, utils.DeploymentReady)
+			err = utils.WaitForRolloutReady(ctx, rolloutsClient, testNamespace, rolloutName, utils.DeploymentReady)
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Updating the ConfigMap")
@@ -52,7 +53,7 @@ var _ = Describe("Argo Rollout Strategy Tests", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Waiting for Rollout to be reloaded with annotation")
-			reloaded, err := utils.WaitForRolloutReloaded(ctx, dynamicClient, testNamespace, rolloutName,
+			reloaded, err := utils.WaitForRolloutReloaded(ctx, rolloutsClient, testNamespace, rolloutName,
 				utils.AnnotationLastReloadedFrom, utils.ReloadTimeout)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(reloaded).To(BeTrue(), "Argo Rollout should be reloaded with default rollout strategy")
@@ -66,7 +67,7 @@ var _ = Describe("Argo Rollout Strategy Tests", func() {
 
 			By("Creating an Argo Rollout with restart strategy annotation")
 			// Note: auto annotation goes on pod template, rollout-strategy goes on object metadata
-			err = utils.CreateArgoRollout(ctx, dynamicClient, testNamespace, rolloutName,
+			_, err = utils.CreateRollout(ctx, rolloutsClient, testNamespace, rolloutName,
 				utils.WithRolloutConfigMapEnvFrom(configMapName),
 				utils.WithRolloutAnnotations(utils.BuildAutoTrueAnnotation()),
 				utils.WithRolloutObjectAnnotations(utils.BuildRolloutRestartStrategyAnnotation()),
@@ -74,7 +75,7 @@ var _ = Describe("Argo Rollout Strategy Tests", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Waiting for Rollout to be ready")
-			err = utils.WaitForRolloutReady(ctx, dynamicClient, testNamespace, rolloutName, utils.DeploymentReady)
+			err = utils.WaitForRolloutReady(ctx, rolloutsClient, testNamespace, rolloutName, utils.DeploymentReady)
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Updating the ConfigMap")
@@ -83,7 +84,7 @@ var _ = Describe("Argo Rollout Strategy Tests", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Waiting for Rollout to have restartAt field set")
-			restarted, err := utils.WaitForRolloutRestartAt(ctx, dynamicClient, testNamespace, rolloutName, utils.ReloadTimeout)
+			restarted, err := utils.WaitForRolloutRestartAt(ctx, rolloutsClient, testNamespace, rolloutName, utils.ReloadTimeout)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(restarted).To(BeTrue(), "Argo Rollout should have restartAt field set with restart strategy")
 		})

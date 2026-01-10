@@ -6,8 +6,9 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-	"github.com/stakater/Reloader/test/e2e/utils"
 	"k8s.io/client-go/kubernetes"
+
+	"github.com/stakater/Reloader/test/e2e/utils"
 )
 
 var (

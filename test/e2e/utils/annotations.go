@@ -20,6 +20,11 @@ const (
 	// Value: comma-separated list of Secret names, e.g., "secret1,secret2"
 	AnnotationSecretReload = "secret.reloader.stakater.com/reload"
 
+	// AnnotationSecretProviderClassReload triggers reload when specified SecretProviderClass(es) change.
+	// Value: comma-separated list of SecretProviderClass names, e.g., "spc1,spc2"
+	// Note: Reloader actually watches SecretProviderClassPodStatus resources, not SecretProviderClass.
+	AnnotationSecretProviderClassReload = "secretproviderclass.reloader.stakater.com/reload"
+
 	// ============================================================
 	// Auto-reload annotations
 	// ============================================================
@@ -36,6 +41,10 @@ const (
 	// Value: "true" or "false"
 	AnnotationSecretAuto = "secret.reloader.stakater.com/auto"
 
+	// AnnotationSecretProviderClassAuto enables auto-reload for all referenced SecretProviderClasses only.
+	// Value: "true" or "false"
+	AnnotationSecretProviderClassAuto = "secretproviderclass.reloader.stakater.com/auto"
+
 	// ============================================================
 	// Exclude annotations (used with auto=true to exclude specific resources)
 	// ============================================================
@@ -47,6 +56,10 @@ const (
 	// AnnotationSecretExclude excludes specified Secrets from auto-reload.
 	// Value: comma-separated list of Secret names
 	AnnotationSecretExclude = "secrets.exclude.reloader.stakater.com/reload"
+
+	// AnnotationSecretProviderClassExclude excludes specified SecretProviderClasses from auto-reload.
+	// Value: comma-separated list of SecretProviderClass names
+	AnnotationSecretProviderClassExclude = "secretproviderclasses.exclude.reloader.stakater.com/reload"
 
 	// ============================================================
 	// Search annotations (for regex matching)
@@ -117,6 +130,13 @@ func BuildSecretReloadAnnotation(secretNames ...string) map[string]string {
 	}
 }
 
+// BuildSecretProviderClassReloadAnnotation creates an annotation map for SecretProviderClass reload.
+func BuildSecretProviderClassReloadAnnotation(spcNames ...string) map[string]string {
+	return map[string]string{
+		AnnotationSecretProviderClassReload: joinNames(spcNames),
+	}
+}
+
 // BuildAutoTrueAnnotation creates an annotation map with auto=true.
 func BuildAutoTrueAnnotation() map[string]string {
 	return map[string]string{
@@ -142,6 +162,13 @@ func BuildConfigMapAutoAnnotation() map[string]string {
 func BuildSecretAutoAnnotation() map[string]string {
 	return map[string]string{
 		AnnotationSecretAuto: AnnotationValueTrue,
+	}
+}
+
+// BuildSecretProviderClassAutoAnnotation creates an annotation map with secretproviderclass auto=true.
+func BuildSecretProviderClassAutoAnnotation() map[string]string {
+	return map[string]string{
+		AnnotationSecretProviderClassAuto: AnnotationValueTrue,
 	}
 }
 
@@ -184,6 +211,13 @@ func BuildConfigMapExcludeAnnotation(configMapNames ...string) map[string]string
 func BuildSecretExcludeAnnotation(secretNames ...string) map[string]string {
 	return map[string]string{
 		AnnotationSecretExclude: joinNames(secretNames),
+	}
+}
+
+// BuildSecretProviderClassExcludeAnnotation creates an annotation to exclude SecretProviderClasses from auto-reload.
+func BuildSecretProviderClassExcludeAnnotation(spcNames ...string) map[string]string {
+	return map[string]string{
+		AnnotationSecretProviderClassExclude: joinNames(spcNames),
 	}
 }
 

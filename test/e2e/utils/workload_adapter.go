@@ -4,7 +4,6 @@ import (
 	"context"
 	"time"
 
-	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 )
 
@@ -31,14 +30,10 @@ const (
 
 // WorkloadConfig holds configuration for workload creation.
 type WorkloadConfig struct {
-	// Resource references
-	ConfigMapName string
-	SecretName    string
-
-	// Annotations to set on the workload
-	Annotations map[string]string
-
-	// Reference methods (flags - multiple can be true)
+	ConfigMapName          string
+	SecretName             string
+	SPCName                string
+	Annotations            map[string]string
 	UseConfigMapEnvFrom    bool
 	UseSecretEnvFrom       bool
 	UseConfigMapVolume     bool
@@ -48,14 +43,12 @@ type WorkloadConfig struct {
 	UseSecretKeyRef        bool
 	UseInitContainer       bool
 	UseInitContainerVolume bool
-
-	// For valueFrom references
-	ConfigMapKey string
-	SecretKey    string
-	EnvVarName   string
-
-	// Special options
-	MultipleContainers int // Number of containers (0 or 1 means single container)
+	UseCSIVolume           bool
+	UseInitContainerCSI    bool
+	ConfigMapKey           string
+	SecretKey              string
+	EnvVarName             string
+	MultipleContainers     int
 }
 
 // WorkloadAdapter provides a unified interface for all workload types.
@@ -92,34 +85,27 @@ type WorkloadAdapter interface {
 
 // AdapterRegistry holds adapters for all workload types.
 type AdapterRegistry struct {
-	kubeClient    kubernetes.Interface
-	dynamicClient dynamic.Interface
-	adapters      map[WorkloadType]WorkloadAdapter
+	kubeClient kubernetes.Interface
+	adapters   map[WorkloadType]WorkloadAdapter
 }
 
 // NewAdapterRegistry creates a new adapter registry with all standard adapters.
-func NewAdapterRegistry(kubeClient kubernetes.Interface, dynamicClient dynamic.Interface) *AdapterRegistry {
+func NewAdapterRegistry(kubeClient kubernetes.Interface) *AdapterRegistry {
 	r := &AdapterRegistry{
-		kubeClient:    kubeClient,
-		dynamicClient: dynamicClient,
-		adapters:      make(map[WorkloadType]WorkloadAdapter),
+		kubeClient: kubeClient,
+		adapters:   make(map[WorkloadType]WorkloadAdapter),
 	}
 
-	// Register standard adapters
 	r.adapters[WorkloadDeployment] = NewDeploymentAdapter(kubeClient)
 	r.adapters[WorkloadDaemonSet] = NewDaemonSetAdapter(kubeClient)
 	r.adapters[WorkloadStatefulSet] = NewStatefulSetAdapter(kubeClient)
 	r.adapters[WorkloadCronJob] = NewCronJobAdapter(kubeClient)
 	r.adapters[WorkloadJob] = NewJobAdapter(kubeClient)
 
-	// Argo and OpenShift adapters are registered separately via RegisterAdapter
-	// as they require specific cluster support
-
 	return r
 }
 
 // RegisterAdapter registers a custom adapter for a workload type.
-// Use this to add Argo Rollout or DeploymentConfig adapters.
 func (r *AdapterRegistry) RegisterAdapter(adapter WorkloadAdapter) {
 	r.adapters[adapter.Type()] = adapter
 }

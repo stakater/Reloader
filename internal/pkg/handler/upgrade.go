@@ -14,14 +14,6 @@ import (
 	"github.com/parnurzeal/gorequest"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/sirupsen/logrus"
-	alert "github.com/stakater/Reloader/internal/pkg/alerts"
-	"github.com/stakater/Reloader/internal/pkg/callbacks"
-	"github.com/stakater/Reloader/internal/pkg/constants"
-	"github.com/stakater/Reloader/internal/pkg/metrics"
-	"github.com/stakater/Reloader/internal/pkg/options"
-	"github.com/stakater/Reloader/internal/pkg/util"
-	"github.com/stakater/Reloader/pkg/common"
-	"github.com/stakater/Reloader/pkg/kube"
 	app "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -32,6 +24,15 @@ import (
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/client-go/util/retry"
+
+	alert "github.com/stakater/Reloader/internal/pkg/alerts"
+	"github.com/stakater/Reloader/internal/pkg/callbacks"
+	"github.com/stakater/Reloader/internal/pkg/constants"
+	"github.com/stakater/Reloader/internal/pkg/metrics"
+	"github.com/stakater/Reloader/internal/pkg/options"
+	"github.com/stakater/Reloader/internal/pkg/util"
+	"github.com/stakater/Reloader/pkg/common"
+	"github.com/stakater/Reloader/pkg/kube"
 )
 
 // GetDeploymentRollingUpgradeFuncs returns all callback funcs for a deployment
@@ -617,7 +618,7 @@ func updateContainerEnvVars(upgradeFuncs callbacks.RollingUpgradeFuncs, item run
 		return InvokeStrategyResult{constants.NotUpdated, nil}
 	}
 
-	//update if env var exists
+	// update if env var exists
 	updateResult := updateEnvVar(container, envVar, config.SHAValue)
 
 	// if no existing env var exists lets create one
@@ -680,10 +681,10 @@ func populateAnnotationsFromSecretProviderClass(clients kube.Clients, config *co
 }
 
 func jsonEscape(toEscape string) (string, error) {
-	bytes, err := json.Marshal(toEscape)
+	data, err := json.Marshal(toEscape)
 	if err != nil {
 		return "", err
 	}
-	escaped := string(bytes)
+	escaped := string(data)
 	return escaped[1 : len(escaped)-1], nil
 }

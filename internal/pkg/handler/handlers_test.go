@@ -3,30 +3,31 @@ package handler
 import (
 	"testing"
 
-	"github.com/stakater/Reloader/internal/pkg/constants"
-	"github.com/stakater/Reloader/internal/pkg/metrics"
 	"github.com/stretchr/testify/assert"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
+	"github.com/stakater/Reloader/internal/pkg/constants"
+	"github.com/stakater/Reloader/internal/pkg/metrics"
 )
 
 // Helper function to create a test ConfigMap
-func createTestConfigMap(name, namespace string, data map[string]string) *v1.ConfigMap {
+func createTestConfigMap(data map[string]string) *v1.ConfigMap {
 	return &v1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      name,
-			Namespace: namespace,
+			Name:      "test-cm",
+			Namespace: "default",
 		},
 		Data: data,
 	}
 }
 
 // Helper function to create a test Secret
-func createTestSecret(name, namespace string, data map[string][]byte) *v1.Secret {
+func createTestSecret(data map[string][]byte) *v1.Secret {
 	return &v1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      name,
-			Namespace: namespace,
+			Name:      "test-secret",
+			Namespace: "default",
 		},
 		Data: data,
 	}
@@ -42,7 +43,7 @@ func createTestCollectors() metrics.Collectors {
 // ============================================================
 
 func TestResourceCreatedHandler_GetConfig_ConfigMap(t *testing.T) {
-	cm := createTestConfigMap("test-cm", "default", map[string]string{"key": "value"})
+	cm := createTestConfigMap(map[string]string{"key": "value"})
 	handler := ResourceCreatedHandler{
 		Resource:   cm,
 		Collectors: createTestCollectors(),
@@ -58,7 +59,7 @@ func TestResourceCreatedHandler_GetConfig_ConfigMap(t *testing.T) {
 }
 
 func TestResourceCreatedHandler_GetConfig_Secret(t *testing.T) {
-	secret := createTestSecret("test-secret", "default", map[string][]byte{"key": []byte("value")})
+	secret := createTestSecret(map[string][]byte{"key": []byte("value")})
 	handler := ResourceCreatedHandler{
 		Resource:   secret,
 		Collectors: createTestCollectors(),
@@ -103,7 +104,7 @@ func TestResourceCreatedHandler_Handle_NilResource(t *testing.T) {
 // ============================================================
 
 func TestResourceDeleteHandler_GetConfig_ConfigMap(t *testing.T) {
-	cm := createTestConfigMap("test-cm", "default", map[string]string{"key": "value"})
+	cm := createTestConfigMap(map[string]string{"key": "value"})
 	handler := ResourceDeleteHandler{
 		Resource:   cm,
 		Collectors: createTestCollectors(),
@@ -119,7 +120,7 @@ func TestResourceDeleteHandler_GetConfig_ConfigMap(t *testing.T) {
 }
 
 func TestResourceDeleteHandler_GetConfig_Secret(t *testing.T) {
-	secret := createTestSecret("test-secret", "default", map[string][]byte{"key": []byte("value")})
+	secret := createTestSecret(map[string][]byte{"key": []byte("value")})
 	handler := ResourceDeleteHandler{
 		Resource:   secret,
 		Collectors: createTestCollectors(),
@@ -161,8 +162,8 @@ func TestResourceDeleteHandler_Handle_NilResource(t *testing.T) {
 // ============================================================
 
 func TestResourceUpdatedHandler_GetConfig_ConfigMap(t *testing.T) {
-	oldCM := createTestConfigMap("test-cm", "default", map[string]string{"key": "old-value"})
-	newCM := createTestConfigMap("test-cm", "default", map[string]string{"key": "new-value"})
+	oldCM := createTestConfigMap(map[string]string{"key": "old-value"})
+	newCM := createTestConfigMap(map[string]string{"key": "new-value"})
 
 	handler := ResourceUpdatedHandler{
 		Resource:    newCM,
@@ -182,8 +183,8 @@ func TestResourceUpdatedHandler_GetConfig_ConfigMap(t *testing.T) {
 }
 
 func TestResourceUpdatedHandler_GetConfig_ConfigMap_SameData(t *testing.T) {
-	oldCM := createTestConfigMap("test-cm", "default", map[string]string{"key": "same-value"})
-	newCM := createTestConfigMap("test-cm", "default", map[string]string{"key": "same-value"})
+	oldCM := createTestConfigMap(map[string]string{"key": "same-value"})
+	newCM := createTestConfigMap(map[string]string{"key": "same-value"})
 
 	handler := ResourceUpdatedHandler{
 		Resource:    newCM,
@@ -199,8 +200,8 @@ func TestResourceUpdatedHandler_GetConfig_ConfigMap_SameData(t *testing.T) {
 }
 
 func TestResourceUpdatedHandler_GetConfig_Secret(t *testing.T) {
-	oldSecret := createTestSecret("test-secret", "default", map[string][]byte{"key": []byte("old-value")})
-	newSecret := createTestSecret("test-secret", "default", map[string][]byte{"key": []byte("new-value")})
+	oldSecret := createTestSecret(map[string][]byte{"key": []byte("old-value")})
+	newSecret := createTestSecret(map[string][]byte{"key": []byte("new-value")})
 
 	handler := ResourceUpdatedHandler{
 		Resource:    newSecret,
@@ -219,8 +220,8 @@ func TestResourceUpdatedHandler_GetConfig_Secret(t *testing.T) {
 }
 
 func TestResourceUpdatedHandler_GetConfig_Secret_SameData(t *testing.T) {
-	oldSecret := createTestSecret("test-secret", "default", map[string][]byte{"key": []byte("same-value")})
-	newSecret := createTestSecret("test-secret", "default", map[string][]byte{"key": []byte("same-value")})
+	oldSecret := createTestSecret(map[string][]byte{"key": []byte("same-value")})
+	newSecret := createTestSecret(map[string][]byte{"key": []byte("same-value")})
 
 	handler := ResourceUpdatedHandler{
 		Resource:    newSecret,
@@ -260,7 +261,7 @@ func TestResourceUpdatedHandler_Handle_NilResource(t *testing.T) {
 }
 
 func TestResourceUpdatedHandler_Handle_NilOldResource(t *testing.T) {
-	cm := createTestConfigMap("test-cm", "default", map[string]string{"key": "value"})
+	cm := createTestConfigMap(map[string]string{"key": "value"})
 	handler := ResourceUpdatedHandler{
 		Resource:    cm,
 		OldResource: nil,
@@ -275,7 +276,7 @@ func TestResourceUpdatedHandler_Handle_NilOldResource(t *testing.T) {
 
 func TestResourceUpdatedHandler_Handle_NoChange(t *testing.T) {
 	// When SHA values are the same, Handle should return nil without doing anything
-	cm := createTestConfigMap("test-cm", "default", map[string]string{"key": "same-value"})
+	cm := createTestConfigMap(map[string]string{"key": "same-value"})
 	handler := ResourceUpdatedHandler{
 		Resource:    cm,
 		OldResource: cm, // Same resource = same SHA

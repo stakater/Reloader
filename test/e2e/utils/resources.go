@@ -175,7 +175,7 @@ type DeploymentOption func(*appsv1.Deployment)
 
 // CreateDeployment creates a Deployment with the given options.
 func CreateDeployment(ctx context.Context, client kubernetes.Interface, namespace, name string, opts ...DeploymentOption) (*appsv1.Deployment, error) {
-	deploy := baseDeployment(namespace, name)
+	deploy := baseDeploymentResource(namespace, name)
 	for _, opt := range opts {
 		opt(deploy)
 	}
@@ -349,14 +349,12 @@ func WithMultipleContainers(count int) DeploymentOption {
 // WithMultipleContainersAndEnv creates two containers, each with a different ConfigMap envFrom.
 func WithMultipleContainersAndEnv(cm1Name, cm2Name string) DeploymentOption {
 	return func(d *appsv1.Deployment) {
-		// First container gets the first ConfigMap
 		d.Spec.Template.Spec.Containers[0].EnvFrom = append(d.Spec.Template.Spec.Containers[0].EnvFrom,
 			corev1.EnvFromSource{
 				ConfigMapRef: &corev1.ConfigMapEnvSource{
 					LocalObjectReference: corev1.LocalObjectReference{Name: cm1Name},
 				},
 			})
-		// Add second container with second ConfigMap
 		d.Spec.Template.Spec.Containers = append(d.Spec.Template.Spec.Containers, corev1.Container{
 			Name:    "container-1",
 			Image:   DefaultImage,
@@ -377,396 +375,6 @@ func WithReplicas(replicas int32) DeploymentOption {
 	return func(d *appsv1.Deployment) {
 		d.Spec.Replicas = ptr.To(replicas)
 	}
-}
-
-// baseDeployment creates a base Deployment template.
-func baseDeployment(namespace, name string) *appsv1.Deployment {
-	labels := map[string]string{"app": name}
-	return &appsv1.Deployment{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      name,
-			Namespace: namespace,
-		},
-		Spec: appsv1.DeploymentSpec{
-			Replicas: ptr.To(int32(1)),
-			Selector: &metav1.LabelSelector{
-				MatchLabels: labels,
-			},
-			Template: corev1.PodTemplateSpec{
-				ObjectMeta: metav1.ObjectMeta{
-					Labels: labels,
-				},
-				Spec: corev1.PodSpec{
-					Containers: []corev1.Container{
-						{
-							Name:    "app",
-							Image:   DefaultImage,
-							Command: []string{"sh", "-c", DefaultCommand},
-						},
-					},
-				},
-			},
-		},
-	}
-}
-
-// DeleteDeployment deletes a Deployment.
-func DeleteDeployment(ctx context.Context, client kubernetes.Interface, namespace, name string) error {
-	return client.AppsV1().Deployments(namespace).Delete(ctx, name, metav1.DeleteOptions{})
-}
-
-// DaemonSetOption is a functional option for configuring a DaemonSet.
-type DaemonSetOption func(*appsv1.DaemonSet)
-
-// CreateDaemonSet creates a DaemonSet with the given options.
-func CreateDaemonSet(ctx context.Context, client kubernetes.Interface, namespace, name string, opts ...DaemonSetOption) (*appsv1.DaemonSet, error) {
-	ds := baseDaemonSet(namespace, name)
-	for _, opt := range opts {
-		opt(ds)
-	}
-	return client.AppsV1().DaemonSets(namespace).Create(ctx, ds, metav1.CreateOptions{})
-}
-
-// WithDaemonSetAnnotations adds annotations to the DaemonSet metadata.
-func WithDaemonSetAnnotations(annotations map[string]string) DaemonSetOption {
-	return func(ds *appsv1.DaemonSet) {
-		if ds.Annotations == nil {
-			ds.Annotations = make(map[string]string)
-		}
-		for k, v := range annotations {
-			ds.Annotations[k] = v
-		}
-	}
-}
-
-// WithDaemonSetConfigMapEnvFrom adds an envFrom reference to a ConfigMap.
-func WithDaemonSetConfigMapEnvFrom(name string) DaemonSetOption {
-	return func(ds *appsv1.DaemonSet) {
-		ds.Spec.Template.Spec.Containers[0].EnvFrom = append(
-			ds.Spec.Template.Spec.Containers[0].EnvFrom,
-			corev1.EnvFromSource{
-				ConfigMapRef: &corev1.ConfigMapEnvSource{
-					LocalObjectReference: corev1.LocalObjectReference{Name: name},
-				},
-			},
-		)
-	}
-}
-
-// WithDaemonSetSecretEnvFrom adds an envFrom reference to a Secret.
-func WithDaemonSetSecretEnvFrom(name string) DaemonSetOption {
-	return func(ds *appsv1.DaemonSet) {
-		ds.Spec.Template.Spec.Containers[0].EnvFrom = append(
-			ds.Spec.Template.Spec.Containers[0].EnvFrom,
-			corev1.EnvFromSource{
-				SecretRef: &corev1.SecretEnvSource{
-					LocalObjectReference: corev1.LocalObjectReference{Name: name},
-				},
-			},
-		)
-	}
-}
-
-// baseDaemonSet creates a base DaemonSet template.
-func baseDaemonSet(namespace, name string) *appsv1.DaemonSet {
-	labels := map[string]string{"app": name}
-	return &appsv1.DaemonSet{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      name,
-			Namespace: namespace,
-		},
-		Spec: appsv1.DaemonSetSpec{
-			Selector: &metav1.LabelSelector{
-				MatchLabels: labels,
-			},
-			Template: corev1.PodTemplateSpec{
-				ObjectMeta: metav1.ObjectMeta{
-					Labels: labels,
-				},
-				Spec: corev1.PodSpec{
-					Containers: []corev1.Container{
-						{
-							Name:    "app",
-							Image:   DefaultImage,
-							Command: []string{"sh", "-c", DefaultCommand},
-						},
-					},
-				},
-			},
-		},
-	}
-}
-
-// DeleteDaemonSet deletes a DaemonSet.
-func DeleteDaemonSet(ctx context.Context, client kubernetes.Interface, namespace, name string) error {
-	return client.AppsV1().DaemonSets(namespace).Delete(ctx, name, metav1.DeleteOptions{})
-}
-
-// StatefulSetOption is a functional option for configuring a StatefulSet.
-type StatefulSetOption func(*appsv1.StatefulSet)
-
-// CreateStatefulSet creates a StatefulSet with the given options.
-func CreateStatefulSet(ctx context.Context, client kubernetes.Interface, namespace, name string, opts ...StatefulSetOption) (*appsv1.StatefulSet, error) {
-	ss := baseStatefulSet(namespace, name)
-	for _, opt := range opts {
-		opt(ss)
-	}
-	return client.AppsV1().StatefulSets(namespace).Create(ctx, ss, metav1.CreateOptions{})
-}
-
-// WithStatefulSetAnnotations adds annotations to the StatefulSet metadata.
-func WithStatefulSetAnnotations(annotations map[string]string) StatefulSetOption {
-	return func(ss *appsv1.StatefulSet) {
-		if ss.Annotations == nil {
-			ss.Annotations = make(map[string]string)
-		}
-		for k, v := range annotations {
-			ss.Annotations[k] = v
-		}
-	}
-}
-
-// WithStatefulSetConfigMapEnvFrom adds an envFrom reference to a ConfigMap.
-func WithStatefulSetConfigMapEnvFrom(name string) StatefulSetOption {
-	return func(ss *appsv1.StatefulSet) {
-		ss.Spec.Template.Spec.Containers[0].EnvFrom = append(
-			ss.Spec.Template.Spec.Containers[0].EnvFrom,
-			corev1.EnvFromSource{
-				ConfigMapRef: &corev1.ConfigMapEnvSource{
-					LocalObjectReference: corev1.LocalObjectReference{Name: name},
-				},
-			},
-		)
-	}
-}
-
-// WithStatefulSetSecretEnvFrom adds an envFrom reference to a Secret.
-func WithStatefulSetSecretEnvFrom(name string) StatefulSetOption {
-	return func(ss *appsv1.StatefulSet) {
-		ss.Spec.Template.Spec.Containers[0].EnvFrom = append(
-			ss.Spec.Template.Spec.Containers[0].EnvFrom,
-			corev1.EnvFromSource{
-				SecretRef: &corev1.SecretEnvSource{
-					LocalObjectReference: corev1.LocalObjectReference{Name: name},
-				},
-			},
-		)
-	}
-}
-
-// baseStatefulSet creates a base StatefulSet template.
-func baseStatefulSet(namespace, name string) *appsv1.StatefulSet {
-	labels := map[string]string{"app": name}
-	return &appsv1.StatefulSet{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      name,
-			Namespace: namespace,
-		},
-		Spec: appsv1.StatefulSetSpec{
-			ServiceName: name,
-			Replicas:    ptr.To(int32(1)),
-			Selector: &metav1.LabelSelector{
-				MatchLabels: labels,
-			},
-			Template: corev1.PodTemplateSpec{
-				ObjectMeta: metav1.ObjectMeta{
-					Labels: labels,
-				},
-				Spec: corev1.PodSpec{
-					Containers: []corev1.Container{
-						{
-							Name:    "app",
-							Image:   DefaultImage,
-							Command: []string{"sh", "-c", DefaultCommand},
-						},
-					},
-				},
-			},
-		},
-	}
-}
-
-// DeleteStatefulSet deletes a StatefulSet.
-func DeleteStatefulSet(ctx context.Context, client kubernetes.Interface, namespace, name string) error {
-	return client.AppsV1().StatefulSets(namespace).Delete(ctx, name, metav1.DeleteOptions{})
-}
-
-// CronJobOption is a functional option for configuring a CronJob.
-type CronJobOption func(*batchv1.CronJob)
-
-// CreateCronJob creates a CronJob with the given options.
-func CreateCronJob(ctx context.Context, client kubernetes.Interface, namespace, name string, opts ...CronJobOption) (*batchv1.CronJob, error) {
-	cj := baseCronJob(namespace, name)
-	for _, opt := range opts {
-		opt(cj)
-	}
-	return client.BatchV1().CronJobs(namespace).Create(ctx, cj, metav1.CreateOptions{})
-}
-
-// WithCronJobAnnotations adds annotations to the CronJob metadata.
-func WithCronJobAnnotations(annotations map[string]string) CronJobOption {
-	return func(cj *batchv1.CronJob) {
-		if cj.Annotations == nil {
-			cj.Annotations = make(map[string]string)
-		}
-		for k, v := range annotations {
-			cj.Annotations[k] = v
-		}
-	}
-}
-
-// WithCronJobConfigMapEnvFrom adds an envFrom reference to a ConfigMap.
-func WithCronJobConfigMapEnvFrom(name string) CronJobOption {
-	return func(cj *batchv1.CronJob) {
-		cj.Spec.JobTemplate.Spec.Template.Spec.Containers[0].EnvFrom = append(
-			cj.Spec.JobTemplate.Spec.Template.Spec.Containers[0].EnvFrom,
-			corev1.EnvFromSource{
-				ConfigMapRef: &corev1.ConfigMapEnvSource{
-					LocalObjectReference: corev1.LocalObjectReference{Name: name},
-				},
-			},
-		)
-	}
-}
-
-// WithCronJobSecretEnvFrom adds an envFrom reference to a Secret.
-func WithCronJobSecretEnvFrom(name string) CronJobOption {
-	return func(cj *batchv1.CronJob) {
-		cj.Spec.JobTemplate.Spec.Template.Spec.Containers[0].EnvFrom = append(
-			cj.Spec.JobTemplate.Spec.Template.Spec.Containers[0].EnvFrom,
-			corev1.EnvFromSource{
-				SecretRef: &corev1.SecretEnvSource{
-					LocalObjectReference: corev1.LocalObjectReference{Name: name},
-				},
-			},
-		)
-	}
-}
-
-// baseCronJob creates a base CronJob template.
-func baseCronJob(namespace, name string) *batchv1.CronJob {
-	labels := map[string]string{"app": name}
-	return &batchv1.CronJob{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      name,
-			Namespace: namespace,
-		},
-		Spec: batchv1.CronJobSpec{
-			Schedule: "* * * * *", // Every minute
-			JobTemplate: batchv1.JobTemplateSpec{
-				Spec: batchv1.JobSpec{
-					Template: corev1.PodTemplateSpec{
-						ObjectMeta: metav1.ObjectMeta{
-							Labels: labels,
-						},
-						Spec: corev1.PodSpec{
-							RestartPolicy: corev1.RestartPolicyOnFailure,
-							Containers: []corev1.Container{
-								{
-									Name:    "job",
-									Image:   DefaultImage,
-									Command: []string{"sh", "-c", "echo done"},
-								},
-							},
-						},
-					},
-				},
-			},
-		},
-	}
-}
-
-// DeleteCronJob deletes a CronJob.
-func DeleteCronJob(ctx context.Context, client kubernetes.Interface, namespace, name string) error {
-	return client.BatchV1().CronJobs(namespace).Delete(ctx, name, metav1.DeleteOptions{})
-}
-
-// JobOption is a functional option for configuring a Job.
-type JobOption func(*batchv1.Job)
-
-// CreateJob creates a Job with the given options.
-func CreateJob(ctx context.Context, client kubernetes.Interface, namespace, name string, opts ...JobOption) (*batchv1.Job, error) {
-	job := baseJob(namespace, name)
-	for _, opt := range opts {
-		opt(job)
-	}
-	return client.BatchV1().Jobs(namespace).Create(ctx, job, metav1.CreateOptions{})
-}
-
-// WithJobAnnotations adds annotations to the Job metadata.
-func WithJobAnnotations(annotations map[string]string) JobOption {
-	return func(j *batchv1.Job) {
-		if j.Annotations == nil {
-			j.Annotations = make(map[string]string)
-		}
-		for k, v := range annotations {
-			j.Annotations[k] = v
-		}
-	}
-}
-
-// WithJobConfigMapEnvFrom adds an envFrom reference to a ConfigMap.
-func WithJobConfigMapEnvFrom(name string) JobOption {
-	return func(j *batchv1.Job) {
-		j.Spec.Template.Spec.Containers[0].EnvFrom = append(
-			j.Spec.Template.Spec.Containers[0].EnvFrom,
-			corev1.EnvFromSource{
-				ConfigMapRef: &corev1.ConfigMapEnvSource{
-					LocalObjectReference: corev1.LocalObjectReference{Name: name},
-				},
-			},
-		)
-	}
-}
-
-// WithJobSecretEnvFrom adds an envFrom reference to a Secret.
-func WithJobSecretEnvFrom(name string) JobOption {
-	return func(j *batchv1.Job) {
-		j.Spec.Template.Spec.Containers[0].EnvFrom = append(
-			j.Spec.Template.Spec.Containers[0].EnvFrom,
-			corev1.EnvFromSource{
-				SecretRef: &corev1.SecretEnvSource{
-					LocalObjectReference: corev1.LocalObjectReference{Name: name},
-				},
-			},
-		)
-	}
-}
-
-// baseJob creates a base Job template.
-func baseJob(namespace, name string) *batchv1.Job {
-	labels := map[string]string{"app": name}
-	return &batchv1.Job{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      name,
-			Namespace: namespace,
-		},
-		Spec: batchv1.JobSpec{
-			Template: corev1.PodTemplateSpec{
-				ObjectMeta: metav1.ObjectMeta{
-					Labels: labels,
-				},
-				Spec: corev1.PodSpec{
-					RestartPolicy: corev1.RestartPolicyNever,
-					Containers: []corev1.Container{
-						{
-							Name:    "job",
-							Image:   DefaultImage,
-							Command: []string{"sh", "-c", "echo done"},
-						},
-					},
-				},
-			},
-		},
-	}
-}
-
-// DeleteJob deletes a Job.
-func DeleteJob(ctx context.Context, client kubernetes.Interface, namespace, name string) error {
-	propagation := metav1.DeletePropagationBackground
-	return client.BatchV1().Jobs(namespace).Delete(ctx, name, metav1.DeleteOptions{
-		PropagationPolicy: &propagation,
-	})
 }
 
 // WithConfigMapKeyRef adds a valueFrom.configMapKeyRef env var to the container.
@@ -907,150 +515,346 @@ func WithInitContainerProjectedVolume(cmName, secretName string) DeploymentOptio
 	}
 }
 
-// WithDaemonSetProjectedVolume adds a projected volume with ConfigMap and/or Secret sources to a DaemonSet.
-func WithDaemonSetProjectedVolume(cmName, secretName string) DaemonSetOption {
-	return func(ds *appsv1.DaemonSet) {
-		volumeName := "projected-config"
-		sources := []corev1.VolumeProjection{}
+// WithCSIVolume adds a CSI volume referencing a SecretProviderClass to a Deployment.
+func WithCSIVolume(spcName string) DeploymentOption {
+	return func(d *appsv1.Deployment) {
+		volumeName := csiVolumeName(spcName)
+		mountPath := csiMountPath(spcName)
 
-		if cmName != "" {
-			sources = append(sources, corev1.VolumeProjection{
-				ConfigMap: &corev1.ConfigMapProjection{
-					LocalObjectReference: corev1.LocalObjectReference{Name: cmName},
-				},
-			})
-		}
-		if secretName != "" {
-			sources = append(sources, corev1.VolumeProjection{
-				Secret: &corev1.SecretProjection{
-					LocalObjectReference: corev1.LocalObjectReference{Name: secretName},
-				},
-			})
-		}
-
-		ds.Spec.Template.Spec.Volumes = append(ds.Spec.Template.Spec.Volumes, corev1.Volume{
+		d.Spec.Template.Spec.Volumes = append(d.Spec.Template.Spec.Volumes, corev1.Volume{
 			Name: volumeName,
 			VolumeSource: corev1.VolumeSource{
-				Projected: &corev1.ProjectedVolumeSource{
-					Sources: sources,
+				CSI: &corev1.CSIVolumeSource{
+					Driver:   CSIDriverName,
+					ReadOnly: ptr.To(true),
+					VolumeAttributes: map[string]string{
+						"secretProviderClass": spcName,
+					},
 				},
 			},
 		})
-		ds.Spec.Template.Spec.Containers[0].VolumeMounts = append(
-			ds.Spec.Template.Spec.Containers[0].VolumeMounts,
+		d.Spec.Template.Spec.Containers[0].VolumeMounts = append(
+			d.Spec.Template.Spec.Containers[0].VolumeMounts,
 			corev1.VolumeMount{
 				Name:      volumeName,
-				MountPath: "/etc/projected",
+				MountPath: mountPath,
+				ReadOnly:  true,
 			},
 		)
 	}
 }
 
-// WithStatefulSetProjectedVolume adds a projected volume with ConfigMap and/or Secret sources to a StatefulSet.
-func WithStatefulSetProjectedVolume(cmName, secretName string) StatefulSetOption {
-	return func(ss *appsv1.StatefulSet) {
-		volumeName := "projected-config"
-		sources := []corev1.VolumeProjection{}
+// WithInitContainerCSIVolume adds an init container with a CSI volume mount.
+func WithInitContainerCSIVolume(spcName string) DeploymentOption {
+	return func(d *appsv1.Deployment) {
+		volumeName := csiVolumeName(spcName)
+		mountPath := csiMountPath(spcName)
 
-		if cmName != "" {
-			sources = append(sources, corev1.VolumeProjection{
-				ConfigMap: &corev1.ConfigMapProjection{
-					LocalObjectReference: corev1.LocalObjectReference{Name: cmName},
+		hasCSIVolume := false
+		for _, v := range d.Spec.Template.Spec.Volumes {
+			if v.Name == volumeName {
+				hasCSIVolume = true
+				break
+			}
+		}
+		if !hasCSIVolume {
+			d.Spec.Template.Spec.Volumes = append(d.Spec.Template.Spec.Volumes, corev1.Volume{
+				Name: volumeName,
+				VolumeSource: corev1.VolumeSource{
+					CSI: &corev1.CSIVolumeSource{
+						Driver:   CSIDriverName,
+						ReadOnly: ptr.To(true),
+						VolumeAttributes: map[string]string{
+							"secretProviderClass": spcName,
+						},
+					},
 				},
 			})
 		}
-		if secretName != "" {
-			sources = append(sources, corev1.VolumeProjection{
-				Secret: &corev1.SecretProjection{
-					LocalObjectReference: corev1.LocalObjectReference{Name: secretName},
+
+		initContainer := corev1.Container{
+			Name:    fmt.Sprintf("init-csi-%s", spcName),
+			Image:   DefaultImage,
+			Command: []string{"sh", "-c", "echo init done"},
+			VolumeMounts: []corev1.VolumeMount{
+				{
+					Name:      volumeName,
+					MountPath: mountPath,
+					ReadOnly:  true,
 				},
-			})
+			},
 		}
+		d.Spec.Template.Spec.InitContainers = append(d.Spec.Template.Spec.InitContainers, initContainer)
+	}
+}
 
-		ss.Spec.Template.Spec.Volumes = append(ss.Spec.Template.Spec.Volumes, corev1.Volume{
-			Name: volumeName,
-			VolumeSource: corev1.VolumeSource{
-				Projected: &corev1.ProjectedVolumeSource{
-					Sources: sources,
+func baseDeploymentResource(namespace, name string) *appsv1.Deployment {
+	labels := map[string]string{"app": name}
+	return &appsv1.Deployment{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name,
+			Namespace: namespace,
+		},
+		Spec: appsv1.DeploymentSpec{
+			Replicas: ptr.To(int32(1)),
+			Selector: &metav1.LabelSelector{
+				MatchLabels: labels,
+			},
+			Template: corev1.PodTemplateSpec{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: labels,
+				},
+				Spec: corev1.PodSpec{
+					Containers: []corev1.Container{
+						{
+							Name:    "app",
+							Image:   DefaultImage,
+							Command: []string{"sh", "-c", DefaultCommand},
+						},
+					},
 				},
 			},
-		})
-		ss.Spec.Template.Spec.Containers[0].VolumeMounts = append(
-			ss.Spec.Template.Spec.Containers[0].VolumeMounts,
-			corev1.VolumeMount{
-				Name:      volumeName,
-				MountPath: "/etc/projected",
+		},
+	}
+}
+
+// DeleteDeployment deletes a Deployment.
+func DeleteDeployment(ctx context.Context, client kubernetes.Interface, namespace, name string) error {
+	return client.AppsV1().Deployments(namespace).Delete(ctx, name, metav1.DeleteOptions{})
+}
+
+// DaemonSetOption is a functional option for configuring a DaemonSet.
+type DaemonSetOption func(*appsv1.DaemonSet)
+
+// CreateDaemonSet creates a DaemonSet with the given options.
+func CreateDaemonSet(ctx context.Context, client kubernetes.Interface, namespace, name string, opts ...DaemonSetOption) (*appsv1.DaemonSet, error) {
+	ds := baseDaemonSetResource(namespace, name)
+	for _, opt := range opts {
+		opt(ds)
+	}
+	return client.AppsV1().DaemonSets(namespace).Create(ctx, ds, metav1.CreateOptions{})
+}
+
+// baseDaemonSetResource creates a base DaemonSet template.
+func baseDaemonSetResource(namespace, name string) *appsv1.DaemonSet {
+	labels := map[string]string{"app": name}
+	return &appsv1.DaemonSet{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name,
+			Namespace: namespace,
+		},
+		Spec: appsv1.DaemonSetSpec{
+			Selector: &metav1.LabelSelector{
+				MatchLabels: labels,
+			},
+			Template: corev1.PodTemplateSpec{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: labels,
+				},
+				Spec: corev1.PodSpec{
+					Containers: []corev1.Container{
+						{
+							Name:    "app",
+							Image:   DefaultImage,
+							Command: []string{"sh", "-c", DefaultCommand},
+						},
+					},
+				},
+			},
+		},
+	}
+}
+
+// DeleteDaemonSet deletes a DaemonSet.
+func DeleteDaemonSet(ctx context.Context, client kubernetes.Interface, namespace, name string) error {
+	return client.AppsV1().DaemonSets(namespace).Delete(ctx, name, metav1.DeleteOptions{})
+}
+
+// StatefulSetOption is a functional option for configuring a StatefulSet.
+type StatefulSetOption func(*appsv1.StatefulSet)
+
+// CreateStatefulSet creates a StatefulSet with the given options.
+func CreateStatefulSet(ctx context.Context, client kubernetes.Interface, namespace, name string, opts ...StatefulSetOption) (*appsv1.StatefulSet, error) {
+	ss := baseStatefulSetResource(namespace, name)
+	for _, opt := range opts {
+		opt(ss)
+	}
+	return client.AppsV1().StatefulSets(namespace).Create(ctx, ss, metav1.CreateOptions{})
+}
+
+// baseStatefulSetResource creates a base StatefulSet template.
+func baseStatefulSetResource(namespace, name string) *appsv1.StatefulSet {
+	labels := map[string]string{"app": name}
+	return &appsv1.StatefulSet{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name,
+			Namespace: namespace,
+		},
+		Spec: appsv1.StatefulSetSpec{
+			ServiceName: name,
+			Replicas:    ptr.To(int32(1)),
+			Selector: &metav1.LabelSelector{
+				MatchLabels: labels,
+			},
+			Template: corev1.PodTemplateSpec{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: labels,
+				},
+				Spec: corev1.PodSpec{
+					Containers: []corev1.Container{
+						{
+							Name:    "app",
+							Image:   DefaultImage,
+							Command: []string{"sh", "-c", DefaultCommand},
+						},
+					},
+				},
+			},
+		},
+	}
+}
+
+// DeleteStatefulSet deletes a StatefulSet.
+func DeleteStatefulSet(ctx context.Context, client kubernetes.Interface, namespace, name string) error {
+	return client.AppsV1().StatefulSets(namespace).Delete(ctx, name, metav1.DeleteOptions{})
+}
+
+// CronJobOption is a functional option for configuring a CronJob.
+type CronJobOption func(*batchv1.CronJob)
+
+// CreateCronJob creates a CronJob with the given options.
+func CreateCronJob(ctx context.Context, client kubernetes.Interface, namespace, name string, opts ...CronJobOption) (*batchv1.CronJob, error) {
+	cj := baseCronJobResource(namespace, name)
+	for _, opt := range opts {
+		opt(cj)
+	}
+	return client.BatchV1().CronJobs(namespace).Create(ctx, cj, metav1.CreateOptions{})
+}
+
+// WithCronJobAnnotations adds annotations to the CronJob metadata.
+func WithCronJobAnnotations(annotations map[string]string) CronJobOption {
+	return func(cj *batchv1.CronJob) {
+		if cj.Annotations == nil {
+			cj.Annotations = make(map[string]string)
+		}
+		for k, v := range annotations {
+			cj.Annotations[k] = v
+		}
+	}
+}
+
+// WithCronJobConfigMapEnvFrom adds an envFrom reference to a ConfigMap.
+func WithCronJobConfigMapEnvFrom(name string) CronJobOption {
+	return func(cj *batchv1.CronJob) {
+		cj.Spec.JobTemplate.Spec.Template.Spec.Containers[0].EnvFrom = append(
+			cj.Spec.JobTemplate.Spec.Template.Spec.Containers[0].EnvFrom,
+			corev1.EnvFromSource{
+				ConfigMapRef: &corev1.ConfigMapEnvSource{
+					LocalObjectReference: corev1.LocalObjectReference{Name: name},
+				},
 			},
 		)
 	}
 }
 
-// WithDaemonSetConfigMapKeyRef adds a valueFrom.configMapKeyRef env var to a DaemonSet.
-func WithDaemonSetConfigMapKeyRef(cmName, key, envVarName string) DaemonSetOption {
-	return func(ds *appsv1.DaemonSet) {
-		ds.Spec.Template.Spec.Containers[0].Env = append(
-			ds.Spec.Template.Spec.Containers[0].Env,
-			corev1.EnvVar{
-				Name: envVarName,
-				ValueFrom: &corev1.EnvVarSource{
-					ConfigMapKeyRef: &corev1.ConfigMapKeySelector{
-						LocalObjectReference: corev1.LocalObjectReference{Name: cmName},
-						Key:                  key,
-					},
+// WithCronJobSecretEnvFrom adds an envFrom reference to a Secret.
+func WithCronJobSecretEnvFrom(name string) CronJobOption {
+	return func(cj *batchv1.CronJob) {
+		cj.Spec.JobTemplate.Spec.Template.Spec.Containers[0].EnvFrom = append(
+			cj.Spec.JobTemplate.Spec.Template.Spec.Containers[0].EnvFrom,
+			corev1.EnvFromSource{
+				SecretRef: &corev1.SecretEnvSource{
+					LocalObjectReference: corev1.LocalObjectReference{Name: name},
 				},
 			},
 		)
 	}
 }
 
-// WithDaemonSetSecretKeyRef adds a valueFrom.secretKeyRef env var to a DaemonSet.
-func WithDaemonSetSecretKeyRef(secretName, key, envVarName string) DaemonSetOption {
-	return func(ds *appsv1.DaemonSet) {
-		ds.Spec.Template.Spec.Containers[0].Env = append(
-			ds.Spec.Template.Spec.Containers[0].Env,
-			corev1.EnvVar{
-				Name: envVarName,
-				ValueFrom: &corev1.EnvVarSource{
-					SecretKeyRef: &corev1.SecretKeySelector{
-						LocalObjectReference: corev1.LocalObjectReference{Name: secretName},
-						Key:                  key,
+// baseCronJobResource creates a base CronJob template.
+func baseCronJobResource(namespace, name string) *batchv1.CronJob {
+	labels := map[string]string{"app": name}
+	return &batchv1.CronJob{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name,
+			Namespace: namespace,
+		},
+		Spec: batchv1.CronJobSpec{
+			Schedule: "* * * * *", // Every minute
+			JobTemplate: batchv1.JobTemplateSpec{
+				Spec: batchv1.JobSpec{
+					Template: corev1.PodTemplateSpec{
+						ObjectMeta: metav1.ObjectMeta{
+							Labels: labels,
+						},
+						Spec: corev1.PodSpec{
+							RestartPolicy: corev1.RestartPolicyOnFailure,
+							Containers: []corev1.Container{
+								{
+									Name:    "job",
+									Image:   DefaultImage,
+									Command: []string{"sh", "-c", "echo done"},
+								},
+							},
+						},
 					},
+				},
+			},
+		},
+	}
+}
+
+// DeleteCronJob deletes a CronJob.
+func DeleteCronJob(ctx context.Context, client kubernetes.Interface, namespace, name string) error {
+	return client.BatchV1().CronJobs(namespace).Delete(ctx, name, metav1.DeleteOptions{})
+}
+
+// JobOption is a functional option for configuring a Job.
+type JobOption func(*batchv1.Job)
+
+// CreateJob creates a Job with the given options.
+func CreateJob(ctx context.Context, client kubernetes.Interface, namespace, name string, opts ...JobOption) (*batchv1.Job, error) {
+	job := baseJobResource(namespace, name)
+	for _, opt := range opts {
+		opt(job)
+	}
+	return client.BatchV1().Jobs(namespace).Create(ctx, job, metav1.CreateOptions{})
+}
+
+// WithJobAnnotations adds annotations to the Job metadata.
+func WithJobAnnotations(annotations map[string]string) JobOption {
+	return func(j *batchv1.Job) {
+		if j.Annotations == nil {
+			j.Annotations = make(map[string]string)
+		}
+		for k, v := range annotations {
+			j.Annotations[k] = v
+		}
+	}
+}
+
+// WithJobConfigMapEnvFrom adds an envFrom reference to a ConfigMap.
+func WithJobConfigMapEnvFrom(name string) JobOption {
+	return func(j *batchv1.Job) {
+		j.Spec.Template.Spec.Containers[0].EnvFrom = append(
+			j.Spec.Template.Spec.Containers[0].EnvFrom,
+			corev1.EnvFromSource{
+				ConfigMapRef: &corev1.ConfigMapEnvSource{
+					LocalObjectReference: corev1.LocalObjectReference{Name: name},
 				},
 			},
 		)
 	}
 }
 
-// WithStatefulSetConfigMapKeyRef adds a valueFrom.configMapKeyRef env var to a StatefulSet.
-func WithStatefulSetConfigMapKeyRef(cmName, key, envVarName string) StatefulSetOption {
-	return func(ss *appsv1.StatefulSet) {
-		ss.Spec.Template.Spec.Containers[0].Env = append(
-			ss.Spec.Template.Spec.Containers[0].Env,
-			corev1.EnvVar{
-				Name: envVarName,
-				ValueFrom: &corev1.EnvVarSource{
-					ConfigMapKeyRef: &corev1.ConfigMapKeySelector{
-						LocalObjectReference: corev1.LocalObjectReference{Name: cmName},
-						Key:                  key,
-					},
-				},
-			},
-		)
-	}
-}
-
-// WithStatefulSetSecretKeyRef adds a valueFrom.secretKeyRef env var to a StatefulSet.
-func WithStatefulSetSecretKeyRef(secretName, key, envVarName string) StatefulSetOption {
-	return func(ss *appsv1.StatefulSet) {
-		ss.Spec.Template.Spec.Containers[0].Env = append(
-			ss.Spec.Template.Spec.Containers[0].Env,
-			corev1.EnvVar{
-				Name: envVarName,
-				ValueFrom: &corev1.EnvVarSource{
-					SecretKeyRef: &corev1.SecretKeySelector{
-						LocalObjectReference: corev1.LocalObjectReference{Name: secretName},
-						Key:                  key,
-					},
+// WithJobSecretEnvFrom adds an envFrom reference to a Secret.
+func WithJobSecretEnvFrom(name string) JobOption {
+	return func(j *batchv1.Job) {
+		j.Spec.Template.Spec.Containers[0].EnvFrom = append(
+			j.Spec.Template.Spec.Containers[0].EnvFrom,
+			corev1.EnvFromSource{
+				SecretRef: &corev1.SecretEnvSource{
+					LocalObjectReference: corev1.LocalObjectReference{Name: name},
 				},
 			},
 		)
@@ -1091,4 +895,48 @@ func WithJobSecretKeyRef(secretName, key, envVarName string) JobOption {
 			},
 		)
 	}
+}
+
+// baseJobResource creates a base Job template.
+func baseJobResource(namespace, name string) *batchv1.Job {
+	labels := map[string]string{"app": name}
+	return &batchv1.Job{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name,
+			Namespace: namespace,
+		},
+		Spec: batchv1.JobSpec{
+			Template: corev1.PodTemplateSpec{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: labels,
+				},
+				Spec: corev1.PodSpec{
+					RestartPolicy: corev1.RestartPolicyNever,
+					Containers: []corev1.Container{
+						{
+							Name:    "job",
+							Image:   DefaultImage,
+							Command: []string{"sh", "-c", "echo done"},
+						},
+					},
+				},
+			},
+		},
+	}
+}
+
+// DeleteJob deletes a Job.
+func DeleteJob(ctx context.Context, client kubernetes.Interface, namespace, name string) error {
+	propagation := metav1.DeletePropagationBackground
+	return client.BatchV1().Jobs(namespace).Delete(ctx, name, metav1.DeleteOptions{
+		PropagationPolicy: &propagation,
+	})
+}
+
+func csiVolumeName(spcName string) string {
+	return fmt.Sprintf("csi-%s", spcName)
+}
+
+func csiMountPath(spcName string) string {
+	return fmt.Sprintf("/mnt/secrets-store/%s", spcName)
 }

@@ -2,24 +2,27 @@ package utils
 
 import (
 	"context"
-	"fmt"
-	"strings"
+	"errors"
 	"time"
 
+	rolloutv1alpha1 "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
+	rolloutsclient "github.com/argoproj/argo-rollouts/pkg/client/clientset/versioned"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/util/wait"
-	"k8s.io/client-go/dynamic"
+	"k8s.io/utils/ptr"
 )
 
 // ArgoRolloutAdapter implements WorkloadAdapter for Argo Rollouts.
 type ArgoRolloutAdapter struct {
-	dynamicClient dynamic.Interface
+	rolloutsClient rolloutsclient.Interface
 }
 
 // NewArgoRolloutAdapter creates a new ArgoRolloutAdapter.
-func NewArgoRolloutAdapter(dynamicClient dynamic.Interface) *ArgoRolloutAdapter {
-	return &ArgoRolloutAdapter{dynamicClient: dynamicClient}
+func NewArgoRolloutAdapter(rolloutsClient rolloutsclient.Interface) *ArgoRolloutAdapter {
+	return &ArgoRolloutAdapter{
+		rolloutsClient: rolloutsClient,
+	}
 }
 
 // Type returns the workload type.
@@ -29,28 +32,33 @@ func (a *ArgoRolloutAdapter) Type() WorkloadType {
 
 // Create creates an Argo Rollout with the given config.
 func (a *ArgoRolloutAdapter) Create(ctx context.Context, namespace, name string, cfg WorkloadConfig) error {
+	rollout := baseRollout(name)
 	opts := buildRolloutOptions(cfg)
-	return CreateArgoRollout(ctx, a.dynamicClient, namespace, name, opts...)
+	for _, opt := range opts {
+		opt(rollout)
+	}
+	_, err := a.rolloutsClient.ArgoprojV1alpha1().Rollouts(namespace).Create(ctx, rollout, metav1.CreateOptions{})
+	return err
 }
 
 // Delete removes the Argo Rollout.
 func (a *ArgoRolloutAdapter) Delete(ctx context.Context, namespace, name string) error {
-	return DeleteArgoRollout(ctx, a.dynamicClient, namespace, name)
+	return a.rolloutsClient.ArgoprojV1alpha1().Rollouts(namespace).Delete(ctx, name, metav1.DeleteOptions{})
 }
 
 // WaitReady waits for the Argo Rollout to be ready.
 func (a *ArgoRolloutAdapter) WaitReady(ctx context.Context, namespace, name string, timeout time.Duration) error {
-	return WaitForRolloutReady(ctx, a.dynamicClient, namespace, name, timeout)
+	return WaitForRolloutReady(ctx, a.rolloutsClient, namespace, name, timeout)
 }
 
 // WaitReloaded waits for the Argo Rollout to have the reload annotation.
 func (a *ArgoRolloutAdapter) WaitReloaded(ctx context.Context, namespace, name, annotationKey string, timeout time.Duration) (bool, error) {
-	return WaitForRolloutReloaded(ctx, a.dynamicClient, namespace, name, annotationKey, timeout)
+	return WaitForRolloutReloaded(ctx, a.rolloutsClient, namespace, name, annotationKey, timeout)
 }
 
 // WaitEnvVar waits for the Argo Rollout to have a STAKATER_ env var.
 func (a *ArgoRolloutAdapter) WaitEnvVar(ctx context.Context, namespace, name, prefix string, timeout time.Duration) (bool, error) {
-	return WaitForRolloutEnvVar(ctx, a.dynamicClient, namespace, name, prefix, timeout)
+	return WaitForRolloutEnvVar(ctx, a.rolloutsClient, namespace, name, prefix, timeout)
 }
 
 // SupportsEnvVarStrategy returns true as Argo Rollouts support env var reload strategy.
@@ -63,277 +71,118 @@ func (a *ArgoRolloutAdapter) RequiresSpecialHandling() bool {
 	return false
 }
 
+// baseRollout returns a minimal Rollout template.
+func baseRollout(name string) *rolloutv1alpha1.Rollout {
+	return &rolloutv1alpha1.Rollout{
+		ObjectMeta: metav1.ObjectMeta{Name: name},
+		Spec: rolloutv1alpha1.RolloutSpec{
+			Replicas: ptr.To[int32](1),
+			Selector: &metav1.LabelSelector{
+				MatchLabels: map[string]string{"app": name},
+			},
+			Template: corev1.PodTemplateSpec{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{"app": name},
+				},
+				Spec: corev1.PodSpec{
+					Containers: []corev1.Container{{
+						Name:    "main",
+						Image:   DefaultImage,
+						Command: []string{"sh", "-c", DefaultCommand},
+					}},
+				},
+			},
+			Strategy: rolloutv1alpha1.RolloutStrategy{
+				Canary: &rolloutv1alpha1.CanaryStrategy{
+					Steps: []rolloutv1alpha1.CanaryStep{
+						{SetWeight: ptr.To[int32](100)},
+					},
+				},
+			},
+		},
+	}
+}
+
 // buildRolloutOptions converts WorkloadConfig to RolloutOption slice.
 func buildRolloutOptions(cfg WorkloadConfig) []RolloutOption {
-	var opts []RolloutOption
-
-	// Add annotations (to pod template)
-	if len(cfg.Annotations) > 0 {
-		opts = append(opts, WithRolloutAnnotations(cfg.Annotations))
-	}
-
-	// Add envFrom references
-	if cfg.UseConfigMapEnvFrom && cfg.ConfigMapName != "" {
-		opts = append(opts, WithRolloutConfigMapEnvFrom(cfg.ConfigMapName))
-	}
-	if cfg.UseSecretEnvFrom && cfg.SecretName != "" {
-		opts = append(opts, WithRolloutSecretEnvFrom(cfg.SecretName))
-	}
-
-	// Add volume mounts
-	if cfg.UseConfigMapVolume && cfg.ConfigMapName != "" {
-		opts = append(opts, WithRolloutConfigMapVolume(cfg.ConfigMapName))
-	}
-	if cfg.UseSecretVolume && cfg.SecretName != "" {
-		opts = append(opts, WithRolloutSecretVolume(cfg.SecretName))
-	}
-
-	// Add projected volume
-	if cfg.UseProjectedVolume {
-		opts = append(opts, WithRolloutProjectedVolume(cfg.ConfigMapName, cfg.SecretName))
-	}
-
-	// Add valueFrom references
-	if cfg.UseConfigMapKeyRef && cfg.ConfigMapName != "" {
-		key := cfg.ConfigMapKey
-		if key == "" {
-			key = "key"
-		}
-		envVar := cfg.EnvVarName
-		if envVar == "" {
-			envVar = "CONFIG_VAR"
-		}
-		opts = append(opts, WithRolloutConfigMapKeyRef(cfg.ConfigMapName, key, envVar))
-	}
-	if cfg.UseSecretKeyRef && cfg.SecretName != "" {
-		key := cfg.SecretKey
-		if key == "" {
-			key = "key"
-		}
-		envVar := cfg.EnvVarName
-		if envVar == "" {
-			envVar = "SECRET_VAR"
-		}
-		opts = append(opts, WithRolloutSecretKeyRef(cfg.SecretName, key, envVar))
-	}
-
-	// Add init container with envFrom
-	if cfg.UseInitContainer {
-		opts = append(opts, WithRolloutInitContainer(cfg.ConfigMapName, cfg.SecretName))
-	}
-
-	// Add init container with volume mount
-	if cfg.UseInitContainerVolume {
-		opts = append(opts, WithRolloutInitContainerVolume(cfg.ConfigMapName, cfg.SecretName))
-	}
-
-	return opts
-}
-
-// WithRolloutProjectedVolume adds a projected volume with ConfigMap and/or Secret sources to a Rollout.
-func WithRolloutProjectedVolume(cmName, secretName string) RolloutOption {
-	return func(rollout *unstructured.Unstructured) {
-		volumeName := "projected-config"
-		sources := []interface{}{}
-
-		if cmName != "" {
-			sources = append(sources, map[string]interface{}{
-				"configMap": map[string]interface{}{
-					"name": cmName,
-				},
-			})
-		}
-		if secretName != "" {
-			sources = append(sources, map[string]interface{}{
-				"secret": map[string]interface{}{
-					"name": secretName,
-				},
-			})
-		}
-
-		// Add volume
-		volumes, _, _ := unstructured.NestedSlice(rollout.Object, "spec", "template", "spec", "volumes")
-		volumes = append(volumes, map[string]interface{}{
-			"name": volumeName,
-			"projected": map[string]interface{}{
-				"sources": sources,
-			},
-		})
-		_ = unstructured.SetNestedSlice(rollout.Object, volumes, "spec", "template", "spec", "volumes")
-
-		// Add volumeMount
-		containers, _, _ := unstructured.NestedSlice(rollout.Object, "spec", "template", "spec", "containers")
-		if len(containers) > 0 {
-			container := containers[0].(map[string]interface{})
-			volumeMounts, _, _ := unstructured.NestedSlice(container, "volumeMounts")
-			volumeMounts = append(volumeMounts, map[string]interface{}{
-				"name":      volumeName,
-				"mountPath": "/etc/projected",
-			})
-			container["volumeMounts"] = volumeMounts
-			containers[0] = container
-			_ = unstructured.SetNestedSlice(rollout.Object, containers, "spec", "template", "spec", "containers")
-		}
+	return []RolloutOption{
+		func(r *rolloutv1alpha1.Rollout) {
+			// Set annotations on Rollout level (where Reloader checks them)
+			if len(cfg.Annotations) > 0 {
+				if r.Annotations == nil {
+					r.Annotations = make(map[string]string)
+				}
+				for k, v := range cfg.Annotations {
+					r.Annotations[k] = v
+				}
+			}
+			ApplyWorkloadConfig(&r.Spec.Template.Spec, cfg)
+		},
 	}
 }
 
-// WithRolloutConfigMapKeyRef adds an env var with valueFrom.configMapKeyRef to a Rollout.
-func WithRolloutConfigMapKeyRef(cmName, key, envVarName string) RolloutOption {
-	return func(rollout *unstructured.Unstructured) {
-		containers, _, _ := unstructured.NestedSlice(rollout.Object, "spec", "template", "spec", "containers")
-		if len(containers) > 0 {
-			container := containers[0].(map[string]interface{})
-			env, _, _ := unstructured.NestedSlice(container, "env")
-			env = append(env, map[string]interface{}{
-				"name": envVarName,
-				"valueFrom": map[string]interface{}{
-					"configMapKeyRef": map[string]interface{}{
-						"name": cmName,
-						"key":  key,
-					},
-				},
-			})
-			container["env"] = env
-			containers[0] = container
-			_ = unstructured.SetNestedSlice(rollout.Object, containers, "spec", "template", "spec", "containers")
-		}
-	}
-}
-
-// WithRolloutSecretKeyRef adds an env var with valueFrom.secretKeyRef to a Rollout.
-func WithRolloutSecretKeyRef(secretName, key, envVarName string) RolloutOption {
-	return func(rollout *unstructured.Unstructured) {
-		containers, _, _ := unstructured.NestedSlice(rollout.Object, "spec", "template", "spec", "containers")
-		if len(containers) > 0 {
-			container := containers[0].(map[string]interface{})
-			env, _, _ := unstructured.NestedSlice(container, "env")
-			env = append(env, map[string]interface{}{
-				"name": envVarName,
-				"valueFrom": map[string]interface{}{
-					"secretKeyRef": map[string]interface{}{
-						"name": secretName,
-						"key":  key,
-					},
-				},
-			})
-			container["env"] = env
-			containers[0] = container
-			_ = unstructured.SetNestedSlice(rollout.Object, containers, "spec", "template", "spec", "containers")
-		}
-	}
-}
-
-// WithRolloutInitContainer adds an init container that references ConfigMap and/or Secret.
-func WithRolloutInitContainer(cmName, secretName string) RolloutOption {
-	return func(rollout *unstructured.Unstructured) {
-		initContainer := map[string]interface{}{
-			"name":    "init",
-			"image":   DefaultImage,
-			"command": []interface{}{"sh", "-c", "echo init done"},
-		}
-
-		envFrom := []interface{}{}
-		if cmName != "" {
-			envFrom = append(envFrom, map[string]interface{}{
-				"configMapRef": map[string]interface{}{
-					"name": cmName,
-				},
-			})
-		}
-		if secretName != "" {
-			envFrom = append(envFrom, map[string]interface{}{
-				"secretRef": map[string]interface{}{
-					"name": secretName,
-				},
-			})
-		}
-		if len(envFrom) > 0 {
-			initContainer["envFrom"] = envFrom
-		}
-
-		initContainers, _, _ := unstructured.NestedSlice(rollout.Object, "spec", "template", "spec", "initContainers")
-		initContainers = append(initContainers, initContainer)
-		_ = unstructured.SetNestedSlice(rollout.Object, initContainers, "spec", "template", "spec", "initContainers")
-	}
-}
-
-// WithRolloutInitContainerVolume adds an init container with ConfigMap/Secret volume mounts.
-func WithRolloutInitContainerVolume(cmName, secretName string) RolloutOption {
-	return func(rollout *unstructured.Unstructured) {
-		initContainer := map[string]interface{}{
-			"name":    "init",
-			"image":   DefaultImage,
-			"command": []interface{}{"sh", "-c", "echo init done"},
-		}
-
-		volumeMounts := []interface{}{}
-		volumes, _, _ := unstructured.NestedSlice(rollout.Object, "spec", "template", "spec", "volumes")
-
-		if cmName != "" {
-			volumeName := fmt.Sprintf("init-cm-%s", cmName)
-			volumes = append(volumes, map[string]interface{}{
-				"name": volumeName,
-				"configMap": map[string]interface{}{
-					"name": cmName,
-				},
-			})
-			volumeMounts = append(volumeMounts, map[string]interface{}{
-				"name":      volumeName,
-				"mountPath": fmt.Sprintf("/etc/init-config/%s", cmName),
-			})
-		}
-		if secretName != "" {
-			volumeName := fmt.Sprintf("init-secret-%s", secretName)
-			volumes = append(volumes, map[string]interface{}{
-				"name": volumeName,
-				"secret": map[string]interface{}{
-					"secretName": secretName,
-				},
-			})
-			volumeMounts = append(volumeMounts, map[string]interface{}{
-				"name":      volumeName,
-				"mountPath": fmt.Sprintf("/etc/init-secrets/%s", secretName),
-			})
-		}
-
-		if len(volumeMounts) > 0 {
-			initContainer["volumeMounts"] = volumeMounts
-		}
-
-		_ = unstructured.SetNestedSlice(rollout.Object, volumes, "spec", "template", "spec", "volumes")
-
-		initContainers, _, _ := unstructured.NestedSlice(rollout.Object, "spec", "template", "spec", "initContainers")
-		initContainers = append(initContainers, initContainer)
-		_ = unstructured.SetNestedSlice(rollout.Object, initContainers, "spec", "template", "spec", "initContainers")
-	}
-}
-
-// WaitForRolloutEnvVar waits for an Argo Rollout's container to have an env var with the given prefix.
-func WaitForRolloutEnvVar(ctx context.Context, dynamicClient dynamic.Interface, namespace, name, prefix string, timeout time.Duration) (bool, error) {
-	var found bool
-	err := wait.PollUntilContextTimeout(ctx, DefaultInterval, timeout, true, func(ctx context.Context) (bool, error) {
-		rollout, err := dynamicClient.Resource(ArgoRolloutGVR).Namespace(namespace).Get(ctx, name, metav1.GetOptions{})
+// WaitForRolloutReady waits for an Argo Rollout to be ready using typed client.
+func WaitForRolloutReady(ctx context.Context, client rolloutsclient.Interface, namespace, name string, timeout time.Duration) error {
+	return wait.PollUntilContextTimeout(ctx, DefaultInterval, timeout, true, func(ctx context.Context) (bool, error) {
+		rollout, err := client.ArgoprojV1alpha1().Rollouts(namespace).Get(ctx, name, metav1.GetOptions{})
 		if err != nil {
 			return false, nil
 		}
 
-		containers, _, _ := unstructured.NestedSlice(rollout.Object, "spec", "template", "spec", "containers")
-		for _, c := range containers {
-			container := c.(map[string]interface{})
-			env, _, _ := unstructured.NestedSlice(container, "env")
-			for _, e := range env {
-				envVar := e.(map[string]interface{})
-				if name, ok := envVar["name"].(string); ok && strings.HasPrefix(name, prefix) {
-					found = true
-					return true, nil
-				}
-			}
+		// Check status.phase == "Healthy" or replicas == availableReplicas
+		if rollout.Status.Phase == rolloutv1alpha1.RolloutPhaseHealthy {
+			return true, nil
+		}
+
+		if rollout.Spec.Replicas != nil && *rollout.Spec.Replicas > 0 &&
+			rollout.Status.AvailableReplicas == *rollout.Spec.Replicas {
+			return true, nil
+		}
+
+		return false, nil
+	})
+}
+
+// WaitForRolloutReloaded waits for an Argo Rollout's pod template to have the reloader annotation.
+func WaitForRolloutReloaded(ctx context.Context, client rolloutsclient.Interface, namespace, name, annotationKey string, timeout time.Duration) (bool, error) {
+	return WaitForAnnotation(ctx, func(ctx context.Context) (map[string]string, error) {
+		rollout, err := client.ArgoprojV1alpha1().Rollouts(namespace).Get(ctx, name, metav1.GetOptions{})
+		if err != nil {
+			return nil, err
+		}
+		return rollout.Spec.Template.Annotations, nil
+	}, annotationKey, timeout)
+}
+
+// WaitForRolloutEnvVar waits for an Argo Rollout's container to have an env var with the given prefix.
+func WaitForRolloutEnvVar(ctx context.Context, client rolloutsclient.Interface, namespace, name, prefix string, timeout time.Duration) (bool, error) {
+	return WaitForEnvVarPrefix(ctx, func(ctx context.Context) ([]corev1.Container, error) {
+		rollout, err := client.ArgoprojV1alpha1().Rollouts(namespace).Get(ctx, name, metav1.GetOptions{})
+		if err != nil {
+			return nil, err
+		}
+		return rollout.Spec.Template.Spec.Containers, nil
+	}, prefix, timeout)
+}
+
+// WaitForRolloutRestartAt waits for an Argo Rollout's spec.restartAt field to be set.
+func WaitForRolloutRestartAt(ctx context.Context, client rolloutsclient.Interface, namespace, name string, timeout time.Duration) (bool, error) {
+	var found bool
+	err := wait.PollUntilContextTimeout(ctx, DefaultInterval, timeout, true, func(ctx context.Context) (bool, error) {
+		rollout, err := client.ArgoprojV1alpha1().Rollouts(namespace).Get(ctx, name, metav1.GetOptions{})
+		if err != nil {
+			return false, nil
+		}
+
+		if rollout.Spec.RestartAt != nil && !rollout.Spec.RestartAt.IsZero() {
+			found = true
+			return true, nil
 		}
 
 		return false, nil
 	})
 
-	if err != nil && err != context.DeadlineExceeded {
+	if err != nil && !errors.Is(err, context.DeadlineExceeded) {
 		return false, err
 	}
 	return found, nil

@@ -1,16 +1,45 @@
 package controller
 
 import (
+	"errors"
 	"testing"
+	"time"
 
-	"github.com/stakater/Reloader/internal/pkg/handler"
-	"github.com/stakater/Reloader/internal/pkg/metrics"
-	"github.com/stakater/Reloader/internal/pkg/options"
 	"github.com/stretchr/testify/assert"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/util/workqueue"
+
+	"github.com/stakater/Reloader/internal/pkg/handler"
+	"github.com/stakater/Reloader/internal/pkg/metrics"
+	"github.com/stakater/Reloader/internal/pkg/options"
+	"github.com/stakater/Reloader/pkg/common"
 )
+
+// mockResourceHandler implements handler.ResourceHandler and handler.TimedHandler for testing.
+type mockResourceHandler struct {
+	handleErr   error
+	handleCalls int
+	enqueueTime time.Time
+}
+
+func (m *mockResourceHandler) Handle() error {
+	m.handleCalls++
+	return m.handleErr
+}
+
+func (m *mockResourceHandler) GetConfig() (common.Config, string) {
+	return common.Config{
+		ResourceName: "test-resource",
+		Namespace:    "test-ns",
+		Type:         "configmap",
+		SHAValue:     "sha256:test",
+	}, "test-resource"
+}
+
+func (m *mockResourceHandler) GetEnqueueTime() time.Time {
+	return m.enqueueTime
+}
 
 // resetGlobalState resets global variables between tests
 func resetGlobalState() {
@@ -104,11 +133,13 @@ func TestResourceInIgnoredNamespace(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			c := newTestController(tt.ignoredNamespaces, "")
-			result := c.resourceInIgnoredNamespace(tt.resource)
-			assert.Equal(t, tt.expected, result)
-		})
+		t.Run(
+			tt.name, func(t *testing.T) {
+				c := newTestController(tt.ignoredNamespaces, "")
+				result := c.resourceInIgnoredNamespace(tt.resource)
+				assert.Equal(t, tt.expected, result)
+			},
+		)
 	}
 }
 
@@ -190,14 +221,16 @@ func TestResourceInSelectedNamespaces(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			resetGlobalState()
-			selectedNamespacesCache = tt.cachedNamespaces
+		t.Run(
+			tt.name, func(t *testing.T) {
+				resetGlobalState()
+				selectedNamespacesCache = tt.cachedNamespaces
 
-			c := newTestController([]string{}, tt.namespaceSelector)
-			result := c.resourceInSelectedNamespaces(tt.resource)
-			assert.Equal(t, tt.expected, result)
-		})
+				c := newTestController([]string{}, tt.namespaceSelector)
+				result := c.resourceInSelectedNamespaces(tt.resource)
+				assert.Equal(t, tt.expected, result)
+			},
+		)
 	}
 }
 
@@ -226,65 +259,67 @@ func TestAddSelectedNamespaceToCache(t *testing.T) {
 
 func TestRemoveSelectedNamespaceFromCache(t *testing.T) {
 	tests := []struct {
-		name             string
-		initialCache     []string
+		name              string
+		initialCache      []string
 		namespaceToRemove string
-		expectedCache    []string
+		expectedCache     []string
 	}{
 		{
-			name:             "Remove existing namespace",
-			initialCache:     []string{"ns-1", "ns-2", "ns-3"},
+			name:              "Remove existing namespace",
+			initialCache:      []string{"ns-1", "ns-2", "ns-3"},
 			namespaceToRemove: "ns-2",
-			expectedCache:    []string{"ns-1", "ns-3"},
+			expectedCache:     []string{"ns-1", "ns-3"},
 		},
 		{
-			name:             "Remove non-existing namespace",
-			initialCache:     []string{"ns-1", "ns-2"},
+			name:              "Remove non-existing namespace",
+			initialCache:      []string{"ns-1", "ns-2"},
 			namespaceToRemove: "ns-3",
-			expectedCache:    []string{"ns-1", "ns-2"},
+			expectedCache:     []string{"ns-1", "ns-2"},
 		},
 		{
-			name:             "Remove from empty cache",
-			initialCache:     []string{},
+			name:              "Remove from empty cache",
+			initialCache:      []string{},
 			namespaceToRemove: "ns-1",
-			expectedCache:    []string{},
+			expectedCache:     []string{},
 		},
 		{
-			name:             "Remove only namespace",
-			initialCache:     []string{"ns-1"},
+			name:              "Remove only namespace",
+			initialCache:      []string{"ns-1"},
 			namespaceToRemove: "ns-1",
-			expectedCache:    []string{},
+			expectedCache:     []string{},
 		},
 	}
 
 	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			resetGlobalState()
-			selectedNamespacesCache = tt.initialCache
+		t.Run(
+			tt.name, func(t *testing.T) {
+				resetGlobalState()
+				selectedNamespacesCache = tt.initialCache
 
-			c := newTestController([]string{}, "env=prod")
-			ns := v1.Namespace{
-				ObjectMeta: metav1.ObjectMeta{Name: tt.namespaceToRemove},
-			}
-			c.removeSelectedNamespaceFromCache(ns)
+				c := newTestController([]string{}, "env=prod")
+				ns := v1.Namespace{
+					ObjectMeta: metav1.ObjectMeta{Name: tt.namespaceToRemove},
+				}
+				c.removeSelectedNamespaceFromCache(ns)
 
-			assert.Equal(t, tt.expectedCache, selectedNamespacesCache)
-		})
+				assert.Equal(t, tt.expectedCache, selectedNamespacesCache)
+			},
+		)
 	}
 }
 
 func TestAddHandler(t *testing.T) {
 	tests := []struct {
-		name                string
-		reloadOnCreate      string
-		ignoredNamespaces   []string
-		resource            interface{}
-		controllersInit     bool
-		expectQueueItem     bool
+		name              string
+		reloadOnCreate    string
+		ignoredNamespaces []string
+		resource          interface{}
+		controllersInit   bool
+		expectQueueItem   bool
 	}{
 		{
-			name:            "Namespace resource - should not queue",
-			reloadOnCreate:  "true",
+			name:              "Namespace resource - should not queue",
+			reloadOnCreate:    "true",
 			ignoredNamespaces: []string{},
 			resource: &v1.Namespace{
 				ObjectMeta: metav1.ObjectMeta{Name: "test-ns"},
@@ -293,8 +328,8 @@ func TestAddHandler(t *testing.T) {
 			expectQueueItem: false,
 		},
 		{
-			name:            "ReloadOnCreate disabled",
-			reloadOnCreate:  "false",
+			name:              "ReloadOnCreate disabled",
+			reloadOnCreate:    "false",
 			ignoredNamespaces: []string{},
 			resource: &v1.ConfigMap{
 				ObjectMeta: metav1.ObjectMeta{
@@ -306,8 +341,8 @@ func TestAddHandler(t *testing.T) {
 			expectQueueItem: false,
 		},
 		{
-			name:            "ConfigMap in ignored namespace",
-			reloadOnCreate:  "true",
+			name:              "ConfigMap in ignored namespace",
+			reloadOnCreate:    "true",
 			ignoredNamespaces: []string{"kube-system"},
 			resource: &v1.ConfigMap{
 				ObjectMeta: metav1.ObjectMeta{
@@ -319,8 +354,8 @@ func TestAddHandler(t *testing.T) {
 			expectQueueItem: false,
 		},
 		{
-			name:            "Controllers not initialized",
-			reloadOnCreate:  "true",
+			name:              "Controllers not initialized",
+			reloadOnCreate:    "true",
 			ignoredNamespaces: []string{},
 			resource: &v1.ConfigMap{
 				ObjectMeta: metav1.ObjectMeta{
@@ -332,8 +367,8 @@ func TestAddHandler(t *testing.T) {
 			expectQueueItem: false,
 		},
 		{
-			name:            "Valid ConfigMap - should queue",
-			reloadOnCreate:  "true",
+			name:              "Valid ConfigMap - should queue",
+			reloadOnCreate:    "true",
 			ignoredNamespaces: []string{},
 			resource: &v1.ConfigMap{
 				ObjectMeta: metav1.ObjectMeta{
@@ -347,21 +382,23 @@ func TestAddHandler(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			resetGlobalState()
-			options.ReloadOnCreate = tt.reloadOnCreate
-			secretControllerInitialized = tt.controllersInit
-			configmapControllerInitialized = tt.controllersInit
+		t.Run(
+			tt.name, func(t *testing.T) {
+				resetGlobalState()
+				options.ReloadOnCreate = tt.reloadOnCreate
+				secretControllerInitialized = tt.controllersInit
+				configmapControllerInitialized = tt.controllersInit
 
-			c := newTestController(tt.ignoredNamespaces, "")
-			c.Add(tt.resource)
+				c := newTestController(tt.ignoredNamespaces, "")
+				c.Add(tt.resource)
 
-			if tt.expectQueueItem {
-				assert.Equal(t, 1, c.queue.Len(), "Expected queue to have 1 item")
-			} else {
-				assert.Equal(t, 0, c.queue.Len(), "Expected queue to be empty")
-			}
-		})
+				if tt.expectQueueItem {
+					assert.Equal(t, 1, c.queue.Len(), "Expected queue to have 1 item")
+				} else {
+					assert.Equal(t, 0, c.queue.Len(), "Expected queue to be empty")
+				}
+			},
+		)
 	}
 }
 
@@ -461,26 +498,28 @@ func TestUpdateHandler(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			resetGlobalState()
-			if tt.cachedNamespaces != nil {
-				selectedNamespacesCache = tt.cachedNamespaces
-			}
+		t.Run(
+			tt.name, func(t *testing.T) {
+				resetGlobalState()
+				if tt.cachedNamespaces != nil {
+					selectedNamespacesCache = tt.cachedNamespaces
+				}
 
-			c := newTestController(tt.ignoredNamespaces, tt.namespaceSelector)
-			c.Update(tt.oldResource, tt.newResource)
+				c := newTestController(tt.ignoredNamespaces, tt.namespaceSelector)
+				c.Update(tt.oldResource, tt.newResource)
 
-			if tt.expectQueueItem {
-				assert.Equal(t, 1, c.queue.Len(), "Expected queue to have 1 item")
-				// Verify the queued item is the correct type
-				item, _ := c.queue.Get()
-				_, ok := item.(handler.ResourceUpdatedHandler)
-				assert.True(t, ok, "Expected ResourceUpdatedHandler in queue")
-				c.queue.Done(item)
-			} else {
-				assert.Equal(t, 0, c.queue.Len(), "Expected queue to be empty")
-			}
-		})
+				if tt.expectQueueItem {
+					assert.Equal(t, 1, c.queue.Len(), "Expected queue to have 1 item")
+					// Verify the queued item is the correct type
+					item, _ := c.queue.Get()
+					_, ok := item.(handler.ResourceUpdatedHandler)
+					assert.True(t, ok, "Expected ResourceUpdatedHandler in queue")
+					c.queue.Done(item)
+				} else {
+					assert.Equal(t, 0, c.queue.Len(), "Expected queue to be empty")
+				}
+			},
+		)
 	}
 }
 
@@ -494,8 +533,8 @@ func TestDeleteHandler(t *testing.T) {
 		expectQueueItem   bool
 	}{
 		{
-			name:            "ReloadOnDelete disabled",
-			reloadOnDelete:  "false",
+			name:              "ReloadOnDelete disabled",
+			reloadOnDelete:    "false",
 			ignoredNamespaces: []string{},
 			resource: &v1.ConfigMap{
 				ObjectMeta: metav1.ObjectMeta{
@@ -507,8 +546,8 @@ func TestDeleteHandler(t *testing.T) {
 			expectQueueItem: false,
 		},
 		{
-			name:            "ConfigMap in ignored namespace",
-			reloadOnDelete:  "true",
+			name:              "ConfigMap in ignored namespace",
+			reloadOnDelete:    "true",
 			ignoredNamespaces: []string{"kube-system"},
 			resource: &v1.ConfigMap{
 				ObjectMeta: metav1.ObjectMeta{
@@ -520,8 +559,8 @@ func TestDeleteHandler(t *testing.T) {
 			expectQueueItem: false,
 		},
 		{
-			name:            "Controllers not initialized",
-			reloadOnDelete:  "true",
+			name:              "Controllers not initialized",
+			reloadOnDelete:    "true",
 			ignoredNamespaces: []string{},
 			resource: &v1.ConfigMap{
 				ObjectMeta: metav1.ObjectMeta{
@@ -533,8 +572,8 @@ func TestDeleteHandler(t *testing.T) {
 			expectQueueItem: false,
 		},
 		{
-			name:            "Valid ConfigMap delete - should queue",
-			reloadOnDelete:  "true",
+			name:              "Valid ConfigMap delete - should queue",
+			reloadOnDelete:    "true",
 			ignoredNamespaces: []string{},
 			resource: &v1.ConfigMap{
 				ObjectMeta: metav1.ObjectMeta{
@@ -546,8 +585,8 @@ func TestDeleteHandler(t *testing.T) {
 			expectQueueItem: true,
 		},
 		{
-			name:            "Namespace delete - updates cache",
-			reloadOnDelete:  "false", // Disable to test cache update only
+			name:              "Namespace delete - updates cache",
+			reloadOnDelete:    "false", // Disable to test cache update only
 			ignoredNamespaces: []string{},
 			resource: &v1.Namespace{
 				ObjectMeta: metav1.ObjectMeta{Name: "test-ns"},
@@ -558,64 +597,70 @@ func TestDeleteHandler(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			resetGlobalState()
-			options.ReloadOnDelete = tt.reloadOnDelete
-			secretControllerInitialized = tt.controllersInit
-			configmapControllerInitialized = tt.controllersInit
+		t.Run(
+			tt.name, func(t *testing.T) {
+				resetGlobalState()
+				options.ReloadOnDelete = tt.reloadOnDelete
+				secretControllerInitialized = tt.controllersInit
+				configmapControllerInitialized = tt.controllersInit
 
-			c := newTestController(tt.ignoredNamespaces, "")
-			c.Delete(tt.resource)
+				c := newTestController(tt.ignoredNamespaces, "")
+				c.Delete(tt.resource)
 
-			if tt.expectQueueItem {
-				assert.Equal(t, 1, c.queue.Len(), "Expected queue to have 1 item")
-				// Verify the queued item is the correct type
-				item, _ := c.queue.Get()
-				_, ok := item.(handler.ResourceDeleteHandler)
-				assert.True(t, ok, "Expected ResourceDeleteHandler in queue")
-				c.queue.Done(item)
-			} else {
-				assert.Equal(t, 0, c.queue.Len(), "Expected queue to be empty")
-			}
-		})
+				if tt.expectQueueItem {
+					assert.Equal(t, 1, c.queue.Len(), "Expected queue to have 1 item")
+					// Verify the queued item is the correct type
+					item, _ := c.queue.Get()
+					_, ok := item.(handler.ResourceDeleteHandler)
+					assert.True(t, ok, "Expected ResourceDeleteHandler in queue")
+					c.queue.Done(item)
+				} else {
+					assert.Equal(t, 0, c.queue.Len(), "Expected queue to be empty")
+				}
+			},
+		)
 	}
 }
 
 func TestHandleErr(t *testing.T) {
-	t.Run("No error - should forget key", func(t *testing.T) {
-		resetGlobalState()
-		c := newTestController([]string{}, "")
+	t.Run(
+		"No error - should forget key", func(t *testing.T) {
+			resetGlobalState()
+			c := newTestController([]string{}, "")
 
-		key := "test-key"
-		// Add key to queue first
-		c.queue.Add(key)
-		item, _ := c.queue.Get()
+			key := "test-key"
+			// Add key to queue first
+			c.queue.Add(key)
+			item, _ := c.queue.Get()
 
-		// Handle with no error
-		c.handleErr(nil, item)
-		c.queue.Done(item)
+			// Handle with no error
+			c.handleErr(nil, item)
+			c.queue.Done(item)
 
-		// Key should be forgotten (NumRequeues should be 0)
-		assert.Equal(t, 0, c.queue.NumRequeues(key))
-	})
+			// Key should be forgotten (NumRequeues should be 0)
+			assert.Equal(t, 0, c.queue.NumRequeues(key))
+		},
+	)
 
-	t.Run("Error at max retries - should drop key", func(t *testing.T) {
-		resetGlobalState()
-		c := newTestController([]string{}, "")
+	t.Run(
+		"Error at max retries - should drop key", func(t *testing.T) {
+			resetGlobalState()
+			c := newTestController([]string{}, "")
 
-		key := "test-key-max"
+			key := "test-key-max"
 
-		// Simulate 5 previous failures (max retries)
-		for range 5 {
-			c.queue.AddRateLimited(key)
-		}
+			// Simulate 5 previous failures (max retries)
+			for range 5 {
+				c.queue.AddRateLimited(key)
+			}
 
-		// After max retries, handleErr should forget the key
-		c.handleErr(assert.AnError, key)
+			// After max retries, handleErr should forget the key
+			c.handleErr(assert.AnError, key)
 
-		// Key should be forgotten
-		assert.Equal(t, 0, c.queue.NumRequeues(key))
-	})
+			// Key should be forgotten
+			assert.Equal(t, 0, c.queue.NumRequeues(key))
+		},
+	)
 }
 
 func TestAddHandlerWithNamespaceEvent(t *testing.T) {
@@ -653,4 +698,58 @@ func TestDeleteHandlerWithNamespaceEvent(t *testing.T) {
 	assert.Contains(t, selectedNamespacesCache, "ns-1")
 	assert.Contains(t, selectedNamespacesCache, "ns-2")
 	assert.Equal(t, 0, c.queue.Len(), "Namespace delete should not queue anything")
+}
+
+func TestProcessNextItem(t *testing.T) {
+	tests := []struct {
+		name           string
+		handler        *mockResourceHandler
+		expectContinue bool
+		expectCalls    int
+	}{
+		{
+			name: "Successful handler execution",
+			handler: &mockResourceHandler{
+				handleErr:   nil,
+				enqueueTime: time.Now().Add(-10 * time.Millisecond),
+			},
+			expectContinue: true,
+			expectCalls:    1,
+		},
+		{
+			name: "Handler returns error",
+			handler: &mockResourceHandler{
+				handleErr:   errors.New("test error"),
+				enqueueTime: time.Now().Add(-10 * time.Millisecond),
+			},
+			expectContinue: true,
+			expectCalls:    1,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(
+			tt.name, func(t *testing.T) {
+				resetGlobalState()
+				c := newTestController([]string{}, "")
+
+				c.queue.Add(tt.handler)
+
+				result := c.processNextItem()
+
+				assert.Equal(t, tt.expectContinue, result)
+				assert.Equal(t, tt.expectCalls, tt.handler.handleCalls)
+			},
+		)
+	}
+}
+
+func TestProcessNextItemQueueShutdown(t *testing.T) {
+	resetGlobalState()
+	c := newTestController([]string{}, "")
+
+	c.queue.ShutDown()
+
+	result := c.processNextItem()
+	assert.False(t, result, "Should return false when queue is shutdown")
 }
