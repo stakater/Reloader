@@ -1,11 +1,12 @@
 package common
 
 import (
+	v1 "k8s.io/api/core/v1"
+	csiv1 "sigs.k8s.io/secrets-store-csi-driver/apis/v1"
+
 	"github.com/stakater/Reloader/internal/pkg/constants"
 	"github.com/stakater/Reloader/internal/pkg/options"
 	"github.com/stakater/Reloader/internal/pkg/util"
-	v1 "k8s.io/api/core/v1"
-	csiv1 "sigs.k8s.io/secrets-store-csi-driver/apis/v1"
 )
 
 // Config contains rolling upgrade configuration parameters

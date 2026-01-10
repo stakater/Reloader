@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/sirupsen/logrus"
+
 	"github.com/stakater/Reloader/internal/pkg/callbacks"
 	"github.com/stakater/Reloader/internal/pkg/constants"
 	"github.com/stakater/Reloader/internal/pkg/metrics"
@@ -67,10 +68,10 @@ func (r ResourceDeleteHandler) Handle() error {
 func (r ResourceDeleteHandler) GetConfig() (common.Config, string) {
 	var oldSHAData string
 	var config common.Config
-	if _, ok := r.Resource.(*v1.ConfigMap); ok {
-		config = common.GetConfigmapConfig(r.Resource.(*v1.ConfigMap))
-	} else if _, ok := r.Resource.(*v1.Secret); ok {
-		config = common.GetSecretConfig(r.Resource.(*v1.Secret))
+	if cm, ok := r.Resource.(*v1.ConfigMap); ok {
+		config = common.GetConfigmapConfig(cm)
+	} else if secret, ok := r.Resource.(*v1.Secret); ok {
+		config = common.GetSecretConfig(secret)
 	} else {
 		logrus.Warnf("Invalid resource: Resource should be 'Secret' or 'Configmap' but found, %v", r.Resource)
 	}
@@ -98,7 +99,7 @@ func removeContainerEnvVars(upgradeFuncs callbacks.RollingUpgradeFuncs, item run
 		return InvokeStrategyResult{constants.NoContainerFound, nil}
 	}
 
-	//remove if env var exists
+	// remove if env var exists
 	if len(container.Env) > 0 {
 		index := slices.IndexFunc(container.Env, func(envVariable v1.EnvVar) bool {
 			return envVariable.Name == envVar

@@ -31,7 +31,7 @@ type ObjectMeta struct {
 func ToObjectMeta(kubernetesObject interface{}) ObjectMeta {
 	objectValue := reflect.ValueOf(kubernetesObject)
 	fieldName := reflect.TypeOf((*metav1.ObjectMeta)(nil)).Elem().Name()
-	field := objectValue.FieldByName(fieldName).Interface().(metav1.ObjectMeta)
+	field, _ := objectValue.FieldByName(fieldName).Interface().(metav1.ObjectMeta)
 
 	return ObjectMeta{
 		ObjectMeta: field,
@@ -41,9 +41,11 @@ func ToObjectMeta(kubernetesObject interface{}) ObjectMeta {
 // ParseBool returns result in bool format after parsing
 func ParseBool(value interface{}) bool {
 	if reflect.Bool == reflect.TypeOf(value).Kind() {
-		return value.(bool)
+		b, _ := value.(bool)
+		return b
 	} else if reflect.String == reflect.TypeOf(value).Kind() {
-		result, _ := strconv.ParseBool(value.(string))
+		s, _ := value.(string)
+		result, _ := strconv.ParseBool(s)
 		return result
 	}
 	return false
