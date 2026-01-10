@@ -3,7 +3,7 @@ ARG BASE_IMAGE
 
 FROM --platform=${BUILDPLATFORM} ${BUILDER_IMAGE} AS SRC
 
-FROM ${BASE_IMAGE:-registry.access.redhat.com/ubi9/ubi:9.7} AS ubi
+FROM ${BASE_IMAGE:-registry.access.redhat.com/ubi9/ubi:9.7-1767674301} AS ubi
 ARG TARGETARCH
 
 
