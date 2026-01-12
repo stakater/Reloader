@@ -143,6 +143,13 @@ jobs:
       run: |
         echo GHCR_IMAGE_REPOSITORY=${{env.REGISTRY}}/$(echo ${{ github.repository }} | tr '[:upper:]' '[:lower:]') >> $GITHUB_ENV
 
+    - name: Login to ghcr registry
+      uses: docker/login-action@v3
+      with:
+        registry: ${{env.REGISTRY}}
+        username: stakater-user
+        password: ${{secrets.GITHUB_TOKEN}}
+        
     # To identify any broken changes in dockerfiles or dependencies
 
     - name: Build Docker Image
