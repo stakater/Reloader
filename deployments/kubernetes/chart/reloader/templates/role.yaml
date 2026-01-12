@@ -77,6 +77,12 @@ rules:
   - apiGroups:
       - "batch"
     resources:
+      - cronjobs/finalizers
+    verbs:
+      - update
+  - apiGroups:
+      - "batch"
+    resources:
       - jobs
     verbs:
       - create
