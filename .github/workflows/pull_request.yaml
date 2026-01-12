@@ -22,6 +22,7 @@ env:
   KUBERNETES_VERSION: "1.30.0"
   KIND_VERSION: "0.23.0"
   REGISTRY: ghcr.io
+  RELOADER_EDITION: oss
 
 jobs:
   qa:
@@ -141,6 +142,13 @@ jobs:
       run: |
         echo GHCR_IMAGE_REPOSITORY=${{env.REGISTRY}}/$(echo ${{ github.repository }} | tr '[:upper:]' '[:lower:]') >> $GITHUB_ENV
 
+    - name: Login to ghcr registry
+      uses: docker/login-action@v3
+      with:
+        registry: ${{env.REGISTRY}}
+        username: stakater-user
+        password: ${{secrets.GITHUB_TOKEN}}
+
     # To identify any broken changes in dockerfiles or dependencies
 
     - name: Build Docker Image
@@ -154,6 +162,7 @@ jobs:
           VERSION=merge-${{ steps.generate_tag.outputs.GIT_TAG }}
           COMMIT=${{github.event.pull_request.head.sha}}
           BUILD_DATE=${{ steps.prep.outputs.created }}
+          EDITION=${{ env.RELOADER_EDITION }}
           BUILD_PARAMETERS=${{ env.BUILD_PARAMETERS }}
         
         cache-to: type=inline
@@ -173,6 +182,10 @@ jobs:
         pull: true
         push: false
         build-args: |
+          VERSION=merge-${{ steps.generate_tag.outputs.GIT_UBI_TAG }}
+          COMMIT=${{github.event.pull_request.head.sha}}
+          BUILD_DATE=${{ steps.prep.outputs.created }}
+          EDITION=${{ env.RELOADER_EDITION }}
           BUILD_PARAMETERS=${{ env.BUILD_PARAMETERS }}
           BUILDER_IMAGE=${{ env.GHCR_IMAGE_REPOSITORY }}:${{ steps.highest_tag.outputs.tag }}
         cache-to: type=inline

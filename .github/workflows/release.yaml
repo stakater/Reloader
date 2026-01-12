@@ -11,6 +11,7 @@ env:
   KUBERNETES_VERSION: "1.30.0"
   KIND_VERSION: "0.23.0"
   REGISTRY: ghcr.io
+  RELOADER_EDITION: oss
 
 jobs:
   release:
@@ -110,6 +111,7 @@ jobs:
             VERSION=${{ steps.generate_tag.outputs.RELEASE_VERSION }}
             COMMIT=${{ github.sha }}
             BUILD_DATE=${{ steps.prep.outputs.created }}
+            EDITION=${{ env.RELOADER_EDITION }}
           labels: |
             org.opencontainers.image.source=${{ github.event.repository.clone_url }}
             org.opencontainers.image.created=${{ steps.prep.outputs.created }}
@@ -160,6 +162,7 @@ jobs:
             VERSION=${{ steps.generate_tag.outputs.RELEASE_VERSION }}
             COMMIT=${{ github.sha }}
             BUILD_DATE=${{ steps.prep.outputs.created }}
+            EDITION=${{ env.RELOADER_EDITION }}
           labels: |
             org.opencontainers.image.source=${{ github.event.repository.clone_url }}
             org.opencontainers.image.created=${{ steps.prep.outputs.created }}
