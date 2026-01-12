@@ -38,6 +38,7 @@ jobs:
       contents: read
       pull-requests: write
       issues: write
+      packages: write # FOR TESTING ONLY
 
     runs-on: ubuntu-latest
     name: Build
@@ -150,7 +151,7 @@ jobs:
         context: .
         file: ${{ env.DOCKER_FILE_PATH  }}
         pull: true
-        push: false
+        push: true # true FOR TESTING ONLY
         build-args: |
           VERSION=merge-${{ steps.generate_tag.outputs.GIT_TAG }}
           COMMIT=${{github.event.pull_request.head.sha}}
