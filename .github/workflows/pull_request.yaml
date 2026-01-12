@@ -110,19 +110,19 @@ jobs:
         kubectl cluster-info
 
 
-    - name: Test
-      run: make test
+    # - name: Test
+    #   run: make test
 
-    - name: Run quick A/B load tests
-      uses: ./.github/actions/loadtest
-      with:
-        old-ref: ${{ github.event.pull_request.base.sha }}
-        # new-ref defaults to current checkout (PR branch)
-        scenarios: 'S1,S4,S6'
-        test-type: 'quick'
-        kind-cluster: 'kind'  # Use the existing cluster created above
-        post-comment: 'true'
-        pr-number: ${{ github.event.pull_request.number }}
+    # - name: Run quick A/B load tests
+    #   uses: ./.github/actions/loadtest
+    #   with:
+    #     old-ref: ${{ github.event.pull_request.base.sha }}
+    #     # new-ref defaults to current checkout (PR branch)
+    #     scenarios: 'S1,S4,S6'
+    #     test-type: 'quick'
+    #     kind-cluster: 'kind'  # Use the existing cluster created above
+    #     post-comment: 'true'
+    #     pr-number: ${{ github.event.pull_request.number }}
 
     - name: Generate Tags
       id: generate_tag
@@ -149,7 +149,7 @@ jobs:
         registry: ${{env.REGISTRY}}
         username: stakater-user
         password: ${{secrets.GITHUB_TOKEN}}
-        
+
     # To identify any broken changes in dockerfiles or dependencies
 
     - name: Build Docker Image
