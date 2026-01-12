@@ -22,6 +22,7 @@ env:
   KUBERNETES_VERSION: "1.30.0"
   KIND_VERSION: "0.23.0"
   REGISTRY: ghcr.io
+  RELOADER_EDITION: oss
 
 jobs:
   qa:
@@ -154,6 +155,7 @@ jobs:
           VERSION=merge-${{ steps.generate_tag.outputs.GIT_TAG }}
           COMMIT=${{github.event.pull_request.head.sha}}
           BUILD_DATE=${{ steps.prep.outputs.created }}
+          EDITION=${{ env.RELOADER_EDITION }}
           BUILD_PARAMETERS=${{ env.BUILD_PARAMETERS }}
         
         cache-to: type=inline
@@ -173,6 +175,10 @@ jobs:
         pull: true
         push: false
         build-args: |
+          VERSION=merge-${{ steps.generate_tag.outputs.GIT_UBI_TAG }}
+          COMMIT=${{github.event.pull_request.head.sha}}
+          BUILD_DATE=${{ steps.prep.outputs.created }}
+          EDITION=${{ env.RELOADER_EDITION }}
           BUILD_PARAMETERS=${{ env.BUILD_PARAMETERS }}
           BUILDER_IMAGE=${{ env.GHCR_IMAGE_REPOSITORY }}:${{ steps.highest_tag.outputs.tag }}
         cache-to: type=inline

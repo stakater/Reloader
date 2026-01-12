@@ -18,11 +18,12 @@ import (
 var Version = "dev"
 var Commit = "unknown"
 var BuildDate = "unknown"
+var Edition = "oss"
 
 const (
 	MetaInfoConfigmapName       = "reloader-meta-info"
 	MetaInfoConfigmapLabelKey   = "reloader.stakater.com/meta-info"
-	MetaInfoConfigmapLabelValue = "reloader-oss"
+	MetaInfoConfigmapLabelValue = "reloader"
 )
 
 // MetaInfo contains comprehensive metadata about the Reloader instance.
@@ -47,6 +48,9 @@ type BuildInfo struct {
 	CommitHash string `json:"commitHash"`
 	// CommitTime is the timestamp of the Git commit used to build this binary
 	CommitTime time.Time `json:"commitTime"`
+
+	// Edition indicates the edition of Reloader (e.g., OSS, Enterprise)
+	Edition string `json:"edition"`
 }
 
 func NewBuildInfo() *BuildInfo {
@@ -55,6 +59,7 @@ func NewBuildInfo() *BuildInfo {
 		ReleaseVersion: Version,
 		CommitHash:     Commit,
 		CommitTime:     ParseUTCTime(BuildDate),
+		Edition:        Edition,
 	}
 
 	return metaInfo

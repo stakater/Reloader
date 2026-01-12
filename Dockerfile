@@ -12,6 +12,7 @@ ARG GOPRIVATE
 ARG COMMIT
 ARG VERSION
 ARG BUILD_DATE
+ARG EDITION
 
 WORKDIR /workspace
 
@@ -36,7 +37,8 @@ RUN CGO_ENABLED=0 \
     GO111MODULE=on \
     go build -ldflags="-s -w -X github.com/stakater/Reloader/pkg/common.Version=${VERSION} \
          -X github.com/stakater/Reloader/pkg/common.Commit=${COMMIT} \
-         -X github.com/stakater/Reloader/pkg/common.BuildDate=${BUILD_DATE}" \
+         -X github.com/stakater/Reloader/pkg/common.BuildDate=${BUILD_DATE} \
+         -X github.com/stakater/Reloader/pkg/common.Edition=${EDITION}" \
         -installsuffix 'static' -mod=mod -a -o manager ./
 
 # Use distroless as minimal base image to package the manager binary
