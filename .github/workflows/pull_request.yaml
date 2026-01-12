@@ -38,7 +38,6 @@ jobs:
       contents: read
       pull-requests: write
       issues: write
-      packages: write # FOR TESTING ONLY
 
     runs-on: ubuntu-latest
     name: Build
@@ -110,19 +109,19 @@ jobs:
         kubectl cluster-info
 
 
-    # - name: Test
-    #   run: make test
+    - name: Test
+      run: make test
 
-    # - name: Run quick A/B load tests
-    #   uses: ./.github/actions/loadtest
-    #   with:
-    #     old-ref: ${{ github.event.pull_request.base.sha }}
-    #     # new-ref defaults to current checkout (PR branch)
-    #     scenarios: 'S1,S4,S6'
-    #     test-type: 'quick'
-    #     kind-cluster: 'kind'  # Use the existing cluster created above
-    #     post-comment: 'true'
-    #     pr-number: ${{ github.event.pull_request.number }}
+    - name: Run quick A/B load tests
+      uses: ./.github/actions/loadtest
+      with:
+        old-ref: ${{ github.event.pull_request.base.sha }}
+        # new-ref defaults to current checkout (PR branch)
+        scenarios: 'S1,S4,S6'
+        test-type: 'quick'
+        kind-cluster: 'kind'  # Use the existing cluster created above
+        post-comment: 'true'
+        pr-number: ${{ github.event.pull_request.number }}
 
     - name: Generate Tags
       id: generate_tag
@@ -158,7 +157,7 @@ jobs:
         context: .
         file: ${{ env.DOCKER_FILE_PATH  }}
         pull: true
-        push: true # true FOR TESTING ONLY
+        push: false
         build-args: |
           VERSION=merge-${{ steps.generate_tag.outputs.GIT_TAG }}
           COMMIT=${{github.event.pull_request.head.sha}}
