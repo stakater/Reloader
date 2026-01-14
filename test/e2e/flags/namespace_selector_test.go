@@ -15,6 +15,7 @@ var _ = Describe("Namespace Selector Flag Tests", func() {
 		configMapName  string
 		matchingNS     string
 		nonMatchingNS  string
+		adapter        *utils.DeploymentAdapter
 	)
 
 	BeforeEach(func() {
@@ -22,6 +23,7 @@ var _ = Describe("Namespace Selector Flag Tests", func() {
 		configMapName = utils.RandName("cm")
 		matchingNS = "match-" + utils.RandName("ns")
 		nonMatchingNS = "nomatch-" + utils.RandName("ns")
+		adapter = utils.NewDeploymentAdapter(kubeClient)
 	})
 
 	AfterEach(func() {
@@ -68,7 +70,7 @@ var _ = Describe("Namespace Selector Flag Tests", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Waiting for Deployment to be ready")
-			err = utils.WaitForDeploymentReady(ctx, kubeClient, matchingNS, deploymentName, utils.DeploymentReady)
+			err = adapter.WaitReady(ctx, matchingNS, deploymentName, utils.DeploymentReady)
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Updating the ConfigMap")
@@ -76,7 +78,7 @@ var _ = Describe("Namespace Selector Flag Tests", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Waiting for Deployment to be reloaded")
-			reloaded, err := utils.WaitForDeploymentReloaded(ctx, kubeClient, matchingNS, deploymentName,
+			reloaded, err := adapter.WaitReloaded(ctx, matchingNS, deploymentName,
 				utils.AnnotationLastReloadedFrom, utils.ReloadTimeout)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(reloaded).To(BeTrue(), "Deployment in matching namespace should be reloaded")
@@ -96,7 +98,7 @@ var _ = Describe("Namespace Selector Flag Tests", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Waiting for Deployment to be ready")
-			err = utils.WaitForDeploymentReady(ctx, kubeClient, nonMatchingNS, deploymentName, utils.DeploymentReady)
+			err = adapter.WaitReady(ctx, nonMatchingNS, deploymentName, utils.DeploymentReady)
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Updating the ConfigMap")
@@ -105,7 +107,7 @@ var _ = Describe("Namespace Selector Flag Tests", func() {
 
 			By("Verifying Deployment was NOT reloaded (non-matching namespace)")
 			time.Sleep(utils.NegativeTestWait)
-			reloaded, err := utils.WaitForDeploymentReloaded(ctx, kubeClient, nonMatchingNS, deploymentName,
+			reloaded, err := adapter.WaitReloaded(ctx, nonMatchingNS, deploymentName,
 				utils.AnnotationLastReloadedFrom, utils.ShortTimeout)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(reloaded).To(BeFalse(), "Deployment in non-matching namespace should NOT be reloaded")

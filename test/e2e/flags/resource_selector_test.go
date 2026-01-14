@@ -15,6 +15,7 @@ var _ = Describe("Resource Label Selector Flag Tests", func() {
 		matchingCM     string
 		nonMatchingCM  string
 		resourceNS     string
+		adapter        *utils.DeploymentAdapter
 	)
 
 	BeforeEach(func() {
@@ -22,6 +23,7 @@ var _ = Describe("Resource Label Selector Flag Tests", func() {
 		matchingCM = utils.RandName("match-cm")
 		nonMatchingCM = utils.RandName("nomatch-cm")
 		resourceNS = "resource-" + utils.RandName("ns")
+		adapter = utils.NewDeploymentAdapter(kubeClient)
 	})
 
 	AfterEach(func() {
@@ -66,7 +68,7 @@ var _ = Describe("Resource Label Selector Flag Tests", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Waiting for Deployment to be ready")
-			err = utils.WaitForDeploymentReady(ctx, kubeClient, resourceNS, deploymentName, utils.DeploymentReady)
+			err = adapter.WaitReady(ctx, resourceNS, deploymentName, utils.DeploymentReady)
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Updating the labeled ConfigMap")
@@ -74,7 +76,7 @@ var _ = Describe("Resource Label Selector Flag Tests", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Waiting for Deployment to be reloaded")
-			reloaded, err := utils.WaitForDeploymentReloaded(ctx, kubeClient, resourceNS, deploymentName,
+			reloaded, err := adapter.WaitReloaded(ctx, resourceNS, deploymentName,
 				utils.AnnotationLastReloadedFrom, utils.ReloadTimeout)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(reloaded).To(BeTrue(), "Deployment should be reloaded when labeled ConfigMap changes")
@@ -94,7 +96,7 @@ var _ = Describe("Resource Label Selector Flag Tests", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Waiting for Deployment to be ready")
-			err = utils.WaitForDeploymentReady(ctx, kubeClient, resourceNS, deploymentName, utils.DeploymentReady)
+			err = adapter.WaitReady(ctx, resourceNS, deploymentName, utils.DeploymentReady)
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Updating the unlabeled ConfigMap")
@@ -103,7 +105,7 @@ var _ = Describe("Resource Label Selector Flag Tests", func() {
 
 			By("Verifying Deployment was NOT reloaded (unlabeled ConfigMap)")
 			time.Sleep(utils.NegativeTestWait)
-			reloaded, err := utils.WaitForDeploymentReloaded(ctx, kubeClient, resourceNS, deploymentName,
+			reloaded, err := adapter.WaitReloaded(ctx, resourceNS, deploymentName,
 				utils.AnnotationLastReloadedFrom, utils.ShortTimeout)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(reloaded).To(BeFalse(), "Deployment should NOT reload when unlabeled ConfigMap changes")

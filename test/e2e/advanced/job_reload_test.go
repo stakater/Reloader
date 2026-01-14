@@ -17,6 +17,7 @@ var _ = Describe("Job Workload Recreation Tests", func() {
 		secretName      string
 		spcName         string
 		vaultSecretPath string
+		jobAdapter      *utils.JobAdapter
 	)
 
 	BeforeEach(func() {
@@ -25,6 +26,7 @@ var _ = Describe("Job Workload Recreation Tests", func() {
 		secretName = utils.RandName("secret")
 		spcName = utils.RandName("spc")
 		vaultSecretPath = fmt.Sprintf("secret/%s", utils.RandName("vault"))
+		jobAdapter = utils.NewJobAdapter(kubeClient)
 	})
 
 	AfterEach(func() {
@@ -50,7 +52,7 @@ var _ = Describe("Job Workload Recreation Tests", func() {
 			originalUID := string(job.UID)
 
 			By("Waiting for Job to be ready")
-			err = utils.WaitForJobReady(ctx, kubeClient, testNamespace, jobName, utils.DeploymentReady)
+			err = jobAdapter.WaitReady(ctx, testNamespace, jobName, utils.DeploymentReady)
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Updating the ConfigMap")
@@ -58,8 +60,7 @@ var _ = Describe("Job Workload Recreation Tests", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Waiting for Job to be recreated (new UID)")
-			_, recreated, err := utils.WaitForJobRecreated(ctx, kubeClient, testNamespace, jobName, originalUID,
-				utils.ReloadTimeout)
+			_, recreated, err := jobAdapter.WaitRecreated(ctx, testNamespace, jobName, originalUID, utils.ReloadTimeout)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(recreated).To(BeTrue(), "Job should be recreated with new UID when ConfigMap changes")
 		})
@@ -79,7 +80,7 @@ var _ = Describe("Job Workload Recreation Tests", func() {
 			originalUID := string(job.UID)
 
 			By("Waiting for Job to be ready")
-			err = utils.WaitForJobReady(ctx, kubeClient, testNamespace, jobName, utils.DeploymentReady)
+			err = jobAdapter.WaitReady(ctx, testNamespace, jobName, utils.DeploymentReady)
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Updating the Secret")
@@ -87,8 +88,7 @@ var _ = Describe("Job Workload Recreation Tests", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Waiting for Job to be recreated (new UID)")
-			_, recreated, err := utils.WaitForJobRecreated(ctx, kubeClient, testNamespace, jobName, originalUID,
-				utils.ReloadTimeout)
+			_, recreated, err := jobAdapter.WaitRecreated(ctx, testNamespace, jobName, originalUID, utils.ReloadTimeout)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(recreated).To(BeTrue(), "Job should be recreated with new UID when Secret changes")
 		})
@@ -109,7 +109,7 @@ var _ = Describe("Job Workload Recreation Tests", func() {
 			originalUID := string(job.UID)
 
 			By("Waiting for Job to be ready")
-			err = utils.WaitForJobReady(ctx, kubeClient, testNamespace, jobName, utils.DeploymentReady)
+			err = jobAdapter.WaitReady(ctx, testNamespace, jobName, utils.DeploymentReady)
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Updating the ConfigMap")
@@ -117,8 +117,7 @@ var _ = Describe("Job Workload Recreation Tests", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Waiting for Job to be recreated (new UID)")
-			_, recreated, err := utils.WaitForJobRecreated(ctx, kubeClient, testNamespace, jobName, originalUID,
-				utils.ReloadTimeout)
+			_, recreated, err := jobAdapter.WaitRecreated(ctx, testNamespace, jobName, originalUID, utils.ReloadTimeout)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(recreated).To(BeTrue(), "Job with auto=true should be recreated when ConfigMap changes")
 		})
@@ -139,7 +138,7 @@ var _ = Describe("Job Workload Recreation Tests", func() {
 			originalUID := string(job.UID)
 
 			By("Waiting for Job to be ready")
-			err = utils.WaitForJobReady(ctx, kubeClient, testNamespace, jobName, utils.DeploymentReady)
+			err = jobAdapter.WaitReady(ctx, testNamespace, jobName, utils.DeploymentReady)
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Updating the ConfigMap")
@@ -147,8 +146,7 @@ var _ = Describe("Job Workload Recreation Tests", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Waiting for Job to be recreated (new UID)")
-			_, recreated, err := utils.WaitForJobRecreated(ctx, kubeClient, testNamespace, jobName, originalUID,
-				utils.ReloadTimeout)
+			_, recreated, err := jobAdapter.WaitRecreated(ctx, testNamespace, jobName, originalUID, utils.ReloadTimeout)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(recreated).To(BeTrue(),
 				"Job with valueFrom.configMapKeyRef should be recreated when ConfigMap changes")
@@ -170,7 +168,7 @@ var _ = Describe("Job Workload Recreation Tests", func() {
 			originalUID := string(job.UID)
 
 			By("Waiting for Job to be ready")
-			err = utils.WaitForJobReady(ctx, kubeClient, testNamespace, jobName, utils.DeploymentReady)
+			err = jobAdapter.WaitReady(ctx, testNamespace, jobName, utils.DeploymentReady)
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Updating the Secret")
@@ -178,8 +176,7 @@ var _ = Describe("Job Workload Recreation Tests", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Waiting for Job to be recreated (new UID)")
-			_, recreated, err := utils.WaitForJobRecreated(ctx, kubeClient, testNamespace, jobName, originalUID,
-				utils.ReloadTimeout)
+			_, recreated, err := jobAdapter.WaitRecreated(ctx, testNamespace, jobName, originalUID, utils.ReloadTimeout)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(recreated).To(BeTrue(), "Job with valueFrom.secretKeyRef should be recreated when Secret changes")
 		})
@@ -218,7 +215,7 @@ var _ = Describe("Job Workload Recreation Tests", func() {
 			originalUID := string(job.UID)
 
 			By("Waiting for Job to be ready")
-			err = utils.WaitForJobReady(ctx, kubeClient, testNamespace, jobName, utils.DeploymentReady)
+			err = jobAdapter.WaitReady(ctx, testNamespace, jobName, utils.DeploymentReady)
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Finding the SPCPS created by CSI driver")
@@ -244,8 +241,7 @@ var _ = Describe("Job Workload Recreation Tests", func() {
 			GinkgoWriter.Println("CSI driver synced new secret version")
 
 			By("Waiting for Job to be recreated (new UID)")
-			_, recreated, err := utils.WaitForJobRecreated(ctx, kubeClient, testNamespace, jobName, originalUID,
-				utils.ReloadTimeout)
+			_, recreated, err := jobAdapter.WaitRecreated(ctx, testNamespace, jobName, originalUID, utils.ReloadTimeout)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(recreated).To(BeTrue(), "Job should be recreated with new UID when Vault secret changes")
 		})

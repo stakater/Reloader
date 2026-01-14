@@ -2,9 +2,12 @@ package utils
 
 import (
 	"context"
+	"errors"
 	"time"
 
 	appsv1 "k8s.io/api/apps/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/kubernetes"
 )
 
@@ -35,19 +38,37 @@ func (a *DaemonSetAdapter) Delete(ctx context.Context, namespace, name string) e
 	return DeleteDaemonSet(ctx, a.client, namespace, name)
 }
 
-// WaitReady waits for the DaemonSet to be ready.
+// WaitReady waits for the DaemonSet to be ready using watches.
 func (a *DaemonSetAdapter) WaitReady(ctx context.Context, namespace, name string, timeout time.Duration) error {
-	return WaitForDaemonSetReady(ctx, a.client, namespace, name, timeout)
+	watchFunc := func(ctx context.Context, opts metav1.ListOptions) (watch.Interface, error) {
+		return a.client.AppsV1().DaemonSets(namespace).Watch(ctx, opts)
+	}
+	_, err := WatchUntil(ctx, watchFunc, name, IsReady(DaemonSetIsReady), timeout)
+	return err
 }
 
-// WaitReloaded waits for the DaemonSet to have the reload annotation.
+// WaitReloaded waits for the DaemonSet to have the reload annotation using watches.
 func (a *DaemonSetAdapter) WaitReloaded(ctx context.Context, namespace, name, annotationKey string, timeout time.Duration) (bool, error) {
-	return WaitForDaemonSetReloaded(ctx, a.client, namespace, name, annotationKey, timeout)
+	watchFunc := func(ctx context.Context, opts metav1.ListOptions) (watch.Interface, error) {
+		return a.client.AppsV1().DaemonSets(namespace).Watch(ctx, opts)
+	}
+	_, err := WatchUntil(ctx, watchFunc, name, HasPodTemplateAnnotation(DaemonSetPodTemplate, annotationKey), timeout)
+	if errors.Is(err, ErrWatchTimeout) {
+		return false, nil
+	}
+	return err == nil, err
 }
 
-// WaitEnvVar waits for the DaemonSet to have a STAKATER_ env var.
+// WaitEnvVar waits for the DaemonSet to have a STAKATER_ env var using watches.
 func (a *DaemonSetAdapter) WaitEnvVar(ctx context.Context, namespace, name, prefix string, timeout time.Duration) (bool, error) {
-	return WaitForDaemonSetEnvVar(ctx, a.client, namespace, name, prefix, timeout)
+	watchFunc := func(ctx context.Context, opts metav1.ListOptions) (watch.Interface, error) {
+		return a.client.AppsV1().DaemonSets(namespace).Watch(ctx, opts)
+	}
+	_, err := WatchUntil(ctx, watchFunc, name, HasEnvVarPrefix(DaemonSetContainers, prefix), timeout)
+	if errors.Is(err, ErrWatchTimeout) {
+		return false, nil
+	}
+	return err == nil, err
 }
 
 // SupportsEnvVarStrategy returns true as DaemonSets support env var reload strategy.

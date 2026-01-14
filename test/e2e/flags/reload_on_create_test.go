@@ -14,12 +14,14 @@ var _ = Describe("Reload On Create Flag Tests", func() {
 		deploymentName  string
 		configMapName   string
 		createNamespace string
+		adapter         *utils.DeploymentAdapter
 	)
 
 	BeforeEach(func() {
 		deploymentName = utils.RandName("deploy")
 		configMapName = utils.RandName("cm")
 		createNamespace = "create-" + utils.RandName("ns")
+		adapter = utils.NewDeploymentAdapter(kubeClient)
 	})
 
 	AfterEach(func() {
@@ -56,7 +58,7 @@ var _ = Describe("Reload On Create Flag Tests", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Waiting for Deployment to be ready")
-			err = utils.WaitForDeploymentReady(ctx, kubeClient, createNamespace, deploymentName, utils.DeploymentReady)
+			err = adapter.WaitReady(ctx, createNamespace, deploymentName, utils.DeploymentReady)
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Creating the ConfigMap that the Deployment references")
@@ -65,7 +67,7 @@ var _ = Describe("Reload On Create Flag Tests", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Waiting for Deployment to be reloaded (reloadOnCreate=true)")
-			reloaded, err := utils.WaitForDeploymentReloaded(ctx, kubeClient, createNamespace, deploymentName,
+			reloaded, err := adapter.WaitReloaded(ctx, createNamespace, deploymentName,
 				utils.AnnotationLastReloadedFrom, utils.ReloadTimeout)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(reloaded).To(BeTrue(), "Deployment should reload when referenced ConfigMap is created")
@@ -82,7 +84,7 @@ var _ = Describe("Reload On Create Flag Tests", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Waiting for Deployment to be ready")
-			err = utils.WaitForDeploymentReady(ctx, kubeClient, createNamespace, deploymentName, utils.DeploymentReady)
+			err = adapter.WaitReady(ctx, createNamespace, deploymentName, utils.DeploymentReady)
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Creating the Secret that the Deployment references")
@@ -91,7 +93,7 @@ var _ = Describe("Reload On Create Flag Tests", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Waiting for Deployment to be reloaded (reloadOnCreate=true)")
-			reloaded, err := utils.WaitForDeploymentReloaded(ctx, kubeClient, createNamespace, deploymentName,
+			reloaded, err := adapter.WaitReloaded(ctx, createNamespace, deploymentName,
 				utils.AnnotationLastReloadedFrom, utils.ReloadTimeout)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(reloaded).To(BeTrue(), "Deployment should reload when referenced Secret is created")
@@ -125,7 +127,7 @@ var _ = Describe("Reload On Create Flag Tests", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Waiting for Deployment to be ready")
-			err = utils.WaitForDeploymentReady(ctx, kubeClient, createNamespace, deploymentName, utils.DeploymentReady)
+			err = adapter.WaitReady(ctx, createNamespace, deploymentName, utils.DeploymentReady)
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Creating the ConfigMap that the Deployment references")
@@ -135,7 +137,7 @@ var _ = Describe("Reload On Create Flag Tests", func() {
 
 			By("Verifying Deployment was NOT reloaded (reloadOnCreate=false)")
 			time.Sleep(utils.NegativeTestWait)
-			reloaded, err := utils.WaitForDeploymentReloaded(ctx, kubeClient, createNamespace, deploymentName,
+			reloaded, err := adapter.WaitReloaded(ctx, createNamespace, deploymentName,
 				utils.AnnotationLastReloadedFrom, utils.ShortTimeout)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(reloaded).To(BeFalse(), "Deployment should NOT reload on create when reloadOnCreate=false")

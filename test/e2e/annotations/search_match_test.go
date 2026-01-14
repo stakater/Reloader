@@ -15,12 +15,14 @@ var _ = Describe("Search and Match Annotation Tests", func() {
 		deploymentName string
 		configMapName  string
 		workloadName   string
+		adapter        *utils.DeploymentAdapter
 	)
 
 	BeforeEach(func() {
 		deploymentName = utils.RandName("deploy")
 		configMapName = utils.RandName("cm")
 		workloadName = utils.RandName("workload")
+		adapter = utils.NewDeploymentAdapter(kubeClient)
 	})
 
 	AfterEach(func() {
@@ -44,7 +46,7 @@ var _ = Describe("Search and Match Annotation Tests", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Waiting for Deployment to be ready")
-			err = utils.WaitForDeploymentReady(ctx, kubeClient, testNamespace, deploymentName, utils.DeploymentReady)
+			err = adapter.WaitReady(ctx, testNamespace, deploymentName, utils.DeploymentReady)
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Updating the ConfigMap data")
@@ -52,7 +54,7 @@ var _ = Describe("Search and Match Annotation Tests", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Waiting for Deployment to be reloaded")
-			reloaded, err := utils.WaitForDeploymentReloaded(ctx, kubeClient, testNamespace, deploymentName,
+			reloaded, err := adapter.WaitReloaded(ctx, testNamespace, deploymentName,
 				utils.AnnotationLastReloadedFrom, utils.ReloadTimeout)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(reloaded).To(BeTrue(), "Deployment with search annotation should reload when ConfigMap has match annotation")
@@ -72,7 +74,7 @@ var _ = Describe("Search and Match Annotation Tests", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Waiting for Deployment to be ready")
-			err = utils.WaitForDeploymentReady(ctx, kubeClient, testNamespace, deploymentName, utils.DeploymentReady)
+			err = adapter.WaitReady(ctx, testNamespace, deploymentName, utils.DeploymentReady)
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Updating the ConfigMap data")
@@ -81,7 +83,7 @@ var _ = Describe("Search and Match Annotation Tests", func() {
 
 			By("Verifying Deployment was NOT reloaded (negative test)")
 			time.Sleep(utils.NegativeTestWait)
-			reloaded, err := utils.WaitForDeploymentReloaded(ctx, kubeClient, testNamespace, deploymentName,
+			reloaded, err := adapter.WaitReloaded(ctx, testNamespace, deploymentName,
 				utils.AnnotationLastReloadedFrom, utils.ShortTimeout)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(reloaded).To(BeFalse(), "Deployment should NOT reload when ConfigMap lacks match annotation")
@@ -102,7 +104,7 @@ var _ = Describe("Search and Match Annotation Tests", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Waiting for Deployment to be ready")
-			err = utils.WaitForDeploymentReady(ctx, kubeClient, testNamespace, deploymentName, utils.DeploymentReady)
+			err = adapter.WaitReady(ctx, testNamespace, deploymentName, utils.DeploymentReady)
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Updating the ConfigMap data")
@@ -111,7 +113,7 @@ var _ = Describe("Search and Match Annotation Tests", func() {
 
 			By("Verifying Deployment was NOT reloaded (negative test)")
 			time.Sleep(utils.NegativeTestWait)
-			reloaded, err := utils.WaitForDeploymentReloaded(ctx, kubeClient, testNamespace, deploymentName,
+			reloaded, err := adapter.WaitReloaded(ctx, testNamespace, deploymentName,
 				utils.AnnotationLastReloadedFrom, utils.ShortTimeout)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(reloaded).To(BeFalse(), "Deployment without search annotation should NOT reload even when ConfigMap has match")
@@ -144,9 +146,9 @@ var _ = Describe("Search and Match Annotation Tests", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Waiting for both Deployments to be ready")
-			err = utils.WaitForDeploymentReady(ctx, kubeClient, testNamespace, deploymentName, utils.DeploymentReady)
+			err = adapter.WaitReady(ctx, testNamespace, deploymentName, utils.DeploymentReady)
 			Expect(err).NotTo(HaveOccurred())
-			err = utils.WaitForDeploymentReady(ctx, kubeClient, testNamespace, deploymentName2, utils.DeploymentReady)
+			err = adapter.WaitReady(ctx, testNamespace, deploymentName2, utils.DeploymentReady)
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Updating the ConfigMap data")
@@ -154,13 +156,13 @@ var _ = Describe("Search and Match Annotation Tests", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Waiting for first Deployment to be reloaded")
-			reloaded, err := utils.WaitForDeploymentReloaded(ctx, kubeClient, testNamespace, deploymentName,
+			reloaded, err := adapter.WaitReloaded(ctx, testNamespace, deploymentName,
 				utils.AnnotationLastReloadedFrom, utils.ReloadTimeout)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(reloaded).To(BeTrue(), "Deployment with search annotation should reload")
 
 			By("Verifying second Deployment was NOT reloaded")
-			reloaded2, err := utils.WaitForDeploymentReloaded(ctx, kubeClient, testNamespace, deploymentName2,
+			reloaded2, err := adapter.WaitReloaded(ctx, testNamespace, deploymentName2,
 				utils.AnnotationLastReloadedFrom, utils.ShortTimeout)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(reloaded2).To(BeFalse(), "Deployment without search annotation should NOT reload")

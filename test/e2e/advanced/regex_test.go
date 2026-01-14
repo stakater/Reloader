@@ -15,6 +15,7 @@ var _ = Describe("Regex Pattern Tests", func() {
 		matchingCM     string
 		nonMatchingCM  string
 		matchingSecret string
+		adapter        *utils.DeploymentAdapter
 	)
 
 	BeforeEach(func() {
@@ -22,6 +23,7 @@ var _ = Describe("Regex Pattern Tests", func() {
 		matchingCM = "app-config-" + utils.RandName("cm")
 		nonMatchingCM = "other-" + utils.RandName("cm")
 		matchingSecret = "app-secret-" + utils.RandName("secret")
+		adapter = utils.NewDeploymentAdapter(kubeClient)
 	})
 
 	AfterEach(func() {
@@ -48,7 +50,7 @@ var _ = Describe("Regex Pattern Tests", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Waiting for Deployment to be ready")
-			err = utils.WaitForDeploymentReady(ctx, kubeClient, testNamespace, deploymentName, utils.DeploymentReady)
+			err = adapter.WaitReady(ctx, testNamespace, deploymentName, utils.DeploymentReady)
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Updating the matching ConfigMap")
@@ -56,7 +58,7 @@ var _ = Describe("Regex Pattern Tests", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Waiting for Deployment to be reloaded")
-			reloaded, err := utils.WaitForDeploymentReloaded(ctx, kubeClient, testNamespace, deploymentName,
+			reloaded, err := adapter.WaitReloaded(ctx, testNamespace, deploymentName,
 				utils.AnnotationLastReloadedFrom, utils.ReloadTimeout)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(reloaded).To(BeTrue(), "Deployment should be reloaded when matching ConfigMap changes")
@@ -82,7 +84,7 @@ var _ = Describe("Regex Pattern Tests", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Waiting for Deployment to be ready")
-			err = utils.WaitForDeploymentReady(ctx, kubeClient, testNamespace, deploymentName, utils.DeploymentReady)
+			err = adapter.WaitReady(ctx, testNamespace, deploymentName, utils.DeploymentReady)
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Updating the non-matching ConfigMap")
@@ -91,7 +93,7 @@ var _ = Describe("Regex Pattern Tests", func() {
 
 			By("Verifying Deployment was NOT reloaded (pattern mismatch)")
 			time.Sleep(utils.NegativeTestWait)
-			reloaded, err := utils.WaitForDeploymentReloaded(ctx, kubeClient, testNamespace, deploymentName,
+			reloaded, err := adapter.WaitReloaded(ctx, testNamespace, deploymentName,
 				utils.AnnotationLastReloadedFrom, utils.ShortTimeout)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(reloaded).To(BeFalse(), "Deployment should NOT reload when non-matching ConfigMap changes")
@@ -115,7 +117,7 @@ var _ = Describe("Regex Pattern Tests", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Waiting for Deployment to be ready")
-			err = utils.WaitForDeploymentReady(ctx, kubeClient, testNamespace, deploymentName, utils.DeploymentReady)
+			err = adapter.WaitReady(ctx, testNamespace, deploymentName, utils.DeploymentReady)
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Updating the matching Secret")
@@ -123,7 +125,7 @@ var _ = Describe("Regex Pattern Tests", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Waiting for Deployment to be reloaded")
-			reloaded, err := utils.WaitForDeploymentReloaded(ctx, kubeClient, testNamespace, deploymentName,
+			reloaded, err := adapter.WaitReloaded(ctx, testNamespace, deploymentName,
 				utils.AnnotationLastReloadedFrom, utils.ReloadTimeout)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(reloaded).To(BeTrue(), "Deployment should be reloaded when matching Secret changes")

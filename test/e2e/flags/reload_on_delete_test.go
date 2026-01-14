@@ -14,12 +14,14 @@ var _ = Describe("Reload On Delete Flag Tests", func() {
 		deploymentName  string
 		configMapName   string
 		deleteNamespace string
+		adapter         *utils.DeploymentAdapter
 	)
 
 	BeforeEach(func() {
 		deploymentName = utils.RandName("deploy")
 		configMapName = utils.RandName("cm")
 		deleteNamespace = "delete-" + utils.RandName("ns")
+		adapter = utils.NewDeploymentAdapter(kubeClient)
 	})
 
 	AfterEach(func() {
@@ -61,7 +63,7 @@ var _ = Describe("Reload On Delete Flag Tests", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Waiting for Deployment to be ready")
-			err = utils.WaitForDeploymentReady(ctx, kubeClient, deleteNamespace, deploymentName, utils.DeploymentReady)
+			err = adapter.WaitReady(ctx, deleteNamespace, deploymentName, utils.DeploymentReady)
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Deleting the ConfigMap")
@@ -69,7 +71,7 @@ var _ = Describe("Reload On Delete Flag Tests", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Waiting for Deployment to be reloaded (reloadOnDelete=true)")
-			reloaded, err := utils.WaitForDeploymentReloaded(ctx, kubeClient, deleteNamespace, deploymentName,
+			reloaded, err := adapter.WaitReloaded(ctx, deleteNamespace, deploymentName,
 				utils.AnnotationLastReloadedFrom, utils.ReloadTimeout)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(reloaded).To(BeTrue(), "Deployment should reload when referenced ConfigMap is deleted")
@@ -90,7 +92,7 @@ var _ = Describe("Reload On Delete Flag Tests", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Waiting for Deployment to be ready")
-			err = utils.WaitForDeploymentReady(ctx, kubeClient, deleteNamespace, deploymentName, utils.DeploymentReady)
+			err = adapter.WaitReady(ctx, deleteNamespace, deploymentName, utils.DeploymentReady)
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Deleting the Secret")
@@ -98,7 +100,7 @@ var _ = Describe("Reload On Delete Flag Tests", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Waiting for Deployment to be reloaded (reloadOnDelete=true)")
-			reloaded, err := utils.WaitForDeploymentReloaded(ctx, kubeClient, deleteNamespace, deploymentName,
+			reloaded, err := adapter.WaitReloaded(ctx, deleteNamespace, deploymentName,
 				utils.AnnotationLastReloadedFrom, utils.ReloadTimeout)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(reloaded).To(BeTrue(), "Deployment should reload when referenced Secret is deleted")
@@ -137,7 +139,7 @@ var _ = Describe("Reload On Delete Flag Tests", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Waiting for Deployment to be ready")
-			err = utils.WaitForDeploymentReady(ctx, kubeClient, deleteNamespace, deploymentName, utils.DeploymentReady)
+			err = adapter.WaitReady(ctx, deleteNamespace, deploymentName, utils.DeploymentReady)
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Deleting the ConfigMap")
@@ -146,7 +148,7 @@ var _ = Describe("Reload On Delete Flag Tests", func() {
 
 			By("Verifying Deployment was NOT reloaded (reloadOnDelete=false)")
 			time.Sleep(utils.NegativeTestWait)
-			reloaded, err := utils.WaitForDeploymentReloaded(ctx, kubeClient, deleteNamespace, deploymentName,
+			reloaded, err := adapter.WaitReloaded(ctx, deleteNamespace, deploymentName,
 				utils.AnnotationLastReloadedFrom, utils.ShortTimeout)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(reloaded).To(BeFalse(), "Deployment should NOT reload on delete when reloadOnDelete=false")

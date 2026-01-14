@@ -2,9 +2,12 @@ package utils
 
 import (
 	"context"
+	"errors"
 	"time"
 
 	appsv1 "k8s.io/api/apps/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/kubernetes"
 )
 
@@ -35,19 +38,61 @@ func (a *DeploymentAdapter) Delete(ctx context.Context, namespace, name string) 
 	return DeleteDeployment(ctx, a.client, namespace, name)
 }
 
-// WaitReady waits for the Deployment to be ready.
+// WaitReady waits for the Deployment to be ready using watches.
 func (a *DeploymentAdapter) WaitReady(ctx context.Context, namespace, name string, timeout time.Duration) error {
-	return WaitForDeploymentReady(ctx, a.client, namespace, name, timeout)
+	watchFunc := func(ctx context.Context, opts metav1.ListOptions) (watch.Interface, error) {
+		return a.client.AppsV1().Deployments(namespace).Watch(ctx, opts)
+	}
+	_, err := WatchUntil(ctx, watchFunc, name, IsReady(DeploymentIsReady), timeout)
+	return err
 }
 
-// WaitReloaded waits for the Deployment to have the reload annotation.
+// WaitReloaded waits for the Deployment to have the reload annotation using watches.
 func (a *DeploymentAdapter) WaitReloaded(ctx context.Context, namespace, name, annotationKey string, timeout time.Duration) (bool, error) {
-	return WaitForDeploymentReloaded(ctx, a.client, namespace, name, annotationKey, timeout)
+	watchFunc := func(ctx context.Context, opts metav1.ListOptions) (watch.Interface, error) {
+		return a.client.AppsV1().Deployments(namespace).Watch(ctx, opts)
+	}
+	_, err := WatchUntil(ctx, watchFunc, name, HasPodTemplateAnnotation(DeploymentPodTemplate, annotationKey), timeout)
+	if errors.Is(err, ErrWatchTimeout) {
+		return false, nil
+	}
+	return err == nil, err
 }
 
-// WaitEnvVar waits for the Deployment to have a STAKATER_ env var.
+// WaitEnvVar waits for the Deployment to have a STAKATER_ env var using watches.
 func (a *DeploymentAdapter) WaitEnvVar(ctx context.Context, namespace, name, prefix string, timeout time.Duration) (bool, error) {
-	return WaitForDeploymentEnvVar(ctx, a.client, namespace, name, prefix, timeout)
+	watchFunc := func(ctx context.Context, opts metav1.ListOptions) (watch.Interface, error) {
+		return a.client.AppsV1().Deployments(namespace).Watch(ctx, opts)
+	}
+	_, err := WatchUntil(ctx, watchFunc, name, HasEnvVarPrefix(DeploymentContainers, prefix), timeout)
+	if errors.Is(err, ErrWatchTimeout) {
+		return false, nil
+	}
+	return err == nil, err
+}
+
+// WaitPaused waits for the Deployment to have the paused annotation using watches.
+func (a *DeploymentAdapter) WaitPaused(ctx context.Context, namespace, name, annotationKey string, timeout time.Duration) (bool, error) {
+	watchFunc := func(ctx context.Context, opts metav1.ListOptions) (watch.Interface, error) {
+		return a.client.AppsV1().Deployments(namespace).Watch(ctx, opts)
+	}
+	_, err := WatchUntil(ctx, watchFunc, name, HasAnnotation(DeploymentAnnotations, annotationKey), timeout)
+	if errors.Is(err, ErrWatchTimeout) {
+		return false, nil
+	}
+	return err == nil, err
+}
+
+// WaitUnpaused waits for the Deployment to NOT have the paused annotation using watches.
+func (a *DeploymentAdapter) WaitUnpaused(ctx context.Context, namespace, name, annotationKey string, timeout time.Duration) (bool, error) {
+	watchFunc := func(ctx context.Context, opts metav1.ListOptions) (watch.Interface, error) {
+		return a.client.AppsV1().Deployments(namespace).Watch(ctx, opts)
+	}
+	_, err := WatchUntil(ctx, watchFunc, name, NoAnnotation(DeploymentAnnotations, annotationKey), timeout)
+	if errors.Is(err, ErrWatchTimeout) {
+		return false, nil
+	}
+	return err == nil, err
 }
 
 // SupportsEnvVarStrategy returns true as Deployments support env var reload strategy.

@@ -9,7 +9,7 @@ import (
 	rolloutsclient "github.com/argoproj/argo-rollouts/pkg/client/clientset/versioned"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/util/wait"
+	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/utils/ptr"
 )
 
@@ -46,19 +46,50 @@ func (a *ArgoRolloutAdapter) Delete(ctx context.Context, namespace, name string)
 	return a.rolloutsClient.ArgoprojV1alpha1().Rollouts(namespace).Delete(ctx, name, metav1.DeleteOptions{})
 }
 
-// WaitReady waits for the Argo Rollout to be ready.
+// WaitReady waits for the Argo Rollout to be ready using watches.
 func (a *ArgoRolloutAdapter) WaitReady(ctx context.Context, namespace, name string, timeout time.Duration) error {
-	return WaitForRolloutReady(ctx, a.rolloutsClient, namespace, name, timeout)
+	watchFunc := func(ctx context.Context, opts metav1.ListOptions) (watch.Interface, error) {
+		return a.rolloutsClient.ArgoprojV1alpha1().Rollouts(namespace).Watch(ctx, opts)
+	}
+	_, err := WatchUntil(ctx, watchFunc, name, IsReady(RolloutIsReady), timeout)
+	return err
 }
 
-// WaitReloaded waits for the Argo Rollout to have the reload annotation.
+// WaitReloaded waits for the Argo Rollout to have the reload annotation using watches.
 func (a *ArgoRolloutAdapter) WaitReloaded(ctx context.Context, namespace, name, annotationKey string, timeout time.Duration) (bool, error) {
-	return WaitForRolloutReloaded(ctx, a.rolloutsClient, namespace, name, annotationKey, timeout)
+	watchFunc := func(ctx context.Context, opts metav1.ListOptions) (watch.Interface, error) {
+		return a.rolloutsClient.ArgoprojV1alpha1().Rollouts(namespace).Watch(ctx, opts)
+	}
+	_, err := WatchUntil(ctx, watchFunc, name, HasPodTemplateAnnotation(RolloutPodTemplate, annotationKey), timeout)
+	if errors.Is(err, ErrWatchTimeout) {
+		return false, nil
+	}
+	return err == nil, err
 }
 
-// WaitEnvVar waits for the Argo Rollout to have a STAKATER_ env var.
+// WaitEnvVar waits for the Argo Rollout to have a STAKATER_ env var using watches.
 func (a *ArgoRolloutAdapter) WaitEnvVar(ctx context.Context, namespace, name, prefix string, timeout time.Duration) (bool, error) {
-	return WaitForRolloutEnvVar(ctx, a.rolloutsClient, namespace, name, prefix, timeout)
+	watchFunc := func(ctx context.Context, opts metav1.ListOptions) (watch.Interface, error) {
+		return a.rolloutsClient.ArgoprojV1alpha1().Rollouts(namespace).Watch(ctx, opts)
+	}
+	_, err := WatchUntil(ctx, watchFunc, name, HasEnvVarPrefix(RolloutContainers, prefix), timeout)
+	if errors.Is(err, ErrWatchTimeout) {
+		return false, nil
+	}
+	return err == nil, err
+}
+
+// WaitRestartAt waits for the Argo Rollout to have the restartAt field set using watches.
+// This is used when Reloader is configured with rollout strategy=restart.
+func (a *ArgoRolloutAdapter) WaitRestartAt(ctx context.Context, namespace, name string, timeout time.Duration) (bool, error) {
+	watchFunc := func(ctx context.Context, opts metav1.ListOptions) (watch.Interface, error) {
+		return a.rolloutsClient.ArgoprojV1alpha1().Rollouts(namespace).Watch(ctx, opts)
+	}
+	_, err := WatchUntil(ctx, watchFunc, name, IsReady(RolloutHasRestartAt), timeout)
+	if errors.Is(err, ErrWatchTimeout) {
+		return false, nil
+	}
+	return err == nil, err
 }
 
 // SupportsEnvVarStrategy returns true as Argo Rollouts support env var reload strategy.
@@ -119,71 +150,4 @@ func buildRolloutOptions(cfg WorkloadConfig) []RolloutOption {
 			ApplyWorkloadConfig(&r.Spec.Template, cfg)
 		},
 	}
-}
-
-// WaitForRolloutReady waits for an Argo Rollout to be ready using typed client.
-func WaitForRolloutReady(ctx context.Context, client rolloutsclient.Interface, namespace, name string, timeout time.Duration) error {
-	return wait.PollUntilContextTimeout(ctx, DefaultInterval, timeout, true, func(ctx context.Context) (bool, error) {
-		rollout, err := client.ArgoprojV1alpha1().Rollouts(namespace).Get(ctx, name, metav1.GetOptions{})
-		if err != nil {
-			return false, nil
-		}
-
-		// Check status.phase == "Healthy" or replicas == availableReplicas
-		if rollout.Status.Phase == rolloutv1alpha1.RolloutPhaseHealthy {
-			return true, nil
-		}
-
-		if rollout.Spec.Replicas != nil && *rollout.Spec.Replicas > 0 &&
-			rollout.Status.AvailableReplicas == *rollout.Spec.Replicas {
-			return true, nil
-		}
-
-		return false, nil
-	})
-}
-
-// WaitForRolloutReloaded waits for an Argo Rollout's pod template to have the reloader annotation.
-func WaitForRolloutReloaded(ctx context.Context, client rolloutsclient.Interface, namespace, name, annotationKey string, timeout time.Duration) (bool, error) {
-	return WaitForAnnotation(ctx, func(ctx context.Context) (map[string]string, error) {
-		rollout, err := client.ArgoprojV1alpha1().Rollouts(namespace).Get(ctx, name, metav1.GetOptions{})
-		if err != nil {
-			return nil, err
-		}
-		return rollout.Spec.Template.Annotations, nil
-	}, annotationKey, timeout)
-}
-
-// WaitForRolloutEnvVar waits for an Argo Rollout's container to have an env var with the given prefix.
-func WaitForRolloutEnvVar(ctx context.Context, client rolloutsclient.Interface, namespace, name, prefix string, timeout time.Duration) (bool, error) {
-	return WaitForEnvVarPrefix(ctx, func(ctx context.Context) ([]corev1.Container, error) {
-		rollout, err := client.ArgoprojV1alpha1().Rollouts(namespace).Get(ctx, name, metav1.GetOptions{})
-		if err != nil {
-			return nil, err
-		}
-		return rollout.Spec.Template.Spec.Containers, nil
-	}, prefix, timeout)
-}
-
-// WaitForRolloutRestartAt waits for an Argo Rollout's spec.restartAt field to be set.
-func WaitForRolloutRestartAt(ctx context.Context, client rolloutsclient.Interface, namespace, name string, timeout time.Duration) (bool, error) {
-	var found bool
-	err := wait.PollUntilContextTimeout(ctx, DefaultInterval, timeout, true, func(ctx context.Context) (bool, error) {
-		rollout, err := client.ArgoprojV1alpha1().Rollouts(namespace).Get(ctx, name, metav1.GetOptions{})
-		if err != nil {
-			return false, nil
-		}
-
-		if rollout.Spec.RestartAt != nil && !rollout.Spec.RestartAt.IsZero() {
-			found = true
-			return true, nil
-		}
-
-		return false, nil
-	})
-
-	if err != nil && !errors.Is(err, context.DeadlineExceeded) {
-		return false, err
-	}
-	return found, nil
 }

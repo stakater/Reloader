@@ -14,12 +14,14 @@ var _ = Describe("Watch Globally Flag Tests", func() {
 		deploymentName string
 		configMapName  string
 		otherNS        string
+		adapter        *utils.DeploymentAdapter
 	)
 
 	BeforeEach(func() {
 		deploymentName = utils.RandName("deploy")
 		configMapName = utils.RandName("cm")
 		otherNS = "other-" + utils.RandName("ns")
+		adapter = utils.NewDeploymentAdapter(kubeClient)
 	})
 
 	AfterEach(func() {
@@ -66,7 +68,7 @@ var _ = Describe("Watch Globally Flag Tests", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Waiting for Deployment to be ready")
-			err = utils.WaitForDeploymentReady(ctx, kubeClient, testNamespace, deploymentName, utils.DeploymentReady)
+			err = adapter.WaitReady(ctx, testNamespace, deploymentName, utils.DeploymentReady)
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Updating the ConfigMap")
@@ -74,7 +76,7 @@ var _ = Describe("Watch Globally Flag Tests", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Waiting for Deployment to be reloaded (same namespace should work)")
-			reloaded, err := utils.WaitForDeploymentReloaded(ctx, kubeClient, testNamespace, deploymentName,
+			reloaded, err := adapter.WaitReloaded(ctx, testNamespace, deploymentName,
 				utils.AnnotationLastReloadedFrom, utils.ReloadTimeout)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(reloaded).To(BeTrue(), "Deployment in Reloader's namespace should reload with watchGlobally=false")
@@ -94,7 +96,7 @@ var _ = Describe("Watch Globally Flag Tests", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Waiting for Deployment to be ready")
-			err = utils.WaitForDeploymentReady(ctx, kubeClient, otherNS, deploymentName, utils.DeploymentReady)
+			err = adapter.WaitReady(ctx, otherNS, deploymentName, utils.DeploymentReady)
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Updating the ConfigMap in the other namespace")
@@ -103,7 +105,7 @@ var _ = Describe("Watch Globally Flag Tests", func() {
 
 			By("Verifying Deployment was NOT reloaded (different namespace with watchGlobally=false)")
 			time.Sleep(utils.NegativeTestWait)
-			reloaded, err := utils.WaitForDeploymentReloaded(ctx, kubeClient, otherNS, deploymentName,
+			reloaded, err := adapter.WaitReloaded(ctx, otherNS, deploymentName,
 				utils.AnnotationLastReloadedFrom, utils.ShortTimeout)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(reloaded).To(BeFalse(), "Deployment in other namespace should NOT reload with watchGlobally=false")
@@ -151,7 +153,7 @@ var _ = Describe("Watch Globally Flag Tests", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Waiting for Deployment to be ready")
-			err = utils.WaitForDeploymentReady(ctx, kubeClient, globalNS, deploymentName, utils.DeploymentReady)
+			err = adapter.WaitReady(ctx, globalNS, deploymentName, utils.DeploymentReady)
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Updating the ConfigMap")
@@ -159,7 +161,7 @@ var _ = Describe("Watch Globally Flag Tests", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Waiting for Deployment to be reloaded (watchGlobally=true)")
-			reloaded, err := utils.WaitForDeploymentReloaded(ctx, kubeClient, globalNS, deploymentName,
+			reloaded, err := adapter.WaitReloaded(ctx, globalNS, deploymentName,
 				utils.AnnotationLastReloadedFrom, utils.ReloadTimeout)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(reloaded).To(BeTrue(), "Deployment in any namespace should reload with watchGlobally=true")

@@ -3,12 +3,14 @@ package utils
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
@@ -259,112 +261,72 @@ func execInVaultPod(ctx context.Context, kubeClient kubernetes.Interface, restCo
 	return nil
 }
 
-// WaitForSPCPSVersionChange waits for the SecretProviderClassPodStatus objects to change
-// from the initial version. This is used after updating a Vault secret to wait for CSI
-// driver to sync the new version.
+// WaitForSPCPSVersionChange waits for the SecretProviderClassPodStatus version to change
+// from the initial version using watches. This is used after updating a Vault secret to
+// wait for CSI driver to sync the new version.
 func WaitForSPCPSVersionChange(ctx context.Context, client csiclient.Interface, namespace, spcpsName, initialVersion string, timeout time.Duration) error {
-	deadline := time.Now().Add(timeout)
-	for time.Now().Before(deadline) {
-		spcps, err := client.SecretsstoreV1().SecretProviderClassPodStatuses(namespace).Get(ctx, spcpsName, metav1.GetOptions{})
-		if err == nil && spcps.Status.Mounted && len(spcps.Status.Objects) > 0 {
-			// Check if any object version has changed
-			for _, obj := range spcps.Status.Objects {
-				if obj.Version != initialVersion {
-					return nil
-				}
-			}
-		}
-		select {
-		case <-ctx.Done():
-			return ctx.Err()
-		case <-time.After(1 * time.Second):
-		}
+	watchFunc := func(ctx context.Context, opts metav1.ListOptions) (watch.Interface, error) {
+		return client.SecretsstoreV1().SecretProviderClassPodStatuses(namespace).Watch(ctx, opts)
 	}
-	return fmt.Errorf("timeout waiting for SecretProviderClassPodStatus %s/%s version to change from %s", namespace, spcpsName, initialVersion)
+
+	_, err := WatchUntil(ctx, watchFunc, spcpsName, SPCPSVersionChanged(initialVersion), timeout)
+	if errors.Is(err, ErrWatchTimeout) {
+		return fmt.Errorf("timeout waiting for SecretProviderClassPodStatus %s/%s version to change from %s", namespace, spcpsName, initialVersion)
+	}
+	return err
 }
 
 // FindSPCPSForDeployment finds the SecretProviderClassPodStatus created by CSI driver
-// for pods of a given deployment. Returns the first matching SPCPS name.
+// for pods of a given deployment using watches. Returns the first matching SPCPS name.
 func FindSPCPSForDeployment(ctx context.Context, csiClient csiclient.Interface, kubeClient kubernetes.Interface, namespace, deploymentName string, timeout time.Duration) (
 	string, error,
 ) {
-	deadline := time.Now().Add(timeout)
-
-	for time.Now().Before(deadline) {
-		// Get pods for the deployment
-		pods, err := kubeClient.CoreV1().Pods(namespace).List(
-			ctx, metav1.ListOptions{
-				LabelSelector: fmt.Sprintf("app=%s", deploymentName),
-			},
-		)
-		if err != nil {
-			select {
-			case <-ctx.Done():
-				return "", ctx.Err()
-			case <-time.After(1 * time.Second):
-				continue
-			}
-		}
-
-		// Look for SPCPS that references any of these pods
-		spcpsList, err := csiClient.SecretsstoreV1().SecretProviderClassPodStatuses(namespace).List(ctx, metav1.ListOptions{})
-		if err != nil {
-			select {
-			case <-ctx.Done():
-				return "", ctx.Err()
-			case <-time.After(1 * time.Second):
-				continue
-			}
-		}
-
-		for _, pod := range pods.Items {
-			for _, spcps := range spcpsList.Items {
-				if spcps.Status.PodName == pod.Name && spcps.Status.Mounted {
-					return spcps.Name, nil
-				}
-			}
-		}
-
-		select {
-		case <-ctx.Done():
-			return "", ctx.Err()
-		case <-time.After(1 * time.Second):
-		}
+	// Get pods for the deployment
+	pods, err := kubeClient.CoreV1().Pods(namespace).List(
+		ctx, metav1.ListOptions{
+			LabelSelector: fmt.Sprintf("app=%s", deploymentName),
+		},
+	)
+	if err != nil {
+		return "", fmt.Errorf("listing pods for deployment %s: %w", deploymentName, err)
 	}
 
-	return "", fmt.Errorf("timeout finding SecretProviderClassPodStatus for deployment %s/%s", namespace, deploymentName)
+	podNames := make(map[string]bool)
+	for _, pod := range pods.Items {
+		podNames[pod.Name] = true
+	}
+
+	watchFunc := func(ctx context.Context, opts metav1.ListOptions) (watch.Interface, error) {
+		return csiClient.SecretsstoreV1().SecretProviderClassPodStatuses(namespace).Watch(ctx, opts)
+	}
+
+	// Watch all SPCPS (empty name) and find one that matches any pod
+	spcps, err := WatchUntil(ctx, watchFunc, "", SPCPSForPods(podNames), timeout)
+	if errors.Is(err, ErrWatchTimeout) {
+		return "", fmt.Errorf("timeout finding SecretProviderClassPodStatus for deployment %s/%s", namespace, deploymentName)
+	}
+	if err != nil {
+		return "", err
+	}
+	return spcps.Name, nil
 }
 
 // FindSPCPSForSPC finds the SecretProviderClassPodStatus created by CSI driver
-// that references a specific SecretProviderClass. Returns the first matching SPCPS name.
+// that references a specific SecretProviderClass using watches. Returns the first matching SPCPS name.
 func FindSPCPSForSPC(ctx context.Context, csiClient csiclient.Interface, namespace, spcName string, timeout time.Duration) (string, error) {
-	deadline := time.Now().Add(timeout)
-
-	for time.Now().Before(deadline) {
-		spcpsList, err := csiClient.SecretsstoreV1().SecretProviderClassPodStatuses(namespace).List(ctx, metav1.ListOptions{})
-		if err != nil {
-			select {
-			case <-ctx.Done():
-				return "", ctx.Err()
-			case <-time.After(1 * time.Second):
-				continue
-			}
-		}
-
-		for _, spcps := range spcpsList.Items {
-			if spcps.Status.SecretProviderClassName == spcName && spcps.Status.Mounted {
-				return spcps.Name, nil
-			}
-		}
-
-		select {
-		case <-ctx.Done():
-			return "", ctx.Err()
-		case <-time.After(1 * time.Second):
-		}
+	watchFunc := func(ctx context.Context, opts metav1.ListOptions) (watch.Interface, error) {
+		return csiClient.SecretsstoreV1().SecretProviderClassPodStatuses(namespace).Watch(ctx, opts)
 	}
 
-	return "", fmt.Errorf("timeout finding SecretProviderClassPodStatus for SPC %s/%s", namespace, spcName)
+	// Watch all SPCPS (empty name) and find one that matches the SPC
+	spcps, err := WatchUntil(ctx, watchFunc, "", SPCPSForSPC(spcName), timeout)
+	if errors.Is(err, ErrWatchTimeout) {
+		return "", fmt.Errorf("timeout finding SecretProviderClassPodStatus for SPC %s/%s", namespace, spcName)
+	}
+	if err != nil {
+		return "", err
+	}
+	return spcps.Name, nil
 }
 
 // GetSPCPSVersion gets the current version string from a SecretProviderClassPodStatus.

@@ -15,6 +15,7 @@ var _ = Describe("Ignore Resources Flag Tests", func() {
 		configMapName  string
 		secretName     string
 		ignoreNS       string
+		adapter        *utils.DeploymentAdapter
 	)
 
 	BeforeEach(func() {
@@ -22,6 +23,7 @@ var _ = Describe("Ignore Resources Flag Tests", func() {
 		configMapName = utils.RandName("cm")
 		secretName = utils.RandName("secret")
 		ignoreNS = "ignore-" + utils.RandName("ns")
+		adapter = utils.NewDeploymentAdapter(kubeClient)
 	})
 
 	AfterEach(func() {
@@ -65,7 +67,7 @@ var _ = Describe("Ignore Resources Flag Tests", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Waiting for Deployment to be ready")
-			err = utils.WaitForDeploymentReady(ctx, kubeClient, ignoreNS, deploymentName, utils.DeploymentReady)
+			err = adapter.WaitReady(ctx, ignoreNS, deploymentName, utils.DeploymentReady)
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Updating the Secret")
@@ -74,7 +76,7 @@ var _ = Describe("Ignore Resources Flag Tests", func() {
 
 			By("Verifying Deployment was NOT reloaded (ignoreSecrets=true)")
 			time.Sleep(utils.NegativeTestWait)
-			reloaded, err := utils.WaitForDeploymentReloaded(ctx, kubeClient, ignoreNS, deploymentName,
+			reloaded, err := adapter.WaitReloaded(ctx, ignoreNS, deploymentName,
 				utils.AnnotationLastReloadedFrom, utils.ShortTimeout)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(reloaded).To(BeFalse(), "Deployment should NOT reload when ignoreSecrets=true")
@@ -94,7 +96,7 @@ var _ = Describe("Ignore Resources Flag Tests", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Waiting for Deployment to be ready")
-			err = utils.WaitForDeploymentReady(ctx, kubeClient, ignoreNS, deploymentName, utils.DeploymentReady)
+			err = adapter.WaitReady(ctx, ignoreNS, deploymentName, utils.DeploymentReady)
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Updating the ConfigMap")
@@ -102,7 +104,7 @@ var _ = Describe("Ignore Resources Flag Tests", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Waiting for Deployment to be reloaded (ConfigMap should still work)")
-			reloaded, err := utils.WaitForDeploymentReloaded(ctx, kubeClient, ignoreNS, deploymentName,
+			reloaded, err := adapter.WaitReloaded(ctx, ignoreNS, deploymentName,
 				utils.AnnotationLastReloadedFrom, utils.ReloadTimeout)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(reloaded).To(BeTrue(), "ConfigMap changes should still trigger reload with ignoreSecrets=true")
@@ -144,7 +146,7 @@ var _ = Describe("Ignore Resources Flag Tests", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Waiting for Deployment to be ready")
-			err = utils.WaitForDeploymentReady(ctx, kubeClient, ignoreNS, deploymentName, utils.DeploymentReady)
+			err = adapter.WaitReady(ctx, ignoreNS, deploymentName, utils.DeploymentReady)
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Updating the ConfigMap")
@@ -153,7 +155,7 @@ var _ = Describe("Ignore Resources Flag Tests", func() {
 
 			By("Verifying Deployment was NOT reloaded (ignoreConfigMaps=true)")
 			time.Sleep(utils.NegativeTestWait)
-			reloaded, err := utils.WaitForDeploymentReloaded(ctx, kubeClient, ignoreNS, deploymentName,
+			reloaded, err := adapter.WaitReloaded(ctx, ignoreNS, deploymentName,
 				utils.AnnotationLastReloadedFrom, utils.ShortTimeout)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(reloaded).To(BeFalse(), "Deployment should NOT reload when ignoreConfigMaps=true")
@@ -173,7 +175,7 @@ var _ = Describe("Ignore Resources Flag Tests", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Waiting for Deployment to be ready")
-			err = utils.WaitForDeploymentReady(ctx, kubeClient, ignoreNS, deploymentName, utils.DeploymentReady)
+			err = adapter.WaitReady(ctx, ignoreNS, deploymentName, utils.DeploymentReady)
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Updating the Secret")
@@ -181,7 +183,7 @@ var _ = Describe("Ignore Resources Flag Tests", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Waiting for Deployment to be reloaded (Secret should still work)")
-			reloaded, err := utils.WaitForDeploymentReloaded(ctx, kubeClient, ignoreNS, deploymentName,
+			reloaded, err := adapter.WaitReloaded(ctx, ignoreNS, deploymentName,
 				utils.AnnotationLastReloadedFrom, utils.ReloadTimeout)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(reloaded).To(BeTrue(), "Secret changes should still trigger reload with ignoreConfigMaps=true")

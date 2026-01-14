@@ -84,6 +84,32 @@ type WorkloadAdapter interface {
 	RequiresSpecialHandling() bool
 }
 
+// Pausable is implemented by workloads that support pause/unpause.
+// Currently only Deployment supports this capability.
+type Pausable interface {
+	WaitPaused(ctx context.Context, namespace, name, annotationKey string, timeout time.Duration) (bool, error)
+	WaitUnpaused(ctx context.Context, namespace, name, annotationKey string, timeout time.Duration) (bool, error)
+}
+
+// Recreatable is implemented by workloads that are recreated instead of updated.
+// Currently only Job supports this capability (Jobs are immutable, so Reloader recreates them).
+type Recreatable interface {
+	GetOriginalUID(ctx context.Context, namespace, name string) (string, error)
+	WaitRecreated(ctx context.Context, namespace, name, originalUID string, timeout time.Duration) (string, bool, error)
+}
+
+// JobTriggerer is implemented by workloads that trigger jobs on reload.
+// Currently only CronJob supports this capability.
+type JobTriggerer interface {
+	WaitForTriggeredJob(ctx context.Context, namespace, name string, timeout time.Duration) (bool, error)
+}
+
+// RestartAtSupporter is implemented by workloads that support the restartAt field.
+// Currently only ArgoRollout supports this capability.
+type RestartAtSupporter interface {
+	WaitRestartAt(ctx context.Context, namespace, name string, timeout time.Duration) (bool, error)
+}
+
 // AdapterRegistry holds adapters for all workload types.
 type AdapterRegistry struct {
 	kubeClient kubernetes.Interface

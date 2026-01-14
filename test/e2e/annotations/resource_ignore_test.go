@@ -14,12 +14,14 @@ var _ = Describe("Resource Ignore Annotation Tests", func() {
 		deploymentName string
 		configMapName  string
 		secretName     string
+		adapter        *utils.DeploymentAdapter
 	)
 
 	BeforeEach(func() {
 		deploymentName = utils.RandName("deploy")
 		configMapName = utils.RandName("cm")
 		secretName = utils.RandName("secret")
+		adapter = utils.NewDeploymentAdapter(kubeClient)
 	})
 
 	AfterEach(func() {
@@ -44,7 +46,7 @@ var _ = Describe("Resource Ignore Annotation Tests", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Waiting for Deployment to be ready")
-			err = utils.WaitForDeploymentReady(ctx, kubeClient, testNamespace, deploymentName, utils.DeploymentReady)
+			err = adapter.WaitReady(ctx, testNamespace, deploymentName, utils.DeploymentReady)
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Updating the ConfigMap data")
@@ -53,7 +55,7 @@ var _ = Describe("Resource Ignore Annotation Tests", func() {
 
 			By("Verifying Deployment was NOT reloaded (negative test)")
 			time.Sleep(utils.NegativeTestWait)
-			reloaded, err := utils.WaitForDeploymentReloaded(ctx, kubeClient, testNamespace, deploymentName,
+			reloaded, err := adapter.WaitReloaded(ctx, testNamespace, deploymentName,
 				utils.AnnotationLastReloadedFrom, utils.ShortTimeout)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(reloaded).To(BeFalse(), "Deployment should NOT reload when ConfigMap has ignore=true")
@@ -74,7 +76,7 @@ var _ = Describe("Resource Ignore Annotation Tests", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Waiting for Deployment to be ready")
-			err = utils.WaitForDeploymentReady(ctx, kubeClient, testNamespace, deploymentName, utils.DeploymentReady)
+			err = adapter.WaitReady(ctx, testNamespace, deploymentName, utils.DeploymentReady)
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Updating the Secret data")
@@ -83,7 +85,7 @@ var _ = Describe("Resource Ignore Annotation Tests", func() {
 
 			By("Verifying Deployment was NOT reloaded (negative test)")
 			time.Sleep(utils.NegativeTestWait)
-			reloaded, err := utils.WaitForDeploymentReloaded(ctx, kubeClient, testNamespace, deploymentName,
+			reloaded, err := adapter.WaitReloaded(ctx, testNamespace, deploymentName,
 				utils.AnnotationLastReloadedFrom, utils.ShortTimeout)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(reloaded).To(BeFalse(), "Deployment should NOT reload when Secret has ignore=true")

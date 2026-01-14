@@ -11,15 +11,19 @@ import (
 
 var _ = Describe("Ignored Workloads Flag Tests", func() {
 	var (
-		cronJobName   string
-		configMapName string
-		ignoreNS      string
+		cronJobName      string
+		configMapName    string
+		ignoreNS         string
+		cronJobAdapter   *utils.CronJobAdapter
+		deploymentAdater *utils.DeploymentAdapter
 	)
 
 	BeforeEach(func() {
 		cronJobName = utils.RandName("cj")
 		configMapName = utils.RandName("cm")
 		ignoreNS = "ignore-wl-" + utils.RandName("ns")
+		cronJobAdapter = utils.NewCronJobAdapter(kubeClient)
+		deploymentAdater = utils.NewDeploymentAdapter(kubeClient)
 	})
 
 	AfterEach(func() {
@@ -67,7 +71,7 @@ var _ = Describe("Ignored Workloads Flag Tests", func() {
 
 			By("Verifying CronJob was NOT reloaded (ignoreCronJobs=true)")
 			time.Sleep(utils.NegativeTestWait)
-			reloaded, err := utils.WaitForCronJobReloaded(ctx, kubeClient, ignoreNS, cronJobName,
+			reloaded, err := cronJobAdapter.WaitReloaded(ctx, ignoreNS, cronJobName,
 				utils.AnnotationLastReloadedFrom, utils.ShortTimeout)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(reloaded).To(BeFalse(), "CronJob should NOT reload when ignoreCronJobs=true")
@@ -92,7 +96,7 @@ var _ = Describe("Ignored Workloads Flag Tests", func() {
 			}()
 
 			By("Waiting for Deployment to be ready")
-			err = utils.WaitForDeploymentReady(ctx, kubeClient, ignoreNS, deploymentName, utils.DeploymentReady)
+			err = deploymentAdater.WaitReady(ctx, ignoreNS, deploymentName, utils.DeploymentReady)
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Updating the ConfigMap")
@@ -100,7 +104,7 @@ var _ = Describe("Ignored Workloads Flag Tests", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Waiting for Deployment to be reloaded (Deployment should still work)")
-			reloaded, err := utils.WaitForDeploymentReloaded(ctx, kubeClient, ignoreNS, deploymentName,
+			reloaded, err := deploymentAdater.WaitReloaded(ctx, ignoreNS, deploymentName,
 				utils.AnnotationLastReloadedFrom, utils.ReloadTimeout)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(reloaded).To(BeTrue(), "Deployment should still reload with ignoreCronJobs=true")
@@ -148,7 +152,7 @@ var _ = Describe("Ignored Workloads Flag Tests", func() {
 
 			By("Verifying CronJob was NOT reloaded")
 			time.Sleep(utils.NegativeTestWait)
-			reloaded, err := utils.WaitForCronJobReloaded(ctx, kubeClient, ignoreNS, cronJobName,
+			reloaded, err := cronJobAdapter.WaitReloaded(ctx, ignoreNS, cronJobName,
 				utils.AnnotationLastReloadedFrom, utils.ShortTimeout)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(reloaded).To(BeFalse(), "CronJob should NOT reload when ignoreCronJobs=true and ignoreJobs=true")

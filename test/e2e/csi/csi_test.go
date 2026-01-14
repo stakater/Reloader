@@ -10,12 +10,13 @@ import (
 	"github.com/stakater/Reloader/test/e2e/utils"
 )
 
-var _ = Describe("CSI SecretProviderClass Tests", func() {
+var _ = Describe("CSI SecretProviderClass Tests", Label("csi"), func() {
 	var (
 		deploymentName  string
 		configMapName   string
 		spcName         string
 		vaultSecretPath string
+		adapter         *utils.DeploymentAdapter
 	)
 
 	BeforeEach(func() {
@@ -24,6 +25,7 @@ var _ = Describe("CSI SecretProviderClass Tests", func() {
 		spcName = utils.RandName("spc")
 		// Each test gets its own Vault secret path to avoid conflicts
 		vaultSecretPath = fmt.Sprintf("secret/%s", utils.RandName("test"))
+		adapter = utils.NewDeploymentAdapter(kubeClient)
 	})
 
 	AfterEach(func() {
@@ -57,7 +59,7 @@ var _ = Describe("CSI SecretProviderClass Tests", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Waiting for Deployment to be ready")
-			err = utils.WaitForDeploymentReady(ctx, kubeClient, testNamespace, deploymentName, utils.DeploymentReady)
+			err = adapter.WaitReady(ctx, testNamespace, deploymentName, utils.DeploymentReady)
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Finding the SPCPS created by CSI driver")
@@ -84,8 +86,8 @@ var _ = Describe("CSI SecretProviderClass Tests", func() {
 			GinkgoWriter.Println("CSI driver synced new secret version")
 
 			By("Waiting for Deployment to be reloaded by Reloader")
-			reloaded, err := utils.WaitForDeploymentReloaded(
-				ctx, kubeClient, testNamespace, deploymentName,
+			reloaded, err := adapter.WaitReloaded(
+				ctx, testNamespace, deploymentName,
 				utils.AnnotationLastReloadedFrom, utils.ReloadTimeout,
 			)
 			Expect(err).NotTo(HaveOccurred())
@@ -114,7 +116,7 @@ var _ = Describe("CSI SecretProviderClass Tests", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Waiting for Deployment to be ready")
-			err = utils.WaitForDeploymentReady(ctx, kubeClient, testNamespace, deploymentName, utils.DeploymentReady)
+			err = adapter.WaitReady(ctx, testNamespace, deploymentName, utils.DeploymentReady)
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Finding the SPCPS")
@@ -134,8 +136,8 @@ var _ = Describe("CSI SecretProviderClass Tests", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Waiting for first reload")
-			reloaded, err := utils.WaitForDeploymentReloaded(
-				ctx, kubeClient, testNamespace, deploymentName,
+			reloaded, err := adapter.WaitReloaded(
+				ctx, testNamespace, deploymentName,
 				utils.AnnotationLastReloadedFrom, utils.ReloadTimeout,
 			)
 			Expect(err).NotTo(HaveOccurred())
@@ -148,7 +150,7 @@ var _ = Describe("CSI SecretProviderClass Tests", func() {
 			Expect(firstReloadValue).NotTo(BeEmpty())
 
 			By("Waiting for Deployment to stabilize")
-			err = utils.WaitForDeploymentReady(ctx, kubeClient, testNamespace, deploymentName, utils.DeploymentReady)
+			err = adapter.WaitReady(ctx, testNamespace, deploymentName, utils.DeploymentReady)
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Finding the NEW SPCPS after first reload (new pod = new SPCPS)")
@@ -205,7 +207,7 @@ var _ = Describe("CSI SecretProviderClass Tests", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Waiting for Deployment to be ready")
-			err = utils.WaitForDeploymentReady(ctx, kubeClient, testNamespace, deploymentName, utils.DeploymentReady)
+			err = adapter.WaitReady(ctx, testNamespace, deploymentName, utils.DeploymentReady)
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Updating the ConfigMap (should NOT trigger reload)")
@@ -215,8 +217,8 @@ var _ = Describe("CSI SecretProviderClass Tests", func() {
 
 			By("Verifying Deployment was NOT reloaded for ConfigMap change")
 			time.Sleep(utils.NegativeTestWait)
-			reloaded, err := utils.WaitForDeploymentReloaded(
-				ctx, kubeClient, testNamespace, deploymentName,
+			reloaded, err := adapter.WaitReloaded(
+				ctx, testNamespace, deploymentName,
 				utils.AnnotationLastReloadedFrom, utils.ShortTimeout,
 			)
 			Expect(err).NotTo(HaveOccurred())
@@ -241,8 +243,8 @@ var _ = Describe("CSI SecretProviderClass Tests", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Verifying Deployment WAS reloaded for Vault secret change")
-			reloaded, err = utils.WaitForDeploymentReloaded(
-				ctx, kubeClient, testNamespace, deploymentName,
+			reloaded, err = adapter.WaitReloaded(
+				ctx, testNamespace, deploymentName,
 				utils.AnnotationLastReloadedFrom, utils.ReloadTimeout,
 			)
 			Expect(err).NotTo(HaveOccurred())
@@ -279,7 +281,7 @@ var _ = Describe("CSI SecretProviderClass Tests", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Waiting for Deployment to be ready")
-			err = utils.WaitForDeploymentReady(ctx, kubeClient, testNamespace, deploymentName, utils.DeploymentReady)
+			err = adapter.WaitReady(ctx, testNamespace, deploymentName, utils.DeploymentReady)
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Updating the ConfigMap (should trigger reload with auto=true)")
@@ -288,15 +290,15 @@ var _ = Describe("CSI SecretProviderClass Tests", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Verifying Deployment WAS reloaded for ConfigMap change")
-			reloaded, err := utils.WaitForDeploymentReloaded(
-				ctx, kubeClient, testNamespace, deploymentName,
+			reloaded, err := adapter.WaitReloaded(
+				ctx, testNamespace, deploymentName,
 				utils.AnnotationLastReloadedFrom, utils.ReloadTimeout,
 			)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(reloaded).To(BeTrue(), "Combined auto=true should trigger reload for ConfigMap changes")
 
 			By("Waiting for Deployment to stabilize")
-			err = utils.WaitForDeploymentReady(ctx, kubeClient, testNamespace, deploymentName, utils.DeploymentReady)
+			err = adapter.WaitReady(ctx, testNamespace, deploymentName, utils.DeploymentReady)
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Getting current annotation value")

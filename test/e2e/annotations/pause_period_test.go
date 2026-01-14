@@ -13,11 +13,13 @@ var _ = Describe("Pause Period Tests", func() {
 	var (
 		deploymentName string
 		configMapName  string
+		adapter        *utils.DeploymentAdapter
 	)
 
 	BeforeEach(func() {
 		deploymentName = utils.RandName("deploy")
 		configMapName = utils.RandName("cm")
+		adapter = utils.NewDeploymentAdapter(kubeClient)
 	})
 
 	AfterEach(func() {
@@ -43,7 +45,7 @@ var _ = Describe("Pause Period Tests", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Waiting for Deployment to be ready")
-			err = utils.WaitForDeploymentReady(ctx, kubeClient, testNamespace, deploymentName, utils.DeploymentReady)
+			err = adapter.WaitReady(ctx, testNamespace, deploymentName, utils.DeploymentReady)
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Updating the ConfigMap data")
@@ -51,13 +53,13 @@ var _ = Describe("Pause Period Tests", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Waiting for Deployment to be reloaded")
-			reloaded, err := utils.WaitForDeploymentReloaded(ctx, kubeClient, testNamespace, deploymentName,
+			reloaded, err := adapter.WaitReloaded(ctx, testNamespace, deploymentName,
 				utils.AnnotationLastReloadedFrom, utils.ReloadTimeout)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(reloaded).To(BeTrue(), "Deployment should have been reloaded")
 
 			By("Verifying Deployment has paused-at annotation")
-			paused, err := utils.WaitForDeploymentPaused(ctx, kubeClient, testNamespace, deploymentName,
+			paused, err := adapter.WaitPaused(ctx, testNamespace, deploymentName,
 				utils.AnnotationDeploymentPausedAt, utils.ShortTimeout)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(paused).To(BeTrue(), "Deployment should have paused-at annotation after reload")
@@ -77,7 +79,7 @@ var _ = Describe("Pause Period Tests", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Waiting for Deployment to be ready")
-			err = utils.WaitForDeploymentReady(ctx, kubeClient, testNamespace, deploymentName, utils.DeploymentReady)
+			err = adapter.WaitReady(ctx, testNamespace, deploymentName, utils.DeploymentReady)
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Updating the ConfigMap data")
@@ -85,14 +87,14 @@ var _ = Describe("Pause Period Tests", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Waiting for Deployment to be reloaded")
-			reloaded, err := utils.WaitForDeploymentReloaded(ctx, kubeClient, testNamespace, deploymentName,
+			reloaded, err := adapter.WaitReloaded(ctx, testNamespace, deploymentName,
 				utils.AnnotationLastReloadedFrom, utils.ReloadTimeout)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(reloaded).To(BeTrue(), "Deployment should have been reloaded")
 
 			By("Verifying Deployment does NOT have paused-at annotation")
 			time.Sleep(utils.NegativeTestWait)
-			paused, err := utils.WaitForDeploymentPaused(ctx, kubeClient, testNamespace, deploymentName,
+			paused, err := adapter.WaitPaused(ctx, testNamespace, deploymentName,
 				utils.AnnotationDeploymentPausedAt, utils.ShortTimeout)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(paused).To(BeFalse(), "Deployment should NOT have paused-at annotation without pause-period")
@@ -117,7 +119,7 @@ var _ = Describe("Pause Period Tests", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Waiting for Deployment to be ready")
-			err = utils.WaitForDeploymentReady(ctx, kubeClient, testNamespace, deploymentName, utils.DeploymentReady)
+			err = adapter.WaitReady(ctx, testNamespace, deploymentName, utils.DeploymentReady)
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Updating the ConfigMap data")
@@ -125,13 +127,13 @@ var _ = Describe("Pause Period Tests", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Waiting for Deployment to be reloaded")
-			reloaded, err := utils.WaitForDeploymentReloaded(ctx, kubeClient, testNamespace, deploymentName,
+			reloaded, err := adapter.WaitReloaded(ctx, testNamespace, deploymentName,
 				utils.AnnotationLastReloadedFrom, utils.ReloadTimeout)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(reloaded).To(BeTrue(), "Deployment should have been reloaded")
 
 			By("Verifying Deployment has paused-at annotation")
-			paused, err := utils.WaitForDeploymentPaused(ctx, kubeClient, testNamespace, deploymentName,
+			paused, err := adapter.WaitPaused(ctx, testNamespace, deploymentName,
 				utils.AnnotationDeploymentPausedAt, utils.ShortTimeout)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(paused).To(BeTrue(), "Deployment should have paused-at annotation with pause-period on pod template")

@@ -474,8 +474,9 @@ It("should reload when SecretProviderClassPodStatus changes", func() {
         utils.NewSPCPSObjects("secret1", "v2"))
     Expect(err).NotTo(HaveOccurred())
 
-    // Verify reload
-    reloaded, err := utils.WaitForDeploymentReloaded(ctx, kubeClient, testNamespace, deploymentName,
+    // Verify reload using adapter
+    adapter := utils.NewDeploymentAdapter(kubeClient)
+    reloaded, err := adapter.WaitReloaded(ctx, testNamespace, deploymentName,
         utils.AnnotationLastReloadedFrom, utils.ReloadTimeout)
     Expect(err).NotTo(HaveOccurred())
     Expect(reloaded).To(BeTrue())
@@ -489,6 +490,7 @@ Verify that something does NOT trigger a reload:
 ```go
 It("should NOT reload when only labels change", func() {
     // Setup...
+    adapter := utils.NewDeploymentAdapter(kubeClient)
 
     // Make a change that shouldn't trigger reload
     err = utils.UpdateConfigMapLabels(ctx, kubeClient, testNamespace, configMapName,
@@ -497,7 +499,7 @@ It("should NOT reload when only labels change", func() {
 
     // Wait briefly, then verify NO reload
     time.Sleep(utils.NegativeTestWait)
-    reloaded, err := utils.WaitForDeploymentReloaded(ctx, kubeClient, testNamespace, deploymentName,
+    reloaded, err := adapter.WaitReloaded(ctx, testNamespace, deploymentName,
         utils.AnnotationLastReloadedFrom, utils.ShortTimeout)
     Expect(err).NotTo(HaveOccurred())
     Expect(reloaded).To(BeFalse(), "Should NOT have reloaded")

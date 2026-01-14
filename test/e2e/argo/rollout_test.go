@@ -15,11 +15,13 @@ var _ = Describe("Argo Rollout Strategy Tests", func() {
 	var (
 		rolloutName   string
 		configMapName string
+		adapter       *utils.ArgoRolloutAdapter
 	)
 
 	BeforeEach(func() {
 		rolloutName = utils.RandName("rollout")
 		configMapName = utils.RandName("cm")
+		adapter = utils.NewArgoRolloutAdapter(rolloutsClient)
 	})
 
 	AfterEach(func() {
@@ -44,7 +46,7 @@ var _ = Describe("Argo Rollout Strategy Tests", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Waiting for Rollout to be ready")
-			err = utils.WaitForRolloutReady(ctx, rolloutsClient, testNamespace, rolloutName, utils.DeploymentReady)
+			err = adapter.WaitReady(ctx, testNamespace, rolloutName, utils.DeploymentReady)
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Updating the ConfigMap")
@@ -52,7 +54,7 @@ var _ = Describe("Argo Rollout Strategy Tests", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Waiting for Rollout to be reloaded with annotation")
-			reloaded, err := utils.WaitForRolloutReloaded(ctx, rolloutsClient, testNamespace, rolloutName,
+			reloaded, err := adapter.WaitReloaded(ctx, testNamespace, rolloutName,
 				utils.AnnotationLastReloadedFrom, utils.ReloadTimeout)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(reloaded).To(BeTrue(), "Argo Rollout should be reloaded with default rollout strategy")
@@ -74,7 +76,7 @@ var _ = Describe("Argo Rollout Strategy Tests", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Waiting for Rollout to be ready")
-			err = utils.WaitForRolloutReady(ctx, rolloutsClient, testNamespace, rolloutName, utils.DeploymentReady)
+			err = adapter.WaitReady(ctx, testNamespace, rolloutName, utils.DeploymentReady)
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Updating the ConfigMap")
@@ -82,7 +84,7 @@ var _ = Describe("Argo Rollout Strategy Tests", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Waiting for Rollout to have restartAt field set")
-			restarted, err := utils.WaitForRolloutRestartAt(ctx, rolloutsClient, testNamespace, rolloutName, utils.ReloadTimeout)
+			restarted, err := adapter.WaitRestartAt(ctx, testNamespace, rolloutName, utils.ReloadTimeout)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(restarted).To(BeTrue(), "Argo Rollout should have restartAt field set with restart strategy")
 		})

@@ -2,13 +2,14 @@ package utils
 
 import (
 	"context"
+	"errors"
 	"time"
 
 	openshiftappsv1 "github.com/openshift/api/apps/v1"
 	openshiftclient "github.com/openshift/client-go/apps/clientset/versioned"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/util/wait"
+	"k8s.io/apimachinery/pkg/watch"
 )
 
 // DCOption is a function that modifies a DeploymentConfig.
@@ -47,19 +48,37 @@ func (a *DeploymentConfigAdapter) Delete(ctx context.Context, namespace, name st
 	return a.openshiftClient.AppsV1().DeploymentConfigs(namespace).Delete(ctx, name, metav1.DeleteOptions{})
 }
 
-// WaitReady waits for the DeploymentConfig to be ready.
+// WaitReady waits for the DeploymentConfig to be ready using watches.
 func (a *DeploymentConfigAdapter) WaitReady(ctx context.Context, namespace, name string, timeout time.Duration) error {
-	return WaitForDeploymentConfigReady(ctx, a.openshiftClient, namespace, name, timeout)
+	watchFunc := func(ctx context.Context, opts metav1.ListOptions) (watch.Interface, error) {
+		return a.openshiftClient.AppsV1().DeploymentConfigs(namespace).Watch(ctx, opts)
+	}
+	_, err := WatchUntil(ctx, watchFunc, name, IsReady(DeploymentConfigIsReady), timeout)
+	return err
 }
 
-// WaitReloaded waits for the DeploymentConfig to have the reload annotation.
+// WaitReloaded waits for the DeploymentConfig to have the reload annotation using watches.
 func (a *DeploymentConfigAdapter) WaitReloaded(ctx context.Context, namespace, name, annotationKey string, timeout time.Duration) (bool, error) {
-	return WaitForDeploymentConfigReloaded(ctx, a.openshiftClient, namespace, name, annotationKey, timeout)
+	watchFunc := func(ctx context.Context, opts metav1.ListOptions) (watch.Interface, error) {
+		return a.openshiftClient.AppsV1().DeploymentConfigs(namespace).Watch(ctx, opts)
+	}
+	_, err := WatchUntil(ctx, watchFunc, name, HasPodTemplateAnnotation(DeploymentConfigPodTemplate, annotationKey), timeout)
+	if errors.Is(err, ErrWatchTimeout) {
+		return false, nil
+	}
+	return err == nil, err
 }
 
-// WaitEnvVar waits for the DeploymentConfig to have a STAKATER_ env var.
+// WaitEnvVar waits for the DeploymentConfig to have a STAKATER_ env var using watches.
 func (a *DeploymentConfigAdapter) WaitEnvVar(ctx context.Context, namespace, name, prefix string, timeout time.Duration) (bool, error) {
-	return WaitForDeploymentConfigEnvVar(ctx, a.openshiftClient, namespace, name, prefix, timeout)
+	watchFunc := func(ctx context.Context, opts metav1.ListOptions) (watch.Interface, error) {
+		return a.openshiftClient.AppsV1().DeploymentConfigs(namespace).Watch(ctx, opts)
+	}
+	_, err := WatchUntil(ctx, watchFunc, name, HasEnvVarPrefix(DeploymentConfigContainers, prefix), timeout)
+	if errors.Is(err, ErrWatchTimeout) {
+		return false, nil
+	}
+	return err == nil, err
 }
 
 // SupportsEnvVarStrategy returns true as DeploymentConfigs support env var reload strategy.
@@ -116,48 +135,4 @@ func buildDeploymentConfigOptions(cfg WorkloadConfig) []DCOption {
 			}
 		},
 	}
-}
-
-// WaitForDeploymentConfigReady waits for a DeploymentConfig to be ready using typed client.
-func WaitForDeploymentConfigReady(ctx context.Context, client openshiftclient.Interface, namespace, name string, timeout time.Duration) error {
-	return wait.PollUntilContextTimeout(ctx, DefaultInterval, timeout, true, func(ctx context.Context) (bool, error) {
-		dc, err := client.AppsV1().DeploymentConfigs(namespace).Get(ctx, name, metav1.GetOptions{})
-		if err != nil {
-			return false, nil
-		}
-
-		if dc.Spec.Replicas > 0 && dc.Status.ReadyReplicas == dc.Spec.Replicas {
-			return true, nil
-		}
-
-		return false, nil
-	})
-}
-
-// WaitForDeploymentConfigReloaded waits for a DeploymentConfig's pod template to have the reloader annotation.
-func WaitForDeploymentConfigReloaded(ctx context.Context, client openshiftclient.Interface, namespace, name, annotationKey string, timeout time.Duration) (bool, error) {
-	return WaitForAnnotation(ctx, func(ctx context.Context) (map[string]string, error) {
-		dc, err := client.AppsV1().DeploymentConfigs(namespace).Get(ctx, name, metav1.GetOptions{})
-		if err != nil {
-			return nil, err
-		}
-		if dc.Spec.Template != nil {
-			return dc.Spec.Template.Annotations, nil
-		}
-		return nil, nil
-	}, annotationKey, timeout)
-}
-
-// WaitForDeploymentConfigEnvVar waits for a DeploymentConfig's container to have an env var with the given prefix.
-func WaitForDeploymentConfigEnvVar(ctx context.Context, client openshiftclient.Interface, namespace, name, prefix string, timeout time.Duration) (bool, error) {
-	return WaitForEnvVarPrefix(ctx, func(ctx context.Context) ([]corev1.Container, error) {
-		dc, err := client.AppsV1().DeploymentConfigs(namespace).Get(ctx, name, metav1.GetOptions{})
-		if err != nil {
-			return nil, err
-		}
-		if dc.Spec.Template != nil {
-			return dc.Spec.Template.Spec.Containers, nil
-		}
-		return nil, nil
-	}, prefix, timeout)
 }

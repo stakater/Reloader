@@ -3,6 +3,7 @@ package utils
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	appsv1 "k8s.io/api/apps/v1"
 	batchv1 "k8s.io/api/batch/v1"
@@ -968,4 +969,39 @@ func csiVolumeName(spcName string) string {
 
 func csiMountPath(spcName string) string {
 	return fmt.Sprintf("/mnt/secrets-store/%s", spcName)
+}
+
+// GetDeployment retrieves a deployment by name.
+func GetDeployment(ctx context.Context, client kubernetes.Interface, namespace, name string) (*appsv1.Deployment, error) {
+	return client.AppsV1().Deployments(namespace).Get(ctx, name, metav1.GetOptions{})
+}
+
+// GetPodLogs retrieves logs from pods matching the given label selector.
+func GetPodLogs(ctx context.Context, client kubernetes.Interface, namespace, labelSelector string) (string, error) {
+	pods, err := client.CoreV1().Pods(namespace).List(
+		ctx, metav1.ListOptions{
+			LabelSelector: labelSelector,
+		},
+	)
+	if err != nil {
+		return "", fmt.Errorf("failed to list pods: %w", err)
+	}
+
+	var allLogs strings.Builder
+	for _, pod := range pods.Items {
+		for _, container := range pod.Spec.Containers {
+			logs, err := client.CoreV1().Pods(namespace).GetLogs(
+				pod.Name, &corev1.PodLogOptions{
+					Container: container.Name,
+				},
+			).Do(ctx).Raw()
+			if err != nil {
+				allLogs.WriteString(fmt.Sprintf("Error getting logs for %s/%s: %v\n", pod.Name, container.Name, err))
+				continue
+			}
+			allLogs.WriteString(fmt.Sprintf("=== %s/%s ===\n%s\n", pod.Name, container.Name, string(logs)))
+		}
+	}
+
+	return allLogs.String(), nil
 }

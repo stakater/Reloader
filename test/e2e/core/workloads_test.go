@@ -1654,8 +1654,10 @@ var _ = Describe("Workload Reload Tests", func() {
 			Expect(err).NotTo(HaveOccurred())
 			DeferCleanup(func() { _ = utils.DeleteDeployment(ctx, kubeClient, testNamespace, workloadName) })
 
+			adapter := utils.NewDeploymentAdapter(kubeClient)
+
 			By("Waiting for Deployment to be ready")
-			err = utils.WaitForDeploymentReady(ctx, kubeClient, testNamespace, workloadName, utils.DeploymentReady)
+			err = adapter.WaitReady(ctx, testNamespace, workloadName, utils.DeploymentReady)
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Finding the SPCPS created by CSI driver")
@@ -1677,7 +1679,7 @@ var _ = Describe("Workload Reload Tests", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Waiting for Deployment to have STAKATER_ env var")
-			found, err := utils.WaitForDeploymentEnvVar(ctx, kubeClient, testNamespace, workloadName,
+			found, err := adapter.WaitEnvVar(ctx, testNamespace, workloadName,
 				utils.StakaterEnvVarPrefix, utils.ReloadTimeout)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(found).To(BeTrue(), "Deployment with init container CSI should have STAKATER_ env var")

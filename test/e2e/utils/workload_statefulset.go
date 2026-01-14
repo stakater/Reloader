@@ -2,9 +2,12 @@ package utils
 
 import (
 	"context"
+	"errors"
 	"time"
 
 	appsv1 "k8s.io/api/apps/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/kubernetes"
 )
 
@@ -35,19 +38,37 @@ func (a *StatefulSetAdapter) Delete(ctx context.Context, namespace, name string)
 	return DeleteStatefulSet(ctx, a.client, namespace, name)
 }
 
-// WaitReady waits for the StatefulSet to be ready.
+// WaitReady waits for the StatefulSet to be ready using watches.
 func (a *StatefulSetAdapter) WaitReady(ctx context.Context, namespace, name string, timeout time.Duration) error {
-	return WaitForStatefulSetReady(ctx, a.client, namespace, name, timeout)
+	watchFunc := func(ctx context.Context, opts metav1.ListOptions) (watch.Interface, error) {
+		return a.client.AppsV1().StatefulSets(namespace).Watch(ctx, opts)
+	}
+	_, err := WatchUntil(ctx, watchFunc, name, IsReady(StatefulSetIsReady), timeout)
+	return err
 }
 
-// WaitReloaded waits for the StatefulSet to have the reload annotation.
+// WaitReloaded waits for the StatefulSet to have the reload annotation using watches.
 func (a *StatefulSetAdapter) WaitReloaded(ctx context.Context, namespace, name, annotationKey string, timeout time.Duration) (bool, error) {
-	return WaitForStatefulSetReloaded(ctx, a.client, namespace, name, annotationKey, timeout)
+	watchFunc := func(ctx context.Context, opts metav1.ListOptions) (watch.Interface, error) {
+		return a.client.AppsV1().StatefulSets(namespace).Watch(ctx, opts)
+	}
+	_, err := WatchUntil(ctx, watchFunc, name, HasPodTemplateAnnotation(StatefulSetPodTemplate, annotationKey), timeout)
+	if errors.Is(err, ErrWatchTimeout) {
+		return false, nil
+	}
+	return err == nil, err
 }
 
-// WaitEnvVar waits for the StatefulSet to have a STAKATER_ env var.
+// WaitEnvVar waits for the StatefulSet to have a STAKATER_ env var using watches.
 func (a *StatefulSetAdapter) WaitEnvVar(ctx context.Context, namespace, name, prefix string, timeout time.Duration) (bool, error) {
-	return WaitForStatefulSetEnvVar(ctx, a.client, namespace, name, prefix, timeout)
+	watchFunc := func(ctx context.Context, opts metav1.ListOptions) (watch.Interface, error) {
+		return a.client.AppsV1().StatefulSets(namespace).Watch(ctx, opts)
+	}
+	_, err := WatchUntil(ctx, watchFunc, name, HasEnvVarPrefix(StatefulSetContainers, prefix), timeout)
+	if errors.Is(err, ErrWatchTimeout) {
+		return false, nil
+	}
+	return err == nil, err
 }
 
 // SupportsEnvVarStrategy returns true as StatefulSets support env var reload strategy.

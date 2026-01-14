@@ -2,9 +2,12 @@ package utils
 
 import (
 	"context"
+	"errors"
 	"time"
 
 	batchv1 "k8s.io/api/batch/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/kubernetes"
 )
 
@@ -35,19 +38,29 @@ func (a *CronJobAdapter) Delete(ctx context.Context, namespace, name string) err
 	return DeleteCronJob(ctx, a.client, namespace, name)
 }
 
-// WaitReady waits for the CronJob to exist (CronJobs are "ready" immediately after creation).
+// WaitReady waits for the CronJob to exist using watches.
 func (a *CronJobAdapter) WaitReady(ctx context.Context, namespace, name string, timeout time.Duration) error {
-	return WaitForCronJobExists(ctx, a.client, namespace, name, timeout)
+	watchFunc := func(ctx context.Context, opts metav1.ListOptions) (watch.Interface, error) {
+		return a.client.BatchV1().CronJobs(namespace).Watch(ctx, opts)
+	}
+	_, err := WatchUntil(ctx, watchFunc, name, Always[*batchv1.CronJob](), timeout)
+	return err
 }
 
-// WaitReloaded waits for the CronJob to have the reload annotation OR for a triggered Job.
+// WaitReloaded waits for the CronJob pod template to have the reload annotation using watches.
 func (a *CronJobAdapter) WaitReloaded(ctx context.Context, namespace, name, annotationKey string, timeout time.Duration) (bool, error) {
-	return WaitForCronJobReloaded(ctx, a.client, namespace, name, annotationKey, timeout)
+	watchFunc := func(ctx context.Context, opts metav1.ListOptions) (watch.Interface, error) {
+		return a.client.BatchV1().CronJobs(namespace).Watch(ctx, opts)
+	}
+	_, err := WatchUntil(ctx, watchFunc, name, HasPodTemplateAnnotation(CronJobPodTemplate, annotationKey), timeout)
+	if errors.Is(err, ErrWatchTimeout) {
+		return false, nil
+	}
+	return err == nil, err
 }
 
 // WaitEnvVar is not supported for CronJobs as they don't use env var reload strategy.
 func (a *CronJobAdapter) WaitEnvVar(ctx context.Context, namespace, name, prefix string, timeout time.Duration) (bool, error) {
-	// CronJobs don't support env var strategy
 	return false, nil
 }
 
@@ -61,9 +74,16 @@ func (a *CronJobAdapter) RequiresSpecialHandling() bool {
 	return true
 }
 
-// WaitForTriggeredJob waits for Reloader to trigger a new Job from this CronJob.
+// WaitForTriggeredJob waits for Reloader to trigger a new Job from this CronJob using watches.
 func (a *CronJobAdapter) WaitForTriggeredJob(ctx context.Context, namespace, cronJobName string, timeout time.Duration) (bool, error) {
-	return WaitForCronJobTriggeredJob(ctx, a.client, namespace, cronJobName, timeout)
+	watchFunc := func(ctx context.Context, opts metav1.ListOptions) (watch.Interface, error) {
+		return a.client.BatchV1().Jobs(namespace).Watch(ctx, opts)
+	}
+	_, err := WatchUntil(ctx, watchFunc, "", IsTriggeredJobForCronJob(cronJobName), timeout)
+	if errors.Is(err, ErrWatchTimeout) {
+		return false, nil
+	}
+	return err == nil, err
 }
 
 // buildCronJobOptions converts WorkloadConfig to CronJobOption slice.

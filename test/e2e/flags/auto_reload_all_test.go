@@ -14,12 +14,14 @@ var _ = Describe("Auto Reload All Flag Tests", func() {
 		deploymentName string
 		configMapName  string
 		autoNamespace  string
+		adapter        *utils.DeploymentAdapter
 	)
 
 	BeforeEach(func() {
 		deploymentName = utils.RandName("deploy")
 		configMapName = utils.RandName("cm")
 		autoNamespace = "auto-" + utils.RandName("ns")
+		adapter = utils.NewDeploymentAdapter(kubeClient)
 	})
 
 	AfterEach(func() {
@@ -59,7 +61,7 @@ var _ = Describe("Auto Reload All Flag Tests", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Waiting for Deployment to be ready")
-			err = utils.WaitForDeploymentReady(ctx, kubeClient, autoNamespace, deploymentName, utils.DeploymentReady)
+			err = adapter.WaitReady(ctx, autoNamespace, deploymentName, utils.DeploymentReady)
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Updating the ConfigMap")
@@ -67,7 +69,7 @@ var _ = Describe("Auto Reload All Flag Tests", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Waiting for Deployment to be reloaded (autoReloadAll=true)")
-			reloaded, err := utils.WaitForDeploymentReloaded(ctx, kubeClient, autoNamespace, deploymentName,
+			reloaded, err := adapter.WaitReloaded(ctx, autoNamespace, deploymentName,
 				utils.AnnotationLastReloadedFrom, utils.ReloadTimeout)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(reloaded).To(BeTrue(), "Deployment without annotations should reload when autoReloadAll=true")
@@ -87,7 +89,7 @@ var _ = Describe("Auto Reload All Flag Tests", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Waiting for Deployment to be ready")
-			err = utils.WaitForDeploymentReady(ctx, kubeClient, autoNamespace, deploymentName, utils.DeploymentReady)
+			err = adapter.WaitReady(ctx, autoNamespace, deploymentName, utils.DeploymentReady)
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Updating the ConfigMap")
@@ -96,7 +98,7 @@ var _ = Describe("Auto Reload All Flag Tests", func() {
 
 			By("Verifying Deployment was NOT reloaded (auto=false overrides autoReloadAll)")
 			time.Sleep(utils.NegativeTestWait)
-			reloaded, err := utils.WaitForDeploymentReloaded(ctx, kubeClient, autoNamespace, deploymentName,
+			reloaded, err := adapter.WaitReloaded(ctx, autoNamespace, deploymentName,
 				utils.AnnotationLastReloadedFrom, utils.ShortTimeout)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(reloaded).To(BeFalse(), "Deployment with auto=false should NOT reload even with autoReloadAll=true")
