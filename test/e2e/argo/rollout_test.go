@@ -29,8 +29,6 @@ var _ = Describe("Argo Rollout Strategy Tests", func() {
 		_ = utils.DeleteConfigMap(ctx, kubeClient, testNamespace, configMapName)
 	})
 
-	// Argo Rollouts have a special "restart" strategy that sets spec.restartAt field
-	// instead of using pod template annotations. This is unique to Argo Rollouts.
 	Context("Rollout strategy annotation", func() {
 		It("should use default rollout strategy (annotation-based reload)", func() {
 			By("Creating a ConfigMap")
@@ -67,7 +65,6 @@ var _ = Describe("Argo Rollout Strategy Tests", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Creating an Argo Rollout with restart strategy annotation")
-			// Note: auto annotation goes on pod template, rollout-strategy goes on object metadata
 			_, err = utils.CreateRollout(ctx, rolloutsClient, testNamespace, rolloutName,
 				utils.WithRolloutConfigMapEnvFrom(configMapName),
 				utils.WithRolloutAnnotations(utils.BuildAutoTrueAnnotation()),

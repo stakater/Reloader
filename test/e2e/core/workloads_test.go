@@ -607,214 +607,260 @@ var _ = Describe("Workload Reload Tests", func() {
 		_ = standardWorkloads
 
 		// ============================================================
-		// EDGE CASE TESTS (Deployment-specific)
+		// EDGE CASE TESTS
+		// These tests verify edge cases that should work across all workload types.
 		// ============================================================
 		Context("Edge Cases", func() {
-			It("should reload deployment with multiple ConfigMaps when any one changes", func() {
-				configMapName2 := utils.RandName("cm2")
-				defer func() { _ = utils.DeleteConfigMap(ctx, kubeClient, testNamespace, configMapName2) }()
-
-				adapter := registry.Get(utils.WorkloadDeployment)
-				Expect(adapter).NotTo(BeNil())
-
-				By("Creating two ConfigMaps")
-				_, err := utils.CreateConfigMap(ctx, kubeClient, testNamespace, configMapName,
-					map[string]string{"key1": "value1"}, nil)
-				Expect(err).NotTo(HaveOccurred())
-
-				_, err = utils.CreateConfigMap(ctx, kubeClient, testNamespace, configMapName2,
-					map[string]string{"key2": "value2"}, nil)
-				Expect(err).NotTo(HaveOccurred())
-
-				By("Creating a Deployment referencing both ConfigMaps")
-				err = adapter.Create(ctx, testNamespace, workloadName, utils.WorkloadConfig{
-					ConfigMapName:       configMapName,
-					UseConfigMapEnvFrom: true,
-					Annotations:         utils.BuildConfigMapReloadAnnotation(configMapName, configMapName2),
-				})
-				Expect(err).NotTo(HaveOccurred())
-				DeferCleanup(func() { _ = adapter.Delete(ctx, testNamespace, workloadName) })
-
-				By("Waiting for Deployment to be ready")
-				err = adapter.WaitReady(ctx, testNamespace, workloadName, utils.WorkloadReadyTimeout)
-				Expect(err).NotTo(HaveOccurred())
-
-				By("Updating the second ConfigMap")
-				err = utils.UpdateConfigMap(ctx, kubeClient, testNamespace, configMapName2, map[string]string{"key2": "updated-value2"})
-				Expect(err).NotTo(HaveOccurred())
-
-				By("Waiting for Deployment to be reloaded")
-				reloaded, err := adapter.WaitReloaded(ctx, testNamespace, workloadName,
-					utils.AnnotationLastReloadedFrom, utils.ReloadTimeout)
-				Expect(err).NotTo(HaveOccurred())
-				Expect(reloaded).To(BeTrue(), "Deployment should have been reloaded when second ConfigMap changed")
-			})
-
-			It("should reload deployment with multiple Secrets when any one changes", func() {
-				secretName2 := utils.RandName("secret2")
-				defer func() { _ = utils.DeleteSecret(ctx, kubeClient, testNamespace, secretName2) }()
-
-				adapter := registry.Get(utils.WorkloadDeployment)
-				Expect(adapter).NotTo(BeNil())
-
-				By("Creating two Secrets")
-				_, err := utils.CreateSecretFromStrings(ctx, kubeClient, testNamespace, secretName,
-					map[string]string{"key1": "value1"}, nil)
-				Expect(err).NotTo(HaveOccurred())
-
-				_, err = utils.CreateSecretFromStrings(ctx, kubeClient, testNamespace, secretName2,
-					map[string]string{"key2": "value2"}, nil)
-				Expect(err).NotTo(HaveOccurred())
-
-				By("Creating a Deployment referencing both Secrets")
-				err = adapter.Create(ctx, testNamespace, workloadName, utils.WorkloadConfig{
-					SecretName:       secretName,
-					UseSecretEnvFrom: true,
-					Annotations:      utils.BuildSecretReloadAnnotation(secretName, secretName2),
-				})
-				Expect(err).NotTo(HaveOccurred())
-				DeferCleanup(func() { _ = adapter.Delete(ctx, testNamespace, workloadName) })
-
-				By("Waiting for Deployment to be ready")
-				err = adapter.WaitReady(ctx, testNamespace, workloadName, utils.WorkloadReadyTimeout)
-				Expect(err).NotTo(HaveOccurred())
-
-				By("Updating the second Secret")
-				err = utils.UpdateSecretFromStrings(ctx, kubeClient, testNamespace, secretName2, map[string]string{"key2": "updated-value2"})
-				Expect(err).NotTo(HaveOccurred())
-
-				By("Waiting for Deployment to be reloaded")
-				reloaded, err := adapter.WaitReloaded(ctx, testNamespace, workloadName,
-					utils.AnnotationLastReloadedFrom, utils.ReloadTimeout)
-				Expect(err).NotTo(HaveOccurred())
-				Expect(reloaded).To(BeTrue(), "Deployment should have been reloaded when second Secret changed")
-			})
-
-			It("should reload deployment multiple times for sequential ConfigMap updates", func() {
-				adapter := registry.Get(utils.WorkloadDeployment)
-				Expect(adapter).NotTo(BeNil())
-
-				By("Creating a ConfigMap")
-				_, err := utils.CreateConfigMap(ctx, kubeClient, testNamespace, configMapName,
-					map[string]string{"key": "v1"}, nil)
-				Expect(err).NotTo(HaveOccurred())
-
-				By("Creating a Deployment with ConfigMap reference annotation")
-				err = adapter.Create(ctx, testNamespace, workloadName, utils.WorkloadConfig{
-					ConfigMapName:       configMapName,
-					UseConfigMapEnvFrom: true,
-					Annotations:         utils.BuildConfigMapReloadAnnotation(configMapName),
-				})
-				Expect(err).NotTo(HaveOccurred())
-				DeferCleanup(func() { _ = adapter.Delete(ctx, testNamespace, workloadName) })
-
-				By("Waiting for Deployment to be ready")
-				err = adapter.WaitReady(ctx, testNamespace, workloadName, utils.WorkloadReadyTimeout)
-				Expect(err).NotTo(HaveOccurred())
-
-				By("First update to ConfigMap")
-				err = utils.UpdateConfigMap(ctx, kubeClient, testNamespace, configMapName, map[string]string{"key": "v2"})
-				Expect(err).NotTo(HaveOccurred())
-
-				By("Waiting for first reload")
-				reloaded, err := adapter.WaitReloaded(ctx, testNamespace, workloadName,
-					utils.AnnotationLastReloadedFrom, utils.ReloadTimeout)
-				Expect(err).NotTo(HaveOccurred())
-				Expect(reloaded).To(BeTrue())
-
-				By("Getting first reload annotation value")
-				deploy, err := utils.GetDeployment(ctx, kubeClient, testNamespace, workloadName)
-				Expect(err).NotTo(HaveOccurred())
-				firstReloadValue := deploy.Spec.Template.Annotations[utils.AnnotationLastReloadedFrom]
-
-				By("Second update to ConfigMap")
-				err = utils.UpdateConfigMap(ctx, kubeClient, testNamespace, configMapName, map[string]string{"key": "v3"})
-				Expect(err).NotTo(HaveOccurred())
-
-				By("Waiting for second reload with different annotation value")
-				Eventually(func() string {
-					deploy, err := utils.GetDeployment(ctx, kubeClient, testNamespace, workloadName)
-					if err != nil {
-						return ""
+			DescribeTable("should reload with multiple ConfigMaps when any one changes",
+				func(workloadType utils.WorkloadType) {
+					adapter := registry.Get(workloadType)
+					if adapter == nil {
+						Skip(fmt.Sprintf("%s adapter not available (CRD not installed)", workloadType))
 					}
-					return deploy.Spec.Template.Annotations[utils.AnnotationLastReloadedFrom]
-				}, utils.ReloadTimeout, utils.DefaultInterval).ShouldNot(Equal(firstReloadValue),
-					"Reload annotation should change after second update")
-			})
 
-			It("should reload deployment when either ConfigMap or Secret changes", func() {
-				adapter := registry.Get(utils.WorkloadDeployment)
-				Expect(adapter).NotTo(BeNil())
+					configMapName2 := utils.RandName("cm2")
+					DeferCleanup(func() { _ = utils.DeleteConfigMap(ctx, kubeClient, testNamespace, configMapName2) })
 
-				By("Creating a ConfigMap and Secret")
-				_, err := utils.CreateConfigMap(ctx, kubeClient, testNamespace, configMapName,
-					map[string]string{"config": "initial"}, nil)
-				Expect(err).NotTo(HaveOccurred())
+					By("Creating two ConfigMaps")
+					_, err := utils.CreateConfigMap(ctx, kubeClient, testNamespace, configMapName,
+						map[string]string{"key1": "value1"}, nil)
+					Expect(err).NotTo(HaveOccurred())
 
-				_, err = utils.CreateSecretFromStrings(ctx, kubeClient, testNamespace, secretName,
-					map[string]string{"secret": "initial"}, nil)
-				Expect(err).NotTo(HaveOccurred())
+					_, err = utils.CreateConfigMap(ctx, kubeClient, testNamespace, configMapName2,
+						map[string]string{"key2": "value2"}, nil)
+					Expect(err).NotTo(HaveOccurred())
 
-				By("Creating a Deployment referencing both")
-				err = adapter.Create(ctx, testNamespace, workloadName, utils.WorkloadConfig{
-					ConfigMapName:       configMapName,
-					SecretName:          secretName,
-					UseConfigMapEnvFrom: true,
-					UseSecretEnvFrom:    true,
-					Annotations: utils.MergeAnnotations(utils.BuildConfigMapReloadAnnotation(configMapName),
-						utils.BuildSecretReloadAnnotation(secretName)),
-				})
-				Expect(err).NotTo(HaveOccurred())
-				DeferCleanup(func() { _ = adapter.Delete(ctx, testNamespace, workloadName) })
+					By("Creating workload referencing both ConfigMaps")
+					err = adapter.Create(ctx, testNamespace, workloadName, utils.WorkloadConfig{
+						ConfigMapName:       configMapName,
+						UseConfigMapEnvFrom: true,
+						Annotations:         utils.BuildConfigMapReloadAnnotation(configMapName, configMapName2),
+					})
+					Expect(err).NotTo(HaveOccurred())
+					DeferCleanup(func() { _ = adapter.Delete(ctx, testNamespace, workloadName) })
 
-				By("Waiting for Deployment to be ready")
-				err = adapter.WaitReady(ctx, testNamespace, workloadName, utils.WorkloadReadyTimeout)
-				Expect(err).NotTo(HaveOccurred())
+					By("Waiting for workload to be ready")
+					err = adapter.WaitReady(ctx, testNamespace, workloadName, utils.WorkloadReadyTimeout)
+					Expect(err).NotTo(HaveOccurred())
 
-				By("Updating the Secret")
-				err = utils.UpdateSecretFromStrings(ctx, kubeClient, testNamespace, secretName, map[string]string{"secret": "updated"})
-				Expect(err).NotTo(HaveOccurred())
+					By("Updating the second ConfigMap")
+					err = utils.UpdateConfigMap(ctx, kubeClient, testNamespace, configMapName2, map[string]string{"key2": "updated-value2"})
+					Expect(err).NotTo(HaveOccurred())
 
-				By("Waiting for Deployment to be reloaded")
-				reloaded, err := adapter.WaitReloaded(ctx, testNamespace, workloadName,
-					utils.AnnotationLastReloadedFrom, utils.ReloadTimeout)
-				Expect(err).NotTo(HaveOccurred())
-				Expect(reloaded).To(BeTrue(), "Deployment should have been reloaded when Secret changed")
-			})
+					By("Waiting for workload to be reloaded")
+					reloaded, err := adapter.WaitReloaded(ctx, testNamespace, workloadName,
+						utils.AnnotationLastReloadedFrom, utils.ReloadTimeout)
+					Expect(err).NotTo(HaveOccurred())
+					Expect(reloaded).To(BeTrue(), "%s should reload when second ConfigMap changes", workloadType)
+				},
+				Entry("Deployment", utils.WorkloadDeployment),
+				Entry("DaemonSet", utils.WorkloadDaemonSet),
+				Entry("StatefulSet", utils.WorkloadStatefulSet),
+				Entry("ArgoRollout", Label("argo"), utils.WorkloadArgoRollout),
+				Entry("DeploymentConfig", Label("openshift"), utils.WorkloadDeploymentConfig),
+			)
 
-			It("should NOT reload deployment with auto=false annotation", func() {
-				adapter := registry.Get(utils.WorkloadDeployment)
-				Expect(adapter).NotTo(BeNil())
+			DescribeTable("should reload with multiple Secrets when any one changes",
+				func(workloadType utils.WorkloadType) {
+					adapter := registry.Get(workloadType)
+					if adapter == nil {
+						Skip(fmt.Sprintf("%s adapter not available (CRD not installed)", workloadType))
+					}
 
-				By("Creating a ConfigMap")
-				_, err := utils.CreateConfigMap(ctx, kubeClient, testNamespace, configMapName,
-					map[string]string{"key": "initial"}, nil)
-				Expect(err).NotTo(HaveOccurred())
+					secretName2 := utils.RandName("secret2")
+					DeferCleanup(func() { _ = utils.DeleteSecret(ctx, kubeClient, testNamespace, secretName2) })
 
-				By("Creating a Deployment with auto=false annotation")
-				err = adapter.Create(ctx, testNamespace, workloadName, utils.WorkloadConfig{
-					ConfigMapName:       configMapName,
-					UseConfigMapEnvFrom: true,
-					Annotations:         utils.BuildAutoFalseAnnotation(),
-				})
-				Expect(err).NotTo(HaveOccurred())
-				DeferCleanup(func() { _ = adapter.Delete(ctx, testNamespace, workloadName) })
+					By("Creating two Secrets")
+					_, err := utils.CreateSecretFromStrings(ctx, kubeClient, testNamespace, secretName,
+						map[string]string{"key1": "value1"}, nil)
+					Expect(err).NotTo(HaveOccurred())
 
-				By("Waiting for Deployment to be ready")
-				err = adapter.WaitReady(ctx, testNamespace, workloadName, utils.WorkloadReadyTimeout)
-				Expect(err).NotTo(HaveOccurred())
+					_, err = utils.CreateSecretFromStrings(ctx, kubeClient, testNamespace, secretName2,
+						map[string]string{"key2": "value2"}, nil)
+					Expect(err).NotTo(HaveOccurred())
 
-				By("Updating the ConfigMap data")
-				err = utils.UpdateConfigMap(ctx, kubeClient, testNamespace, configMapName, map[string]string{"key": "updated"})
-				Expect(err).NotTo(HaveOccurred())
+					By("Creating workload referencing both Secrets")
+					err = adapter.Create(ctx, testNamespace, workloadName, utils.WorkloadConfig{
+						SecretName:       secretName,
+						UseSecretEnvFrom: true,
+						Annotations:      utils.BuildSecretReloadAnnotation(secretName, secretName2),
+					})
+					Expect(err).NotTo(HaveOccurred())
+					DeferCleanup(func() { _ = adapter.Delete(ctx, testNamespace, workloadName) })
 
-				By("Verifying Deployment is NOT reloaded (auto=false)")
-				time.Sleep(utils.NegativeTestWait)
-				reloaded, err := adapter.WaitReloaded(ctx, testNamespace, workloadName,
-					utils.AnnotationLastReloadedFrom, utils.ShortTimeout)
-				Expect(err).NotTo(HaveOccurred())
-				Expect(reloaded).To(BeFalse(), "Deployment with auto=false should NOT have been reloaded")
-			})
+					By("Waiting for workload to be ready")
+					err = adapter.WaitReady(ctx, testNamespace, workloadName, utils.WorkloadReadyTimeout)
+					Expect(err).NotTo(HaveOccurred())
+
+					By("Updating the second Secret")
+					err = utils.UpdateSecretFromStrings(ctx, kubeClient, testNamespace, secretName2, map[string]string{"key2": "updated-value2"})
+					Expect(err).NotTo(HaveOccurred())
+
+					By("Waiting for workload to be reloaded")
+					reloaded, err := adapter.WaitReloaded(ctx, testNamespace, workloadName,
+						utils.AnnotationLastReloadedFrom, utils.ReloadTimeout)
+					Expect(err).NotTo(HaveOccurred())
+					Expect(reloaded).To(BeTrue(), "%s should reload when second Secret changes", workloadType)
+				},
+				Entry("Deployment", utils.WorkloadDeployment),
+				Entry("DaemonSet", utils.WorkloadDaemonSet),
+				Entry("StatefulSet", utils.WorkloadStatefulSet),
+				Entry("ArgoRollout", Label("argo"), utils.WorkloadArgoRollout),
+				Entry("DeploymentConfig", Label("openshift"), utils.WorkloadDeploymentConfig),
+			)
+
+			DescribeTable("should reload multiple times for sequential ConfigMap updates",
+				func(workloadType utils.WorkloadType) {
+					adapter := registry.Get(workloadType)
+					if adapter == nil {
+						Skip(fmt.Sprintf("%s adapter not available (CRD not installed)", workloadType))
+					}
+
+					By("Creating a ConfigMap")
+					_, err := utils.CreateConfigMap(ctx, kubeClient, testNamespace, configMapName,
+						map[string]string{"key": "v1"}, nil)
+					Expect(err).NotTo(HaveOccurred())
+
+					By("Creating workload with ConfigMap reference annotation")
+					err = adapter.Create(ctx, testNamespace, workloadName, utils.WorkloadConfig{
+						ConfigMapName:       configMapName,
+						UseConfigMapEnvFrom: true,
+						Annotations:         utils.BuildConfigMapReloadAnnotation(configMapName),
+					})
+					Expect(err).NotTo(HaveOccurred())
+					DeferCleanup(func() { _ = adapter.Delete(ctx, testNamespace, workloadName) })
+
+					By("Waiting for workload to be ready")
+					err = adapter.WaitReady(ctx, testNamespace, workloadName, utils.WorkloadReadyTimeout)
+					Expect(err).NotTo(HaveOccurred())
+
+					By("First update to ConfigMap")
+					err = utils.UpdateConfigMap(ctx, kubeClient, testNamespace, configMapName, map[string]string{"key": "v2"})
+					Expect(err).NotTo(HaveOccurred())
+
+					By("Waiting for first reload")
+					reloaded, err := adapter.WaitReloaded(ctx, testNamespace, workloadName,
+						utils.AnnotationLastReloadedFrom, utils.ReloadTimeout)
+					Expect(err).NotTo(HaveOccurred())
+					Expect(reloaded).To(BeTrue())
+
+					By("Getting first reload annotation value")
+					firstReloadValue, err := adapter.GetPodTemplateAnnotation(ctx, testNamespace, workloadName,
+						utils.AnnotationLastReloadedFrom)
+					Expect(err).NotTo(HaveOccurred())
+
+					By("Second update to ConfigMap")
+					err = utils.UpdateConfigMap(ctx, kubeClient, testNamespace, configMapName, map[string]string{"key": "v3"})
+					Expect(err).NotTo(HaveOccurred())
+
+					By("Waiting for second reload with different annotation value")
+					Eventually(func() string {
+						val, _ := adapter.GetPodTemplateAnnotation(ctx, testNamespace, workloadName,
+							utils.AnnotationLastReloadedFrom)
+						return val
+					}, utils.ReloadTimeout, utils.DefaultInterval).ShouldNot(Equal(firstReloadValue),
+						"Reload annotation should change after second update")
+				},
+				Entry("Deployment", utils.WorkloadDeployment),
+				Entry("DaemonSet", utils.WorkloadDaemonSet),
+				Entry("StatefulSet", utils.WorkloadStatefulSet),
+				Entry("ArgoRollout", Label("argo"), utils.WorkloadArgoRollout),
+				Entry("DeploymentConfig", Label("openshift"), utils.WorkloadDeploymentConfig),
+			)
+
+			DescribeTable("should reload when either ConfigMap or Secret changes",
+				func(workloadType utils.WorkloadType) {
+					adapter := registry.Get(workloadType)
+					if adapter == nil {
+						Skip(fmt.Sprintf("%s adapter not available (CRD not installed)", workloadType))
+					}
+
+					By("Creating a ConfigMap and Secret")
+					_, err := utils.CreateConfigMap(ctx, kubeClient, testNamespace, configMapName,
+						map[string]string{"config": "initial"}, nil)
+					Expect(err).NotTo(HaveOccurred())
+
+					_, err = utils.CreateSecretFromStrings(ctx, kubeClient, testNamespace, secretName,
+						map[string]string{"secret": "initial"}, nil)
+					Expect(err).NotTo(HaveOccurred())
+
+					By("Creating workload referencing both")
+					err = adapter.Create(ctx, testNamespace, workloadName, utils.WorkloadConfig{
+						ConfigMapName:       configMapName,
+						SecretName:          secretName,
+						UseConfigMapEnvFrom: true,
+						UseSecretEnvFrom:    true,
+						Annotations: utils.MergeAnnotations(
+							utils.BuildConfigMapReloadAnnotation(configMapName),
+							utils.BuildSecretReloadAnnotation(secretName),
+						),
+					})
+					Expect(err).NotTo(HaveOccurred())
+					DeferCleanup(func() { _ = adapter.Delete(ctx, testNamespace, workloadName) })
+
+					By("Waiting for workload to be ready")
+					err = adapter.WaitReady(ctx, testNamespace, workloadName, utils.WorkloadReadyTimeout)
+					Expect(err).NotTo(HaveOccurred())
+
+					By("Updating the Secret")
+					err = utils.UpdateSecretFromStrings(ctx, kubeClient, testNamespace, secretName, map[string]string{"secret": "updated"})
+					Expect(err).NotTo(HaveOccurred())
+
+					By("Waiting for workload to be reloaded")
+					reloaded, err := adapter.WaitReloaded(ctx, testNamespace, workloadName,
+						utils.AnnotationLastReloadedFrom, utils.ReloadTimeout)
+					Expect(err).NotTo(HaveOccurred())
+					Expect(reloaded).To(BeTrue(), "%s should reload when Secret changes", workloadType)
+				},
+				Entry("Deployment", utils.WorkloadDeployment),
+				Entry("DaemonSet", utils.WorkloadDaemonSet),
+				Entry("StatefulSet", utils.WorkloadStatefulSet),
+				Entry("ArgoRollout", Label("argo"), utils.WorkloadArgoRollout),
+				Entry("DeploymentConfig", Label("openshift"), utils.WorkloadDeploymentConfig),
+			)
+
+			DescribeTable("should NOT reload with auto=false annotation",
+				func(workloadType utils.WorkloadType) {
+					adapter := registry.Get(workloadType)
+					if adapter == nil {
+						Skip(fmt.Sprintf("%s adapter not available (CRD not installed)", workloadType))
+					}
+
+					By("Creating a ConfigMap")
+					_, err := utils.CreateConfigMap(ctx, kubeClient, testNamespace, configMapName,
+						map[string]string{"key": "initial"}, nil)
+					Expect(err).NotTo(HaveOccurred())
+
+					By("Creating workload with auto=false annotation")
+					err = adapter.Create(ctx, testNamespace, workloadName, utils.WorkloadConfig{
+						ConfigMapName:       configMapName,
+						UseConfigMapEnvFrom: true,
+						Annotations:         utils.BuildAutoFalseAnnotation(),
+					})
+					Expect(err).NotTo(HaveOccurred())
+					DeferCleanup(func() { _ = adapter.Delete(ctx, testNamespace, workloadName) })
+
+					By("Waiting for workload to be ready")
+					err = adapter.WaitReady(ctx, testNamespace, workloadName, utils.WorkloadReadyTimeout)
+					Expect(err).NotTo(HaveOccurred())
+
+					By("Updating the ConfigMap data")
+					err = utils.UpdateConfigMap(ctx, kubeClient, testNamespace, configMapName, map[string]string{"key": "updated"})
+					Expect(err).NotTo(HaveOccurred())
+
+					By("Verifying workload is NOT reloaded (auto=false)")
+					time.Sleep(utils.NegativeTestWait)
+					reloaded, err := adapter.WaitReloaded(ctx, testNamespace, workloadName,
+						utils.AnnotationLastReloadedFrom, utils.ShortTimeout)
+					Expect(err).NotTo(HaveOccurred())
+					Expect(reloaded).To(BeFalse(), "%s with auto=false should NOT be reloaded", workloadType)
+				},
+				Entry("Deployment", utils.WorkloadDeployment),
+				Entry("DaemonSet", utils.WorkloadDaemonSet),
+				Entry("StatefulSet", utils.WorkloadStatefulSet),
+				Entry("ArgoRollout", Label("argo"), utils.WorkloadArgoRollout),
+				Entry("DeploymentConfig", Label("openshift"), utils.WorkloadDeploymentConfig),
+			)
 		})
 
 		// ============================================================

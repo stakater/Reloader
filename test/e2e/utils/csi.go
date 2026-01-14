@@ -99,7 +99,6 @@ func CreateSecretProviderClass(ctx context.Context, client csiclient.Interface, 
 	*csiv1.SecretProviderClass, error,
 ) {
 	if params == nil {
-		// Default Vault-compatible parameters for testing
 		params = map[string]string{
 			"vaultAddress": VaultAddress,
 			"roleName":     VaultRole,
@@ -133,8 +132,6 @@ func CreateSecretProviderClass(ctx context.Context, client csiclient.Interface, 
 func CreateSecretProviderClassWithSecret(ctx context.Context, client csiclient.Interface, namespace, name, secretPath, secretKey string) (
 	*csiv1.SecretProviderClass, error,
 ) {
-	// Convert KV v1 style path to KV v2 data path
-	// "secret/foo" -> "secret/data/foo"
 	kvV2Path := secretPath
 	if strings.HasPrefix(secretPath, "secret/") && !strings.HasPrefix(secretPath, "secret/data/") {
 		kvV2Path = strings.Replace(secretPath, "secret/", "secret/data/", 1)
@@ -199,8 +196,6 @@ func CreateVaultSecret(ctx context.Context, kubeClient kubernetes.Interface, res
 // secretPath should be like "secret/test" (without "data" prefix - it's added automatically).
 // data is a map of key-value pairs to store in the secret.
 func UpdateVaultSecret(ctx context.Context, kubeClient kubernetes.Interface, restConfig *rest.Config, secretPath string, data map[string]string) error {
-	// Build the vault kv put command
-	// Format: vault kv put secret/path key1=value1 key2=value2
 	args := []string{"kv", "put", secretPath}
 	for k, v := range data {
 		args = append(args, fmt.Sprintf("%s=%s", k, v))
@@ -217,7 +212,6 @@ func UpdateVaultSecret(ctx context.Context, kubeClient kubernetes.Interface, res
 func DeleteVaultSecret(ctx context.Context, kubeClient kubernetes.Interface, restConfig *rest.Config, secretPath string) error {
 	args := []string{"kv", "metadata", "delete", secretPath}
 	if err := execInVaultPod(ctx, kubeClient, restConfig, args); err != nil {
-		// Ignore not found errors
 		if strings.Contains(err.Error(), "No value found") {
 			return nil
 		}
@@ -281,7 +275,6 @@ func WaitForSPCPSVersionChange(ctx context.Context, client csiclient.Interface, 
 func FindSPCPSForDeployment(ctx context.Context, csiClient csiclient.Interface, kubeClient kubernetes.Interface, namespace, deploymentName string, timeout time.Duration) (
 	string, error,
 ) {
-	// Get pods for the deployment
 	pods, err := kubeClient.CoreV1().Pods(namespace).List(
 		ctx, metav1.ListOptions{
 			LabelSelector: fmt.Sprintf("app=%s", deploymentName),
@@ -300,7 +293,6 @@ func FindSPCPSForDeployment(ctx context.Context, csiClient csiclient.Interface, 
 		return csiClient.SecretsstoreV1().SecretProviderClassPodStatuses(namespace).Watch(ctx, opts)
 	}
 
-	// Watch all SPCPS (empty name) and find one that matches any pod
 	spcps, err := WatchUntil(ctx, watchFunc, "", SPCPSForPods(podNames), timeout)
 	if errors.Is(err, ErrWatchTimeout) {
 		return "", fmt.Errorf("timeout finding SecretProviderClassPodStatus for deployment %s/%s", namespace, deploymentName)
@@ -318,7 +310,6 @@ func FindSPCPSForSPC(ctx context.Context, csiClient csiclient.Interface, namespa
 		return csiClient.SecretsstoreV1().SecretProviderClassPodStatuses(namespace).Watch(ctx, opts)
 	}
 
-	// Watch all SPCPS (empty name) and find one that matches the SPC
 	spcps, err := WatchUntil(ctx, watchFunc, "", SPCPSForSPC(spcName), timeout)
 	if errors.Is(err, ErrWatchTimeout) {
 		return "", fmt.Errorf("timeout finding SecretProviderClassPodStatus for SPC %s/%s", namespace, spcName)
@@ -339,7 +330,6 @@ func GetSPCPSVersion(ctx context.Context, client csiclient.Interface, namespace,
 	if len(spcps.Status.Objects) == 0 {
 		return "", nil
 	}
-	// Return concatenated versions for all objects to detect any change
 	var versions []string
 	for _, obj := range spcps.Status.Objects {
 		versions = append(versions, obj.Version)

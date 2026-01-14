@@ -27,16 +27,11 @@ var _ = BeforeSuite(func() {
 	var err error
 	ctx = context.Background()
 
-	// Setup test environment (but don't deploy Reloader - tests do that with specific flags)
 	testEnv, err = utils.SetupTestEnvironment(ctx, "reloader-flags")
 	Expect(err).NotTo(HaveOccurred(), "Failed to setup test environment")
 
-	// Export for use in tests
 	kubeClient = testEnv.KubeClient
 	testNamespace = testEnv.Namespace
-
-	// Note: Unlike other suites, we don't deploy Reloader here.
-	// Each test deploys with specific flag configurations.
 })
 
 var _ = AfterSuite(func() {
@@ -51,7 +46,6 @@ var _ = AfterSuite(func() {
 // deployReloaderWithFlags deploys Reloader with the specified Helm value overrides.
 // This is a convenience function for tests that need to deploy with specific flags.
 func deployReloaderWithFlags(values map[string]string) error {
-	// Always include annotations strategy
 	if values == nil {
 		values = make(map[string]string)
 	}

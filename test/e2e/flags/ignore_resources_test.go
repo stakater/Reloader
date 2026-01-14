@@ -34,11 +34,9 @@ var _ = Describe("Ignore Resources Flag Tests", func() {
 
 	Context("with ignoreSecrets=true flag", func() {
 		BeforeEach(func() {
-			// Create test namespace
 			err := utils.CreateNamespace(ctx, kubeClient, ignoreNS)
 			Expect(err).NotTo(HaveOccurred())
 
-			// Deploy Reloader with ignoreSecrets flag
 			err = deployReloaderWithFlags(map[string]string{
 				"reloader.ignoreSecrets": "true",
 			})
@@ -113,11 +111,9 @@ var _ = Describe("Ignore Resources Flag Tests", func() {
 
 	Context("with ignoreConfigMaps=true flag", func() {
 		BeforeEach(func() {
-			// Create test namespace
 			err := utils.CreateNamespace(ctx, kubeClient, ignoreNS)
 			Expect(err).NotTo(HaveOccurred())
 
-			// Deploy Reloader with ignoreConfigMaps flag
 			err = deployReloaderWithFlags(map[string]string{
 				"reloader.ignoreConfigMaps": "true",
 			})

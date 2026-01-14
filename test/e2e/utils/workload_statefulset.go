@@ -74,11 +74,19 @@ func (a *StatefulSetAdapter) RequiresSpecialHandling() bool {
 	return false
 }
 
+// GetPodTemplateAnnotation returns the value of a pod template annotation.
+func (a *StatefulSetAdapter) GetPodTemplateAnnotation(ctx context.Context, namespace, name, annotationKey string) (string, error) {
+	sts, err := a.client.AppsV1().StatefulSets(namespace).Get(ctx, name, metav1.GetOptions{})
+	if err != nil {
+		return "", err
+	}
+	return sts.Spec.Template.Annotations[annotationKey], nil
+}
+
 // buildStatefulSetOptions converts WorkloadConfig to StatefulSetOption slice.
 func buildStatefulSetOptions(cfg WorkloadConfig) []StatefulSetOption {
 	return []StatefulSetOption{
 		func(sts *appsv1.StatefulSet) {
-			// Set annotations on StatefulSet level (where Reloader checks them)
 			if len(cfg.Annotations) > 0 {
 				if sts.Annotations == nil {
 					sts.Annotations = make(map[string]string)

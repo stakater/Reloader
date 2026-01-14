@@ -184,11 +184,9 @@ var _ = Describe("Job Workload Recreation Tests", func() {
 
 	Context("Job with SecretProviderClass reference", Label("csi"), func() {
 		BeforeEach(func() {
-			// Skip if CSI driver not installed
 			if !utils.IsCSIDriverInstalled(ctx, csiClient) {
 				Skip("CSI secrets store driver not installed - skipping CSI test")
 			}
-			// Skip if Vault CSI provider not installed
 			if !utils.IsVaultProviderInstalled(ctx, kubeClient) {
 				Skip("Vault CSI provider not installed - skipping CSI test")
 			}
@@ -209,6 +207,7 @@ var _ = Describe("Job Workload Recreation Tests", func() {
 
 			By("Creating a Job with CSI volume and SPC reload annotation")
 			job, err := utils.CreateJob(ctx, kubeClient, testNamespace, jobName,
+				utils.WithJobCommand("sleep 300"),
 				utils.WithJobCSIVolume(spcName),
 				utils.WithJobAnnotations(utils.BuildSecretProviderClassReloadAnnotation(spcName)))
 			Expect(err).NotTo(HaveOccurred())

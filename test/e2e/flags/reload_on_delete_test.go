@@ -31,11 +31,9 @@ var _ = Describe("Reload On Delete Flag Tests", func() {
 
 	Context("with reloadOnDelete=true flag", func() {
 		BeforeEach(func() {
-			// Create test namespace
 			err := utils.CreateNamespace(ctx, kubeClient, deleteNamespace)
 			Expect(err).NotTo(HaveOccurred())
 
-			// Deploy Reloader with reloadOnDelete flag
 			err = deployReloaderWithFlags(map[string]string{
 				"reloader.reloadOnDelete": "true",
 			})
@@ -109,11 +107,9 @@ var _ = Describe("Reload On Delete Flag Tests", func() {
 
 	Context("with reloadOnDelete=false (default)", func() {
 		BeforeEach(func() {
-			// Create test namespace
 			err := utils.CreateNamespace(ctx, kubeClient, deleteNamespace)
 			Expect(err).NotTo(HaveOccurred())
 
-			// Deploy Reloader without reloadOnDelete flag (default is false)
 			err = deployReloaderWithFlags(map[string]string{})
 			Expect(err).NotTo(HaveOccurred())
 

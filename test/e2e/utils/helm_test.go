@@ -28,7 +28,7 @@ func TestGetImageRepository(t *testing.T) {
 		{
 			name:     "image with digest (not fully supported)",
 			image:    "nginx@sha256:abc123",
-			expected: "nginx@sha256", // Note: digest handling is limited
+			expected: "nginx@sha256",
 		},
 		{
 			name:     "simple image name",

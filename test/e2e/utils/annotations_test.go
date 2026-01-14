@@ -260,8 +260,6 @@ func TestJoinNames(t *testing.T) {
 }
 
 func TestAnnotationConstants(t *testing.T) {
-	// Verify annotation constants have expected values
-	// This ensures we don't accidentally change the annotation keys
 	tests := []struct {
 		name     string
 		constant string
@@ -293,7 +291,6 @@ func TestAnnotationConstants(t *testing.T) {
 }
 
 func TestAnnotationValues(t *testing.T) {
-	// Verify annotation value constants
 	if AnnotationValueTrue != "true" {
 		t.Errorf("AnnotationValueTrue = %q, want \"true\"", AnnotationValueTrue)
 	}

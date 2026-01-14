@@ -48,10 +48,10 @@ var _ = Describe("Combination Annotation Tests", func() {
 
 			By("Creating a Deployment with auto=true AND explicit reload annotation for extra ConfigMap")
 			_, err = utils.CreateDeployment(ctx, kubeClient, testNamespace, deploymentName,
-				utils.WithConfigMapEnvFrom(configMapName), // auto-detected
+				utils.WithConfigMapEnvFrom(configMapName),
 				utils.WithAnnotations(utils.MergeAnnotations(
 					utils.BuildAutoTrueAnnotation(),
-					utils.BuildConfigMapReloadAnnotation(configMapName2), // explicitly listed
+					utils.BuildConfigMapReloadAnnotation(configMapName2),
 				)),
 			)
 			Expect(err).NotTo(HaveOccurred())
@@ -82,10 +82,10 @@ var _ = Describe("Combination Annotation Tests", func() {
 
 			By("Creating a Deployment with auto=true AND explicit reload annotation for extra ConfigMap")
 			_, err = utils.CreateDeployment(ctx, kubeClient, testNamespace, deploymentName,
-				utils.WithConfigMapEnvFrom(configMapName), // auto-detected
+				utils.WithConfigMapEnvFrom(configMapName),
 				utils.WithAnnotations(utils.MergeAnnotations(
 					utils.BuildAutoTrueAnnotation(),
-					utils.BuildConfigMapReloadAnnotation(configMapName2), // explicitly listed
+					utils.BuildConfigMapReloadAnnotation(configMapName2),
 				)),
 			)
 			Expect(err).NotTo(HaveOccurred())
@@ -116,10 +116,10 @@ var _ = Describe("Combination Annotation Tests", func() {
 
 			By("Creating a Deployment with auto=true AND explicit reload annotation for extra Secret")
 			_, err = utils.CreateDeployment(ctx, kubeClient, testNamespace, deploymentName,
-				utils.WithSecretEnvFrom(secretName), // auto-detected
+				utils.WithSecretEnvFrom(secretName),
 				utils.WithAnnotations(utils.MergeAnnotations(
 					utils.BuildAutoTrueAnnotation(),
-					utils.BuildSecretReloadAnnotation(secretName2), // explicitly listed
+					utils.BuildSecretReloadAnnotation(secretName2),
 				)),
 			)
 			Expect(err).NotTo(HaveOccurred())
@@ -153,10 +153,10 @@ var _ = Describe("Combination Annotation Tests", func() {
 			By("Creating a Deployment with auto=true AND exclude for second ConfigMap")
 			_, err = utils.CreateDeployment(ctx, kubeClient, testNamespace, deploymentName,
 				utils.WithConfigMapEnvFrom(configMapName),
-				utils.WithConfigMapEnvFrom(configMapName2), // also mounted, but excluded
+				utils.WithConfigMapEnvFrom(configMapName2),
 				utils.WithAnnotations(utils.MergeAnnotations(
 					utils.BuildAutoTrueAnnotation(),
-					utils.BuildConfigMapExcludeAnnotation(configMapName2), // exclude this one
+					utils.BuildConfigMapExcludeAnnotation(configMapName2),
 				)),
 			)
 			Expect(err).NotTo(HaveOccurred())

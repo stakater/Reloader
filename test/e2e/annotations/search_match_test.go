@@ -98,9 +98,7 @@ var _ = Describe("Search and Match Annotation Tests", func() {
 
 			By("Creating a Deployment WITHOUT search annotation (only standard annotation)")
 			_, err = utils.CreateDeployment(ctx, kubeClient, testNamespace, deploymentName,
-				utils.WithConfigMapEnvFrom(configMapName),
-				// Note: No search or reload annotation - deployment won't be affected by match
-			)
+				utils.WithConfigMapEnvFrom(configMapName))
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Waiting for Deployment to be ready")
@@ -141,7 +139,6 @@ var _ = Describe("Search and Match Annotation Tests", func() {
 			By("Creating second Deployment WITHOUT search annotation")
 			_, err = utils.CreateDeployment(ctx, kubeClient, testNamespace, deploymentName2,
 				utils.WithConfigMapEnvFrom(configMapName),
-				// No search annotation
 			)
 			Expect(err).NotTo(HaveOccurred())
 

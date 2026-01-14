@@ -196,7 +196,6 @@ func AddInitContainerWithVolumes(spec *corev1.PodSpec, cmName, secretName string
 // ApplyWorkloadConfig applies all WorkloadConfig settings to a PodTemplateSpec.
 // This includes both pod template annotations and pod spec configuration.
 func ApplyWorkloadConfig(template *corev1.PodTemplateSpec, cfg WorkloadConfig) {
-	// Apply pod template annotations
 	if len(cfg.PodTemplateAnnotations) > 0 {
 		if template.Annotations == nil {
 			template.Annotations = make(map[string]string)
@@ -206,7 +205,6 @@ func ApplyWorkloadConfig(template *corev1.PodTemplateSpec, cfg WorkloadConfig) {
 		}
 	}
 
-	// Apply pod spec configuration
 	spec := &template.Spec
 	if cfg.UseConfigMapEnvFrom && cfg.ConfigMapName != "" {
 		AddEnvFromSource(spec, 0, cfg.ConfigMapName, false)

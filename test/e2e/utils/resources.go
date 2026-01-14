@@ -781,7 +781,7 @@ func baseCronJobResource(namespace, name string) *batchv1.CronJob {
 			Namespace: namespace,
 		},
 		Spec: batchv1.CronJobSpec{
-			Schedule: "* * * * *", // Every minute
+			Schedule: "* * * * *",
 			JobTemplate: batchv1.JobTemplateSpec{
 				Spec: batchv1.JobSpec{
 					Template: corev1.PodTemplateSpec{
@@ -895,6 +895,13 @@ func WithJobSecretKeyRef(secretName, key, envVarName string) JobOption {
 				},
 			},
 		)
+	}
+}
+
+// WithJobCommand sets the command for the Job's container.
+func WithJobCommand(command string) JobOption {
+	return func(j *batchv1.Job) {
+		j.Spec.Template.Spec.Containers[0].Command = []string{"sh", "-c", command}
 	}
 }
 

@@ -23,7 +23,6 @@ var _ = Describe("CSI SecretProviderClass Tests", Label("csi"), func() {
 		deploymentName = utils.RandName("deploy")
 		configMapName = utils.RandName("cm")
 		spcName = utils.RandName("spc")
-		// Each test gets its own Vault secret path to avoid conflicts
 		vaultSecretPath = fmt.Sprintf("secret/%s", utils.RandName("test"))
 		adapter = utils.NewDeploymentAdapter(kubeClient)
 	})
@@ -32,7 +31,6 @@ var _ = Describe("CSI SecretProviderClass Tests", Label("csi"), func() {
 		_ = utils.DeleteDeployment(ctx, kubeClient, testNamespace, deploymentName)
 		_ = utils.DeleteConfigMap(ctx, kubeClient, testNamespace, configMapName)
 		_ = utils.DeleteSecretProviderClass(ctx, csiClient, testNamespace, spcName)
-		// Clean up Vault secret
 		_ = utils.DeleteVaultSecret(ctx, kubeClient, restConfig, vaultSecretPath)
 	})
 
@@ -80,7 +78,6 @@ var _ = Describe("CSI SecretProviderClass Tests", Label("csi"), func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Waiting for CSI driver to sync the new secret version")
-			// CSI rotation poll interval is 10s, wait up to 30s for sync
 			err = utils.WaitForSPCPSVersionChange(ctx, csiClient, testNamespace, spcpsName, initialVersion, 10*time.Second)
 			Expect(err).NotTo(HaveOccurred())
 			GinkgoWriter.Println("CSI driver synced new secret version")

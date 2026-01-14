@@ -46,7 +46,7 @@ func TestMergeAnnotations(t *testing.T) {
 				"key1":   "value1",
 				"key2":   "value2",
 				"key3":   "value3",
-				"shared": "third", // Last map wins
+				"shared": "third",
 			},
 		},
 		{
@@ -118,13 +118,11 @@ func TestMergeAnnotations(t *testing.T) {
 }
 
 func TestMergeAnnotationsDoesNotModifyInput(t *testing.T) {
-	// Ensure MergeAnnotations doesn't modify the input maps
 	map1 := map[string]string{"key1": "value1"}
 	map2 := map[string]string{"key2": "value2"}
 
 	_ = MergeAnnotations(map1, map2)
 
-	// Verify original maps are unchanged
 	if len(map1) != 1 || map1["key1"] != "value1" {
 		t.Errorf("map1 was modified: %v", map1)
 	}
@@ -134,14 +132,11 @@ func TestMergeAnnotationsDoesNotModifyInput(t *testing.T) {
 }
 
 func TestMergeAnnotationsReturnsNewMap(t *testing.T) {
-	// Ensure MergeAnnotations returns a new map, not a reference to an input
 	input := map[string]string{"key1": "value1"}
 	result := MergeAnnotations(input)
 
-	// Modify the result
 	result["key2"] = "value2"
 
-	// Verify original is unchanged
 	if _, exists := input["key2"]; exists {
 		t.Error("modifying result affected input map - should return a new map")
 	}

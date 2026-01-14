@@ -13,7 +13,6 @@ import (
 )
 
 // JobAdapter implements WorkloadAdapter for Kubernetes Jobs.
-// Note: Jobs are handled specially by Reloader - they are recreated rather than updated.
 type JobAdapter struct {
 	client kubernetes.Interface
 }
@@ -94,11 +93,19 @@ func (a *JobAdapter) GetOriginalUID(ctx context.Context, namespace, name string)
 	return string(job.UID), nil
 }
 
+// GetPodTemplateAnnotation returns the value of a pod template annotation.
+func (a *JobAdapter) GetPodTemplateAnnotation(ctx context.Context, namespace, name, annotationKey string) (string, error) {
+	job, err := a.client.BatchV1().Jobs(namespace).Get(ctx, name, metav1.GetOptions{})
+	if err != nil {
+		return "", err
+	}
+	return job.Spec.Template.Annotations[annotationKey], nil
+}
+
 // buildJobOptions converts WorkloadConfig to JobOption slice.
 func buildJobOptions(cfg WorkloadConfig) []JobOption {
 	return []JobOption{
 		func(job *batchv1.Job) {
-			// Set annotations on Job level (where Reloader checks them)
 			if len(cfg.Annotations) > 0 {
 				if job.Annotations == nil {
 					job.Annotations = make(map[string]string)

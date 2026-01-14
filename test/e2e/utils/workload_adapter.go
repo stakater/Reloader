@@ -82,6 +82,10 @@ type WorkloadAdapter interface {
 	// RequiresSpecialHandling returns true for workloads that need special handling.
 	// For example, CronJob triggers a new job instead of rolling restart.
 	RequiresSpecialHandling() bool
+
+	// GetPodTemplateAnnotation returns the value of a pod template annotation.
+	// This is useful for tests that need to compare annotation values before/after updates.
+	GetPodTemplateAnnotation(ctx context.Context, namespace, name, annotationKey string) (string, error)
 }
 
 // Pausable is implemented by workloads that support pause/unpause.

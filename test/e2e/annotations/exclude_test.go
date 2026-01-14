@@ -357,7 +357,7 @@ var _ = Describe("Exclude Annotation Tests", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Finding the SPCPS for non-excluded SPC")
-			// We need to find SPCPS for the non-excluded SPC (spcName2)
+
 			spcpsName2, err := utils.FindSPCPSForSPC(ctx, csiClient, testNamespace, spcName2, 30*time.Second)
 			Expect(err).NotTo(HaveOccurred())
 

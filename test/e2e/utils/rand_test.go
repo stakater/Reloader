@@ -21,13 +21,11 @@ func TestRandSeq(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			result := RandSeq(tt.length)
 
-			// Verify length
 			if len(result) != tt.length {
 				t.Errorf("RandSeq(%d) returned string of length %d, want %d",
 					tt.length, len(result), tt.length)
 			}
 
-			// Verify only lowercase letters
 			if tt.length > 0 {
 				matched, _ := regexp.MatchString("^[a-z]+$", result)
 				if !matched {
@@ -39,8 +37,6 @@ func TestRandSeq(t *testing.T) {
 }
 
 func TestRandSeqRandomness(t *testing.T) {
-	// Generate multiple sequences and verify they're different
-	// (with very high probability)
 	const iterations = 10
 	const length = 20
 
@@ -48,13 +44,11 @@ func TestRandSeqRandomness(t *testing.T) {
 	for i := 0; i < iterations; i++ {
 		s := RandSeq(length)
 		if seen[s] {
-			// This is extremely unlikely with 20 chars (26^20 possibilities)
 			t.Errorf("RandSeq generated duplicate: %q", s)
 		}
 		seen[s] = true
 	}
 
-	// Verify we got 10 unique strings
 	if len(seen) != iterations {
 		t.Errorf("Expected %d unique strings, got %d", iterations, len(seen))
 	}
@@ -76,20 +70,17 @@ func TestRandName(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			result := RandName(tt.prefix)
 
-			// Verify format: prefix-xxxxx
 			expectedPrefix := tt.prefix + "-"
 			if len(result) <= len(expectedPrefix) {
 				t.Errorf("RandName(%q) = %q, too short", tt.prefix, result)
 				return
 			}
 
-			// Check prefix
 			if result[:len(expectedPrefix)] != expectedPrefix {
 				t.Errorf("RandName(%q) = %q, doesn't start with %q",
 					tt.prefix, result, expectedPrefix)
 			}
 
-			// Check random suffix is 5 lowercase letters
 			suffix := result[len(expectedPrefix):]
 			if len(suffix) != 5 {
 				t.Errorf("RandName(%q) suffix length = %d, want 5", tt.prefix, len(suffix))
@@ -105,7 +96,6 @@ func TestRandName(t *testing.T) {
 }
 
 func TestRandNameUniqueness(t *testing.T) {
-	// Generate multiple names with same prefix and verify uniqueness
 	const prefix = "test"
 	const iterations = 100
 
@@ -120,9 +110,6 @@ func TestRandNameUniqueness(t *testing.T) {
 }
 
 func TestRandNameKubernetesCompatibility(t *testing.T) {
-	// Verify generated names are valid Kubernetes resource names
-	// Must match: [a-z0-9]([-a-z0-9]*[a-z0-9])?
-
 	prefixes := []string{"deploy", "cm", "secret", "test-app", "my-resource"}
 	k8sNamePattern := regexp.MustCompile(`^[a-z0-9]([-a-z0-9]*[a-z0-9])?$`)
 

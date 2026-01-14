@@ -13,7 +13,7 @@ import (
 
 // Timeout constants for watch operations.
 const (
-	DefaultInterval      = 1 * time.Second  // Polling interval (legacy, will be removed)
+	DefaultInterval      = 1 * time.Second  // Polling interval
 	ShortTimeout         = 5 * time.Second  // Quick checks
 	NegativeTestWait     = 3 * time.Second  // Wait before checking negative conditions
 	WorkloadReadyTimeout = 60 * time.Second // Workload readiness timeout (buffer for CI)
@@ -65,7 +65,6 @@ func WatchUntil[T runtime.Object](ctx context.Context, watchFunc WatchFunc, name
 		if done {
 			return result, err
 		}
-		// Watch disconnected, retry after brief pause
 		select {
 		case <-ctx.Done():
 			return zero, ErrWatchTimeout
@@ -85,7 +84,7 @@ func watchOnce[T runtime.Object](
 
 	watcher, err := watchFunc(ctx, opts)
 	if err != nil {
-		return zero, false, nil // Retry
+		return zero, false, nil
 	}
 	defer watcher.Stop()
 
@@ -95,7 +94,7 @@ func watchOnce[T runtime.Object](
 			return zero, true, ErrWatchTimeout
 		case event, ok := <-watcher.ResultChan():
 			if !ok {
-				return zero, false, nil // Watch closed, retry
+				return zero, false, nil
 			}
 
 			switch event.Type {
@@ -108,10 +107,9 @@ func watchOnce[T runtime.Object](
 					return obj, true, nil
 				}
 			case watch.Deleted:
-				// Resource deleted, keep watching for recreation
 				continue
 			case watch.Error:
-				return zero, false, nil // Retry on error
+				return zero, false, nil
 			}
 		}
 	}

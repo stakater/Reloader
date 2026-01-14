@@ -31,11 +31,9 @@ var _ = Describe("Reload On Create Flag Tests", func() {
 
 	Context("with reloadOnCreate=true flag", func() {
 		BeforeEach(func() {
-			// Create test namespace
 			err := utils.CreateNamespace(ctx, kubeClient, createNamespace)
 			Expect(err).NotTo(HaveOccurred())
 
-			// Deploy Reloader with reloadOnCreate flag
 			err = deployReloaderWithFlags(map[string]string{
 				"reloader.reloadOnCreate": "true",
 			})
@@ -102,11 +100,9 @@ var _ = Describe("Reload On Create Flag Tests", func() {
 
 	Context("with reloadOnCreate=false (default)", func() {
 		BeforeEach(func() {
-			// Create test namespace
 			err := utils.CreateNamespace(ctx, kubeClient, createNamespace)
 			Expect(err).NotTo(HaveOccurred())
 
-			// Deploy Reloader without reloadOnCreate flag (default is false)
 			err = deployReloaderWithFlags(map[string]string{})
 			Expect(err).NotTo(HaveOccurred())
 

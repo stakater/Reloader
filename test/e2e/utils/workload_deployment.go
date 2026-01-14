@@ -92,11 +92,19 @@ func (a *DeploymentAdapter) RequiresSpecialHandling() bool {
 	return false
 }
 
+// GetPodTemplateAnnotation returns the value of a pod template annotation.
+func (a *DeploymentAdapter) GetPodTemplateAnnotation(ctx context.Context, namespace, name, annotationKey string) (string, error) {
+	deploy, err := a.client.AppsV1().Deployments(namespace).Get(ctx, name, metav1.GetOptions{})
+	if err != nil {
+		return "", err
+	}
+	return deploy.Spec.Template.Annotations[annotationKey], nil
+}
+
 // buildDeploymentOptions converts WorkloadConfig to DeploymentOption slice.
 func buildDeploymentOptions(cfg WorkloadConfig) []DeploymentOption {
 	return []DeploymentOption{
 		func(d *appsv1.Deployment) {
-			// Set annotations on deployment level (where Reloader checks them)
 			if len(cfg.Annotations) > 0 {
 				if d.Annotations == nil {
 					d.Annotations = make(map[string]string)

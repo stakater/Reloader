@@ -34,11 +34,9 @@ var _ = Describe("Resource Label Selector Flag Tests", func() {
 
 	Context("with resourceLabelSelector flag", func() {
 		BeforeEach(func() {
-			// Create test namespace
 			err := utils.CreateNamespace(ctx, kubeClient, resourceNS)
 			Expect(err).NotTo(HaveOccurred())
 
-			// Deploy Reloader with resourceLabelSelector flag
 			err = deployReloaderWithFlags(map[string]string{
 				"reloader.resourceLabelSelector": "reload=true",
 			})
@@ -57,7 +55,7 @@ var _ = Describe("Resource Label Selector Flag Tests", func() {
 			By("Creating a ConfigMap with matching label")
 			_, err := utils.CreateConfigMapWithLabels(ctx, kubeClient, resourceNS, matchingCM,
 				map[string]string{"key": "initial"},
-				map[string]string{"reload": "true"}, nil) // no annotations
+				map[string]string{"reload": "true"}, nil)
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Creating a Deployment with auto annotation")

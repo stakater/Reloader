@@ -130,36 +130,7 @@ var _ = Describe("Auto Reload Annotation Tests", func() {
 		})
 	})
 
-	Context("with reloader.stakater.com/auto=false annotation", func() {
-		It("should NOT reload Deployment when ConfigMap changes", func() {
-			By("Creating a ConfigMap")
-			_, err := utils.CreateConfigMap(ctx, kubeClient, testNamespace, configMapName,
-				map[string]string{"key": "initial"}, nil)
-			Expect(err).NotTo(HaveOccurred())
-
-			By("Creating a Deployment with auto=false annotation")
-			_, err = utils.CreateDeployment(ctx, kubeClient, testNamespace, deploymentName,
-				utils.WithConfigMapEnvFrom(configMapName),
-				utils.WithAnnotations(utils.BuildAutoFalseAnnotation()),
-			)
-			Expect(err).NotTo(HaveOccurred())
-
-			By("Waiting for Deployment to be ready")
-			err = adapter.WaitReady(ctx, testNamespace, deploymentName, utils.WorkloadReadyTimeout)
-			Expect(err).NotTo(HaveOccurred())
-
-			By("Updating the ConfigMap data")
-			err = utils.UpdateConfigMap(ctx, kubeClient, testNamespace, configMapName, map[string]string{"key": "updated"})
-			Expect(err).NotTo(HaveOccurred())
-
-			By("Verifying Deployment is NOT reloaded (negative test)")
-			time.Sleep(utils.NegativeTestWait)
-			reloaded, err := adapter.WaitReloaded(ctx, testNamespace, deploymentName,
-				utils.AnnotationLastReloadedFrom, utils.ShortTimeout)
-			Expect(err).NotTo(HaveOccurred())
-			Expect(reloaded).To(BeFalse(), "Deployment with auto=false should NOT have been reloaded")
-		})
-	})
+	// Note: auto=false test is now in core/workloads_test.go as a DescribeTable for all workload types
 
 	Context("with configmap.reloader.stakater.com/auto=true annotation", func() {
 		It("should reload Deployment only when ConfigMap changes, not Secret", func() {

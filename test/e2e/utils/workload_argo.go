@@ -92,6 +92,15 @@ func (a *ArgoRolloutAdapter) RequiresSpecialHandling() bool {
 	return false
 }
 
+// GetPodTemplateAnnotation returns the value of a pod template annotation.
+func (a *ArgoRolloutAdapter) GetPodTemplateAnnotation(ctx context.Context, namespace, name, annotationKey string) (string, error) {
+	rollout, err := a.rolloutsClient.ArgoprojV1alpha1().Rollouts(namespace).Get(ctx, name, metav1.GetOptions{})
+	if err != nil {
+		return "", err
+	}
+	return rollout.Spec.Template.Annotations[annotationKey], nil
+}
+
 // baseRollout returns a minimal Rollout template.
 func baseRollout(name string) *rolloutv1alpha1.Rollout {
 	return &rolloutv1alpha1.Rollout{
@@ -128,7 +137,6 @@ func baseRollout(name string) *rolloutv1alpha1.Rollout {
 func buildRolloutOptions(cfg WorkloadConfig) []RolloutOption {
 	return []RolloutOption{
 		func(r *rolloutv1alpha1.Rollout) {
-			// Set annotations on Rollout level (where Reloader checks them)
 			if len(cfg.Annotations) > 0 {
 				if r.Annotations == nil {
 					r.Annotations = make(map[string]string)

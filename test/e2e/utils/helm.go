@@ -59,8 +59,6 @@ func DeployReloader(opts DeployOptions) error {
 		opts.Image = GetTestImage()
 	}
 
-	// Clean up any existing cluster-scoped resources before deploying
-	// This prevents "already exists" errors when a previous test didn't clean up properly
 	cleanupClusterResources(opts.ReleaseName)
 
 	chartPath := filepath.Join(projectDir, DefaultHelmChartPath)
@@ -70,7 +68,7 @@ func DeployReloader(opts DeployOptions) error {
 		chartPath,
 		"--namespace", opts.Namespace,
 		"--create-namespace",
-		"--reset-values", // Important: reset values to ensure clean state between tests
+		"--reset-values",
 		"--set", fmt.Sprintf("image.repository=%s", GetImageRepository(opts.Image)),
 		"--set", fmt.Sprintf("image.tag=%s", GetImageTag(opts.Image)),
 		"--set", "image.pullPolicy=IfNotPresent",
@@ -78,7 +76,6 @@ func DeployReloader(opts DeployOptions) error {
 		"--timeout", opts.Timeout,
 	}
 
-	// Add custom values
 	for key, value := range opts.Values {
 		args = append(args, "--set", fmt.Sprintf("%s=%s", key, value))
 	}
@@ -100,15 +97,12 @@ func UndeployReloader(namespace, releaseName string) error {
 		releaseName = DefaultHelmReleaseName
 	}
 
-	// Use --wait to ensure Helm waits for resources to be deleted
 	cmd := exec.Command("helm", "uninstall", releaseName, "--namespace", namespace, "--ignore-not-found", "--wait")
 	output, err := Run(cmd)
 	if err != nil {
 		return fmt.Errorf("helm uninstall failed: %s: %w", output, err)
 	}
 
-	// Clean up cluster-scoped resources that Helm might not delete
-	// Use --wait to ensure resources are fully deleted before returning
 	clusterResources := []struct {
 		kind string
 		name string
@@ -119,11 +113,9 @@ func UndeployReloader(namespace, releaseName string) error {
 
 	for _, res := range clusterResources {
 		cmd := exec.Command("kubectl", "delete", res.kind, res.name, "--ignore-not-found", "--wait=true")
-		_, _ = Run(cmd) // Ignore errors - resource may not exist
+		_, _ = Run(cmd)
 	}
 
-	// Additional wait to ensure controller is fully stopped and resources are cleaned up
-	// This prevents race conditions when the next test tries to deploy immediately
 	waitForReloaderGone(namespace, releaseName)
 
 	return nil
@@ -133,7 +125,6 @@ func UndeployReloader(namespace, releaseName string) error {
 func waitForReloaderGone(namespace, releaseName string) {
 	deploymentName := ReloaderDeploymentName(releaseName)
 
-	// Poll until deployment is gone (max 30 seconds)
 	for i := 0; i < 30; i++ {
 		cmd := exec.Command("kubectl", "get", "deployment", deploymentName, "-n", namespace, "--ignore-not-found", "-o", "name")
 		output, _ := Run(cmd)
@@ -164,7 +155,6 @@ func cleanupClusterResources(releaseName string) {
 		_, _ = Run(cmd)
 	}
 
-	// Small wait to ensure API server has processed the deletions
 	time.Sleep(500 * time.Millisecond)
 }
 
@@ -184,7 +174,6 @@ func GetImageRepository(image string) string {
 			return image[:i]
 		}
 		if image[i] == '/' {
-			// No tag found, return as-is
 			break
 		}
 	}
@@ -200,7 +189,6 @@ func GetImageTag(image string) string {
 			return image[i+1:]
 		}
 		if image[i] == '/' {
-			// No tag found
 			break
 		}
 	}

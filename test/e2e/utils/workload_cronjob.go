@@ -79,11 +79,19 @@ func (a *CronJobAdapter) WaitForTriggeredJob(ctx context.Context, namespace, cro
 	return HandleWatchResult(err)
 }
 
+// GetPodTemplateAnnotation returns the value of a pod template annotation.
+func (a *CronJobAdapter) GetPodTemplateAnnotation(ctx context.Context, namespace, name, annotationKey string) (string, error) {
+	cj, err := a.client.BatchV1().CronJobs(namespace).Get(ctx, name, metav1.GetOptions{})
+	if err != nil {
+		return "", err
+	}
+	return cj.Spec.JobTemplate.Spec.Template.Annotations[annotationKey], nil
+}
+
 // buildCronJobOptions converts WorkloadConfig to CronJobOption slice.
 func buildCronJobOptions(cfg WorkloadConfig) []CronJobOption {
 	return []CronJobOption{
 		func(cj *batchv1.CronJob) {
-			// Set annotations on CronJob level (where Reloader checks them)
 			if len(cfg.Annotations) > 0 {
 				if cj.Annotations == nil {
 					cj.Annotations = make(map[string]string)
@@ -92,7 +100,6 @@ func buildCronJobOptions(cfg WorkloadConfig) []CronJobOption {
 					cj.Annotations[k] = v
 				}
 			}
-			// CronJob has nested JobTemplate
 			ApplyWorkloadConfig(&cj.Spec.JobTemplate.Spec.Template, cfg)
 		},
 	}

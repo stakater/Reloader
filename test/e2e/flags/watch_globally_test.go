@@ -25,7 +25,6 @@ var _ = Describe("Watch Globally Flag Tests", func() {
 	})
 
 	AfterEach(func() {
-		// Clean up resources in both namespaces
 		_ = utils.DeleteDeployment(ctx, kubeClient, testNamespace, deploymentName)
 		_ = utils.DeleteConfigMap(ctx, kubeClient, testNamespace, configMapName)
 		_ = utils.DeleteDeployment(ctx, kubeClient, otherNS, deploymentName)
@@ -34,12 +33,9 @@ var _ = Describe("Watch Globally Flag Tests", func() {
 
 	Context("with watchGlobally=false flag", func() {
 		BeforeEach(func() {
-			// Create the other namespace for testing cross-namespace behavior
 			err := utils.CreateNamespace(ctx, kubeClient, otherNS)
 			Expect(err).NotTo(HaveOccurred())
 
-			// Deploy Reloader with watchGlobally=false
-			// This makes Reloader only watch resources in its own namespace (testNamespace)
 			err = deployReloaderWithFlags(map[string]string{
 				"reloader.watchGlobally": "false",
 			})
@@ -118,11 +114,9 @@ var _ = Describe("Watch Globally Flag Tests", func() {
 		BeforeEach(func() {
 			globalNS = "global-" + utils.RandName("ns")
 
-			// Create test namespace
 			err := utils.CreateNamespace(ctx, kubeClient, globalNS)
 			Expect(err).NotTo(HaveOccurred())
 
-			// Deploy Reloader with watchGlobally=true (default)
 			err = deployReloaderWithFlags(map[string]string{
 				"reloader.watchGlobally": "true",
 			})

@@ -101,7 +101,7 @@ var (
 		return c.Spec.JobTemplate.Spec.Template.Spec.Containers
 	}
 	CronJobExists StatusAccessor[*batchv1.CronJob] = func(c *batchv1.CronJob) bool {
-		return true // Just existence check
+		return true
 	}
 )
 

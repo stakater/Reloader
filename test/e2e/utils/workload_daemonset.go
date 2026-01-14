@@ -74,11 +74,19 @@ func (a *DaemonSetAdapter) RequiresSpecialHandling() bool {
 	return false
 }
 
+// GetPodTemplateAnnotation returns the value of a pod template annotation.
+func (a *DaemonSetAdapter) GetPodTemplateAnnotation(ctx context.Context, namespace, name, annotationKey string) (string, error) {
+	ds, err := a.client.AppsV1().DaemonSets(namespace).Get(ctx, name, metav1.GetOptions{})
+	if err != nil {
+		return "", err
+	}
+	return ds.Spec.Template.Annotations[annotationKey], nil
+}
+
 // buildDaemonSetOptions converts WorkloadConfig to DaemonSetOption slice.
 func buildDaemonSetOptions(cfg WorkloadConfig) []DaemonSetOption {
 	return []DaemonSetOption{
 		func(ds *appsv1.DaemonSet) {
-			// Set annotations on DaemonSet level (where Reloader checks them)
 			if len(cfg.Annotations) > 0 {
 				if ds.Annotations == nil {
 					ds.Annotations = make(map[string]string)

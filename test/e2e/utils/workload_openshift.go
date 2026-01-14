@@ -84,6 +84,18 @@ func (a *DeploymentConfigAdapter) RequiresSpecialHandling() bool {
 	return false
 }
 
+// GetPodTemplateAnnotation returns the value of a pod template annotation.
+func (a *DeploymentConfigAdapter) GetPodTemplateAnnotation(ctx context.Context, namespace, name, annotationKey string) (string, error) {
+	dc, err := a.openshiftClient.AppsV1().DeploymentConfigs(namespace).Get(ctx, name, metav1.GetOptions{})
+	if err != nil {
+		return "", err
+	}
+	if dc.Spec.Template == nil {
+		return "", nil
+	}
+	return dc.Spec.Template.Annotations[annotationKey], nil
+}
+
 // baseDeploymentConfig returns a minimal DeploymentConfig template.
 func baseDeploymentConfig(name string) *openshiftappsv1.DeploymentConfig {
 	return &openshiftappsv1.DeploymentConfig{
@@ -114,7 +126,6 @@ func baseDeploymentConfig(name string) *openshiftappsv1.DeploymentConfig {
 func buildDeploymentConfigOptions(cfg WorkloadConfig) []DeploymentConfigOption {
 	return []DeploymentConfigOption{
 		func(dc *openshiftappsv1.DeploymentConfig) {
-			// Set annotations on DeploymentConfig level (where Reloader checks them)
 			if len(cfg.Annotations) > 0 {
 				if dc.Annotations == nil {
 					dc.Annotations = make(map[string]string)

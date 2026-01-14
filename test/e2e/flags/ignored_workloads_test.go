@@ -33,11 +33,9 @@ var _ = Describe("Ignored Workloads Flag Tests", func() {
 
 	Context("with ignoreCronJobs=true flag", func() {
 		BeforeEach(func() {
-			// Create test namespace
 			err := utils.CreateNamespace(ctx, kubeClient, ignoreNS)
 			Expect(err).NotTo(HaveOccurred())
 
-			// Deploy Reloader with ignoreCronJobs flag
 			err = deployReloaderWithFlags(map[string]string{
 				"reloader.ignoreCronJobs": "true",
 			})
@@ -113,11 +111,9 @@ var _ = Describe("Ignored Workloads Flag Tests", func() {
 
 	Context("with both ignoreCronJobs=true and ignoreJobs=true flags", func() {
 		BeforeEach(func() {
-			// Create test namespace
 			err := utils.CreateNamespace(ctx, kubeClient, ignoreNS)
 			Expect(err).NotTo(HaveOccurred())
 
-			// Deploy Reloader with both ignore flags
 			err = deployReloaderWithFlags(map[string]string{
 				"reloader.ignoreCronJobs": "true",
 				"reloader.ignoreJobs":     "true",
