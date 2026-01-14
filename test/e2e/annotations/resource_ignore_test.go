@@ -48,8 +48,7 @@ var _ = Describe("Resource Ignore Annotation Tests", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Updating the ConfigMap data")
-			err = utils.UpdateConfigMap(ctx, kubeClient, testNamespace, configMapName,
-				map[string]string{"key": "updated"})
+			err = utils.UpdateConfigMap(ctx, kubeClient, testNamespace, configMapName, map[string]string{"key": "updated"})
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Verifying Deployment was NOT reloaded (negative test)")
@@ -79,8 +78,7 @@ var _ = Describe("Resource Ignore Annotation Tests", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Updating the Secret data")
-			err = utils.UpdateSecretFromStrings(ctx, kubeClient, testNamespace, secretName,
-				map[string]string{"password": "updated"})
+			err = utils.UpdateSecretFromStrings(ctx, kubeClient, testNamespace, secretName, map[string]string{"password": "updated"})
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Verifying Deployment was NOT reloaded (negative test)")

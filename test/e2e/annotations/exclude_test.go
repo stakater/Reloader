@@ -62,8 +62,7 @@ var _ = Describe("Exclude Annotation Tests", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Updating the excluded ConfigMap")
-			err = utils.UpdateConfigMap(ctx, kubeClient, testNamespace, configMapName,
-				map[string]string{"key": "updated"})
+			err = utils.UpdateConfigMap(ctx, kubeClient, testNamespace, configMapName, map[string]string{"key": "updated"})
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Verifying Deployment was NOT reloaded (excluded ConfigMap)")
@@ -100,8 +99,7 @@ var _ = Describe("Exclude Annotation Tests", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Updating the non-excluded ConfigMap")
-			err = utils.UpdateConfigMap(ctx, kubeClient, testNamespace, configMapName2,
-				map[string]string{"key2": "updated2"})
+			err = utils.UpdateConfigMap(ctx, kubeClient, testNamespace, configMapName2, map[string]string{"key2": "updated2"})
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Waiting for Deployment to be reloaded")
@@ -139,8 +137,7 @@ var _ = Describe("Exclude Annotation Tests", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Updating the excluded Secret")
-			err = utils.UpdateSecretFromStrings(ctx, kubeClient, testNamespace, secretName,
-				map[string]string{"password": "updated"})
+			err = utils.UpdateSecretFromStrings(ctx, kubeClient, testNamespace, secretName, map[string]string{"password": "updated"})
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Verifying Deployment was NOT reloaded (excluded Secret)")
@@ -177,8 +174,7 @@ var _ = Describe("Exclude Annotation Tests", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Updating the non-excluded Secret")
-			err = utils.UpdateSecretFromStrings(ctx, kubeClient, testNamespace, secretName2,
-				map[string]string{"password2": "updated2"})
+			err = utils.UpdateSecretFromStrings(ctx, kubeClient, testNamespace, secretName2, map[string]string{"password2": "updated2"})
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Waiting for Deployment to be reloaded")

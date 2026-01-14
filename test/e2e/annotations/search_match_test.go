@@ -45,8 +45,7 @@ var _ = Describe("Search and Match Annotation Tests", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Updating the ConfigMap data")
-			err = utils.UpdateConfigMap(ctx, kubeClient, testNamespace, configMapName,
-				map[string]string{"key": "updated"})
+			err = utils.UpdateConfigMap(ctx, kubeClient, testNamespace, configMapName, map[string]string{"key": "updated"})
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Waiting for Deployment to be reloaded")
@@ -74,8 +73,7 @@ var _ = Describe("Search and Match Annotation Tests", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Updating the ConfigMap data")
-			err = utils.UpdateConfigMap(ctx, kubeClient, testNamespace, configMapName,
-				map[string]string{"key": "updated"})
+			err = utils.UpdateConfigMap(ctx, kubeClient, testNamespace, configMapName, map[string]string{"key": "updated"})
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Verifying Deployment was NOT reloaded (negative test)")
@@ -105,8 +103,7 @@ var _ = Describe("Search and Match Annotation Tests", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Updating the ConfigMap data")
-			err = utils.UpdateConfigMap(ctx, kubeClient, testNamespace, configMapName,
-				map[string]string{"key": "updated"})
+			err = utils.UpdateConfigMap(ctx, kubeClient, testNamespace, configMapName, map[string]string{"key": "updated"})
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Verifying Deployment was NOT reloaded (negative test)")
@@ -150,8 +147,7 @@ var _ = Describe("Search and Match Annotation Tests", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Updating the ConfigMap data")
-			err = utils.UpdateConfigMap(ctx, kubeClient, testNamespace, configMapName,
-				map[string]string{"key": "updated"})
+			err = utils.UpdateConfigMap(ctx, kubeClient, testNamespace, configMapName, map[string]string{"key": "updated"})
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Waiting for first Deployment to be reloaded")

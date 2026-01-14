@@ -52,8 +52,7 @@ var _ = Describe("Regex Pattern Tests", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Updating the matching ConfigMap")
-			err = utils.UpdateConfigMap(ctx, kubeClient, testNamespace, matchingCM,
-				map[string]string{"key": "updated"})
+			err = utils.UpdateConfigMap(ctx, kubeClient, testNamespace, matchingCM, map[string]string{"key": "updated"})
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Waiting for Deployment to be reloaded")
@@ -87,8 +86,7 @@ var _ = Describe("Regex Pattern Tests", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Updating the non-matching ConfigMap")
-			err = utils.UpdateConfigMap(ctx, kubeClient, testNamespace, nonMatchingCM,
-				map[string]string{"other": "updated"})
+			err = utils.UpdateConfigMap(ctx, kubeClient, testNamespace, nonMatchingCM, map[string]string{"other": "updated"})
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Verifying Deployment was NOT reloaded (pattern mismatch)")
@@ -121,8 +119,7 @@ var _ = Describe("Regex Pattern Tests", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Updating the matching Secret")
-			err = utils.UpdateSecretFromStrings(ctx, kubeClient, testNamespace, matchingSecret,
-				map[string]string{"password": "updated"})
+			err = utils.UpdateSecretFromStrings(ctx, kubeClient, testNamespace, matchingSecret, map[string]string{"password": "updated"})
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Waiting for Deployment to be reloaded")

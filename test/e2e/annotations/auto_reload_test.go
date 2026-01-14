@@ -56,8 +56,7 @@ var _ = Describe("Auto Reload Annotation Tests", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Updating the ConfigMap data")
-			err = utils.UpdateConfigMap(ctx, kubeClient, testNamespace, configMapName,
-				map[string]string{"key": "updated"})
+			err = utils.UpdateConfigMap(ctx, kubeClient, testNamespace, configMapName, map[string]string{"key": "updated"})
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Waiting for Deployment to be reloaded")
@@ -85,8 +84,7 @@ var _ = Describe("Auto Reload Annotation Tests", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Updating the Secret data")
-			err = utils.UpdateSecretFromStrings(ctx, kubeClient, testNamespace, secretName,
-				map[string]string{"password": "updated"})
+			err = utils.UpdateSecretFromStrings(ctx, kubeClient, testNamespace, secretName, map[string]string{"password": "updated"})
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Waiting for Deployment to be reloaded")
@@ -119,8 +117,7 @@ var _ = Describe("Auto Reload Annotation Tests", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Updating the ConfigMap")
-			err = utils.UpdateConfigMap(ctx, kubeClient, testNamespace, configMapName,
-				map[string]string{"config": "updated"})
+			err = utils.UpdateConfigMap(ctx, kubeClient, testNamespace, configMapName, map[string]string{"config": "updated"})
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Waiting for Deployment to be reloaded")
@@ -150,8 +147,7 @@ var _ = Describe("Auto Reload Annotation Tests", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Updating the ConfigMap data")
-			err = utils.UpdateConfigMap(ctx, kubeClient, testNamespace, configMapName,
-				map[string]string{"key": "updated"})
+			err = utils.UpdateConfigMap(ctx, kubeClient, testNamespace, configMapName, map[string]string{"key": "updated"})
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Verifying Deployment is NOT reloaded (negative test)")
@@ -187,8 +183,7 @@ var _ = Describe("Auto Reload Annotation Tests", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Updating the ConfigMap")
-			err = utils.UpdateConfigMap(ctx, kubeClient, testNamespace, configMapName,
-				map[string]string{"config": "updated"})
+			err = utils.UpdateConfigMap(ctx, kubeClient, testNamespace, configMapName, map[string]string{"config": "updated"})
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Waiting for Deployment to be reloaded")
@@ -223,8 +218,7 @@ var _ = Describe("Auto Reload Annotation Tests", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Updating the Secret")
-			err = utils.UpdateSecretFromStrings(ctx, kubeClient, testNamespace, secretName,
-				map[string]string{"secret": "updated"})
+			err = utils.UpdateSecretFromStrings(ctx, kubeClient, testNamespace, secretName, map[string]string{"secret": "updated"})
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Waiting for Deployment to be reloaded")
@@ -247,8 +241,7 @@ var _ = Describe("Auto Reload Annotation Tests", func() {
 
 		It("should reload Deployment when SecretProviderClassPodStatus changes", func() {
 			By("Creating a secret in Vault")
-			err := utils.CreateVaultSecret(ctx, kubeClient, restConfig, vaultSecretPath,
-				map[string]string{"api_key": "initial-value-v1"})
+			err := utils.CreateVaultSecret(ctx, kubeClient, restConfig, vaultSecretPath, map[string]string{"api_key": "initial-value-v1"})
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Creating a SecretProviderClass pointing to Vault secret")
@@ -278,8 +271,7 @@ var _ = Describe("Auto Reload Annotation Tests", func() {
 			GinkgoWriter.Printf("Initial SPCPS version: %s\n", initialVersion)
 
 			By("Updating the Vault secret")
-			err = utils.UpdateVaultSecret(ctx, kubeClient, restConfig, vaultSecretPath,
-				map[string]string{"api_key": "updated-value-v2"})
+			err = utils.UpdateVaultSecret(ctx, kubeClient, restConfig, vaultSecretPath, map[string]string{"api_key": "updated-value-v2"})
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Waiting for CSI driver to sync the new secret version")
@@ -296,8 +288,7 @@ var _ = Describe("Auto Reload Annotation Tests", func() {
 
 		It("should NOT reload Deployment when ConfigMap changes (only SPC auto enabled)", func() {
 			By("Creating a secret in Vault")
-			err := utils.CreateVaultSecret(ctx, kubeClient, restConfig, vaultSecretPath,
-				map[string]string{"api_key": "initial-value-v1"})
+			err := utils.CreateVaultSecret(ctx, kubeClient, restConfig, vaultSecretPath, map[string]string{"api_key": "initial-value-v1"})
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Creating a SecretProviderClass pointing to Vault secret")
@@ -327,8 +318,7 @@ var _ = Describe("Auto Reload Annotation Tests", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Updating the ConfigMap (should NOT trigger reload with SPC auto only)")
-			err = utils.UpdateConfigMap(ctx, kubeClient, testNamespace, configMapName,
-				map[string]string{"key": "updated"})
+			err = utils.UpdateConfigMap(ctx, kubeClient, testNamespace, configMapName, map[string]string{"key": "updated"})
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Verifying Deployment was NOT reloaded for ConfigMap change")
@@ -343,8 +333,7 @@ var _ = Describe("Auto Reload Annotation Tests", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Updating the Vault secret (should trigger reload)")
-			err = utils.UpdateVaultSecret(ctx, kubeClient, restConfig, vaultSecretPath,
-				map[string]string{"api_key": "updated-value-v2"})
+			err = utils.UpdateVaultSecret(ctx, kubeClient, restConfig, vaultSecretPath, map[string]string{"api_key": "updated-value-v2"})
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Waiting for CSI driver to sync the new secret version")
@@ -360,8 +349,7 @@ var _ = Describe("Auto Reload Annotation Tests", func() {
 
 		It("should reload when using combined auto=true annotation for SPC", func() {
 			By("Creating a secret in Vault")
-			err := utils.CreateVaultSecret(ctx, kubeClient, restConfig, vaultSecretPath,
-				map[string]string{"api_key": "initial-value-v1"})
+			err := utils.CreateVaultSecret(ctx, kubeClient, restConfig, vaultSecretPath, map[string]string{"api_key": "initial-value-v1"})
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Creating a SecretProviderClass pointing to Vault secret")
@@ -389,8 +377,7 @@ var _ = Describe("Auto Reload Annotation Tests", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Updating the Vault secret")
-			err = utils.UpdateVaultSecret(ctx, kubeClient, restConfig, vaultSecretPath,
-				map[string]string{"api_key": "updated-value-v2"})
+			err = utils.UpdateVaultSecret(ctx, kubeClient, restConfig, vaultSecretPath, map[string]string{"api_key": "updated-value-v2"})
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Waiting for CSI driver to sync the new secret version")
@@ -435,8 +422,7 @@ var _ = Describe("Auto Reload Annotation Tests", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Updating the second ConfigMap (auto-detected)")
-			err = utils.UpdateConfigMap(ctx, kubeClient, testNamespace, configMapName2,
-				map[string]string{"key2": "updated"})
+			err = utils.UpdateConfigMap(ctx, kubeClient, testNamespace, configMapName2, map[string]string{"key2": "updated"})
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Waiting for Deployment to be reloaded")

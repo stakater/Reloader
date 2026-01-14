@@ -41,7 +41,7 @@ var _ = BeforeSuite(func() {
 
 	deployValues := map[string]string{
 		"reloader.reloadStrategy": "annotations",
-		"reloader.watchGlobally":  "false", // Only watch own namespace to prevent cross-talk between test suites
+		"reloader.watchGlobally":  "false",
 	}
 
 	if utils.IsCSIDriverInstalled(ctx, csiClient) {

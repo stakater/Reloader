@@ -63,8 +63,7 @@ var _ = Describe("Auto Reload All Flag Tests", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Updating the ConfigMap")
-			err = utils.UpdateConfigMap(ctx, kubeClient, autoNamespace, configMapName,
-				map[string]string{"key": "updated"})
+			err = utils.UpdateConfigMap(ctx, kubeClient, autoNamespace, configMapName, map[string]string{"key": "updated"})
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Waiting for Deployment to be reloaded (autoReloadAll=true)")
@@ -92,8 +91,7 @@ var _ = Describe("Auto Reload All Flag Tests", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Updating the ConfigMap")
-			err = utils.UpdateConfigMap(ctx, kubeClient, autoNamespace, configMapName,
-				map[string]string{"key": "updated"})
+			err = utils.UpdateConfigMap(ctx, kubeClient, autoNamespace, configMapName, map[string]string{"key": "updated"})
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Verifying Deployment was NOT reloaded (auto=false overrides autoReloadAll)")

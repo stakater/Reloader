@@ -62,8 +62,7 @@ var _ = Describe("Ignored Workloads Flag Tests", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Updating the ConfigMap")
-			err = utils.UpdateConfigMap(ctx, kubeClient, ignoreNS, configMapName,
-				map[string]string{"key": "updated"})
+			err = utils.UpdateConfigMap(ctx, kubeClient, ignoreNS, configMapName, map[string]string{"key": "updated"})
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Verifying CronJob was NOT reloaded (ignoreCronJobs=true)")
@@ -97,8 +96,7 @@ var _ = Describe("Ignored Workloads Flag Tests", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Updating the ConfigMap")
-			err = utils.UpdateConfigMap(ctx, kubeClient, ignoreNS, configMapName,
-				map[string]string{"key": "updated-deploy"})
+			err = utils.UpdateConfigMap(ctx, kubeClient, ignoreNS, configMapName, map[string]string{"key": "updated-deploy"})
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Waiting for Deployment to be reloaded (Deployment should still work)")
@@ -145,8 +143,7 @@ var _ = Describe("Ignored Workloads Flag Tests", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Updating the ConfigMap")
-			err = utils.UpdateConfigMap(ctx, kubeClient, ignoreNS, configMapName,
-				map[string]string{"key": "updated"})
+			err = utils.UpdateConfigMap(ctx, kubeClient, ignoreNS, configMapName, map[string]string{"key": "updated"})
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Verifying CronJob was NOT reloaded")

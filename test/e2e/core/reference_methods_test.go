@@ -59,8 +59,7 @@ var _ = Describe("Reference Method Tests", func() {
 				Expect(err).NotTo(HaveOccurred())
 
 				By("Updating the ConfigMap")
-				err = utils.UpdateConfigMap(ctx, kubeClient, testNamespace, configMapName,
-					map[string]string{"config_key": "updated_value"})
+				err = utils.UpdateConfigMap(ctx, kubeClient, testNamespace, configMapName, map[string]string{"config_key": "updated_value"})
 				Expect(err).NotTo(HaveOccurred())
 
 				By("Waiting for workload to be reloaded")
@@ -109,8 +108,7 @@ var _ = Describe("Reference Method Tests", func() {
 				Expect(err).NotTo(HaveOccurred())
 
 				By("Updating the Secret")
-				err = utils.UpdateSecretFromStrings(ctx, kubeClient, testNamespace, secretName,
-					map[string]string{"secret_key": "updated_secret"})
+				err = utils.UpdateSecretFromStrings(ctx, kubeClient, testNamespace, secretName, map[string]string{"secret_key": "updated_secret"})
 				Expect(err).NotTo(HaveOccurred())
 
 				By("Waiting for workload to be reloaded")
@@ -157,8 +155,7 @@ var _ = Describe("Reference Method Tests", func() {
 				Expect(err).NotTo(HaveOccurred())
 
 				By("Updating the ConfigMap")
-				err = utils.UpdateConfigMap(ctx, kubeClient, testNamespace, configMapName,
-					map[string]string{"config.yaml": "updated"})
+				err = utils.UpdateConfigMap(ctx, kubeClient, testNamespace, configMapName, map[string]string{"config.yaml": "updated"})
 				Expect(err).NotTo(HaveOccurred())
 
 				By("Waiting for workload to be reloaded")
@@ -200,8 +197,7 @@ var _ = Describe("Reference Method Tests", func() {
 				Expect(err).NotTo(HaveOccurred())
 
 				By("Updating the Secret")
-				err = utils.UpdateSecretFromStrings(ctx, kubeClient, testNamespace, secretName,
-					map[string]string{"credentials": "updated"})
+				err = utils.UpdateSecretFromStrings(ctx, kubeClient, testNamespace, secretName, map[string]string{"credentials": "updated"})
 				Expect(err).NotTo(HaveOccurred())
 
 				By("Waiting for workload to be reloaded")
@@ -251,8 +247,7 @@ var _ = Describe("Reference Method Tests", func() {
 				Expect(err).NotTo(HaveOccurred())
 
 				By("Updating the ConfigMap")
-				err = utils.UpdateConfigMap(ctx, kubeClient, testNamespace, configMapName,
-					map[string]string{"config.yaml": "updated"})
+				err = utils.UpdateConfigMap(ctx, kubeClient, testNamespace, configMapName, map[string]string{"config.yaml": "updated"})
 				Expect(err).NotTo(HaveOccurred())
 
 				By("Waiting for workload to be reloaded")
@@ -302,8 +297,7 @@ var _ = Describe("Reference Method Tests", func() {
 				Expect(err).NotTo(HaveOccurred())
 
 				By("Updating the Secret")
-				err = utils.UpdateSecretFromStrings(ctx, kubeClient, testNamespace, secretName,
-					map[string]string{"credentials": "updated"})
+				err = utils.UpdateSecretFromStrings(ctx, kubeClient, testNamespace, secretName, map[string]string{"credentials": "updated"})
 				Expect(err).NotTo(HaveOccurred())
 
 				By("Waiting for workload to be reloaded")
@@ -350,8 +344,7 @@ var _ = Describe("Reference Method Tests", func() {
 				Expect(err).NotTo(HaveOccurred())
 
 				By("Updating the ConfigMap")
-				err = utils.UpdateConfigMap(ctx, kubeClient, testNamespace, configMapName,
-					map[string]string{"INIT_VAR": "updated"})
+				err = utils.UpdateConfigMap(ctx, kubeClient, testNamespace, configMapName, map[string]string{"INIT_VAR": "updated"})
 				Expect(err).NotTo(HaveOccurred())
 
 				By("Waiting for workload to be reloaded")
@@ -393,8 +386,7 @@ var _ = Describe("Reference Method Tests", func() {
 				Expect(err).NotTo(HaveOccurred())
 
 				By("Updating the Secret")
-				err = utils.UpdateSecretFromStrings(ctx, kubeClient, testNamespace, secretName,
-					map[string]string{"INIT_SECRET": "updated"})
+				err = utils.UpdateSecretFromStrings(ctx, kubeClient, testNamespace, secretName, map[string]string{"INIT_SECRET": "updated"})
 				Expect(err).NotTo(HaveOccurred())
 
 				By("Waiting for workload to be reloaded")
@@ -438,8 +430,7 @@ var _ = Describe("Reference Method Tests", func() {
 				Expect(err).NotTo(HaveOccurred())
 
 				By("Updating the ConfigMap")
-				err = utils.UpdateConfigMap(ctx, kubeClient, testNamespace, configMapName,
-					map[string]string{"config.yaml": "updated"})
+				err = utils.UpdateConfigMap(ctx, kubeClient, testNamespace, configMapName, map[string]string{"config.yaml": "updated"})
 				Expect(err).NotTo(HaveOccurred())
 
 				By("Waiting for workload to be reloaded")
@@ -481,8 +472,7 @@ var _ = Describe("Reference Method Tests", func() {
 				Expect(err).NotTo(HaveOccurred())
 
 				By("Updating the Secret")
-				err = utils.UpdateSecretFromStrings(ctx, kubeClient, testNamespace, secretName,
-					map[string]string{"credentials": "updated"})
+				err = utils.UpdateSecretFromStrings(ctx, kubeClient, testNamespace, secretName, map[string]string{"credentials": "updated"})
 				Expect(err).NotTo(HaveOccurred())
 
 				By("Waiting for workload to be reloaded")
@@ -531,8 +521,7 @@ var _ = Describe("Reference Method Tests", func() {
 				Expect(err).NotTo(HaveOccurred())
 
 				By("Updating the ConfigMap")
-				err = utils.UpdateConfigMap(ctx, kubeClient, testNamespace, configMapName,
-					map[string]string{"auto_config_key": "updated"})
+				err = utils.UpdateConfigMap(ctx, kubeClient, testNamespace, configMapName, map[string]string{"auto_config_key": "updated"})
 				Expect(err).NotTo(HaveOccurred())
 
 				By("Waiting for workload to be reloaded")

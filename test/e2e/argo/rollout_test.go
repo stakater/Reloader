@@ -48,8 +48,7 @@ var _ = Describe("Argo Rollout Strategy Tests", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Updating the ConfigMap")
-			err = utils.UpdateConfigMap(ctx, kubeClient, testNamespace, configMapName,
-				map[string]string{"key": "updated"})
+			err = utils.UpdateConfigMap(ctx, kubeClient, testNamespace, configMapName, map[string]string{"key": "updated"})
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Waiting for Rollout to be reloaded with annotation")
@@ -79,8 +78,7 @@ var _ = Describe("Argo Rollout Strategy Tests", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Updating the ConfigMap")
-			err = utils.UpdateConfigMap(ctx, kubeClient, testNamespace, configMapName,
-				map[string]string{"key": "updated"})
+			err = utils.UpdateConfigMap(ctx, kubeClient, testNamespace, configMapName, map[string]string{"key": "updated"})
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Waiting for Rollout to have restartAt field set")

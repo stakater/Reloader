@@ -45,8 +45,7 @@ var _ = Describe("Job Workload Recreation Tests", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Updating the ConfigMap")
-			err = utils.UpdateConfigMap(ctx, kubeClient, testNamespace, configMapName,
-				map[string]string{"JOB_CONFIG": "updated"})
+			err = utils.UpdateConfigMap(ctx, kubeClient, testNamespace, configMapName, map[string]string{"JOB_CONFIG": "updated"})
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Waiting for Job to be recreated (new UID)")
@@ -75,8 +74,7 @@ var _ = Describe("Job Workload Recreation Tests", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Updating the Secret")
-			err = utils.UpdateSecretFromStrings(ctx, kubeClient, testNamespace, secretName,
-				map[string]string{"JOB_SECRET": "updated"})
+			err = utils.UpdateSecretFromStrings(ctx, kubeClient, testNamespace, secretName, map[string]string{"JOB_SECRET": "updated"})
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Waiting for Job to be recreated (new UID)")
@@ -106,8 +104,7 @@ var _ = Describe("Job Workload Recreation Tests", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Updating the ConfigMap")
-			err = utils.UpdateConfigMap(ctx, kubeClient, testNamespace, configMapName,
-				map[string]string{"AUTO_CONFIG": "updated"})
+			err = utils.UpdateConfigMap(ctx, kubeClient, testNamespace, configMapName, map[string]string{"AUTO_CONFIG": "updated"})
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Waiting for Job to be recreated (new UID)")
@@ -137,8 +134,7 @@ var _ = Describe("Job Workload Recreation Tests", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Updating the ConfigMap")
-			err = utils.UpdateConfigMap(ctx, kubeClient, testNamespace, configMapName,
-				map[string]string{"config_key": "updated"})
+			err = utils.UpdateConfigMap(ctx, kubeClient, testNamespace, configMapName, map[string]string{"config_key": "updated"})
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Waiting for Job to be recreated (new UID)")
@@ -169,8 +165,7 @@ var _ = Describe("Job Workload Recreation Tests", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Updating the Secret")
-			err = utils.UpdateSecretFromStrings(ctx, kubeClient, testNamespace, secretName,
-				map[string]string{"secret_key": "updated"})
+			err = utils.UpdateSecretFromStrings(ctx, kubeClient, testNamespace, secretName, map[string]string{"secret_key": "updated"})
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Waiting for Job to be recreated (new UID)")

@@ -33,8 +33,7 @@ var _ = Describe("Namespace Selector Flag Tests", func() {
 
 	Context("with namespaceSelector flag", func() {
 		BeforeEach(func() {
-			err := utils.CreateNamespaceWithLabels(ctx, kubeClient, matchingNS,
-				map[string]string{"env": "test"})
+			err := utils.CreateNamespaceWithLabels(ctx, kubeClient, matchingNS, map[string]string{"env": "test"})
 			Expect(err).NotTo(HaveOccurred())
 
 			err = utils.CreateNamespace(ctx, kubeClient, nonMatchingNS)
@@ -73,8 +72,7 @@ var _ = Describe("Namespace Selector Flag Tests", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Updating the ConfigMap")
-			err = utils.UpdateConfigMap(ctx, kubeClient, matchingNS, configMapName,
-				map[string]string{"key": "updated"})
+			err = utils.UpdateConfigMap(ctx, kubeClient, matchingNS, configMapName, map[string]string{"key": "updated"})
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Waiting for Deployment to be reloaded")
@@ -102,8 +100,7 @@ var _ = Describe("Namespace Selector Flag Tests", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Updating the ConfigMap")
-			err = utils.UpdateConfigMap(ctx, kubeClient, nonMatchingNS, configMapName,
-				map[string]string{"key": "updated"})
+			err = utils.UpdateConfigMap(ctx, kubeClient, nonMatchingNS, configMapName, map[string]string{"key": "updated"})
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Verifying Deployment was NOT reloaded (non-matching namespace)")

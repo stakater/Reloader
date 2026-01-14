@@ -69,8 +69,7 @@ var _ = Describe("Ignore Resources Flag Tests", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Updating the Secret")
-			err = utils.UpdateSecretFromStrings(ctx, kubeClient, ignoreNS, secretName,
-				map[string]string{"password": "updated"})
+			err = utils.UpdateSecretFromStrings(ctx, kubeClient, ignoreNS, secretName, map[string]string{"password": "updated"})
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Verifying Deployment was NOT reloaded (ignoreSecrets=true)")
@@ -99,8 +98,7 @@ var _ = Describe("Ignore Resources Flag Tests", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Updating the ConfigMap")
-			err = utils.UpdateConfigMap(ctx, kubeClient, ignoreNS, configMapName,
-				map[string]string{"key": "updated"})
+			err = utils.UpdateConfigMap(ctx, kubeClient, ignoreNS, configMapName, map[string]string{"key": "updated"})
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Waiting for Deployment to be reloaded (ConfigMap should still work)")
@@ -150,8 +148,7 @@ var _ = Describe("Ignore Resources Flag Tests", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Updating the ConfigMap")
-			err = utils.UpdateConfigMap(ctx, kubeClient, ignoreNS, configMapName,
-				map[string]string{"key": "updated"})
+			err = utils.UpdateConfigMap(ctx, kubeClient, ignoreNS, configMapName, map[string]string{"key": "updated"})
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Verifying Deployment was NOT reloaded (ignoreConfigMaps=true)")
@@ -180,8 +177,7 @@ var _ = Describe("Ignore Resources Flag Tests", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Updating the Secret")
-			err = utils.UpdateSecretFromStrings(ctx, kubeClient, ignoreNS, secretName,
-				map[string]string{"password": "updated"})
+			err = utils.UpdateSecretFromStrings(ctx, kubeClient, ignoreNS, secretName, map[string]string{"password": "updated"})
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Waiting for Deployment to be reloaded (Secret should still work)")

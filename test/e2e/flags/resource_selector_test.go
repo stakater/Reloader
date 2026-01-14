@@ -55,8 +55,7 @@ var _ = Describe("Resource Label Selector Flag Tests", func() {
 			By("Creating a ConfigMap with matching label")
 			_, err := utils.CreateConfigMapWithLabels(ctx, kubeClient, resourceNS, matchingCM,
 				map[string]string{"key": "initial"},
-				map[string]string{"reload": "true"},
-				nil) // no annotations
+				map[string]string{"reload": "true"}, nil) // no annotations
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Creating a Deployment with auto annotation")
@@ -71,8 +70,7 @@ var _ = Describe("Resource Label Selector Flag Tests", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Updating the labeled ConfigMap")
-			err = utils.UpdateConfigMap(ctx, kubeClient, resourceNS, matchingCM,
-				map[string]string{"key": "updated"})
+			err = utils.UpdateConfigMap(ctx, kubeClient, resourceNS, matchingCM, map[string]string{"key": "updated"})
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Waiting for Deployment to be reloaded")
@@ -100,8 +98,7 @@ var _ = Describe("Resource Label Selector Flag Tests", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Updating the unlabeled ConfigMap")
-			err = utils.UpdateConfigMap(ctx, kubeClient, resourceNS, nonMatchingCM,
-				map[string]string{"key": "updated"})
+			err = utils.UpdateConfigMap(ctx, kubeClient, resourceNS, nonMatchingCM, map[string]string{"key": "updated"})
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Verifying Deployment was NOT reloaded (unlabeled ConfigMap)")

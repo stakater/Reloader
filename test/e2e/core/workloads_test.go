@@ -73,8 +73,7 @@ var _ = Describe("Workload Reload Tests", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Updating the ConfigMap data")
-			err = utils.UpdateConfigMap(ctx, kubeClient, testNamespace, configMapName,
-				map[string]string{"key": "updated"})
+			err = utils.UpdateConfigMap(ctx, kubeClient, testNamespace, configMapName, map[string]string{"key": "updated"})
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Waiting for workload to be reloaded")
@@ -82,7 +81,9 @@ var _ = Describe("Workload Reload Tests", func() {
 				utils.ReloadTimeout)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(reloaded).To(BeTrue(), "%s should have been reloaded", workloadType)
-		}, Entry("Deployment", utils.WorkloadDeployment), Entry("DaemonSet", utils.WorkloadDaemonSet),
+		},
+			Entry("Deployment", utils.WorkloadDeployment),
+			Entry("DaemonSet", utils.WorkloadDaemonSet),
 			Entry("StatefulSet", utils.WorkloadStatefulSet),
 			Entry("ArgoRollout", Label("argo"), utils.WorkloadArgoRollout),
 			Entry("DeploymentConfig", Label("openshift"), utils.WorkloadDeploymentConfig))
@@ -113,8 +114,7 @@ var _ = Describe("Workload Reload Tests", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Updating the Secret data")
-			err = utils.UpdateSecretFromStrings(ctx, kubeClient, testNamespace, secretName,
-				map[string]string{"password": "updated"})
+			err = utils.UpdateSecretFromStrings(ctx, kubeClient, testNamespace, secretName, map[string]string{"password": "updated"})
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Waiting for workload to be reloaded")
@@ -122,10 +122,13 @@ var _ = Describe("Workload Reload Tests", func() {
 				utils.ReloadTimeout)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(reloaded).To(BeTrue(), "%s should have been reloaded", workloadType)
-		}, Entry("Deployment", utils.WorkloadDeployment), Entry("DaemonSet", utils.WorkloadDaemonSet),
+		},
+			Entry("Deployment", utils.WorkloadDeployment),
+			Entry("DaemonSet", utils.WorkloadDaemonSet),
 			Entry("StatefulSet", utils.WorkloadStatefulSet),
 			Entry("ArgoRollout", Label("argo"), utils.WorkloadArgoRollout),
-			Entry("DeploymentConfig", Label("openshift"), utils.WorkloadDeploymentConfig))
+			Entry("DeploymentConfig", Label("openshift"), utils.WorkloadDeploymentConfig),
+		)
 
 		// SecretProviderClassPodStatus (CSI) reload tests with real Vault
 		DescribeTable("should reload when SecretProviderClassPodStatus changes", func(workloadType utils.WorkloadType) {
@@ -142,8 +145,7 @@ var _ = Describe("Workload Reload Tests", func() {
 			}
 
 			By("Creating a secret in Vault")
-			err := utils.CreateVaultSecret(ctx, kubeClient, restConfig, vaultSecretPath,
-				map[string]string{"api_key": "initial-value-v1"})
+			err := utils.CreateVaultSecret(ctx, kubeClient, restConfig, vaultSecretPath, map[string]string{"api_key": "initial-value-v1"})
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Creating a SecretProviderClass pointing to Vault secret")
@@ -176,8 +178,7 @@ var _ = Describe("Workload Reload Tests", func() {
 			GinkgoWriter.Printf("Initial SPCPS version: %s\n", initialVersion)
 
 			By("Updating the Vault secret")
-			err = utils.UpdateVaultSecret(ctx, kubeClient, restConfig, vaultSecretPath,
-				map[string]string{"api_key": "updated-value-v2"})
+			err = utils.UpdateVaultSecret(ctx, kubeClient, restConfig, vaultSecretPath, map[string]string{"api_key": "updated-value-v2"})
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Waiting for CSI driver to sync the new secret version")
@@ -222,8 +223,7 @@ var _ = Describe("Workload Reload Tests", func() {
 				Expect(err).NotTo(HaveOccurred())
 
 				By("Updating the ConfigMap data")
-				err = utils.UpdateConfigMap(ctx, kubeClient, testNamespace, configMapName,
-					map[string]string{"key": "updated"})
+				err = utils.UpdateConfigMap(ctx, kubeClient, testNamespace, configMapName, map[string]string{"key": "updated"})
 				Expect(err).NotTo(HaveOccurred())
 
 				By("Waiting for workload to be reloaded")
@@ -231,7 +231,9 @@ var _ = Describe("Workload Reload Tests", func() {
 					utils.AnnotationLastReloadedFrom, utils.ReloadTimeout)
 				Expect(err).NotTo(HaveOccurred())
 				Expect(reloaded).To(BeTrue(), "%s with auto=true should have been reloaded", workloadType)
-			}, Entry("Deployment", utils.WorkloadDeployment), Entry("DaemonSet", utils.WorkloadDaemonSet),
+			},
+			Entry("Deployment", utils.WorkloadDeployment),
+			Entry("DaemonSet", utils.WorkloadDaemonSet),
 			Entry("StatefulSet", utils.WorkloadStatefulSet),
 			Entry("ArgoRollout", Label("argo"), utils.WorkloadArgoRollout),
 			Entry("DeploymentConfig", Label("openshift"), utils.WorkloadDeploymentConfig))
@@ -263,8 +265,7 @@ var _ = Describe("Workload Reload Tests", func() {
 				Expect(err).NotTo(HaveOccurred())
 
 				By("Updating only the ConfigMap labels (no data change)")
-				err = utils.UpdateConfigMapLabels(ctx, kubeClient, testNamespace, configMapName,
-					map[string]string{"new-label": "new-value"})
+				err = utils.UpdateConfigMapLabels(ctx, kubeClient, testNamespace, configMapName, map[string]string{"new-label": "new-value"})
 				Expect(err).NotTo(HaveOccurred())
 
 				By("Verifying workload was NOT reloaded (negative test)")
@@ -273,7 +274,9 @@ var _ = Describe("Workload Reload Tests", func() {
 					utils.AnnotationLastReloadedFrom, utils.ShortTimeout)
 				Expect(err).NotTo(HaveOccurred())
 				Expect(reloaded).To(BeFalse(), "%s should NOT reload when only ConfigMap labels change", workloadType)
-			}, Entry("Deployment", utils.WorkloadDeployment), Entry("DaemonSet", utils.WorkloadDaemonSet),
+			},
+			Entry("Deployment", utils.WorkloadDeployment),
+			Entry("DaemonSet", utils.WorkloadDaemonSet),
 			Entry("StatefulSet", utils.WorkloadStatefulSet),
 			Entry("ArgoRollout", Label("argo"), utils.WorkloadArgoRollout),
 			Entry("DeploymentConfig", Label("openshift"), utils.WorkloadDeploymentConfig))
@@ -304,8 +307,7 @@ var _ = Describe("Workload Reload Tests", func() {
 				Expect(err).NotTo(HaveOccurred())
 
 				By("Updating only the Secret labels (no data change)")
-				err = utils.UpdateSecretLabels(ctx, kubeClient, testNamespace, secretName,
-					map[string]string{"new-label": "new-value"})
+				err = utils.UpdateSecretLabels(ctx, kubeClient, testNamespace, secretName, map[string]string{"new-label": "new-value"})
 				Expect(err).NotTo(HaveOccurred())
 
 				By("Verifying workload was NOT reloaded (negative test)")
@@ -314,7 +316,9 @@ var _ = Describe("Workload Reload Tests", func() {
 					utils.AnnotationLastReloadedFrom, utils.ShortTimeout)
 				Expect(err).NotTo(HaveOccurred())
 				Expect(reloaded).To(BeFalse(), "%s should NOT reload when only Secret labels change", workloadType)
-			}, Entry("Deployment", utils.WorkloadDeployment), Entry("DaemonSet", utils.WorkloadDaemonSet),
+			},
+			Entry("Deployment", utils.WorkloadDeployment),
+			Entry("DaemonSet", utils.WorkloadDaemonSet),
 			Entry("StatefulSet", utils.WorkloadStatefulSet),
 			Entry("ArgoRollout", Label("argo"), utils.WorkloadArgoRollout),
 			Entry("DeploymentConfig", Label("openshift"), utils.WorkloadDeploymentConfig))
@@ -335,8 +339,7 @@ var _ = Describe("Workload Reload Tests", func() {
 				}
 
 				By("Creating a secret in Vault")
-				err := utils.CreateVaultSecret(ctx, kubeClient, restConfig, vaultSecretPath,
-					map[string]string{"api_key": "initial-value"})
+				err := utils.CreateVaultSecret(ctx, kubeClient, restConfig, vaultSecretPath, map[string]string{"api_key": "initial-value"})
 				Expect(err).NotTo(HaveOccurred())
 
 				By("Creating a SecretProviderClass pointing to Vault secret")
@@ -363,8 +366,7 @@ var _ = Describe("Workload Reload Tests", func() {
 				Expect(err).NotTo(HaveOccurred())
 
 				By("Updating only the SPCPS labels (no objects change)")
-				err = utils.UpdateSecretProviderClassPodStatusLabels(ctx, csiClient, testNamespace, spcpsName,
-					map[string]string{"new-label": "new-value"})
+				err = utils.UpdateSecretProviderClassPodStatusLabels(ctx, csiClient, testNamespace, spcpsName, map[string]string{"new-label": "new-value"})
 				Expect(err).NotTo(HaveOccurred())
 
 				By("Verifying workload was NOT reloaded (negative test)")
@@ -405,8 +407,7 @@ var _ = Describe("Workload Reload Tests", func() {
 				DeferCleanup(func() { _ = cronJobAdapter.Delete(ctx, testNamespace, workloadName) })
 
 				By("Updating the ConfigMap data")
-				err = utils.UpdateConfigMap(ctx, kubeClient, testNamespace, configMapName,
-					map[string]string{"key": "updated"})
+				err = utils.UpdateConfigMap(ctx, kubeClient, testNamespace, configMapName, map[string]string{"key": "updated"})
 				Expect(err).NotTo(HaveOccurred())
 
 				By("Waiting for a Job to be created by CronJob reload")
@@ -432,8 +433,7 @@ var _ = Describe("Workload Reload Tests", func() {
 				DeferCleanup(func() { _ = cronJobAdapter.Delete(ctx, testNamespace, workloadName) })
 
 				By("Updating the Secret data")
-				err = utils.UpdateSecretFromStrings(ctx, kubeClient, testNamespace, secretName,
-					map[string]string{"password": "updated"})
+				err = utils.UpdateSecretFromStrings(ctx, kubeClient, testNamespace, secretName, map[string]string{"password": "updated"})
 				Expect(err).NotTo(HaveOccurred())
 
 				By("Waiting for a Job to be created by CronJob reload")
@@ -459,8 +459,7 @@ var _ = Describe("Workload Reload Tests", func() {
 				DeferCleanup(func() { _ = cronJobAdapter.Delete(ctx, testNamespace, workloadName) })
 
 				By("Updating the ConfigMap data")
-				err = utils.UpdateConfigMap(ctx, kubeClient, testNamespace, configMapName,
-					map[string]string{"key": "updated"})
+				err = utils.UpdateConfigMap(ctx, kubeClient, testNamespace, configMapName, map[string]string{"key": "updated"})
 				Expect(err).NotTo(HaveOccurred())
 
 				By("Waiting for a Job to be created by CronJob reload")
@@ -497,8 +496,7 @@ var _ = Describe("Workload Reload Tests", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Updating the ConfigMap data")
-			err = utils.UpdateConfigMap(ctx, kubeClient, testNamespace, configMapName,
-				map[string]string{"config.yaml": "setting: updated"})
+			err = utils.UpdateConfigMap(ctx, kubeClient, testNamespace, configMapName, map[string]string{"config.yaml": "setting: updated"})
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Waiting for workload to be reloaded")
@@ -506,7 +504,9 @@ var _ = Describe("Workload Reload Tests", func() {
 				utils.ReloadTimeout)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(reloaded).To(BeTrue(), "%s with volume-mounted ConfigMap should have been reloaded", workloadType)
-		}, Entry("Deployment", utils.WorkloadDeployment), Entry("DaemonSet", utils.WorkloadDaemonSet),
+		},
+			Entry("Deployment", utils.WorkloadDeployment),
+			Entry("DaemonSet", utils.WorkloadDaemonSet),
 			Entry("StatefulSet", utils.WorkloadStatefulSet),
 			Entry("ArgoRollout", Label("argo"), utils.WorkloadArgoRollout),
 			Entry("DeploymentConfig", Label("openshift"), utils.WorkloadDeploymentConfig))
@@ -536,8 +536,7 @@ var _ = Describe("Workload Reload Tests", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Updating the Secret data")
-			err = utils.UpdateSecretFromStrings(ctx, kubeClient, testNamespace, secretName,
-				map[string]string{"credentials.yaml": "secret: updated"})
+			err = utils.UpdateSecretFromStrings(ctx, kubeClient, testNamespace, secretName, map[string]string{"credentials.yaml": "secret: updated"})
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Waiting for workload to be reloaded")
@@ -545,7 +544,9 @@ var _ = Describe("Workload Reload Tests", func() {
 				utils.ReloadTimeout)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(reloaded).To(BeTrue(), "%s with volume-mounted Secret should have been reloaded", workloadType)
-		}, Entry("Deployment", utils.WorkloadDeployment), Entry("DaemonSet", utils.WorkloadDaemonSet),
+		},
+			Entry("Deployment", utils.WorkloadDeployment),
+			Entry("DaemonSet", utils.WorkloadDaemonSet),
 			Entry("StatefulSet", utils.WorkloadStatefulSet),
 			Entry("ArgoRollout", Label("argo"), utils.WorkloadArgoRollout),
 			Entry("DeploymentConfig", Label("openshift"), utils.WorkloadDeploymentConfig))
@@ -568,17 +569,14 @@ var _ = Describe("Workload Reload Tests", func() {
 				UseConfigMapEnvFrom: true, // No Reloader annotations
 			})
 			Expect(err).NotTo(HaveOccurred())
-			DeferCleanup(func() {
-				_ = adapter.Delete(ctx, testNamespace, workloadName)
-			})
+			DeferCleanup(func() { _ = adapter.Delete(ctx, testNamespace, workloadName) })
 
 			By("Waiting for workload to be ready")
 			err = adapter.WaitReady(ctx, testNamespace, workloadName, utils.DeploymentReady)
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Updating the ConfigMap data")
-			err = utils.UpdateConfigMap(ctx, kubeClient, testNamespace, configMapName,
-				map[string]string{"key": "updated"})
+			err = utils.UpdateConfigMap(ctx, kubeClient, testNamespace, configMapName, map[string]string{"key": "updated"})
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Verifying workload is NOT reloaded (negative test)")
@@ -587,7 +585,9 @@ var _ = Describe("Workload Reload Tests", func() {
 				utils.ShortTimeout)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(reloaded).To(BeFalse(), "%s without Reloader annotation should NOT be reloaded", workloadType)
-		}, Entry("Deployment", utils.WorkloadDeployment), Entry("DaemonSet", utils.WorkloadDaemonSet),
+		},
+			Entry("Deployment", utils.WorkloadDeployment),
+			Entry("DaemonSet", utils.WorkloadDaemonSet),
 			Entry("StatefulSet", utils.WorkloadStatefulSet))
 
 		// Variable to track for use in lint
@@ -627,8 +627,7 @@ var _ = Describe("Workload Reload Tests", func() {
 				Expect(err).NotTo(HaveOccurred())
 
 				By("Updating the second ConfigMap")
-				err = utils.UpdateConfigMap(ctx, kubeClient, testNamespace, configMapName2,
-					map[string]string{"key2": "updated-value2"})
+				err = utils.UpdateConfigMap(ctx, kubeClient, testNamespace, configMapName2, map[string]string{"key2": "updated-value2"})
 				Expect(err).NotTo(HaveOccurred())
 
 				By("Waiting for Deployment to be reloaded")
@@ -668,8 +667,7 @@ var _ = Describe("Workload Reload Tests", func() {
 				Expect(err).NotTo(HaveOccurred())
 
 				By("Updating the second Secret")
-				err = utils.UpdateSecretFromStrings(ctx, kubeClient, testNamespace, secretName2,
-					map[string]string{"key2": "updated-value2"})
+				err = utils.UpdateSecretFromStrings(ctx, kubeClient, testNamespace, secretName2, map[string]string{"key2": "updated-value2"})
 				Expect(err).NotTo(HaveOccurred())
 
 				By("Waiting for Deployment to be reloaded")
@@ -702,8 +700,7 @@ var _ = Describe("Workload Reload Tests", func() {
 				Expect(err).NotTo(HaveOccurred())
 
 				By("First update to ConfigMap")
-				err = utils.UpdateConfigMap(ctx, kubeClient, testNamespace, configMapName,
-					map[string]string{"key": "v2"})
+				err = utils.UpdateConfigMap(ctx, kubeClient, testNamespace, configMapName, map[string]string{"key": "v2"})
 				Expect(err).NotTo(HaveOccurred())
 
 				By("Waiting for first reload")
@@ -718,8 +715,7 @@ var _ = Describe("Workload Reload Tests", func() {
 				firstReloadValue := deploy.Spec.Template.Annotations[utils.AnnotationLastReloadedFrom]
 
 				By("Second update to ConfigMap")
-				err = utils.UpdateConfigMap(ctx, kubeClient, testNamespace, configMapName,
-					map[string]string{"key": "v3"})
+				err = utils.UpdateConfigMap(ctx, kubeClient, testNamespace, configMapName, map[string]string{"key": "v3"})
 				Expect(err).NotTo(HaveOccurred())
 
 				By("Waiting for second reload with different annotation value")
@@ -763,8 +759,7 @@ var _ = Describe("Workload Reload Tests", func() {
 				Expect(err).NotTo(HaveOccurred())
 
 				By("Updating the Secret")
-				err = utils.UpdateSecretFromStrings(ctx, kubeClient, testNamespace, secretName,
-					map[string]string{"secret": "updated"})
+				err = utils.UpdateSecretFromStrings(ctx, kubeClient, testNamespace, secretName, map[string]string{"secret": "updated"})
 				Expect(err).NotTo(HaveOccurred())
 
 				By("Waiting for Deployment to be reloaded")
@@ -797,8 +792,7 @@ var _ = Describe("Workload Reload Tests", func() {
 				Expect(err).NotTo(HaveOccurred())
 
 				By("Updating the ConfigMap data")
-				err = utils.UpdateConfigMap(ctx, kubeClient, testNamespace, configMapName,
-					map[string]string{"key": "updated"})
+				err = utils.UpdateConfigMap(ctx, kubeClient, testNamespace, configMapName, map[string]string{"key": "updated"})
 				Expect(err).NotTo(HaveOccurred())
 
 				By("Verifying Deployment is NOT reloaded (auto=false)")
@@ -879,8 +873,7 @@ var _ = Describe("Workload Reload Tests", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Updating the ConfigMap data")
-			err = utils.UpdateConfigMap(ctx, kubeClient, testNamespace, configMapName,
-				map[string]string{"key": "updated"})
+			err = utils.UpdateConfigMap(ctx, kubeClient, testNamespace, configMapName, map[string]string{"key": "updated"})
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Waiting for workload to have STAKATER_ env var")
@@ -888,7 +881,9 @@ var _ = Describe("Workload Reload Tests", func() {
 				utils.ReloadTimeout)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(found).To(BeTrue(), "%s should have STAKATER_ env var after ConfigMap change", workloadType)
-		}, Entry("Deployment", utils.WorkloadDeployment), Entry("DaemonSet", utils.WorkloadDaemonSet),
+		},
+			Entry("Deployment", utils.WorkloadDeployment),
+			Entry("DaemonSet", utils.WorkloadDaemonSet),
 			Entry("StatefulSet", utils.WorkloadStatefulSet),
 			Entry("ArgoRollout", Label("argo"), utils.WorkloadArgoRollout),
 			Entry("DeploymentConfig", Label("openshift"), utils.WorkloadDeploymentConfig))
@@ -922,8 +917,7 @@ var _ = Describe("Workload Reload Tests", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Updating the Secret data")
-			err = utils.UpdateSecretFromStrings(ctx, kubeClient, testNamespace, secretName,
-				map[string]string{"password": "updated"})
+			err = utils.UpdateSecretFromStrings(ctx, kubeClient, testNamespace, secretName, map[string]string{"password": "updated"})
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Waiting for workload to have STAKATER_ env var")
@@ -931,7 +925,9 @@ var _ = Describe("Workload Reload Tests", func() {
 				utils.ReloadTimeout)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(found).To(BeTrue(), "%s should have STAKATER_ env var after Secret change", workloadType)
-		}, Entry("Deployment", utils.WorkloadDeployment), Entry("DaemonSet", utils.WorkloadDaemonSet),
+		},
+			Entry("Deployment", utils.WorkloadDeployment),
+			Entry("DaemonSet", utils.WorkloadDaemonSet),
 			Entry("StatefulSet", utils.WorkloadStatefulSet),
 			Entry("ArgoRollout", Label("argo"), utils.WorkloadArgoRollout),
 			Entry("DeploymentConfig", Label("openshift"), utils.WorkloadDeploymentConfig))
@@ -956,8 +952,7 @@ var _ = Describe("Workload Reload Tests", func() {
 				}
 
 				By("Creating a secret in Vault")
-				err := utils.CreateVaultSecret(ctx, kubeClient, restConfig, vaultSecretPath,
-					map[string]string{"api_key": "initial-value-v1"})
+				err := utils.CreateVaultSecret(ctx, kubeClient, restConfig, vaultSecretPath, map[string]string{"api_key": "initial-value-v1"})
 				Expect(err).NotTo(HaveOccurred())
 
 				By("Creating a SecretProviderClass pointing to Vault secret")
@@ -988,8 +983,7 @@ var _ = Describe("Workload Reload Tests", func() {
 				Expect(err).NotTo(HaveOccurred())
 
 				By("Updating the Vault secret")
-				err = utils.UpdateVaultSecret(ctx, kubeClient, restConfig, vaultSecretPath,
-					map[string]string{"api_key": "updated-value-v2"})
+				err = utils.UpdateVaultSecret(ctx, kubeClient, restConfig, vaultSecretPath, map[string]string{"api_key": "updated-value-v2"})
 				Expect(err).NotTo(HaveOccurred())
 
 				By("Waiting for CSI driver to sync the new secret version")
@@ -1037,8 +1031,7 @@ var _ = Describe("Workload Reload Tests", func() {
 				Expect(err).NotTo(HaveOccurred())
 
 				By("Updating only the ConfigMap labels")
-				err = utils.UpdateConfigMapLabels(ctx, kubeClient, testNamespace, configMapName,
-					map[string]string{"new-label": "new-value"})
+				err = utils.UpdateConfigMapLabels(ctx, kubeClient, testNamespace, configMapName, map[string]string{"new-label": "new-value"})
 				Expect(err).NotTo(HaveOccurred())
 
 				By("Verifying workload does NOT have STAKATER_ env var")
@@ -1047,7 +1040,9 @@ var _ = Describe("Workload Reload Tests", func() {
 					utils.ShortTimeout)
 				Expect(err).NotTo(HaveOccurred())
 				Expect(found).To(BeFalse(), "%s should NOT have STAKATER_ env var for label-only change", workloadType)
-			}, Entry("Deployment", utils.WorkloadDeployment), Entry("DaemonSet", utils.WorkloadDaemonSet),
+			},
+			Entry("Deployment", utils.WorkloadDeployment),
+			Entry("DaemonSet", utils.WorkloadDaemonSet),
 			Entry("StatefulSet", utils.WorkloadStatefulSet))
 
 		DescribeTable("should NOT add STAKATER_ env var when only Secret labels change",
@@ -1080,8 +1075,7 @@ var _ = Describe("Workload Reload Tests", func() {
 				Expect(err).NotTo(HaveOccurred())
 
 				By("Updating only the Secret labels")
-				err = utils.UpdateSecretLabels(ctx, kubeClient, testNamespace, secretName,
-					map[string]string{"new-label": "new-value"})
+				err = utils.UpdateSecretLabels(ctx, kubeClient, testNamespace, secretName, map[string]string{"new-label": "new-value"})
 				Expect(err).NotTo(HaveOccurred())
 
 				By("Verifying workload does NOT have STAKATER_ env var")
@@ -1090,7 +1084,9 @@ var _ = Describe("Workload Reload Tests", func() {
 					utils.ShortTimeout)
 				Expect(err).NotTo(HaveOccurred())
 				Expect(found).To(BeFalse(), "%s should NOT have STAKATER_ env var for label-only change", workloadType)
-			}, Entry("Deployment", utils.WorkloadDeployment), Entry("DaemonSet", utils.WorkloadDaemonSet),
+			},
+			Entry("Deployment", utils.WorkloadDeployment),
+			Entry("DaemonSet", utils.WorkloadDaemonSet),
 			Entry("StatefulSet", utils.WorkloadStatefulSet))
 
 		// CSI SPCPS label-only change negative test with real Vault
@@ -1113,8 +1109,7 @@ var _ = Describe("Workload Reload Tests", func() {
 				}
 
 				By("Creating a secret in Vault")
-				err := utils.CreateVaultSecret(ctx, kubeClient, restConfig, vaultSecretPath,
-					map[string]string{"api_key": "initial-value"})
+				err := utils.CreateVaultSecret(ctx, kubeClient, restConfig, vaultSecretPath, map[string]string{"api_key": "initial-value"})
 				Expect(err).NotTo(HaveOccurred())
 
 				By("Creating a SecretProviderClass pointing to Vault secret")
@@ -1141,8 +1136,7 @@ var _ = Describe("Workload Reload Tests", func() {
 				Expect(err).NotTo(HaveOccurred())
 
 				By("Updating only the SPCPS labels (should NOT trigger reload)")
-				err = utils.UpdateSecretProviderClassPodStatusLabels(ctx, csiClient, testNamespace, spcpsName,
-					map[string]string{"new-label": "new-value"})
+				err = utils.UpdateSecretProviderClassPodStatusLabels(ctx, csiClient, testNamespace, spcpsName, map[string]string{"new-label": "new-value"})
 				Expect(err).NotTo(HaveOccurred())
 
 				By("Verifying workload does NOT have STAKATER_ env var")
@@ -1169,8 +1163,7 @@ var _ = Describe("Workload Reload Tests", func() {
 			Expect(adapter).NotTo(BeNil())
 
 			By("Creating a secret in Vault")
-			err := utils.CreateVaultSecret(ctx, kubeClient, restConfig, vaultSecretPath,
-				map[string]string{"api_key": "initial-value-v1"})
+			err := utils.CreateVaultSecret(ctx, kubeClient, restConfig, vaultSecretPath, map[string]string{"api_key": "initial-value-v1"})
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Creating a SecretProviderClass pointing to Vault secret")
@@ -1201,8 +1194,7 @@ var _ = Describe("Workload Reload Tests", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Updating the Vault secret")
-			err = utils.UpdateVaultSecret(ctx, kubeClient, restConfig, vaultSecretPath,
-				map[string]string{"api_key": "updated-value-v2"})
+			err = utils.UpdateVaultSecret(ctx, kubeClient, restConfig, vaultSecretPath, map[string]string{"api_key": "updated-value-v2"})
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Waiting for CSI driver to sync the new secret version")
@@ -1230,8 +1222,7 @@ var _ = Describe("Workload Reload Tests", func() {
 			Expect(adapter).NotTo(BeNil())
 
 			By("Creating a secret in Vault")
-			err := utils.CreateVaultSecret(ctx, kubeClient, restConfig, vaultSecretPath,
-				map[string]string{"api_key": "initial-value-v1"})
+			err := utils.CreateVaultSecret(ctx, kubeClient, restConfig, vaultSecretPath, map[string]string{"api_key": "initial-value-v1"})
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Creating a SecretProviderClass pointing to Vault secret")
@@ -1263,8 +1254,7 @@ var _ = Describe("Workload Reload Tests", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Updating the Vault secret (excluded SPC - should NOT trigger reload)")
-			err = utils.UpdateVaultSecret(ctx, kubeClient, restConfig, vaultSecretPath,
-				map[string]string{"api_key": "updated-value-v2"})
+			err = utils.UpdateVaultSecret(ctx, kubeClient, restConfig, vaultSecretPath, map[string]string{"api_key": "updated-value-v2"})
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Waiting for CSI driver to sync the new secret version")
@@ -1281,60 +1271,57 @@ var _ = Describe("Workload Reload Tests", func() {
 		})
 
 		// CSI init container with EnvVar strategy and real Vault
-		It("should add STAKATER_ env var when SecretProviderClassPodStatus used by init container changes",
-			Label("csi"), func() {
-				if !utils.IsCSIDriverInstalled(ctx, csiClient) {
-					Skip("CSI secrets store driver not installed")
-				}
-				if !utils.IsVaultProviderInstalled(ctx, kubeClient) {
-					Skip("Vault CSI provider not installed")
-				}
+		It("should add STAKATER_ env var when SecretProviderClassPodStatus used by init container changes", Label("csi"), func() {
+			if !utils.IsCSIDriverInstalled(ctx, csiClient) {
+				Skip("CSI secrets store driver not installed")
+			}
+			if !utils.IsVaultProviderInstalled(ctx, kubeClient) {
+				Skip("Vault CSI provider not installed")
+			}
 
-				By("Creating a secret in Vault")
-				err := utils.CreateVaultSecret(ctx, kubeClient, restConfig, vaultSecretPath,
-					map[string]string{"api_key": "initial-value-v1"})
-				Expect(err).NotTo(HaveOccurred())
+			By("Creating a secret in Vault")
+			err := utils.CreateVaultSecret(ctx, kubeClient, restConfig, vaultSecretPath, map[string]string{"api_key": "initial-value-v1"})
+			Expect(err).NotTo(HaveOccurred())
 
-				By("Creating a SecretProviderClass pointing to Vault secret")
-				_, err = utils.CreateSecretProviderClassWithSecret(ctx, csiClient, testNamespace, spcName,
-					vaultSecretPath, "api_key")
-				Expect(err).NotTo(HaveOccurred())
+			By("Creating a SecretProviderClass pointing to Vault secret")
+			_, err = utils.CreateSecretProviderClassWithSecret(ctx, csiClient, testNamespace, spcName,
+				vaultSecretPath, "api_key")
+			Expect(err).NotTo(HaveOccurred())
 
-				By("Creating Deployment with init container using CSI volume")
-				_, err = utils.CreateDeployment(ctx, kubeClient, testNamespace, workloadName,
-					utils.WithInitContainerCSIVolume(spcName),
-					utils.WithAnnotations(utils.BuildSecretProviderClassReloadAnnotation(spcName)))
-				Expect(err).NotTo(HaveOccurred())
-				DeferCleanup(func() { _ = utils.DeleteDeployment(ctx, kubeClient, testNamespace, workloadName) })
+			By("Creating Deployment with init container using CSI volume")
+			_, err = utils.CreateDeployment(ctx, kubeClient, testNamespace, workloadName,
+				utils.WithInitContainerCSIVolume(spcName),
+				utils.WithAnnotations(utils.BuildSecretProviderClassReloadAnnotation(spcName)))
+			Expect(err).NotTo(HaveOccurred())
+			DeferCleanup(func() { _ = utils.DeleteDeployment(ctx, kubeClient, testNamespace, workloadName) })
 
-				By("Waiting for Deployment to be ready")
-				err = utils.WaitForDeploymentReady(ctx, kubeClient, testNamespace, workloadName, utils.DeploymentReady)
-				Expect(err).NotTo(HaveOccurred())
+			By("Waiting for Deployment to be ready")
+			err = utils.WaitForDeploymentReady(ctx, kubeClient, testNamespace, workloadName, utils.DeploymentReady)
+			Expect(err).NotTo(HaveOccurred())
 
-				By("Finding the SPCPS created by CSI driver")
-				spcpsName, err := utils.FindSPCPSForDeployment(ctx, csiClient, kubeClient, testNamespace, workloadName,
-					utils.DeploymentReady)
-				Expect(err).NotTo(HaveOccurred())
+			By("Finding the SPCPS created by CSI driver")
+			spcpsName, err := utils.FindSPCPSForDeployment(ctx, csiClient, kubeClient, testNamespace, workloadName,
+				utils.DeploymentReady)
+			Expect(err).NotTo(HaveOccurred())
 
-				By("Getting initial SPCPS version")
-				initialVersion, err := utils.GetSPCPSVersion(ctx, csiClient, testNamespace, spcpsName)
-				Expect(err).NotTo(HaveOccurred())
+			By("Getting initial SPCPS version")
+			initialVersion, err := utils.GetSPCPSVersion(ctx, csiClient, testNamespace, spcpsName)
+			Expect(err).NotTo(HaveOccurred())
 
-				By("Updating the Vault secret")
-				err = utils.UpdateVaultSecret(ctx, kubeClient, restConfig, vaultSecretPath,
-					map[string]string{"api_key": "updated-value-v2"})
-				Expect(err).NotTo(HaveOccurred())
+			By("Updating the Vault secret")
+			err = utils.UpdateVaultSecret(ctx, kubeClient, restConfig, vaultSecretPath, map[string]string{"api_key": "updated-value-v2"})
+			Expect(err).NotTo(HaveOccurred())
 
-				By("Waiting for CSI driver to sync the new secret version")
-				err = utils.WaitForSPCPSVersionChange(ctx, csiClient, testNamespace, spcpsName, initialVersion,
-					10*time.Second)
-				Expect(err).NotTo(HaveOccurred())
+			By("Waiting for CSI driver to sync the new secret version")
+			err = utils.WaitForSPCPSVersionChange(ctx, csiClient, testNamespace, spcpsName, initialVersion,
+				10*time.Second)
+			Expect(err).NotTo(HaveOccurred())
 
-				By("Waiting for Deployment to have STAKATER_ env var")
-				found, err := utils.WaitForDeploymentEnvVar(ctx, kubeClient, testNamespace, workloadName,
-					utils.StakaterEnvVarPrefix, utils.ReloadTimeout)
-				Expect(err).NotTo(HaveOccurred())
-				Expect(found).To(BeTrue(), "Deployment with init container CSI should have STAKATER_ env var")
-			})
+			By("Waiting for Deployment to have STAKATER_ env var")
+			found, err := utils.WaitForDeploymentEnvVar(ctx, kubeClient, testNamespace, workloadName,
+				utils.StakaterEnvVarPrefix, utils.ReloadTimeout)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(found).To(BeTrue(), "Deployment with init container CSI should have STAKATER_ env var")
+		})
 	})
 })
