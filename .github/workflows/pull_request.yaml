@@ -20,7 +20,7 @@ env:
   DOCKER_FILE_PATH: Dockerfile
   DOCKER_UBI_FILE_PATH: Dockerfile.ubi
   KUBERNETES_VERSION: "1.30.0"
-  KIND_VERSION: "0.23.0"
+  KIND_VERSION: "0.31.0"
   REGISTRY: ghcr.io
 
 jobs:
