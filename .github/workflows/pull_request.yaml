@@ -20,7 +20,7 @@ env:
   DOCKER_FILE_PATH: Dockerfile
   DOCKER_UBI_FILE_PATH: Dockerfile.ubi
   KUBERNETES_VERSION: "1.30.0"
-  KIND_VERSION: "0.23.0"
+  KIND_VERSION: "0.31.0"
   REGISTRY: ghcr.io
 
 jobs:
@@ -102,14 +102,14 @@ jobs:
         kind version
         kind version | grep -q ${KIND_VERSION}
 
-    - name: Create Kind Cluster
-      run: |
-        kind create cluster
-        kubectl cluster-info
+    - name: Create Kind Cluster and Setup E2E Dependencies
+      run: KIND_CLUSTER=kind make e2e-setup
 
-
-    - name: Test
+    - name: Run unit tests
       run: make test
+
+    - name: Run E2E tests
+      run: KIND_CLUSTER=kind make e2e
 
     - name: Run quick A/B load tests
       uses: ./.github/actions/loadtest

@@ -9,11 +9,12 @@ import (
 	"strings"
 
 	"github.com/spf13/cobra"
+	v1 "k8s.io/api/core/v1"
+	csiv1 "sigs.k8s.io/secrets-store-csi-driver/apis/v1"
+
 	"github.com/stakater/Reloader/internal/pkg/constants"
 	"github.com/stakater/Reloader/internal/pkg/crypto"
 	"github.com/stakater/Reloader/internal/pkg/options"
-	v1 "k8s.io/api/core/v1"
-	csiv1 "sigs.k8s.io/secrets-store-csi-driver/apis/v1"
 )
 
 // ConvertToEnvVarName converts the given text into a usable env var

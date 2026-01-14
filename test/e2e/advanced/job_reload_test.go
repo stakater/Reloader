@@ -1,0 +1,248 @@
+package advanced
+
+import (
+	"fmt"
+	"time"
+
+	. "github.com/onsi/ginkgo/v2"
+	. "github.com/onsi/gomega"
+
+	"github.com/stakater/Reloader/test/e2e/utils"
+)
+
+var _ = Describe("Job Workload Recreation Tests", func() {
+	var (
+		jobName         string
+		configMapName   string
+		secretName      string
+		spcName         string
+		vaultSecretPath string
+		jobAdapter      *utils.JobAdapter
+	)
+
+	BeforeEach(func() {
+		jobName = utils.RandName("job")
+		configMapName = utils.RandName("cm")
+		secretName = utils.RandName("secret")
+		spcName = utils.RandName("spc")
+		vaultSecretPath = fmt.Sprintf("secret/%s", utils.RandName("vault"))
+		jobAdapter = utils.NewJobAdapter(kubeClient)
+	})
+
+	AfterEach(func() {
+		_ = utils.DeleteJob(ctx, kubeClient, testNamespace, jobName)
+		_ = utils.DeleteConfigMap(ctx, kubeClient, testNamespace, configMapName)
+		_ = utils.DeleteSecret(ctx, kubeClient, testNamespace, secretName)
+		_ = utils.DeleteSecretProviderClass(ctx, csiClient, testNamespace, spcName)
+		_ = utils.DeleteVaultSecret(ctx, kubeClient, restConfig, vaultSecretPath)
+	})
+
+	Context("Job with ConfigMap reference", func() {
+		It("should recreate Job when referenced ConfigMap changes", func() {
+			By("Creating a ConfigMap")
+			_, err := utils.CreateConfigMap(ctx, kubeClient, testNamespace, configMapName,
+				map[string]string{"JOB_CONFIG": "initial"}, nil)
+			Expect(err).NotTo(HaveOccurred())
+
+			By("Creating a Job with ConfigMap envFrom")
+			job, err := utils.CreateJob(ctx, kubeClient, testNamespace, jobName,
+				utils.WithJobConfigMapEnvFrom(configMapName),
+				utils.WithJobAnnotations(utils.BuildConfigMapReloadAnnotation(configMapName)))
+			Expect(err).NotTo(HaveOccurred())
+			originalUID := string(job.UID)
+
+			By("Waiting for Job to be ready")
+			err = jobAdapter.WaitReady(ctx, testNamespace, jobName, utils.WorkloadReadyTimeout)
+			Expect(err).NotTo(HaveOccurred())
+
+			By("Updating the ConfigMap")
+			err = utils.UpdateConfigMap(ctx, kubeClient, testNamespace, configMapName, map[string]string{"JOB_CONFIG": "updated"})
+			Expect(err).NotTo(HaveOccurred())
+
+			By("Waiting for Job to be recreated (new UID)")
+			_, recreated, err := jobAdapter.WaitRecreated(ctx, testNamespace, jobName, originalUID, utils.ReloadTimeout)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(recreated).To(BeTrue(), "Job should be recreated with new UID when ConfigMap changes")
+		})
+	})
+
+	Context("Job with Secret reference", func() {
+		It("should recreate Job when referenced Secret changes", func() {
+			By("Creating a Secret")
+			_, err := utils.CreateSecretFromStrings(ctx, kubeClient, testNamespace, secretName,
+				map[string]string{"JOB_SECRET": "initial"}, nil)
+			Expect(err).NotTo(HaveOccurred())
+
+			By("Creating a Job with Secret envFrom")
+			job, err := utils.CreateJob(ctx, kubeClient, testNamespace, jobName, utils.WithJobSecretEnvFrom(secretName),
+				utils.WithJobAnnotations(utils.BuildSecretReloadAnnotation(secretName)))
+			Expect(err).NotTo(HaveOccurred())
+			originalUID := string(job.UID)
+
+			By("Waiting for Job to be ready")
+			err = jobAdapter.WaitReady(ctx, testNamespace, jobName, utils.WorkloadReadyTimeout)
+			Expect(err).NotTo(HaveOccurred())
+
+			By("Updating the Secret")
+			err = utils.UpdateSecretFromStrings(ctx, kubeClient, testNamespace, secretName, map[string]string{"JOB_SECRET": "updated"})
+			Expect(err).NotTo(HaveOccurred())
+
+			By("Waiting for Job to be recreated (new UID)")
+			_, recreated, err := jobAdapter.WaitRecreated(ctx, testNamespace, jobName, originalUID, utils.ReloadTimeout)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(recreated).To(BeTrue(), "Job should be recreated with new UID when Secret changes")
+		})
+	})
+
+	Context("Job with auto annotation", func() {
+		It("should recreate Job with auto=true when ConfigMap changes", func() {
+			By("Creating a ConfigMap")
+			_, err := utils.CreateConfigMap(ctx, kubeClient, testNamespace, configMapName,
+				map[string]string{"AUTO_CONFIG": "initial"}, nil)
+			Expect(err).NotTo(HaveOccurred())
+
+			By("Creating a Job with auto annotation")
+			job, err := utils.CreateJob(ctx, kubeClient, testNamespace, jobName,
+				utils.WithJobConfigMapEnvFrom(configMapName),
+				utils.WithJobAnnotations(utils.BuildAutoTrueAnnotation()))
+			Expect(err).NotTo(HaveOccurred())
+			originalUID := string(job.UID)
+
+			By("Waiting for Job to be ready")
+			err = jobAdapter.WaitReady(ctx, testNamespace, jobName, utils.WorkloadReadyTimeout)
+			Expect(err).NotTo(HaveOccurred())
+
+			By("Updating the ConfigMap")
+			err = utils.UpdateConfigMap(ctx, kubeClient, testNamespace, configMapName, map[string]string{"AUTO_CONFIG": "updated"})
+			Expect(err).NotTo(HaveOccurred())
+
+			By("Waiting for Job to be recreated (new UID)")
+			_, recreated, err := jobAdapter.WaitRecreated(ctx, testNamespace, jobName, originalUID, utils.ReloadTimeout)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(recreated).To(BeTrue(), "Job with auto=true should be recreated when ConfigMap changes")
+		})
+	})
+
+	Context("Job with valueFrom ConfigMap reference", func() {
+		It("should recreate Job when ConfigMap referenced via valueFrom changes", func() {
+			By("Creating a ConfigMap")
+			_, err := utils.CreateConfigMap(ctx, kubeClient, testNamespace, configMapName,
+				map[string]string{"config_key": "initial"}, nil)
+			Expect(err).NotTo(HaveOccurred())
+
+			By("Creating a Job with valueFrom.configMapKeyRef")
+			job, err := utils.CreateJob(ctx, kubeClient, testNamespace, jobName,
+				utils.WithJobConfigMapKeyRef(configMapName, "config_key", "MY_CONFIG"),
+				utils.WithJobAnnotations(utils.BuildConfigMapReloadAnnotation(configMapName)))
+			Expect(err).NotTo(HaveOccurred())
+			originalUID := string(job.UID)
+
+			By("Waiting for Job to be ready")
+			err = jobAdapter.WaitReady(ctx, testNamespace, jobName, utils.WorkloadReadyTimeout)
+			Expect(err).NotTo(HaveOccurred())
+
+			By("Updating the ConfigMap")
+			err = utils.UpdateConfigMap(ctx, kubeClient, testNamespace, configMapName, map[string]string{"config_key": "updated"})
+			Expect(err).NotTo(HaveOccurred())
+
+			By("Waiting for Job to be recreated (new UID)")
+			_, recreated, err := jobAdapter.WaitRecreated(ctx, testNamespace, jobName, originalUID, utils.ReloadTimeout)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(recreated).To(BeTrue(),
+				"Job with valueFrom.configMapKeyRef should be recreated when ConfigMap changes")
+		})
+	})
+
+	Context("Job with valueFrom Secret reference", func() {
+		It("should recreate Job when Secret referenced via valueFrom changes", func() {
+			By("Creating a Secret")
+			_, err := utils.CreateSecretFromStrings(ctx, kubeClient, testNamespace, secretName,
+				map[string]string{"secret_key": "initial"}, nil)
+			Expect(err).NotTo(HaveOccurred())
+
+			By("Creating a Job with valueFrom.secretKeyRef")
+			job, err := utils.CreateJob(ctx, kubeClient, testNamespace, jobName,
+				utils.WithJobSecretKeyRef(secretName, "secret_key", "MY_SECRET"),
+				utils.WithJobAnnotations(utils.BuildSecretReloadAnnotation(secretName)))
+			Expect(err).NotTo(HaveOccurred())
+			originalUID := string(job.UID)
+
+			By("Waiting for Job to be ready")
+			err = jobAdapter.WaitReady(ctx, testNamespace, jobName, utils.WorkloadReadyTimeout)
+			Expect(err).NotTo(HaveOccurred())
+
+			By("Updating the Secret")
+			err = utils.UpdateSecretFromStrings(ctx, kubeClient, testNamespace, secretName, map[string]string{"secret_key": "updated"})
+			Expect(err).NotTo(HaveOccurred())
+
+			By("Waiting for Job to be recreated (new UID)")
+			_, recreated, err := jobAdapter.WaitRecreated(ctx, testNamespace, jobName, originalUID, utils.ReloadTimeout)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(recreated).To(BeTrue(), "Job with valueFrom.secretKeyRef should be recreated when Secret changes")
+		})
+	})
+
+	Context("Job with SecretProviderClass reference", Label("csi"), func() {
+		BeforeEach(func() {
+			if !utils.IsCSIDriverInstalled(ctx, csiClient) {
+				Skip("CSI secrets store driver not installed - skipping CSI test")
+			}
+			if !utils.IsVaultProviderInstalled(ctx, kubeClient) {
+				Skip("Vault CSI provider not installed - skipping CSI test")
+			}
+		})
+
+		It("should recreate Job when Vault secret changes", func() {
+			By("Creating a secret in Vault")
+			err := utils.CreateVaultSecret(
+				ctx, kubeClient, restConfig, vaultSecretPath, map[string]string{"api_key": "initial-value-v1"})
+			Expect(err).NotTo(HaveOccurred())
+
+			By("Creating a SecretProviderClass pointing to Vault secret")
+			_, err = utils.CreateSecretProviderClassWithSecret(
+				ctx, csiClient, testNamespace, spcName,
+				vaultSecretPath, "api_key",
+			)
+			Expect(err).NotTo(HaveOccurred())
+
+			By("Creating a Job with CSI volume and SPC reload annotation")
+			job, err := utils.CreateJob(ctx, kubeClient, testNamespace, jobName,
+				utils.WithJobCommand("sleep 300"),
+				utils.WithJobCSIVolume(spcName),
+				utils.WithJobAnnotations(utils.BuildSecretProviderClassReloadAnnotation(spcName)))
+			Expect(err).NotTo(HaveOccurred())
+			originalUID := string(job.UID)
+
+			By("Waiting for Job to be ready")
+			err = jobAdapter.WaitReady(ctx, testNamespace, jobName, utils.WorkloadReadyTimeout)
+			Expect(err).NotTo(HaveOccurred())
+
+			By("Finding the SPCPS created by CSI driver")
+			spcpsName, err := utils.FindSPCPSForSPC(
+				ctx, csiClient, testNamespace, spcName, utils.WorkloadReadyTimeout,
+			)
+			Expect(err).NotTo(HaveOccurred())
+			GinkgoWriter.Printf("Found SPCPS: %s\n", spcpsName)
+
+			By("Getting initial SPCPS version")
+			initialVersion, err := utils.GetSPCPSVersion(ctx, csiClient, testNamespace, spcpsName)
+			Expect(err).NotTo(HaveOccurred())
+			GinkgoWriter.Printf("Initial SPCPS version: %s\n", initialVersion)
+
+			By("Updating the Vault secret")
+			err = utils.UpdateVaultSecret(
+				ctx, kubeClient, restConfig, vaultSecretPath, map[string]string{"api_key": "updated-value-v2"})
+			Expect(err).NotTo(HaveOccurred())
+
+			By("Waiting for CSI driver to sync the new secret version")
+			err = utils.WaitForSPCPSVersionChange(ctx, csiClient, testNamespace, spcpsName, initialVersion, 10*time.Second)
+			Expect(err).NotTo(HaveOccurred())
+			GinkgoWriter.Println("CSI driver synced new secret version")
+
+			By("Waiting for Job to be recreated (new UID)")
+			_, recreated, err := jobAdapter.WaitRecreated(ctx, testNamespace, jobName, originalUID, utils.ReloadTimeout)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(recreated).To(BeTrue(), "Job should be recreated with new UID when Vault secret changes")
+		})
+	})
+})

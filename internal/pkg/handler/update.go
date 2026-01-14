@@ -4,13 +4,14 @@ import (
 	"time"
 
 	"github.com/sirupsen/logrus"
+	v1 "k8s.io/api/core/v1"
+	"k8s.io/client-go/tools/record"
+	csiv1 "sigs.k8s.io/secrets-store-csi-driver/apis/v1"
+
 	"github.com/stakater/Reloader/internal/pkg/metrics"
 	"github.com/stakater/Reloader/internal/pkg/options"
 	"github.com/stakater/Reloader/internal/pkg/util"
 	"github.com/stakater/Reloader/pkg/common"
-	v1 "k8s.io/api/core/v1"
-	"k8s.io/client-go/tools/record"
-	csiv1 "sigs.k8s.io/secrets-store-csi-driver/apis/v1"
 )
 
 // ResourceUpdatedHandler contains updated objects
