@@ -55,7 +55,7 @@ func TestResourceCreatedHandler_GetConfig_ConfigMap(t *testing.T) {
 	assert.Equal(t, "default", config.Namespace)
 	assert.Equal(t, constants.ConfigmapEnvVarPostfix, config.Type)
 	assert.NotEmpty(t, config.SHAValue)
-	assert.Empty(t, oldSHA) // oldSHA is always empty for create handler
+	assert.Empty(t, oldSHA)
 }
 
 func TestResourceCreatedHandler_GetConfig_Secret(t *testing.T) {
@@ -75,7 +75,6 @@ func TestResourceCreatedHandler_GetConfig_Secret(t *testing.T) {
 }
 
 func TestResourceCreatedHandler_GetConfig_InvalidResource(t *testing.T) {
-	// Test with an invalid resource type
 	handler := ResourceCreatedHandler{
 		Resource:   "invalid",
 		Collectors: createTestCollectors(),
@@ -83,7 +82,6 @@ func TestResourceCreatedHandler_GetConfig_InvalidResource(t *testing.T) {
 
 	config, _ := handler.GetConfig()
 
-	// Config should be empty/zero for invalid resources
 	assert.Empty(t, config.ResourceName)
 }
 
@@ -95,7 +93,6 @@ func TestResourceCreatedHandler_Handle_NilResource(t *testing.T) {
 
 	err := handler.Handle()
 
-	// Should not return error even with nil resource (just logs error)
 	assert.NoError(t, err)
 }
 
@@ -178,7 +175,6 @@ func TestResourceUpdatedHandler_GetConfig_ConfigMap(t *testing.T) {
 	assert.Equal(t, constants.ConfigmapEnvVarPostfix, config.Type)
 	assert.NotEmpty(t, config.SHAValue)
 	assert.NotEmpty(t, oldSHA)
-	// SHAs should be different since data changed
 	assert.NotEqual(t, config.SHAValue, oldSHA)
 }
 
@@ -195,7 +191,6 @@ func TestResourceUpdatedHandler_GetConfig_ConfigMap_SameData(t *testing.T) {
 	config, oldSHA := handler.GetConfig()
 
 	assert.Equal(t, "test-cm", config.ResourceName)
-	// SHAs should be the same since data didn't change
 	assert.Equal(t, config.SHAValue, oldSHA)
 }
 
@@ -232,7 +227,6 @@ func TestResourceUpdatedHandler_GetConfig_Secret_SameData(t *testing.T) {
 	config, oldSHA := handler.GetConfig()
 
 	assert.Equal(t, "test-secret", config.ResourceName)
-	// SHAs should be the same since data didn't change
 	assert.Equal(t, config.SHAValue, oldSHA)
 }
 
@@ -270,16 +264,14 @@ func TestResourceUpdatedHandler_Handle_NilOldResource(t *testing.T) {
 
 	err := handler.Handle()
 
-	// Should not return error (just logs error)
 	assert.NoError(t, err)
 }
 
 func TestResourceUpdatedHandler_Handle_NoChange(t *testing.T) {
-	// When SHA values are the same, Handle should return nil without doing anything
 	cm := createTestConfigMap(map[string]string{"key": "same-value"})
 	handler := ResourceUpdatedHandler{
 		Resource:    cm,
-		OldResource: cm, // Same resource = same SHA
+		OldResource: cm,
 		Collectors:  createTestCollectors(),
 	}
 

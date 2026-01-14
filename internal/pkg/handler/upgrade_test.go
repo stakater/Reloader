@@ -203,7 +203,7 @@ func TestGetVolumeMountName(t *testing.T) {
 					},
 				},
 			},
-			mountType:  constants.ConfigmapEnvVarPostfix, // Looking for configmap but volume is secret
+			mountType:  constants.ConfigmapEnvVarPostfix,
 			volumeName: "my-secret",
 			expected:   "",
 		},
@@ -509,7 +509,7 @@ func TestUpdateEnvVar(t *testing.T) {
 		envVar    string
 		shaData   string
 		expected  constants.Result
-		newValue  string // expected value after update
+		newValue  string
 	}{
 		{
 			name: "Update existing env var with different value",
@@ -567,7 +567,6 @@ func TestUpdateEnvVar(t *testing.T) {
 			assert.Equal(t, tt.expected, result)
 
 			if tt.expected == constants.Updated || tt.expected == constants.NotUpdated {
-				// Verify the value in the container
 				for _, env := range tt.container.Env {
 					if env.Name == tt.envVar {
 						assert.Equal(t, tt.newValue, env.Value)
@@ -658,7 +657,6 @@ func TestCreateReloadedAnnotations(t *testing.T) {
 		},
 	}
 
-	// Use a simple func that doesn't require patch templates
 	funcs := callbacks.RollingUpgradeFuncs{
 		SupportsPatch: false,
 	}
@@ -672,7 +670,6 @@ func TestCreateReloadedAnnotations(t *testing.T) {
 			} else {
 				assert.NoError(t, err)
 				assert.NotNil(t, annotations)
-				// Verify annotation key exists
 				_, exists := annotations[getReloaderAnnotationKey()]
 				assert.True(t, exists)
 			}
@@ -782,7 +779,7 @@ func TestGetContainerUsingResource(t *testing.T) {
 			},
 			autoReload:   false,
 			expectNil:    false,
-			expectedName: "main-app", // Returns first container when init container has the mount
+			expectedName: "main-app",
 		},
 		{
 			name: "EnvFrom ConfigMap in regular container",
@@ -846,7 +843,7 @@ func TestGetContainerUsingResource(t *testing.T) {
 				ResourceName: "external-configmap",
 				Type:         constants.ConfigmapEnvVarPostfix,
 			},
-			autoReload:   false, // Explicit annotation should use first container fallback
+			autoReload:   false,
 			expectNil:    false,
 			expectedName: "first-container",
 		},
@@ -861,7 +858,7 @@ func TestGetContainerUsingResource(t *testing.T) {
 				ResourceName: "unmounted-configmap",
 				Type:         constants.ConfigmapEnvVarPostfix,
 			},
-			autoReload: true, // Auto mode should NOT use first container fallback
+			autoReload: true,
 			expectNil:  true,
 		},
 		{
@@ -902,7 +899,7 @@ func TestGetContainerUsingResource(t *testing.T) {
 				Type:         constants.ConfigmapEnvVarPostfix,
 			},
 			autoReload: false,
-			expectNil:  true, // No regular containers to return
+			expectNil:  true,
 		},
 		{
 			name: "CSI SecretProviderClass volume",
@@ -1038,7 +1035,9 @@ func TestRetryOnConflict(t *testing.T) {
 				matched bool
 				err     error
 			}{
-				{matched: false, err: apierrors.NewConflict(schema.GroupResource{Group: "", Resource: "deployments"}, "test", errors.New("conflict"))},
+				{matched: false,
+					err: apierrors.NewConflict(schema.GroupResource{Group: "", Resource: "deployments"}, "test",
+						errors.New("conflict"))},
 				{matched: true, err: nil},
 			},
 			expectMatched: true,
@@ -1086,7 +1085,6 @@ func TestRetryOnConflict(t *testing.T) {
 			callCount := 0
 			fn := func(fetchResource bool) (bool, error) {
 				if callCount >= len(tt.fnResults) {
-					// Should not happen in tests, but return success to prevent infinite loop
 					return true, nil
 				}
 				result := tt.fnResults[callCount]
@@ -1107,7 +1105,6 @@ func TestRetryOnConflict(t *testing.T) {
 }
 
 func TestGetVolumeMountNameCSI(t *testing.T) {
-	// Test CSI SecretProviderClass volume specifically
 	tests := []struct {
 		name       string
 		volumes    []v1.Volume
@@ -1303,11 +1300,9 @@ func TestSecretProviderClassAnnotationReloaded(t *testing.T) {
 }
 
 func TestInvokeReloadStrategy(t *testing.T) {
-	// Save original value and restore after test
 	originalStrategy := options.ReloadStrategy
 	defer func() { options.ReloadStrategy = originalStrategy }()
 
-	// Create a minimal deployment for testing
 	deployment := createTestDeployment(
 		[]v1.Container{
 			{
@@ -1365,14 +1360,13 @@ func TestInvokeReloadStrategy(t *testing.T) {
 			name:           "Env vars strategy with container found",
 			reloadStrategy: constants.EnvVarsReloadStrategy,
 			autoReload:     false,
-			expectResult:   constants.Updated, // Creates env var when not found
+			expectResult:   constants.Updated,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			options.ReloadStrategy = tt.reloadStrategy
-			// Reset annotations for each test
 			deployment.Spec.Template.Annotations = map[string]string{}
 
 			result := invokeReloadStrategy(funcs, deployment, config, tt.autoReload)

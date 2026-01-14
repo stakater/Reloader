@@ -129,7 +129,7 @@ func TestRemoveContainerEnvVars(t *testing.T) {
 							},
 						},
 					},
-					Env: []v1.EnvVar{}, // No env vars
+					Env: []v1.EnvVar{},
 				},
 			},
 			volumes: []v1.Volume{},
@@ -201,7 +201,6 @@ func TestRemoveContainerEnvVars(t *testing.T) {
 			assert.Equal(t, tt.expected, result.Result)
 
 			if tt.envVarRemoved {
-				// Verify env var was removed from container
 				containers := deployment.Spec.Template.Spec.Containers
 				for _, c := range containers {
 					for _, env := range c.Env {
@@ -215,7 +214,6 @@ func TestRemoveContainerEnvVars(t *testing.T) {
 }
 
 func TestInvokeDeleteStrategy(t *testing.T) {
-	// Save original strategy and restore after test
 	originalStrategy := options.ReloadStrategy
 	defer func() {
 		options.ReloadStrategy = originalStrategy
@@ -297,7 +295,6 @@ func TestInvokeDeleteStrategy(t *testing.T) {
 
 			result := invokeDeleteStrategy(funcs, deployment, tt.config, true)
 
-			// Should return a valid result
 			assert.NotNil(t, result)
 		})
 	}
@@ -345,12 +342,11 @@ func TestRemovePodAnnotations(t *testing.T) {
 				VolumesFunc:        mockVolumesFunc,
 				PodAnnotationsFunc: mockPodAnnotationsFunc,
 				PatchTemplatesFunc: mockPatchTemplatesFunc,
-				SupportsPatch:      false, // No patch for annotations removal test
+				SupportsPatch:      false,
 			}
 
 			result := removePodAnnotations(funcs, deployment, tt.config, true)
 
-			// Should return Updated since it sets the SHA to empty data hash
 			assert.Equal(t, constants.Updated, result.Result)
 		})
 	}

@@ -42,16 +42,13 @@ type Controller struct {
 }
 
 // controllerInitialized flag determines whether controlled is being initialized
-var secretControllerInitialized bool = false
-var configmapControllerInitialized bool = false
+var secretControllerInitialized = false
+var configmapControllerInitialized = false
 var selectedNamespacesCache []string
 
 // NewController for initializing a Controller
-func NewController(
-	client kubernetes.Interface, resource string, namespace string, ignoredNamespaces []string, namespaceLabelSelector string, resourceLabelSelector string, collectors metrics.Collectors) (
-	*Controller, error,
-) {
-
+func NewController(client kubernetes.Interface, resource string, namespace string, ignoredNamespaces []string, namespaceLabelSelector string, resourceLabelSelector string, collectors metrics.Collectors) (*Controller,
+	error) {
 	if options.SyncAfterRestart {
 		secretControllerInitialized = true
 		configmapControllerInitialized = true

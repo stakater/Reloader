@@ -108,7 +108,7 @@ func TestResourceUpdatedHandler_GetConfig(t *testing.T) {
 			expectedNS:        "default",
 			expectedType:      constants.ConfigmapEnvVarPostfix,
 			expectSHANotEmpty: true,
-			expectSHAChanged:  false, // Only data affects SHA, not labels
+			expectSHAChanged:  false,
 		},
 		{
 			name: "ConfigMap only annotations changed - SHA unchanged",
@@ -132,7 +132,7 @@ func TestResourceUpdatedHandler_GetConfig(t *testing.T) {
 			expectedNS:        "default",
 			expectedType:      constants.ConfigmapEnvVarPostfix,
 			expectSHANotEmpty: true,
-			expectSHAChanged:  false, // Only data affects SHA, not annotations
+			expectSHAChanged:  false,
 		},
 		{
 			name: "Secret data changed",
@@ -257,7 +257,7 @@ func TestResourceUpdatedHandler_Handle(t *testing.T) {
 			name:        "Both resources nil",
 			oldResource: nil,
 			newResource: nil,
-			expectError: false, // logs error but returns nil
+			expectError: false,
 		},
 		{
 			name:        "Old resource nil",
@@ -299,7 +299,7 @@ func TestResourceUpdatedHandler_Handle(t *testing.T) {
 				ObjectMeta: metav1.ObjectMeta{Name: "cm", Namespace: "default"},
 				Data:       map[string]string{"key": "new"},
 			},
-			expectError: false, // No error, but no workloads to update in test
+			expectError: false,
 		},
 		{
 			name: "Secret unchanged - no action",
@@ -347,7 +347,6 @@ func TestResourceUpdatedHandler_Handle(t *testing.T) {
 }
 
 func TestResourceUpdatedHandler_GetConfig_Annotations(t *testing.T) {
-	// Test that annotations from the new resource are captured
 	oldCM := &v1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "cm",
@@ -378,15 +377,12 @@ func TestResourceUpdatedHandler_GetConfig_Annotations(t *testing.T) {
 
 	config, _ := handler.GetConfig()
 
-	// Should have new annotations
 	assert.Equal(t, "new-value", config.ResourceAnnotations["new-annotation"])
-	// Should not have old annotations
 	_, hasOld := config.ResourceAnnotations["old-annotation"]
 	assert.False(t, hasOld)
 }
 
 func TestResourceUpdatedHandler_GetConfig_Labels(t *testing.T) {
-	// Test that labels from the new resource are captured
 	oldSecret := &v1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "secret",
@@ -413,12 +409,10 @@ func TestResourceUpdatedHandler_GetConfig_Labels(t *testing.T) {
 
 	config, _ := handler.GetConfig()
 
-	// Should have new labels
 	assert.Equal(t, "v2", config.Labels["version"])
 }
 
 func TestResourceUpdatedHandler_EmptyToNonEmpty(t *testing.T) {
-	// Test transition from empty data to non-empty data
 	oldCM := &v1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{Name: "cm", Namespace: "default"},
 		Data:       map[string]string{},
@@ -440,7 +434,6 @@ func TestResourceUpdatedHandler_EmptyToNonEmpty(t *testing.T) {
 }
 
 func TestResourceUpdatedHandler_NonEmptyToEmpty(t *testing.T) {
-	// Test transition from non-empty data to empty data
 	oldCM := &v1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{Name: "cm", Namespace: "default"},
 		Data:       map[string]string{"key": "value"},
@@ -462,7 +455,6 @@ func TestResourceUpdatedHandler_NonEmptyToEmpty(t *testing.T) {
 }
 
 func TestResourceUpdatedHandler_BinaryDataChange(t *testing.T) {
-	// Test ConfigMap binary data change
 	oldCM := &v1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{Name: "cm", Namespace: "default"},
 		BinaryData: map[string][]byte{"binary": []byte("old-binary")},
@@ -484,7 +476,6 @@ func TestResourceUpdatedHandler_BinaryDataChange(t *testing.T) {
 }
 
 func TestResourceUpdatedHandler_MixedDataAndBinaryData(t *testing.T) {
-	// Test ConfigMap with both Data and BinaryData
 	oldCM := &v1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{Name: "cm", Namespace: "default"},
 		Data:       map[string]string{"text": "value"},
@@ -508,7 +499,6 @@ func TestResourceUpdatedHandler_MixedDataAndBinaryData(t *testing.T) {
 }
 
 func TestResourceUpdatedHandler_DifferentNamespaces(t *testing.T) {
-	// Edge case: what if namespaces are different (shouldn't happen in practice)
 	oldCM := &v1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{Name: "cm", Namespace: "ns1"},
 		Data:       map[string]string{"key": "value"},
@@ -526,6 +516,5 @@ func TestResourceUpdatedHandler_DifferentNamespaces(t *testing.T) {
 
 	config, _ := handler.GetConfig()
 
-	// Should use new resource's namespace
 	assert.Equal(t, "ns2", config.Namespace)
 }

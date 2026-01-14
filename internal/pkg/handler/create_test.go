@@ -210,7 +210,6 @@ func TestResourceCreatedHandler_GetConfig(t *testing.T) {
 }
 
 func TestResourceCreatedHandler_GetConfig_Annotations(t *testing.T) {
-	// Test that annotations are properly captured in config
 	cm := &v1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "annotated-cm",
@@ -236,7 +235,6 @@ func TestResourceCreatedHandler_GetConfig_Annotations(t *testing.T) {
 }
 
 func TestResourceCreatedHandler_GetConfig_Labels(t *testing.T) {
-	// Test that labels are properly captured in config
 	secret := &v1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "labeled-secret",
@@ -270,7 +268,7 @@ func TestResourceCreatedHandler_Handle(t *testing.T) {
 		{
 			name:        "Nil resource",
 			resource:    nil,
-			expectError: false, // logs error but returns nil
+			expectError: false,
 		},
 		{
 			name: "Valid ConfigMap - no workloads to update",
@@ -315,7 +313,6 @@ func TestResourceCreatedHandler_Handle(t *testing.T) {
 }
 
 func TestResourceCreatedHandler_SHAConsistency(t *testing.T) {
-	// Test that same data produces same SHA
 	data := map[string]string{"key": "value"}
 
 	cm1 := &v1.ConfigMap{
@@ -333,12 +330,10 @@ func TestResourceCreatedHandler_SHAConsistency(t *testing.T) {
 	config1, _ := handler1.GetConfig()
 	config2, _ := handler2.GetConfig()
 
-	// Same data should produce same SHA
 	assert.Equal(t, config1.SHAValue, config2.SHAValue)
 }
 
 func TestResourceCreatedHandler_SHADifference(t *testing.T) {
-	// Test that different data produces different SHA
 	cm1 := &v1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{Name: "cm", Namespace: "default"},
 		Data:       map[string]string{"key": "value1"},
@@ -354,6 +349,5 @@ func TestResourceCreatedHandler_SHADifference(t *testing.T) {
 	config1, _ := handler1.GetConfig()
 	config2, _ := handler2.GetConfig()
 
-	// Different data should produce different SHA
 	assert.NotEqual(t, config1.SHAValue, config2.SHAValue)
 }
