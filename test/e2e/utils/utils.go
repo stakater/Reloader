@@ -77,29 +77,6 @@ func GetProjectDir() (string, error) {
 	return wd, nil
 }
 
-// GetNonEmptyLines splits the given output string into individual lines,
-// filtering out empty lines.
-func GetNonEmptyLines(output string) []string {
-	var result []string
-	lines := strings.Split(output, "\n")
-	for _, line := range lines {
-		trimmed := strings.TrimSpace(line)
-		if trimmed != "" {
-			result = append(result, trimmed)
-		}
-	}
-	return result
-}
-
-// GetEnvOrDefault returns the value of the environment variable named by key,
-// or defaultValue if the variable is not present or empty.
-func GetEnvOrDefault(key, defaultValue string) string {
-	if value := os.Getenv(key); value != "" {
-		return value
-	}
-	return defaultValue
-}
-
 // GetKubeconfig returns the path to the kubeconfig file.
 // It checks KUBECONFIG environment variable first, then falls back to ~/.kube/config.
 func GetKubeconfig() string {
