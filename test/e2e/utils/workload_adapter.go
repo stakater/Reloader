@@ -33,8 +33,8 @@ type WorkloadConfig struct {
 	ConfigMapName          string
 	SecretName             string
 	SPCName                string
-	Annotations            map[string]string            // Annotations for workload metadata (e.g., Deployment.metadata.annotations)
-	PodTemplateAnnotations map[string]string            // Annotations for pod template metadata (e.g., Deployment.spec.template.metadata.annotations)
+	Annotations            map[string]string // Annotations for workload metadata (e.g., Deployment.metadata.annotations)
+	PodTemplateAnnotations map[string]string // Annotations for pod template metadata (e.g., Deployment.spec.template.metadata.annotations)
 	UseConfigMapEnvFrom    bool
 	UseSecretEnvFrom       bool
 	UseConfigMapVolume     bool

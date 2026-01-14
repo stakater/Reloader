@@ -841,8 +841,7 @@ var _ = Describe("Workload Reload Tests", func() {
 					Expect(err).NotTo(HaveOccurred())
 
 					By("Updating the ConfigMap")
-					err = utils.UpdateConfigMap(ctx, kubeClient, testNamespace, configMapName,
-						map[string]string{"key": "updated"})
+					err = utils.UpdateConfigMap(ctx, kubeClient, testNamespace, configMapName, map[string]string{"key": "updated"})
 					Expect(err).NotTo(HaveOccurred())
 
 					By("Waiting for workload to be reloaded")
@@ -883,8 +882,7 @@ var _ = Describe("Workload Reload Tests", func() {
 					Expect(err).NotTo(HaveOccurred())
 
 					By("Updating the Secret")
-					err = utils.UpdateSecretFromStrings(ctx, kubeClient, testNamespace, secretName,
-						map[string]string{"password": "updated"})
+					err = utils.UpdateSecretFromStrings(ctx, kubeClient, testNamespace, secretName, map[string]string{"password": "updated"})
 					Expect(err).NotTo(HaveOccurred())
 
 					By("Waiting for workload to be reloaded")
@@ -925,8 +923,7 @@ var _ = Describe("Workload Reload Tests", func() {
 					Expect(err).NotTo(HaveOccurred())
 
 					By("Updating the ConfigMap")
-					err = utils.UpdateConfigMap(ctx, kubeClient, testNamespace, configMapName,
-						map[string]string{"key": "updated"})
+					err = utils.UpdateConfigMap(ctx, kubeClient, testNamespace, configMapName, map[string]string{"key": "updated"})
 					Expect(err).NotTo(HaveOccurred())
 
 					By("Waiting for workload to be reloaded")
@@ -956,8 +953,7 @@ var _ = Describe("Workload Reload Tests", func() {
 					}
 
 					By("Creating a secret in Vault")
-					err := utils.CreateVaultSecret(ctx, kubeClient, restConfig, vaultSecretPath,
-						map[string]string{"api_key": "initial-value-v1"})
+					err := utils.CreateVaultSecret(ctx, kubeClient, restConfig, vaultSecretPath, map[string]string{"api_key": "initial-value-v1"})
 					Expect(err).NotTo(HaveOccurred())
 
 					By("Creating a SecretProviderClass pointing to Vault secret")
@@ -988,8 +984,7 @@ var _ = Describe("Workload Reload Tests", func() {
 					Expect(err).NotTo(HaveOccurred())
 
 					By("Updating the Vault secret")
-					err = utils.UpdateVaultSecret(ctx, kubeClient, restConfig, vaultSecretPath,
-						map[string]string{"api_key": "updated-value-v2"})
+					err = utils.UpdateVaultSecret(ctx, kubeClient, restConfig, vaultSecretPath, map[string]string{"api_key": "updated-value-v2"})
 					Expect(err).NotTo(HaveOccurred())
 
 					By("Waiting for CSI driver to sync the new secret version")
@@ -1024,8 +1019,7 @@ var _ = Describe("Workload Reload Tests", func() {
 					}
 
 					By("Creating a secret in Vault")
-					err := utils.CreateVaultSecret(ctx, kubeClient, restConfig, vaultSecretPath,
-						map[string]string{"api_key": "initial-value-v1"})
+					err := utils.CreateVaultSecret(ctx, kubeClient, restConfig, vaultSecretPath, map[string]string{"api_key": "initial-value-v1"})
 					Expect(err).NotTo(HaveOccurred())
 
 					By("Creating a SecretProviderClass pointing to Vault secret")
@@ -1056,8 +1050,7 @@ var _ = Describe("Workload Reload Tests", func() {
 					Expect(err).NotTo(HaveOccurred())
 
 					By("Updating the Vault secret")
-					err = utils.UpdateVaultSecret(ctx, kubeClient, restConfig, vaultSecretPath,
-						map[string]string{"api_key": "updated-value-v2"})
+					err = utils.UpdateVaultSecret(ctx, kubeClient, restConfig, vaultSecretPath, map[string]string{"api_key": "updated-value-v2"})
 					Expect(err).NotTo(HaveOccurred())
 
 					By("Waiting for CSI driver to sync the new secret version")
@@ -1104,8 +1097,7 @@ var _ = Describe("Workload Reload Tests", func() {
 					Expect(err).NotTo(HaveOccurred())
 
 					By("Updating the ConfigMap")
-					err = utils.UpdateConfigMap(ctx, kubeClient, testNamespace, configMapName,
-						map[string]string{"key": "updated"})
+					err = utils.UpdateConfigMap(ctx, kubeClient, testNamespace, configMapName, map[string]string{"key": "updated"})
 					Expect(err).NotTo(HaveOccurred())
 
 					By("Waiting for workload to be reloaded")
@@ -1150,8 +1142,7 @@ var _ = Describe("Workload Reload Tests", func() {
 					Expect(err).NotTo(HaveOccurred())
 
 					By("Updating the Secret (not the ConfigMap)")
-					err = utils.UpdateSecretFromStrings(ctx, kubeClient, testNamespace, secretName,
-						map[string]string{"password": "updated"})
+					err = utils.UpdateSecretFromStrings(ctx, kubeClient, testNamespace, secretName, map[string]string{"password": "updated"})
 					Expect(err).NotTo(HaveOccurred())
 
 					By("Verifying workload was NOT reloaded (negative test)")
