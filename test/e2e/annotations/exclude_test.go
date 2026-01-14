@@ -17,6 +17,7 @@ var _ = Describe("Exclude Annotation Tests", func() {
 		configMapName2 string
 		secretName     string
 		secretName2    string
+		workloadName   string
 	)
 
 	BeforeEach(func() {
@@ -25,6 +26,7 @@ var _ = Describe("Exclude Annotation Tests", func() {
 		configMapName2 = utils.RandName("cm2")
 		secretName = utils.RandName("secret")
 		secretName2 = utils.RandName("secret2")
+		workloadName = utils.RandName("workload")
 	})
 
 	AfterEach(func() {
@@ -183,6 +185,58 @@ var _ = Describe("Exclude Annotation Tests", func() {
 			Expect(err).NotTo(HaveOccurred())
 			Expect(reloaded).To(BeTrue(), "Deployment should reload when non-excluded Secret changes")
 		})
+	})
+
+	Context("Exclude annotation on pod template", func() {
+		DescribeTable("should NOT reload when exclude annotation is on pod template only",
+			func(workloadType utils.WorkloadType) {
+				adapter := registry.Get(workloadType)
+				if adapter == nil {
+					Skip(fmt.Sprintf("%s adapter not available (CRD not installed)", workloadType))
+				}
+
+				By("Creating two ConfigMaps")
+				_, err := utils.CreateConfigMap(ctx, kubeClient, testNamespace, configMapName,
+					map[string]string{"key": "initial"}, nil)
+				Expect(err).NotTo(HaveOccurred())
+
+				_, err = utils.CreateConfigMap(ctx, kubeClient, testNamespace, configMapName2,
+					map[string]string{"key2": "initial2"}, nil)
+				Expect(err).NotTo(HaveOccurred())
+
+				By("Creating workload with auto=true and exclude annotation on pod template ONLY")
+				err = adapter.Create(ctx, testNamespace, workloadName, utils.WorkloadConfig{
+					ConfigMapName:       configMapName,
+					UseConfigMapEnvFrom: true,
+					PodTemplateAnnotations: utils.MergeAnnotations(
+						utils.BuildAutoTrueAnnotation(),
+						utils.BuildConfigMapExcludeAnnotation(configMapName),
+					),
+				})
+				Expect(err).NotTo(HaveOccurred())
+				DeferCleanup(func() { _ = adapter.Delete(ctx, testNamespace, workloadName) })
+
+				By("Waiting for workload to be ready")
+				err = adapter.WaitReady(ctx, testNamespace, workloadName, utils.DeploymentReady)
+				Expect(err).NotTo(HaveOccurred())
+
+				By("Updating the excluded ConfigMap")
+				err = utils.UpdateConfigMap(ctx, kubeClient, testNamespace, configMapName,
+					map[string]string{"key": "updated"})
+				Expect(err).NotTo(HaveOccurred())
+
+				By("Verifying workload was NOT reloaded (excluded ConfigMap)")
+				time.Sleep(utils.NegativeTestWait)
+				reloaded, err := adapter.WaitReloaded(ctx, testNamespace, workloadName,
+					utils.AnnotationLastReloadedFrom, utils.ShortTimeout)
+				Expect(err).NotTo(HaveOccurred())
+				Expect(reloaded).To(BeFalse(), "%s should NOT reload with exclude on pod template", workloadType)
+			},
+			Entry("Deployment", utils.WorkloadDeployment),
+			Entry("DaemonSet", utils.WorkloadDaemonSet),
+			Entry("StatefulSet", utils.WorkloadStatefulSet),
+			Entry("ArgoRollout", Label("argo"), utils.WorkloadArgoRollout),
+			Entry("DeploymentConfig", Label("openshift"), utils.WorkloadDeploymentConfig))
 	})
 
 	Context("SecretProviderClass exclude annotation", Label("csi"), func() {

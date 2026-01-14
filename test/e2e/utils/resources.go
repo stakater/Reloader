@@ -897,6 +897,35 @@ func WithJobSecretKeyRef(secretName, key, envVarName string) JobOption {
 	}
 }
 
+// WithJobCSIVolume adds a CSI volume referencing a SecretProviderClass to a Job.
+func WithJobCSIVolume(spcName string) JobOption {
+	return func(j *batchv1.Job) {
+		volumeName := csiVolumeName(spcName)
+		mountPath := csiMountPath(spcName)
+
+		j.Spec.Template.Spec.Volumes = append(j.Spec.Template.Spec.Volumes, corev1.Volume{
+			Name: volumeName,
+			VolumeSource: corev1.VolumeSource{
+				CSI: &corev1.CSIVolumeSource{
+					Driver:   CSIDriverName,
+					ReadOnly: ptr.To(true),
+					VolumeAttributes: map[string]string{
+						"secretProviderClass": spcName,
+					},
+				},
+			},
+		})
+		j.Spec.Template.Spec.Containers[0].VolumeMounts = append(
+			j.Spec.Template.Spec.Containers[0].VolumeMounts,
+			corev1.VolumeMount{
+				Name:      volumeName,
+				MountPath: mountPath,
+				ReadOnly:  true,
+			},
+		)
+	}
+}
+
 // baseJobResource creates a base Job template.
 func baseJobResource(namespace, name string) *batchv1.Job {
 	labels := map[string]string{"app": name}

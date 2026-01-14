@@ -1,6 +1,9 @@
 package advanced
 
 import (
+	"fmt"
+	"time"
+
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
@@ -9,21 +12,27 @@ import (
 
 var _ = Describe("Job Workload Recreation Tests", func() {
 	var (
-		jobName       string
-		configMapName string
-		secretName    string
+		jobName         string
+		configMapName   string
+		secretName      string
+		spcName         string
+		vaultSecretPath string
 	)
 
 	BeforeEach(func() {
 		jobName = utils.RandName("job")
 		configMapName = utils.RandName("cm")
 		secretName = utils.RandName("secret")
+		spcName = utils.RandName("spc")
+		vaultSecretPath = fmt.Sprintf("secret/%s", utils.RandName("vault"))
 	})
 
 	AfterEach(func() {
 		_ = utils.DeleteJob(ctx, kubeClient, testNamespace, jobName)
 		_ = utils.DeleteConfigMap(ctx, kubeClient, testNamespace, configMapName)
 		_ = utils.DeleteSecret(ctx, kubeClient, testNamespace, secretName)
+		_ = utils.DeleteSecretProviderClass(ctx, csiClient, testNamespace, spcName)
+		_ = utils.DeleteVaultSecret(ctx, kubeClient, restConfig, vaultSecretPath)
 	})
 
 	Context("Job with ConfigMap reference", func() {
@@ -40,8 +49,8 @@ var _ = Describe("Job Workload Recreation Tests", func() {
 			Expect(err).NotTo(HaveOccurred())
 			originalUID := string(job.UID)
 
-			By("Waiting for Job to exist")
-			err = utils.WaitForJobExists(ctx, kubeClient, testNamespace, jobName, utils.DeploymentReady)
+			By("Waiting for Job to be ready")
+			err = utils.WaitForJobReady(ctx, kubeClient, testNamespace, jobName, utils.DeploymentReady)
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Updating the ConfigMap")
@@ -69,8 +78,8 @@ var _ = Describe("Job Workload Recreation Tests", func() {
 			Expect(err).NotTo(HaveOccurred())
 			originalUID := string(job.UID)
 
-			By("Waiting for Job to exist")
-			err = utils.WaitForJobExists(ctx, kubeClient, testNamespace, jobName, utils.DeploymentReady)
+			By("Waiting for Job to be ready")
+			err = utils.WaitForJobReady(ctx, kubeClient, testNamespace, jobName, utils.DeploymentReady)
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Updating the Secret")
@@ -99,8 +108,8 @@ var _ = Describe("Job Workload Recreation Tests", func() {
 			Expect(err).NotTo(HaveOccurred())
 			originalUID := string(job.UID)
 
-			By("Waiting for Job to exist")
-			err = utils.WaitForJobExists(ctx, kubeClient, testNamespace, jobName, utils.DeploymentReady)
+			By("Waiting for Job to be ready")
+			err = utils.WaitForJobReady(ctx, kubeClient, testNamespace, jobName, utils.DeploymentReady)
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Updating the ConfigMap")
@@ -129,8 +138,8 @@ var _ = Describe("Job Workload Recreation Tests", func() {
 			Expect(err).NotTo(HaveOccurred())
 			originalUID := string(job.UID)
 
-			By("Waiting for Job to exist")
-			err = utils.WaitForJobExists(ctx, kubeClient, testNamespace, jobName, utils.DeploymentReady)
+			By("Waiting for Job to be ready")
+			err = utils.WaitForJobReady(ctx, kubeClient, testNamespace, jobName, utils.DeploymentReady)
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Updating the ConfigMap")
@@ -160,8 +169,8 @@ var _ = Describe("Job Workload Recreation Tests", func() {
 			Expect(err).NotTo(HaveOccurred())
 			originalUID := string(job.UID)
 
-			By("Waiting for Job to exist")
-			err = utils.WaitForJobExists(ctx, kubeClient, testNamespace, jobName, utils.DeploymentReady)
+			By("Waiting for Job to be ready")
+			err = utils.WaitForJobReady(ctx, kubeClient, testNamespace, jobName, utils.DeploymentReady)
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Updating the Secret")
@@ -173,6 +182,72 @@ var _ = Describe("Job Workload Recreation Tests", func() {
 				utils.ReloadTimeout)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(recreated).To(BeTrue(), "Job with valueFrom.secretKeyRef should be recreated when Secret changes")
+		})
+	})
+
+	Context("Job with SecretProviderClass reference", Label("csi"), func() {
+		BeforeEach(func() {
+			// Skip if CSI driver not installed
+			if !utils.IsCSIDriverInstalled(ctx, csiClient) {
+				Skip("CSI secrets store driver not installed - skipping CSI test")
+			}
+			// Skip if Vault CSI provider not installed
+			if !utils.IsVaultProviderInstalled(ctx, kubeClient) {
+				Skip("Vault CSI provider not installed - skipping CSI test")
+			}
+		})
+
+		It("should recreate Job when Vault secret changes", func() {
+			By("Creating a secret in Vault")
+			err := utils.CreateVaultSecret(
+				ctx, kubeClient, restConfig, vaultSecretPath, map[string]string{"api_key": "initial-value-v1"})
+			Expect(err).NotTo(HaveOccurred())
+
+			By("Creating a SecretProviderClass pointing to Vault secret")
+			_, err = utils.CreateSecretProviderClassWithSecret(
+				ctx, csiClient, testNamespace, spcName,
+				vaultSecretPath, "api_key",
+			)
+			Expect(err).NotTo(HaveOccurred())
+
+			By("Creating a Job with CSI volume and SPC reload annotation")
+			job, err := utils.CreateJob(ctx, kubeClient, testNamespace, jobName,
+				utils.WithJobCSIVolume(spcName),
+				utils.WithJobAnnotations(utils.BuildSecretProviderClassReloadAnnotation(spcName)))
+			Expect(err).NotTo(HaveOccurred())
+			originalUID := string(job.UID)
+
+			By("Waiting for Job to be ready")
+			err = utils.WaitForJobReady(ctx, kubeClient, testNamespace, jobName, utils.DeploymentReady)
+			Expect(err).NotTo(HaveOccurred())
+
+			By("Finding the SPCPS created by CSI driver")
+			spcpsName, err := utils.FindSPCPSForSPC(
+				ctx, csiClient, testNamespace, spcName, utils.DeploymentReady,
+			)
+			Expect(err).NotTo(HaveOccurred())
+			GinkgoWriter.Printf("Found SPCPS: %s\n", spcpsName)
+
+			By("Getting initial SPCPS version")
+			initialVersion, err := utils.GetSPCPSVersion(ctx, csiClient, testNamespace, spcpsName)
+			Expect(err).NotTo(HaveOccurred())
+			GinkgoWriter.Printf("Initial SPCPS version: %s\n", initialVersion)
+
+			By("Updating the Vault secret")
+			err = utils.UpdateVaultSecret(
+				ctx, kubeClient, restConfig, vaultSecretPath, map[string]string{"api_key": "updated-value-v2"})
+			Expect(err).NotTo(HaveOccurred())
+
+			By("Waiting for CSI driver to sync the new secret version")
+			err = utils.WaitForSPCPSVersionChange(ctx, csiClient, testNamespace, spcpsName, initialVersion, 10*time.Second)
+			Expect(err).NotTo(HaveOccurred())
+			GinkgoWriter.Println("CSI driver synced new secret version")
+
+			By("Waiting for Job to be recreated (new UID)")
+			_, recreated, err := utils.WaitForJobRecreated(ctx, kubeClient, testNamespace, jobName, originalUID,
+				utils.ReloadTimeout)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(recreated).To(BeTrue(), "Job should be recreated with new UID when Vault secret changes")
 		})
 	})
 })

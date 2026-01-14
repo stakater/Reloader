@@ -193,9 +193,21 @@ func AddInitContainerWithVolumes(spec *corev1.PodSpec, cmName, secretName string
 	spec.InitContainers = append(spec.InitContainers, init)
 }
 
-// ApplyWorkloadConfig applies all WorkloadConfig settings to a PodSpec.
-// This single function replaces all the duplicate buildXxxOptions functions.
-func ApplyWorkloadConfig(spec *corev1.PodSpec, cfg WorkloadConfig) {
+// ApplyWorkloadConfig applies all WorkloadConfig settings to a PodTemplateSpec.
+// This includes both pod template annotations and pod spec configuration.
+func ApplyWorkloadConfig(template *corev1.PodTemplateSpec, cfg WorkloadConfig) {
+	// Apply pod template annotations
+	if len(cfg.PodTemplateAnnotations) > 0 {
+		if template.Annotations == nil {
+			template.Annotations = make(map[string]string)
+		}
+		for k, v := range cfg.PodTemplateAnnotations {
+			template.Annotations[k] = v
+		}
+	}
+
+	// Apply pod spec configuration
+	spec := &template.Spec
 	if cfg.UseConfigMapEnvFrom && cfg.ConfigMapName != "" {
 		AddEnvFromSource(spec, 0, cfg.ConfigMapName, false)
 	}

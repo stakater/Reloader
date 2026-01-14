@@ -93,7 +93,7 @@ func buildJobOptions(cfg WorkloadConfig) []JobOption {
 					job.Annotations[k] = v
 				}
 			}
-			ApplyWorkloadConfig(&job.Spec.Template.Spec, cfg)
+			ApplyWorkloadConfig(&job.Spec.Template, cfg)
 		},
 	}
 }

@@ -73,7 +73,7 @@ func buildStatefulSetOptions(cfg WorkloadConfig) []StatefulSetOption {
 					sts.Annotations[k] = v
 				}
 			}
-			ApplyWorkloadConfig(&sts.Spec.Template.Spec, cfg)
+			ApplyWorkloadConfig(&sts.Spec.Template, cfg)
 		},
 	}
 }

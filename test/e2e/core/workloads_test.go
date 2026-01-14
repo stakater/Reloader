@@ -194,7 +194,9 @@ var _ = Describe("Workload Reload Tests", func() {
 			Expect(reloaded).To(BeTrue(), "%s should have been reloaded when Vault secret changed", workloadType)
 		}, Entry("Deployment", Label("csi"), utils.WorkloadDeployment),
 			Entry("DaemonSet", Label("csi"), utils.WorkloadDaemonSet),
-			Entry("StatefulSet", Label("csi"), utils.WorkloadStatefulSet))
+			Entry("StatefulSet", Label("csi"), utils.WorkloadStatefulSet),
+			Entry("ArgoRollout", Label("csi", "argo"), utils.WorkloadArgoRollout),
+			Entry("DeploymentConfig", Label("csi", "openshift"), utils.WorkloadDeploymentConfig))
 
 		// Auto=true annotation tests
 		DescribeTable("should reload with auto=true annotation when ConfigMap changes",
@@ -377,7 +379,9 @@ var _ = Describe("Workload Reload Tests", func() {
 				Expect(reloaded).To(BeFalse(), "%s should NOT reload when only SPCPS labels change", workloadType)
 			}, Entry("Deployment", Label("csi"), utils.WorkloadDeployment),
 			Entry("DaemonSet", Label("csi"), utils.WorkloadDaemonSet),
-			Entry("StatefulSet", Label("csi"), utils.WorkloadStatefulSet))
+			Entry("StatefulSet", Label("csi"), utils.WorkloadStatefulSet),
+			Entry("ArgoRollout", Label("csi", "argo"), utils.WorkloadArgoRollout),
+			Entry("DeploymentConfig", Label("csi", "openshift"), utils.WorkloadDeploymentConfig))
 
 		// CronJob special handling - triggers a Job instead of annotation
 		Context("CronJob (special handling)", func() {
@@ -803,6 +807,366 @@ var _ = Describe("Workload Reload Tests", func() {
 				Expect(reloaded).To(BeFalse(), "Deployment with auto=false should NOT have been reloaded")
 			})
 		})
+
+		// ============================================================
+		// POD TEMPLATE ANNOTATION TESTS
+		// These tests verify that annotations placed on the pod template
+		// (spec.template.metadata.annotations) work the same as annotations
+		// placed on the workload metadata (metadata.annotations).
+		// ============================================================
+		Context("Pod Template Annotations", func() {
+			DescribeTable("should reload when ConfigMap annotation is on pod template only",
+				func(workloadType utils.WorkloadType) {
+					adapter := registry.Get(workloadType)
+					if adapter == nil {
+						Skip(fmt.Sprintf("%s adapter not available (CRD not installed)", workloadType))
+					}
+
+					By("Creating a ConfigMap")
+					_, err := utils.CreateConfigMap(ctx, kubeClient, testNamespace, configMapName,
+						map[string]string{"key": "initial"}, nil)
+					Expect(err).NotTo(HaveOccurred())
+
+					By("Creating workload with ConfigMap annotation on pod template ONLY")
+					err = adapter.Create(ctx, testNamespace, workloadName, utils.WorkloadConfig{
+						ConfigMapName:          configMapName,
+						UseConfigMapEnvFrom:    true,
+						PodTemplateAnnotations: utils.BuildConfigMapReloadAnnotation(configMapName),
+					})
+					Expect(err).NotTo(HaveOccurred())
+					DeferCleanup(func() { _ = adapter.Delete(ctx, testNamespace, workloadName) })
+
+					By("Waiting for workload to be ready")
+					err = adapter.WaitReady(ctx, testNamespace, workloadName, utils.DeploymentReady)
+					Expect(err).NotTo(HaveOccurred())
+
+					By("Updating the ConfigMap")
+					err = utils.UpdateConfigMap(ctx, kubeClient, testNamespace, configMapName,
+						map[string]string{"key": "updated"})
+					Expect(err).NotTo(HaveOccurred())
+
+					By("Waiting for workload to be reloaded")
+					reloaded, err := adapter.WaitReloaded(ctx, testNamespace, workloadName,
+						utils.AnnotationLastReloadedFrom, utils.ReloadTimeout)
+					Expect(err).NotTo(HaveOccurred())
+					Expect(reloaded).To(BeTrue(), "%s should reload with pod template annotation", workloadType)
+				},
+				Entry("Deployment", utils.WorkloadDeployment),
+				Entry("DaemonSet", utils.WorkloadDaemonSet),
+				Entry("StatefulSet", utils.WorkloadStatefulSet),
+				Entry("ArgoRollout", Label("argo"), utils.WorkloadArgoRollout),
+				Entry("DeploymentConfig", Label("openshift"), utils.WorkloadDeploymentConfig))
+
+			DescribeTable("should reload when Secret annotation is on pod template only",
+				func(workloadType utils.WorkloadType) {
+					adapter := registry.Get(workloadType)
+					if adapter == nil {
+						Skip(fmt.Sprintf("%s adapter not available (CRD not installed)", workloadType))
+					}
+
+					By("Creating a Secret")
+					_, err := utils.CreateSecretFromStrings(ctx, kubeClient, testNamespace, secretName,
+						map[string]string{"password": "initial"}, nil)
+					Expect(err).NotTo(HaveOccurred())
+
+					By("Creating workload with Secret annotation on pod template ONLY")
+					err = adapter.Create(ctx, testNamespace, workloadName, utils.WorkloadConfig{
+						SecretName:             secretName,
+						UseSecretEnvFrom:       true,
+						PodTemplateAnnotations: utils.BuildSecretReloadAnnotation(secretName),
+					})
+					Expect(err).NotTo(HaveOccurred())
+					DeferCleanup(func() { _ = adapter.Delete(ctx, testNamespace, workloadName) })
+
+					By("Waiting for workload to be ready")
+					err = adapter.WaitReady(ctx, testNamespace, workloadName, utils.DeploymentReady)
+					Expect(err).NotTo(HaveOccurred())
+
+					By("Updating the Secret")
+					err = utils.UpdateSecretFromStrings(ctx, kubeClient, testNamespace, secretName,
+						map[string]string{"password": "updated"})
+					Expect(err).NotTo(HaveOccurred())
+
+					By("Waiting for workload to be reloaded")
+					reloaded, err := adapter.WaitReloaded(ctx, testNamespace, workloadName,
+						utils.AnnotationLastReloadedFrom, utils.ReloadTimeout)
+					Expect(err).NotTo(HaveOccurred())
+					Expect(reloaded).To(BeTrue(), "%s should reload with pod template annotation", workloadType)
+				},
+				Entry("Deployment", utils.WorkloadDeployment),
+				Entry("DaemonSet", utils.WorkloadDaemonSet),
+				Entry("StatefulSet", utils.WorkloadStatefulSet),
+				Entry("ArgoRollout", Label("argo"), utils.WorkloadArgoRollout),
+				Entry("DeploymentConfig", Label("openshift"), utils.WorkloadDeploymentConfig))
+
+			DescribeTable("should reload when auto=true annotation is on pod template only",
+				func(workloadType utils.WorkloadType) {
+					adapter := registry.Get(workloadType)
+					if adapter == nil {
+						Skip(fmt.Sprintf("%s adapter not available (CRD not installed)", workloadType))
+					}
+
+					By("Creating a ConfigMap")
+					_, err := utils.CreateConfigMap(ctx, kubeClient, testNamespace, configMapName,
+						map[string]string{"key": "initial"}, nil)
+					Expect(err).NotTo(HaveOccurred())
+
+					By("Creating workload with auto=true annotation on pod template ONLY")
+					err = adapter.Create(ctx, testNamespace, workloadName, utils.WorkloadConfig{
+						ConfigMapName:          configMapName,
+						UseConfigMapEnvFrom:    true,
+						PodTemplateAnnotations: utils.BuildAutoTrueAnnotation(),
+					})
+					Expect(err).NotTo(HaveOccurred())
+					DeferCleanup(func() { _ = adapter.Delete(ctx, testNamespace, workloadName) })
+
+					By("Waiting for workload to be ready")
+					err = adapter.WaitReady(ctx, testNamespace, workloadName, utils.DeploymentReady)
+					Expect(err).NotTo(HaveOccurred())
+
+					By("Updating the ConfigMap")
+					err = utils.UpdateConfigMap(ctx, kubeClient, testNamespace, configMapName,
+						map[string]string{"key": "updated"})
+					Expect(err).NotTo(HaveOccurred())
+
+					By("Waiting for workload to be reloaded")
+					reloaded, err := adapter.WaitReloaded(ctx, testNamespace, workloadName,
+						utils.AnnotationLastReloadedFrom, utils.ReloadTimeout)
+					Expect(err).NotTo(HaveOccurred())
+					Expect(reloaded).To(BeTrue(), "%s with auto=true on pod template should reload", workloadType)
+				},
+				Entry("Deployment", utils.WorkloadDeployment),
+				Entry("DaemonSet", utils.WorkloadDaemonSet),
+				Entry("StatefulSet", utils.WorkloadStatefulSet),
+				Entry("ArgoRollout", Label("argo"), utils.WorkloadArgoRollout),
+				Entry("DeploymentConfig", Label("openshift"), utils.WorkloadDeploymentConfig))
+
+			DescribeTable("should reload when SecretProviderClass annotation is on pod template only",
+				func(workloadType utils.WorkloadType) {
+					if !utils.IsCSIDriverInstalled(ctx, csiClient) {
+						Skip("CSI secrets store driver not installed")
+					}
+					if !utils.IsVaultProviderInstalled(ctx, kubeClient) {
+						Skip("Vault CSI provider not installed")
+					}
+
+					adapter := registry.Get(workloadType)
+					if adapter == nil {
+						Skip(fmt.Sprintf("%s adapter not available (CRD not installed)", workloadType))
+					}
+
+					By("Creating a secret in Vault")
+					err := utils.CreateVaultSecret(ctx, kubeClient, restConfig, vaultSecretPath,
+						map[string]string{"api_key": "initial-value-v1"})
+					Expect(err).NotTo(HaveOccurred())
+
+					By("Creating a SecretProviderClass pointing to Vault secret")
+					_, err = utils.CreateSecretProviderClassWithSecret(ctx, csiClient, testNamespace, spcName,
+						vaultSecretPath, "api_key")
+					Expect(err).NotTo(HaveOccurred())
+
+					By("Creating workload with SPC annotation on pod template ONLY")
+					err = adapter.Create(ctx, testNamespace, workloadName, utils.WorkloadConfig{
+						SPCName:                spcName,
+						UseCSIVolume:           true,
+						PodTemplateAnnotations: utils.BuildSecretProviderClassReloadAnnotation(spcName),
+					})
+					Expect(err).NotTo(HaveOccurred())
+					DeferCleanup(func() { _ = adapter.Delete(ctx, testNamespace, workloadName) })
+
+					By("Waiting for workload to be ready")
+					err = adapter.WaitReady(ctx, testNamespace, workloadName, utils.DeploymentReady)
+					Expect(err).NotTo(HaveOccurred())
+
+					By("Finding the SPCPS created by CSI driver")
+					spcpsName, err := utils.FindSPCPSForDeployment(ctx, csiClient, kubeClient, testNamespace,
+						workloadName, utils.DeploymentReady)
+					Expect(err).NotTo(HaveOccurred())
+
+					By("Getting initial SPCPS version")
+					initialVersion, err := utils.GetSPCPSVersion(ctx, csiClient, testNamespace, spcpsName)
+					Expect(err).NotTo(HaveOccurred())
+
+					By("Updating the Vault secret")
+					err = utils.UpdateVaultSecret(ctx, kubeClient, restConfig, vaultSecretPath,
+						map[string]string{"api_key": "updated-value-v2"})
+					Expect(err).NotTo(HaveOccurred())
+
+					By("Waiting for CSI driver to sync the new secret version")
+					err = utils.WaitForSPCPSVersionChange(ctx, csiClient, testNamespace, spcpsName,
+						initialVersion, 10*time.Second)
+					Expect(err).NotTo(HaveOccurred())
+
+					By("Waiting for workload to be reloaded")
+					reloaded, err := adapter.WaitReloaded(ctx, testNamespace, workloadName,
+						utils.AnnotationLastReloadedFrom, utils.ReloadTimeout)
+					Expect(err).NotTo(HaveOccurred())
+					Expect(reloaded).To(BeTrue(), "%s should reload with SPC annotation on pod template", workloadType)
+				},
+				Entry("Deployment", Label("csi"), utils.WorkloadDeployment),
+				Entry("DaemonSet", Label("csi"), utils.WorkloadDaemonSet),
+				Entry("StatefulSet", Label("csi"), utils.WorkloadStatefulSet),
+				Entry("ArgoRollout", Label("csi", "argo"), utils.WorkloadArgoRollout),
+				Entry("DeploymentConfig", Label("csi", "openshift"), utils.WorkloadDeploymentConfig))
+
+			DescribeTable("should reload when secretproviderclass auto annotation is on pod template only",
+				func(workloadType utils.WorkloadType) {
+					if !utils.IsCSIDriverInstalled(ctx, csiClient) {
+						Skip("CSI secrets store driver not installed")
+					}
+					if !utils.IsVaultProviderInstalled(ctx, kubeClient) {
+						Skip("Vault CSI provider not installed")
+					}
+
+					adapter := registry.Get(workloadType)
+					if adapter == nil {
+						Skip(fmt.Sprintf("%s adapter not available (CRD not installed)", workloadType))
+					}
+
+					By("Creating a secret in Vault")
+					err := utils.CreateVaultSecret(ctx, kubeClient, restConfig, vaultSecretPath,
+						map[string]string{"api_key": "initial-value-v1"})
+					Expect(err).NotTo(HaveOccurred())
+
+					By("Creating a SecretProviderClass pointing to Vault secret")
+					_, err = utils.CreateSecretProviderClassWithSecret(ctx, csiClient, testNamespace, spcName,
+						vaultSecretPath, "api_key")
+					Expect(err).NotTo(HaveOccurred())
+
+					By("Creating workload with SPC auto annotation on pod template ONLY")
+					err = adapter.Create(ctx, testNamespace, workloadName, utils.WorkloadConfig{
+						SPCName:                spcName,
+						UseCSIVolume:           true,
+						PodTemplateAnnotations: utils.BuildSecretProviderClassAutoAnnotation(),
+					})
+					Expect(err).NotTo(HaveOccurred())
+					DeferCleanup(func() { _ = adapter.Delete(ctx, testNamespace, workloadName) })
+
+					By("Waiting for workload to be ready")
+					err = adapter.WaitReady(ctx, testNamespace, workloadName, utils.DeploymentReady)
+					Expect(err).NotTo(HaveOccurred())
+
+					By("Finding the SPCPS created by CSI driver")
+					spcpsName, err := utils.FindSPCPSForDeployment(ctx, csiClient, kubeClient, testNamespace,
+						workloadName, utils.DeploymentReady)
+					Expect(err).NotTo(HaveOccurred())
+
+					By("Getting initial SPCPS version")
+					initialVersion, err := utils.GetSPCPSVersion(ctx, csiClient, testNamespace, spcpsName)
+					Expect(err).NotTo(HaveOccurred())
+
+					By("Updating the Vault secret")
+					err = utils.UpdateVaultSecret(ctx, kubeClient, restConfig, vaultSecretPath,
+						map[string]string{"api_key": "updated-value-v2"})
+					Expect(err).NotTo(HaveOccurred())
+
+					By("Waiting for CSI driver to sync the new secret version")
+					err = utils.WaitForSPCPSVersionChange(ctx, csiClient, testNamespace, spcpsName,
+						initialVersion, 10*time.Second)
+					Expect(err).NotTo(HaveOccurred())
+
+					By("Waiting for workload to be reloaded")
+					reloaded, err := adapter.WaitReloaded(ctx, testNamespace, workloadName,
+						utils.AnnotationLastReloadedFrom, utils.ReloadTimeout)
+					Expect(err).NotTo(HaveOccurred())
+					Expect(reloaded).To(BeTrue(), "%s should reload with SPC auto on pod template", workloadType)
+				},
+				Entry("Deployment", Label("csi"), utils.WorkloadDeployment),
+				Entry("DaemonSet", Label("csi"), utils.WorkloadDaemonSet),
+				Entry("StatefulSet", Label("csi"), utils.WorkloadStatefulSet),
+				Entry("ArgoRollout", Label("csi", "argo"), utils.WorkloadArgoRollout),
+				Entry("DeploymentConfig", Label("csi", "openshift"), utils.WorkloadDeploymentConfig))
+
+			DescribeTable("should reload when annotations are on both workload and pod template",
+				func(workloadType utils.WorkloadType) {
+					adapter := registry.Get(workloadType)
+					if adapter == nil {
+						Skip(fmt.Sprintf("%s adapter not available (CRD not installed)", workloadType))
+					}
+
+					By("Creating a ConfigMap")
+					_, err := utils.CreateConfigMap(ctx, kubeClient, testNamespace, configMapName,
+						map[string]string{"key": "initial"}, nil)
+					Expect(err).NotTo(HaveOccurred())
+
+					By("Creating workload with annotations on BOTH workload metadata and pod template")
+					err = adapter.Create(ctx, testNamespace, workloadName, utils.WorkloadConfig{
+						ConfigMapName:          configMapName,
+						UseConfigMapEnvFrom:    true,
+						Annotations:            utils.BuildConfigMapReloadAnnotation(configMapName),
+						PodTemplateAnnotations: utils.BuildConfigMapReloadAnnotation(configMapName),
+					})
+					Expect(err).NotTo(HaveOccurred())
+					DeferCleanup(func() { _ = adapter.Delete(ctx, testNamespace, workloadName) })
+
+					By("Waiting for workload to be ready")
+					err = adapter.WaitReady(ctx, testNamespace, workloadName, utils.DeploymentReady)
+					Expect(err).NotTo(HaveOccurred())
+
+					By("Updating the ConfigMap")
+					err = utils.UpdateConfigMap(ctx, kubeClient, testNamespace, configMapName,
+						map[string]string{"key": "updated"})
+					Expect(err).NotTo(HaveOccurred())
+
+					By("Waiting for workload to be reloaded")
+					reloaded, err := adapter.WaitReloaded(ctx, testNamespace, workloadName,
+						utils.AnnotationLastReloadedFrom, utils.ReloadTimeout)
+					Expect(err).NotTo(HaveOccurred())
+					Expect(reloaded).To(BeTrue(), "%s should reload with annotations on both locations", workloadType)
+				},
+				Entry("Deployment", utils.WorkloadDeployment),
+				Entry("DaemonSet", utils.WorkloadDaemonSet),
+				Entry("StatefulSet", utils.WorkloadStatefulSet),
+				Entry("ArgoRollout", Label("argo"), utils.WorkloadArgoRollout),
+				Entry("DeploymentConfig", Label("openshift"), utils.WorkloadDeploymentConfig))
+
+			DescribeTable("should NOT reload when pod template has ConfigMap annotation but Secret is updated",
+				func(workloadType utils.WorkloadType) {
+					adapter := registry.Get(workloadType)
+					if adapter == nil {
+						Skip(fmt.Sprintf("%s adapter not available (CRD not installed)", workloadType))
+					}
+
+					By("Creating a ConfigMap and Secret")
+					_, err := utils.CreateConfigMap(ctx, kubeClient, testNamespace, configMapName,
+						map[string]string{"key": "value"}, nil)
+					Expect(err).NotTo(HaveOccurred())
+
+					_, err = utils.CreateSecretFromStrings(ctx, kubeClient, testNamespace, secretName,
+						map[string]string{"password": "initial"}, nil)
+					Expect(err).NotTo(HaveOccurred())
+
+					By("Creating workload with ConfigMap annotation on pod template but using Secret")
+					err = adapter.Create(ctx, testNamespace, workloadName, utils.WorkloadConfig{
+						SecretName:             secretName,
+						UseSecretEnvFrom:       true,
+						PodTemplateAnnotations: utils.BuildConfigMapReloadAnnotation(configMapName),
+					})
+					Expect(err).NotTo(HaveOccurred())
+					DeferCleanup(func() { _ = adapter.Delete(ctx, testNamespace, workloadName) })
+
+					By("Waiting for workload to be ready")
+					err = adapter.WaitReady(ctx, testNamespace, workloadName, utils.DeploymentReady)
+					Expect(err).NotTo(HaveOccurred())
+
+					By("Updating the Secret (not the ConfigMap)")
+					err = utils.UpdateSecretFromStrings(ctx, kubeClient, testNamespace, secretName,
+						map[string]string{"password": "updated"})
+					Expect(err).NotTo(HaveOccurred())
+
+					By("Verifying workload was NOT reloaded (negative test)")
+					time.Sleep(utils.NegativeTestWait)
+					reloaded, err := adapter.WaitReloaded(ctx, testNamespace, workloadName,
+						utils.AnnotationLastReloadedFrom, utils.ShortTimeout)
+					Expect(err).NotTo(HaveOccurred())
+					Expect(reloaded).To(BeFalse(), "%s should NOT reload when updating different resource than annotated", workloadType)
+				},
+				Entry("Deployment", utils.WorkloadDeployment),
+				Entry("DaemonSet", utils.WorkloadDaemonSet),
+				Entry("StatefulSet", utils.WorkloadStatefulSet),
+				Entry("ArgoRollout", Label("argo"), utils.WorkloadArgoRollout),
+				Entry("DeploymentConfig", Label("openshift"), utils.WorkloadDeploymentConfig))
+		})
 	})
 
 	// ============================================================
@@ -998,7 +1362,9 @@ var _ = Describe("Workload Reload Tests", func() {
 				Expect(found).To(BeTrue(), "%s should have STAKATER_ env var after Vault secret change", workloadType)
 			}, Entry("Deployment", Label("csi"), utils.WorkloadDeployment),
 			Entry("DaemonSet", Label("csi"), utils.WorkloadDaemonSet),
-			Entry("StatefulSet", Label("csi"), utils.WorkloadStatefulSet))
+			Entry("StatefulSet", Label("csi"), utils.WorkloadStatefulSet),
+			Entry("ArgoRollout", Label("csi", "argo"), utils.WorkloadArgoRollout),
+			Entry("DeploymentConfig", Label("csi", "openshift"), utils.WorkloadDeploymentConfig))
 
 		// Negative tests for env var strategy
 		DescribeTable("should NOT add STAKATER_ env var when only ConfigMap labels change",
@@ -1148,7 +1514,9 @@ var _ = Describe("Workload Reload Tests", func() {
 					workloadType)
 			}, Entry("Deployment", Label("csi"), utils.WorkloadDeployment),
 			Entry("DaemonSet", Label("csi"), utils.WorkloadDaemonSet),
-			Entry("StatefulSet", Label("csi"), utils.WorkloadStatefulSet))
+			Entry("StatefulSet", Label("csi"), utils.WorkloadStatefulSet),
+			Entry("ArgoRollout", Label("csi", "argo"), utils.WorkloadArgoRollout),
+			Entry("DeploymentConfig", Label("csi", "openshift"), utils.WorkloadDeploymentConfig))
 
 		// CSI auto annotation with EnvVar strategy and real Vault
 		It("should add STAKATER_ env var with secretproviderclass auto annotation", Label("csi"), func() {

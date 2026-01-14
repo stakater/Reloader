@@ -116,7 +116,7 @@ func buildRolloutOptions(cfg WorkloadConfig) []RolloutOption {
 					r.Annotations[k] = v
 				}
 			}
-			ApplyWorkloadConfig(&r.Spec.Template.Spec, cfg)
+			ApplyWorkloadConfig(&r.Spec.Template, cfg)
 		},
 	}
 }

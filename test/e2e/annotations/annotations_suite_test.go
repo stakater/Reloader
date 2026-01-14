@@ -21,6 +21,7 @@ var (
 	ctx           context.Context
 	cancel        context.CancelFunc
 	testEnv       *utils.TestEnvironment
+	registry      *utils.AdapterRegistry
 )
 
 func TestAnnotations(t *testing.T) {
@@ -39,6 +40,23 @@ var _ = BeforeSuite(func() {
 	csiClient = testEnv.CSIClient
 	restConfig = testEnv.RestConfig
 	testNamespace = testEnv.Namespace
+
+	registry = utils.NewAdapterRegistry(kubeClient)
+
+	// Register optional adapters if CRDs are installed
+	if utils.IsArgoRolloutsInstalled(ctx, testEnv.RolloutsClient) {
+		GinkgoWriter.Println("Argo Rollouts detected, registering ArgoRolloutAdapter")
+		registry.RegisterAdapter(utils.NewArgoRolloutAdapter(testEnv.RolloutsClient))
+	} else {
+		GinkgoWriter.Println("Argo Rollouts not detected, skipping ArgoRolloutAdapter registration")
+	}
+
+	if utils.HasDeploymentConfigSupport(testEnv.DiscoveryClient) && testEnv.OpenShiftClient != nil {
+		GinkgoWriter.Println("OpenShift detected, registering DeploymentConfigAdapter")
+		registry.RegisterAdapter(utils.NewDeploymentConfigAdapter(testEnv.OpenShiftClient))
+	} else {
+		GinkgoWriter.Println("OpenShift not detected, skipping DeploymentConfigAdapter registration")
+	}
 
 	deployValues := map[string]string{
 		"reloader.reloadStrategy": "annotations",

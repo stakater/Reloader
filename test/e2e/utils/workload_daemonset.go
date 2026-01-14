@@ -73,7 +73,7 @@ func buildDaemonSetOptions(cfg WorkloadConfig) []DaemonSetOption {
 					ds.Annotations[k] = v
 				}
 			}
-			ApplyWorkloadConfig(&ds.Spec.Template.Spec, cfg)
+			ApplyWorkloadConfig(&ds.Spec.Template, cfg)
 		},
 	}
 }

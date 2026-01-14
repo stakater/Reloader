@@ -73,7 +73,7 @@ func buildDeploymentOptions(cfg WorkloadConfig) []DeploymentOption {
 					d.Annotations[k] = v
 				}
 			}
-			ApplyWorkloadConfig(&d.Spec.Template.Spec, cfg)
+			ApplyWorkloadConfig(&d.Spec.Template, cfg)
 		},
 	}
 }

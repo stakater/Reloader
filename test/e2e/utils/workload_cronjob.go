@@ -79,7 +79,8 @@ func buildCronJobOptions(cfg WorkloadConfig) []CronJobOption {
 					cj.Annotations[k] = v
 				}
 			}
-			ApplyWorkloadConfig(&cj.Spec.JobTemplate.Spec.Template.Spec, cfg)
+			// CronJob has nested JobTemplate
+			ApplyWorkloadConfig(&cj.Spec.JobTemplate.Spec.Template, cfg)
 		},
 	}
 }

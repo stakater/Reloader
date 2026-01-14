@@ -112,7 +112,7 @@ func buildDeploymentConfigOptions(cfg WorkloadConfig) []DCOption {
 				}
 			}
 			if dc.Spec.Template != nil {
-				ApplyWorkloadConfig(&dc.Spec.Template.Spec, cfg)
+				ApplyWorkloadConfig(dc.Spec.Template, cfg)
 			}
 		},
 	}

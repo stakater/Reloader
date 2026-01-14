@@ -97,5 +97,43 @@ var _ = Describe("Pause Period Tests", func() {
 			Expect(err).NotTo(HaveOccurred())
 			Expect(paused).To(BeFalse(), "Deployment should NOT have paused-at annotation without pause-period")
 		})
+
+		It("should pause Deployment when pause-period annotation is on pod template", func() {
+			By("Creating a ConfigMap")
+			_, err := utils.CreateConfigMap(ctx, kubeClient, testNamespace, configMapName,
+				map[string]string{"key": "initial"}, nil)
+			Expect(err).NotTo(HaveOccurred())
+
+			By("Creating a Deployment with pause-period annotation on pod template ONLY")
+			_, err = utils.CreateDeployment(ctx, kubeClient, testNamespace, deploymentName,
+				utils.WithConfigMapEnvFrom(configMapName),
+				utils.WithPodTemplateAnnotations(utils.MergeAnnotations(
+					utils.BuildConfigMapReloadAnnotation(configMapName),
+					utils.BuildPausePeriodAnnotation("10s"),
+				)),
+			)
+			Expect(err).NotTo(HaveOccurred())
+
+			By("Waiting for Deployment to be ready")
+			err = utils.WaitForDeploymentReady(ctx, kubeClient, testNamespace, deploymentName, utils.DeploymentReady)
+			Expect(err).NotTo(HaveOccurred())
+
+			By("Updating the ConfigMap data")
+			err = utils.UpdateConfigMap(ctx, kubeClient, testNamespace, configMapName,
+				map[string]string{"key": "updated"})
+			Expect(err).NotTo(HaveOccurred())
+
+			By("Waiting for Deployment to be reloaded")
+			reloaded, err := utils.WaitForDeploymentReloaded(ctx, kubeClient, testNamespace, deploymentName,
+				utils.AnnotationLastReloadedFrom, utils.ReloadTimeout)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(reloaded).To(BeTrue(), "Deployment should have been reloaded")
+
+			By("Verifying Deployment has paused-at annotation")
+			paused, err := utils.WaitForDeploymentPaused(ctx, kubeClient, testNamespace, deploymentName,
+				utils.AnnotationDeploymentPausedAt, utils.ShortTimeout)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(paused).To(BeTrue(), "Deployment should have paused-at annotation with pause-period on pod template")
+		})
 	})
 })

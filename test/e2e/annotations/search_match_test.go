@@ -1,6 +1,7 @@
 package annotations
 
 import (
+	"fmt"
 	"time"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -13,11 +14,13 @@ var _ = Describe("Search and Match Annotation Tests", func() {
 	var (
 		deploymentName string
 		configMapName  string
+		workloadName   string
 	)
 
 	BeforeEach(func() {
 		deploymentName = utils.RandName("deploy")
 		configMapName = utils.RandName("cm")
+		workloadName = utils.RandName("workload")
 	})
 
 	AfterEach(func() {
@@ -162,5 +165,50 @@ var _ = Describe("Search and Match Annotation Tests", func() {
 			Expect(err).NotTo(HaveOccurred())
 			Expect(reloaded2).To(BeFalse(), "Deployment without search annotation should NOT reload")
 		})
+	})
+
+	Context("with search annotation on pod template", func() {
+		DescribeTable("should reload when search annotation is on pod template only",
+			func(workloadType utils.WorkloadType) {
+				adapter := registry.Get(workloadType)
+				if adapter == nil {
+					Skip(fmt.Sprintf("%s adapter not available (CRD not installed)", workloadType))
+				}
+
+				By("Creating a ConfigMap with match annotation")
+				_, err := utils.CreateConfigMap(ctx, kubeClient, testNamespace, configMapName,
+					map[string]string{"key": "initial"},
+					utils.BuildMatchAnnotation())
+				Expect(err).NotTo(HaveOccurred())
+
+				By("Creating workload with search annotation on pod template ONLY")
+				err = adapter.Create(ctx, testNamespace, workloadName, utils.WorkloadConfig{
+					ConfigMapName:          configMapName,
+					UseConfigMapEnvFrom:    true,
+					PodTemplateAnnotations: utils.BuildSearchAnnotation(),
+				})
+				Expect(err).NotTo(HaveOccurred())
+				DeferCleanup(func() { _ = adapter.Delete(ctx, testNamespace, workloadName) })
+
+				By("Waiting for workload to be ready")
+				err = adapter.WaitReady(ctx, testNamespace, workloadName, utils.DeploymentReady)
+				Expect(err).NotTo(HaveOccurred())
+
+				By("Updating the ConfigMap")
+				err = utils.UpdateConfigMap(ctx, kubeClient, testNamespace, configMapName,
+					map[string]string{"key": "updated"})
+				Expect(err).NotTo(HaveOccurred())
+
+				By("Waiting for workload to be reloaded")
+				reloaded, err := adapter.WaitReloaded(ctx, testNamespace, workloadName,
+					utils.AnnotationLastReloadedFrom, utils.ReloadTimeout)
+				Expect(err).NotTo(HaveOccurred())
+				Expect(reloaded).To(BeTrue(), "%s should reload with search annotation on pod template", workloadType)
+			},
+			Entry("Deployment", utils.WorkloadDeployment),
+			Entry("DaemonSet", utils.WorkloadDaemonSet),
+			Entry("StatefulSet", utils.WorkloadStatefulSet),
+			Entry("ArgoRollout", Label("argo"), utils.WorkloadArgoRollout),
+			Entry("DeploymentConfig", Label("openshift"), utils.WorkloadDeploymentConfig))
 	})
 })

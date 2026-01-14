@@ -288,6 +288,26 @@ func WaitForJobExists(ctx context.Context, client kubernetes.Interface, namespac
 	)
 }
 
+// WaitForJobReady waits for a Job to have at least one active or succeeded pod.
+// This ensures the Job has actually started running before proceeding.
+func WaitForJobReady(ctx context.Context, client kubernetes.Interface, namespace, name string, timeout time.Duration) error {
+	return wait.PollUntilContextTimeout(
+		ctx, DefaultInterval, timeout, true, func(ctx context.Context) (bool, error) {
+			job, err := client.BatchV1().Jobs(namespace).Get(ctx, name, metav1.GetOptions{})
+			if err != nil {
+				return false, nil
+			}
+
+			// Job is ready if it has at least one active or succeeded pod
+			if job.Status.Active > 0 || job.Status.Succeeded > 0 {
+				return true, nil
+			}
+
+			return false, nil
+		},
+	)
+}
+
 // GetPodLogs retrieves logs from pods matching the given label selector.
 func GetPodLogs(ctx context.Context, client kubernetes.Interface, namespace, labelSelector string) (string, error) {
 	pods, err := client.CoreV1().Pods(namespace).List(

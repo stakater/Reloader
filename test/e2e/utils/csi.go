@@ -245,9 +245,10 @@ func execInVaultPod(ctx context.Context, kubeClient kubernetes.Interface, restCo
 		return fmt.Errorf("creating executor: %w", err)
 	}
 
-	var stderr bytes.Buffer
+	var stdout, stderr bytes.Buffer
 	err = exec.StreamWithContext(
 		ctx, remotecommand.StreamOptions{
+			Stdout: &stdout,
 			Stderr: &stderr,
 		},
 	)
