@@ -61,7 +61,7 @@ var _ = Describe("Auto Reload All Flag Tests", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Waiting for Deployment to be ready")
-			err = adapter.WaitReady(ctx, autoNamespace, deploymentName, utils.DeploymentReady)
+			err = adapter.WaitReady(ctx, autoNamespace, deploymentName, utils.WorkloadReadyTimeout)
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Updating the ConfigMap")
@@ -89,7 +89,7 @@ var _ = Describe("Auto Reload All Flag Tests", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Waiting for Deployment to be ready")
-			err = adapter.WaitReady(ctx, autoNamespace, deploymentName, utils.DeploymentReady)
+			err = adapter.WaitReady(ctx, autoNamespace, deploymentName, utils.WorkloadReadyTimeout)
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Updating the ConfigMap")

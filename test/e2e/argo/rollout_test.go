@@ -46,7 +46,7 @@ var _ = Describe("Argo Rollout Strategy Tests", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Waiting for Rollout to be ready")
-			err = adapter.WaitReady(ctx, testNamespace, rolloutName, utils.DeploymentReady)
+			err = adapter.WaitReady(ctx, testNamespace, rolloutName, utils.WorkloadReadyTimeout)
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Updating the ConfigMap")
@@ -76,7 +76,7 @@ var _ = Describe("Argo Rollout Strategy Tests", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Waiting for Rollout to be ready")
-			err = adapter.WaitReady(ctx, testNamespace, rolloutName, utils.DeploymentReady)
+			err = adapter.WaitReady(ctx, testNamespace, rolloutName, utils.WorkloadReadyTimeout)
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Updating the ConfigMap")

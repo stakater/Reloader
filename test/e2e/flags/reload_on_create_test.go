@@ -58,7 +58,7 @@ var _ = Describe("Reload On Create Flag Tests", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Waiting for Deployment to be ready")
-			err = adapter.WaitReady(ctx, createNamespace, deploymentName, utils.DeploymentReady)
+			err = adapter.WaitReady(ctx, createNamespace, deploymentName, utils.WorkloadReadyTimeout)
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Creating the ConfigMap that the Deployment references")
@@ -84,7 +84,7 @@ var _ = Describe("Reload On Create Flag Tests", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Waiting for Deployment to be ready")
-			err = adapter.WaitReady(ctx, createNamespace, deploymentName, utils.DeploymentReady)
+			err = adapter.WaitReady(ctx, createNamespace, deploymentName, utils.WorkloadReadyTimeout)
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Creating the Secret that the Deployment references")
@@ -127,7 +127,7 @@ var _ = Describe("Reload On Create Flag Tests", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Waiting for Deployment to be ready")
-			err = adapter.WaitReady(ctx, createNamespace, deploymentName, utils.DeploymentReady)
+			err = adapter.WaitReady(ctx, createNamespace, deploymentName, utils.WorkloadReadyTimeout)
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Creating the ConfigMap that the Deployment references")

@@ -57,7 +57,7 @@ var _ = Describe("Combination Annotation Tests", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Waiting for Deployment to be ready")
-			err = adapter.WaitReady(ctx, testNamespace, deploymentName, utils.DeploymentReady)
+			err = adapter.WaitReady(ctx, testNamespace, deploymentName, utils.WorkloadReadyTimeout)
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Updating the auto-detected ConfigMap")
@@ -91,7 +91,7 @@ var _ = Describe("Combination Annotation Tests", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Waiting for Deployment to be ready")
-			err = adapter.WaitReady(ctx, testNamespace, deploymentName, utils.DeploymentReady)
+			err = adapter.WaitReady(ctx, testNamespace, deploymentName, utils.WorkloadReadyTimeout)
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Updating the explicitly listed ConfigMap (not mounted)")
@@ -125,7 +125,7 @@ var _ = Describe("Combination Annotation Tests", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Waiting for Deployment to be ready")
-			err = adapter.WaitReady(ctx, testNamespace, deploymentName, utils.DeploymentReady)
+			err = adapter.WaitReady(ctx, testNamespace, deploymentName, utils.WorkloadReadyTimeout)
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Updating the explicitly listed Secret")
@@ -162,7 +162,7 @@ var _ = Describe("Combination Annotation Tests", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Waiting for Deployment to be ready")
-			err = adapter.WaitReady(ctx, testNamespace, deploymentName, utils.DeploymentReady)
+			err = adapter.WaitReady(ctx, testNamespace, deploymentName, utils.WorkloadReadyTimeout)
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Updating the excluded ConfigMap")
@@ -198,7 +198,7 @@ var _ = Describe("Combination Annotation Tests", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Waiting for Deployment to be ready")
-			err = adapter.WaitReady(ctx, testNamespace, deploymentName, utils.DeploymentReady)
+			err = adapter.WaitReady(ctx, testNamespace, deploymentName, utils.WorkloadReadyTimeout)
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Updating the non-excluded ConfigMap")
@@ -233,7 +233,7 @@ var _ = Describe("Combination Annotation Tests", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Waiting for Deployment to be ready")
-			err = adapter.WaitReady(ctx, testNamespace, deploymentName, utils.DeploymentReady)
+			err = adapter.WaitReady(ctx, testNamespace, deploymentName, utils.WorkloadReadyTimeout)
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Updating the excluded Secret")
@@ -266,7 +266,7 @@ var _ = Describe("Combination Annotation Tests", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Waiting for Deployment to be ready")
-			err = adapter.WaitReady(ctx, testNamespace, deploymentName, utils.DeploymentReady)
+			err = adapter.WaitReady(ctx, testNamespace, deploymentName, utils.WorkloadReadyTimeout)
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Updating the second ConfigMap")
@@ -296,7 +296,7 @@ var _ = Describe("Combination Annotation Tests", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Waiting for Deployment to be ready")
-			err = adapter.WaitReady(ctx, testNamespace, deploymentName, utils.DeploymentReady)
+			err = adapter.WaitReady(ctx, testNamespace, deploymentName, utils.WorkloadReadyTimeout)
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Updating the first Secret")
@@ -329,7 +329,7 @@ var _ = Describe("Combination Annotation Tests", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Waiting for Deployment to be ready")
-			err = adapter.WaitReady(ctx, testNamespace, deploymentName, utils.DeploymentReady)
+			err = adapter.WaitReady(ctx, testNamespace, deploymentName, utils.WorkloadReadyTimeout)
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Updating the Secret")

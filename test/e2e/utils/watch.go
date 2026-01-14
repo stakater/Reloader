@@ -13,15 +13,27 @@ import (
 
 // Timeout constants for watch operations.
 const (
-	DefaultInterval  = 1 * time.Second  // Polling interval (legacy, will be removed)
-	ShortTimeout     = 5 * time.Second  // Quick checks
-	NegativeTestWait = 3 * time.Second  // Wait before checking negative conditions
-	DeploymentReady  = 60 * time.Second // Workload readiness (buffer for CI)
-	ReloadTimeout    = 15 * time.Second // Time for reload to trigger
+	DefaultInterval      = 1 * time.Second  // Polling interval (legacy, will be removed)
+	ShortTimeout         = 5 * time.Second  // Quick checks
+	NegativeTestWait     = 3 * time.Second  // Wait before checking negative conditions
+	WorkloadReadyTimeout = 60 * time.Second // Workload readiness timeout (buffer for CI)
+	ReloadTimeout        = 15 * time.Second // Time for reload to trigger
 )
 
 // ErrWatchTimeout is returned when a watch times out waiting for condition.
 var ErrWatchTimeout = errors.New("watch timeout waiting for condition")
+
+// ErrUnsupportedOperation is returned when an operation is not supported for a workload type.
+var ErrUnsupportedOperation = errors.New("operation not supported for this workload type")
+
+// HandleWatchResult converts watch errors to the standard (bool, error) return pattern.
+// Returns (false, nil) for timeout, (true, nil) for success, (false, err) for other errors.
+func HandleWatchResult(err error) (bool, error) {
+	if errors.Is(err, ErrWatchTimeout) {
+		return false, nil
+	}
+	return err == nil, err
+}
 
 // WatchFunc is a function that starts a watch for a specific resource.
 type WatchFunc func(ctx context.Context, opts metav1.ListOptions) (watch.Interface, error)

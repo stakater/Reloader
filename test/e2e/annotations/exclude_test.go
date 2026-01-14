@@ -62,7 +62,7 @@ var _ = Describe("Exclude Annotation Tests", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Waiting for Deployment to be ready")
-			err = adapter.WaitReady(ctx, testNamespace, deploymentName, utils.DeploymentReady)
+			err = adapter.WaitReady(ctx, testNamespace, deploymentName, utils.WorkloadReadyTimeout)
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Updating the excluded ConfigMap")
@@ -99,7 +99,7 @@ var _ = Describe("Exclude Annotation Tests", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Waiting for Deployment to be ready")
-			err = adapter.WaitReady(ctx, testNamespace, deploymentName, utils.DeploymentReady)
+			err = adapter.WaitReady(ctx, testNamespace, deploymentName, utils.WorkloadReadyTimeout)
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Updating the non-excluded ConfigMap")
@@ -137,7 +137,7 @@ var _ = Describe("Exclude Annotation Tests", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Waiting for Deployment to be ready")
-			err = adapter.WaitReady(ctx, testNamespace, deploymentName, utils.DeploymentReady)
+			err = adapter.WaitReady(ctx, testNamespace, deploymentName, utils.WorkloadReadyTimeout)
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Updating the excluded Secret")
@@ -174,7 +174,7 @@ var _ = Describe("Exclude Annotation Tests", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Waiting for Deployment to be ready")
-			err = adapter.WaitReady(ctx, testNamespace, deploymentName, utils.DeploymentReady)
+			err = adapter.WaitReady(ctx, testNamespace, deploymentName, utils.WorkloadReadyTimeout)
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Updating the non-excluded Secret")
@@ -221,7 +221,7 @@ var _ = Describe("Exclude Annotation Tests", func() {
 				DeferCleanup(func() { _ = adapter.Delete(ctx, testNamespace, workloadName) })
 
 				By("Waiting for workload to be ready")
-				err = adapter.WaitReady(ctx, testNamespace, workloadName, utils.DeploymentReady)
+				err = adapter.WaitReady(ctx, testNamespace, workloadName, utils.WorkloadReadyTimeout)
 				Expect(err).NotTo(HaveOccurred())
 
 				By("Updating the excluded ConfigMap")
@@ -292,11 +292,11 @@ var _ = Describe("Exclude Annotation Tests", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Waiting for Deployment to be ready")
-			err = adapter.WaitReady(ctx, testNamespace, deploymentName, utils.DeploymentReady)
+			err = adapter.WaitReady(ctx, testNamespace, deploymentName, utils.WorkloadReadyTimeout)
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Finding the SPCPS created by CSI driver")
-			spcpsName, err := utils.FindSPCPSForDeployment(ctx, csiClient, kubeClient, testNamespace, deploymentName, utils.DeploymentReady)
+			spcpsName, err := utils.FindSPCPSForDeployment(ctx, csiClient, kubeClient, testNamespace, deploymentName, utils.WorkloadReadyTimeout)
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Getting initial SPCPS version")
@@ -352,7 +352,7 @@ var _ = Describe("Exclude Annotation Tests", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Waiting for Deployment to be ready")
-			err = adapter.WaitReady(ctx, testNamespace, deploymentName, utils.DeploymentReady)
+			err = adapter.WaitReady(ctx, testNamespace, deploymentName, utils.WorkloadReadyTimeout)
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Finding the SPCPS for non-excluded SPC")

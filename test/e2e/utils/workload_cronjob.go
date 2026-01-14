@@ -2,7 +2,6 @@ package utils
 
 import (
 	"context"
-	"errors"
 	"time"
 
 	batchv1 "k8s.io/api/batch/v1"
@@ -53,15 +52,12 @@ func (a *CronJobAdapter) WaitReloaded(ctx context.Context, namespace, name, anno
 		return a.client.BatchV1().CronJobs(namespace).Watch(ctx, opts)
 	}
 	_, err := WatchUntil(ctx, watchFunc, name, HasPodTemplateAnnotation(CronJobPodTemplate, annotationKey), timeout)
-	if errors.Is(err, ErrWatchTimeout) {
-		return false, nil
-	}
-	return err == nil, err
+	return HandleWatchResult(err)
 }
 
-// WaitEnvVar is not supported for CronJobs as they don't use env var reload strategy.
+// WaitEnvVar returns an error because CronJobs don't support env var reload strategy.
 func (a *CronJobAdapter) WaitEnvVar(ctx context.Context, namespace, name, prefix string, timeout time.Duration) (bool, error) {
-	return false, nil
+	return false, ErrUnsupportedOperation
 }
 
 // SupportsEnvVarStrategy returns false as CronJobs don't support env var reload strategy.
@@ -80,10 +76,7 @@ func (a *CronJobAdapter) WaitForTriggeredJob(ctx context.Context, namespace, cro
 		return a.client.BatchV1().Jobs(namespace).Watch(ctx, opts)
 	}
 	_, err := WatchUntil(ctx, watchFunc, "", IsTriggeredJobForCronJob(cronJobName), timeout)
-	if errors.Is(err, ErrWatchTimeout) {
-		return false, nil
-	}
-	return err == nil, err
+	return HandleWatchResult(err)
 }
 
 // buildCronJobOptions converts WorkloadConfig to CronJobOption slice.

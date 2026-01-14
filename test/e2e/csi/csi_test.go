@@ -59,12 +59,12 @@ var _ = Describe("CSI SecretProviderClass Tests", Label("csi"), func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Waiting for Deployment to be ready")
-			err = adapter.WaitReady(ctx, testNamespace, deploymentName, utils.DeploymentReady)
+			err = adapter.WaitReady(ctx, testNamespace, deploymentName, utils.WorkloadReadyTimeout)
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Finding the SPCPS created by CSI driver")
 			spcpsName, err := utils.FindSPCPSForDeployment(
-				ctx, csiClient, kubeClient, testNamespace, deploymentName, utils.DeploymentReady,
+				ctx, csiClient, kubeClient, testNamespace, deploymentName, utils.WorkloadReadyTimeout,
 			)
 			Expect(err).NotTo(HaveOccurred())
 			GinkgoWriter.Printf("Found SPCPS: %s\n", spcpsName)
@@ -116,12 +116,12 @@ var _ = Describe("CSI SecretProviderClass Tests", Label("csi"), func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Waiting for Deployment to be ready")
-			err = adapter.WaitReady(ctx, testNamespace, deploymentName, utils.DeploymentReady)
+			err = adapter.WaitReady(ctx, testNamespace, deploymentName, utils.WorkloadReadyTimeout)
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Finding the SPCPS")
 			spcpsName, err := utils.FindSPCPSForDeployment(
-				ctx, csiClient, kubeClient, testNamespace, deploymentName, utils.DeploymentReady,
+				ctx, csiClient, kubeClient, testNamespace, deploymentName, utils.WorkloadReadyTimeout,
 			)
 			Expect(err).NotTo(HaveOccurred())
 
@@ -150,12 +150,12 @@ var _ = Describe("CSI SecretProviderClass Tests", Label("csi"), func() {
 			Expect(firstReloadValue).NotTo(BeEmpty())
 
 			By("Waiting for Deployment to stabilize")
-			err = adapter.WaitReady(ctx, testNamespace, deploymentName, utils.DeploymentReady)
+			err = adapter.WaitReady(ctx, testNamespace, deploymentName, utils.WorkloadReadyTimeout)
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Finding the NEW SPCPS after first reload (new pod = new SPCPS)")
 			newSpcpsName, err := utils.FindSPCPSForDeployment(
-				ctx, csiClient, kubeClient, testNamespace, deploymentName, utils.DeploymentReady,
+				ctx, csiClient, kubeClient, testNamespace, deploymentName, utils.WorkloadReadyTimeout,
 			)
 			Expect(err).NotTo(HaveOccurred())
 			GinkgoWriter.Printf("New SPCPS after first reload: %s\n", newSpcpsName)
@@ -207,7 +207,7 @@ var _ = Describe("CSI SecretProviderClass Tests", Label("csi"), func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Waiting for Deployment to be ready")
-			err = adapter.WaitReady(ctx, testNamespace, deploymentName, utils.DeploymentReady)
+			err = adapter.WaitReady(ctx, testNamespace, deploymentName, utils.WorkloadReadyTimeout)
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Updating the ConfigMap (should NOT trigger reload)")
@@ -226,7 +226,7 @@ var _ = Describe("CSI SecretProviderClass Tests", Label("csi"), func() {
 
 			By("Finding the SPCPS")
 			spcpsName, err := utils.FindSPCPSForDeployment(
-				ctx, csiClient, kubeClient, testNamespace, deploymentName, utils.DeploymentReady,
+				ctx, csiClient, kubeClient, testNamespace, deploymentName, utils.WorkloadReadyTimeout,
 			)
 			Expect(err).NotTo(HaveOccurred())
 
@@ -281,7 +281,7 @@ var _ = Describe("CSI SecretProviderClass Tests", Label("csi"), func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Waiting for Deployment to be ready")
-			err = adapter.WaitReady(ctx, testNamespace, deploymentName, utils.DeploymentReady)
+			err = adapter.WaitReady(ctx, testNamespace, deploymentName, utils.WorkloadReadyTimeout)
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Updating the ConfigMap (should trigger reload with auto=true)")
@@ -298,7 +298,7 @@ var _ = Describe("CSI SecretProviderClass Tests", Label("csi"), func() {
 			Expect(reloaded).To(BeTrue(), "Combined auto=true should trigger reload for ConfigMap changes")
 
 			By("Waiting for Deployment to stabilize")
-			err = adapter.WaitReady(ctx, testNamespace, deploymentName, utils.DeploymentReady)
+			err = adapter.WaitReady(ctx, testNamespace, deploymentName, utils.WorkloadReadyTimeout)
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Getting current annotation value")
@@ -308,7 +308,7 @@ var _ = Describe("CSI SecretProviderClass Tests", Label("csi"), func() {
 
 			By("Finding the NEW SPCPS after ConfigMap reload (new pod = new SPCPS)")
 			newSpcpsName, err := utils.FindSPCPSForDeployment(
-				ctx, csiClient, kubeClient, testNamespace, deploymentName, utils.DeploymentReady,
+				ctx, csiClient, kubeClient, testNamespace, deploymentName, utils.WorkloadReadyTimeout,
 			)
 			Expect(err).NotTo(HaveOccurred())
 			GinkgoWriter.Printf("New SPCPS after ConfigMap reload: %s\n", newSpcpsName)

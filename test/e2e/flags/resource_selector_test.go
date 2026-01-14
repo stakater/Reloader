@@ -68,7 +68,7 @@ var _ = Describe("Resource Label Selector Flag Tests", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Waiting for Deployment to be ready")
-			err = adapter.WaitReady(ctx, resourceNS, deploymentName, utils.DeploymentReady)
+			err = adapter.WaitReady(ctx, resourceNS, deploymentName, utils.WorkloadReadyTimeout)
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Updating the labeled ConfigMap")
@@ -96,7 +96,7 @@ var _ = Describe("Resource Label Selector Flag Tests", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Waiting for Deployment to be ready")
-			err = adapter.WaitReady(ctx, resourceNS, deploymentName, utils.DeploymentReady)
+			err = adapter.WaitReady(ctx, resourceNS, deploymentName, utils.WorkloadReadyTimeout)
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Updating the unlabeled ConfigMap")

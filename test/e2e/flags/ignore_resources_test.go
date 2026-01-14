@@ -67,7 +67,7 @@ var _ = Describe("Ignore Resources Flag Tests", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Waiting for Deployment to be ready")
-			err = adapter.WaitReady(ctx, ignoreNS, deploymentName, utils.DeploymentReady)
+			err = adapter.WaitReady(ctx, ignoreNS, deploymentName, utils.WorkloadReadyTimeout)
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Updating the Secret")
@@ -96,7 +96,7 @@ var _ = Describe("Ignore Resources Flag Tests", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Waiting for Deployment to be ready")
-			err = adapter.WaitReady(ctx, ignoreNS, deploymentName, utils.DeploymentReady)
+			err = adapter.WaitReady(ctx, ignoreNS, deploymentName, utils.WorkloadReadyTimeout)
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Updating the ConfigMap")
@@ -146,7 +146,7 @@ var _ = Describe("Ignore Resources Flag Tests", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Waiting for Deployment to be ready")
-			err = adapter.WaitReady(ctx, ignoreNS, deploymentName, utils.DeploymentReady)
+			err = adapter.WaitReady(ctx, ignoreNS, deploymentName, utils.WorkloadReadyTimeout)
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Updating the ConfigMap")
@@ -175,7 +175,7 @@ var _ = Describe("Ignore Resources Flag Tests", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Waiting for Deployment to be ready")
-			err = adapter.WaitReady(ctx, ignoreNS, deploymentName, utils.DeploymentReady)
+			err = adapter.WaitReady(ctx, ignoreNS, deploymentName, utils.WorkloadReadyTimeout)
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Updating the Secret")

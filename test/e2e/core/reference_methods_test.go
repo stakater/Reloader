@@ -55,7 +55,7 @@ var _ = Describe("Reference Method Tests", func() {
 				DeferCleanup(func() { _ = adapter.Delete(ctx, testNamespace, workloadName) })
 
 				By("Waiting for workload to be ready")
-				err = adapter.WaitReady(ctx, testNamespace, workloadName, utils.DeploymentReady)
+				err = adapter.WaitReady(ctx, testNamespace, workloadName, utils.WorkloadReadyTimeout)
 				Expect(err).NotTo(HaveOccurred())
 
 				By("Updating the ConfigMap")
@@ -104,7 +104,7 @@ var _ = Describe("Reference Method Tests", func() {
 				DeferCleanup(func() { _ = adapter.Delete(ctx, testNamespace, workloadName) })
 
 				By("Waiting for workload to be ready")
-				err = adapter.WaitReady(ctx, testNamespace, workloadName, utils.DeploymentReady)
+				err = adapter.WaitReady(ctx, testNamespace, workloadName, utils.WorkloadReadyTimeout)
 				Expect(err).NotTo(HaveOccurred())
 
 				By("Updating the Secret")
@@ -151,7 +151,7 @@ var _ = Describe("Reference Method Tests", func() {
 				DeferCleanup(func() { _ = adapter.Delete(ctx, testNamespace, workloadName) })
 
 				By("Waiting for workload to be ready")
-				err = adapter.WaitReady(ctx, testNamespace, workloadName, utils.DeploymentReady)
+				err = adapter.WaitReady(ctx, testNamespace, workloadName, utils.WorkloadReadyTimeout)
 				Expect(err).NotTo(HaveOccurred())
 
 				By("Updating the ConfigMap")
@@ -193,7 +193,7 @@ var _ = Describe("Reference Method Tests", func() {
 				DeferCleanup(func() { _ = adapter.Delete(ctx, testNamespace, workloadName) })
 
 				By("Waiting for workload to be ready")
-				err = adapter.WaitReady(ctx, testNamespace, workloadName, utils.DeploymentReady)
+				err = adapter.WaitReady(ctx, testNamespace, workloadName, utils.WorkloadReadyTimeout)
 				Expect(err).NotTo(HaveOccurred())
 
 				By("Updating the Secret")
@@ -243,7 +243,7 @@ var _ = Describe("Reference Method Tests", func() {
 				DeferCleanup(func() { _ = adapter.Delete(ctx, testNamespace, workloadName) })
 
 				By("Waiting for workload to be ready")
-				err = adapter.WaitReady(ctx, testNamespace, workloadName, utils.DeploymentReady)
+				err = adapter.WaitReady(ctx, testNamespace, workloadName, utils.WorkloadReadyTimeout)
 				Expect(err).NotTo(HaveOccurred())
 
 				By("Updating the ConfigMap")
@@ -293,7 +293,7 @@ var _ = Describe("Reference Method Tests", func() {
 				DeferCleanup(func() { _ = adapter.Delete(ctx, testNamespace, workloadName) })
 
 				By("Waiting for workload to be ready")
-				err = adapter.WaitReady(ctx, testNamespace, workloadName, utils.DeploymentReady)
+				err = adapter.WaitReady(ctx, testNamespace, workloadName, utils.WorkloadReadyTimeout)
 				Expect(err).NotTo(HaveOccurred())
 
 				By("Updating the Secret")
@@ -340,7 +340,7 @@ var _ = Describe("Reference Method Tests", func() {
 				DeferCleanup(func() { _ = adapter.Delete(ctx, testNamespace, workloadName) })
 
 				By("Waiting for workload to be ready")
-				err = adapter.WaitReady(ctx, testNamespace, workloadName, utils.DeploymentReady)
+				err = adapter.WaitReady(ctx, testNamespace, workloadName, utils.WorkloadReadyTimeout)
 				Expect(err).NotTo(HaveOccurred())
 
 				By("Updating the ConfigMap")
@@ -382,7 +382,7 @@ var _ = Describe("Reference Method Tests", func() {
 				DeferCleanup(func() { _ = adapter.Delete(ctx, testNamespace, workloadName) })
 
 				By("Waiting for workload to be ready")
-				err = adapter.WaitReady(ctx, testNamespace, workloadName, utils.DeploymentReady)
+				err = adapter.WaitReady(ctx, testNamespace, workloadName, utils.WorkloadReadyTimeout)
 				Expect(err).NotTo(HaveOccurred())
 
 				By("Updating the Secret")
@@ -426,7 +426,7 @@ var _ = Describe("Reference Method Tests", func() {
 				DeferCleanup(func() { _ = adapter.Delete(ctx, testNamespace, workloadName) })
 
 				By("Waiting for workload to be ready")
-				err = adapter.WaitReady(ctx, testNamespace, workloadName, utils.DeploymentReady)
+				err = adapter.WaitReady(ctx, testNamespace, workloadName, utils.WorkloadReadyTimeout)
 				Expect(err).NotTo(HaveOccurred())
 
 				By("Updating the ConfigMap")
@@ -468,7 +468,7 @@ var _ = Describe("Reference Method Tests", func() {
 				DeferCleanup(func() { _ = adapter.Delete(ctx, testNamespace, workloadName) })
 
 				By("Waiting for workload to be ready")
-				err = adapter.WaitReady(ctx, testNamespace, workloadName, utils.DeploymentReady)
+				err = adapter.WaitReady(ctx, testNamespace, workloadName, utils.WorkloadReadyTimeout)
 				Expect(err).NotTo(HaveOccurred())
 
 				By("Updating the Secret")
@@ -517,7 +517,7 @@ var _ = Describe("Reference Method Tests", func() {
 				DeferCleanup(func() { _ = adapter.Delete(ctx, testNamespace, workloadName) })
 
 				By("Waiting for workload to be ready")
-				err = adapter.WaitReady(ctx, testNamespace, workloadName, utils.DeploymentReady)
+				err = adapter.WaitReady(ctx, testNamespace, workloadName, utils.WorkloadReadyTimeout)
 				Expect(err).NotTo(HaveOccurred())
 
 				By("Updating the ConfigMap")

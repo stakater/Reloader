@@ -68,7 +68,7 @@ var _ = Describe("Watch Globally Flag Tests", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Waiting for Deployment to be ready")
-			err = adapter.WaitReady(ctx, testNamespace, deploymentName, utils.DeploymentReady)
+			err = adapter.WaitReady(ctx, testNamespace, deploymentName, utils.WorkloadReadyTimeout)
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Updating the ConfigMap")
@@ -96,7 +96,7 @@ var _ = Describe("Watch Globally Flag Tests", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Waiting for Deployment to be ready")
-			err = adapter.WaitReady(ctx, otherNS, deploymentName, utils.DeploymentReady)
+			err = adapter.WaitReady(ctx, otherNS, deploymentName, utils.WorkloadReadyTimeout)
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Updating the ConfigMap in the other namespace")
@@ -153,7 +153,7 @@ var _ = Describe("Watch Globally Flag Tests", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Waiting for Deployment to be ready")
-			err = adapter.WaitReady(ctx, globalNS, deploymentName, utils.DeploymentReady)
+			err = adapter.WaitReady(ctx, globalNS, deploymentName, utils.WorkloadReadyTimeout)
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Updating the ConfigMap")

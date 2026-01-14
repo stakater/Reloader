@@ -96,7 +96,7 @@ var _ = Describe("Ignored Workloads Flag Tests", func() {
 			}()
 
 			By("Waiting for Deployment to be ready")
-			err = deploymentAdater.WaitReady(ctx, ignoreNS, deploymentName, utils.DeploymentReady)
+			err = deploymentAdater.WaitReady(ctx, ignoreNS, deploymentName, utils.WorkloadReadyTimeout)
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Updating the ConfigMap")

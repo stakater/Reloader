@@ -2,7 +2,6 @@ package utils
 
 import (
 	"context"
-	"errors"
 	"time"
 
 	openshiftappsv1 "github.com/openshift/api/apps/v1"
@@ -12,8 +11,8 @@ import (
 	"k8s.io/apimachinery/pkg/watch"
 )
 
-// DCOption is a function that modifies a DeploymentConfig.
-type DCOption func(*openshiftappsv1.DeploymentConfig)
+// DeploymentConfigOption is a function that modifies a DeploymentConfig.
+type DeploymentConfigOption func(*openshiftappsv1.DeploymentConfig)
 
 // DeploymentConfigAdapter implements WorkloadAdapter for OpenShift DeploymentConfigs.
 type DeploymentConfigAdapter struct {
@@ -63,10 +62,7 @@ func (a *DeploymentConfigAdapter) WaitReloaded(ctx context.Context, namespace, n
 		return a.openshiftClient.AppsV1().DeploymentConfigs(namespace).Watch(ctx, opts)
 	}
 	_, err := WatchUntil(ctx, watchFunc, name, HasPodTemplateAnnotation(DeploymentConfigPodTemplate, annotationKey), timeout)
-	if errors.Is(err, ErrWatchTimeout) {
-		return false, nil
-	}
-	return err == nil, err
+	return HandleWatchResult(err)
 }
 
 // WaitEnvVar waits for the DeploymentConfig to have a STAKATER_ env var using watches.
@@ -75,10 +71,7 @@ func (a *DeploymentConfigAdapter) WaitEnvVar(ctx context.Context, namespace, nam
 		return a.openshiftClient.AppsV1().DeploymentConfigs(namespace).Watch(ctx, opts)
 	}
 	_, err := WatchUntil(ctx, watchFunc, name, HasEnvVarPrefix(DeploymentConfigContainers, prefix), timeout)
-	if errors.Is(err, ErrWatchTimeout) {
-		return false, nil
-	}
-	return err == nil, err
+	return HandleWatchResult(err)
 }
 
 // SupportsEnvVarStrategy returns true as DeploymentConfigs support env var reload strategy.
@@ -117,9 +110,9 @@ func baseDeploymentConfig(name string) *openshiftappsv1.DeploymentConfig {
 	}
 }
 
-// buildDeploymentConfigOptions converts WorkloadConfig to DCOption slice.
-func buildDeploymentConfigOptions(cfg WorkloadConfig) []DCOption {
-	return []DCOption{
+// buildDeploymentConfigOptions converts WorkloadConfig to DeploymentConfigOption slice.
+func buildDeploymentConfigOptions(cfg WorkloadConfig) []DeploymentConfigOption {
+	return []DeploymentConfigOption{
 		func(dc *openshiftappsv1.DeploymentConfig) {
 			// Set annotations on DeploymentConfig level (where Reloader checks them)
 			if len(cfg.Annotations) > 0 {

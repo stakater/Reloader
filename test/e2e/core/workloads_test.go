@@ -69,7 +69,7 @@ var _ = Describe("Workload Reload Tests", func() {
 			DeferCleanup(func() { _ = adapter.Delete(ctx, testNamespace, workloadName) })
 
 			By("Waiting for workload to be ready")
-			err = adapter.WaitReady(ctx, testNamespace, workloadName, utils.DeploymentReady)
+			err = adapter.WaitReady(ctx, testNamespace, workloadName, utils.WorkloadReadyTimeout)
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Updating the ConfigMap data")
@@ -110,7 +110,7 @@ var _ = Describe("Workload Reload Tests", func() {
 			DeferCleanup(func() { _ = adapter.Delete(ctx, testNamespace, workloadName) })
 
 			By("Waiting for workload to be ready")
-			err = adapter.WaitReady(ctx, testNamespace, workloadName, utils.DeploymentReady)
+			err = adapter.WaitReady(ctx, testNamespace, workloadName, utils.WorkloadReadyTimeout)
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Updating the Secret data")
@@ -163,12 +163,12 @@ var _ = Describe("Workload Reload Tests", func() {
 			DeferCleanup(func() { _ = adapter.Delete(ctx, testNamespace, workloadName) })
 
 			By("Waiting for workload to be ready")
-			err = adapter.WaitReady(ctx, testNamespace, workloadName, utils.DeploymentReady)
+			err = adapter.WaitReady(ctx, testNamespace, workloadName, utils.WorkloadReadyTimeout)
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Finding the SPCPS created by CSI driver")
 			spcpsName, err := utils.FindSPCPSForDeployment(ctx, csiClient, kubeClient, testNamespace, workloadName,
-				utils.DeploymentReady)
+				utils.WorkloadReadyTimeout)
 			Expect(err).NotTo(HaveOccurred())
 			GinkgoWriter.Printf("Found SPCPS: %s\n", spcpsName)
 
@@ -221,7 +221,7 @@ var _ = Describe("Workload Reload Tests", func() {
 				DeferCleanup(func() { _ = adapter.Delete(ctx, testNamespace, workloadName) })
 
 				By("Waiting for workload to be ready")
-				err = adapter.WaitReady(ctx, testNamespace, workloadName, utils.DeploymentReady)
+				err = adapter.WaitReady(ctx, testNamespace, workloadName, utils.WorkloadReadyTimeout)
 				Expect(err).NotTo(HaveOccurred())
 
 				By("Updating the ConfigMap data")
@@ -263,7 +263,7 @@ var _ = Describe("Workload Reload Tests", func() {
 				DeferCleanup(func() { _ = adapter.Delete(ctx, testNamespace, workloadName) })
 
 				By("Waiting for workload to be ready")
-				err = adapter.WaitReady(ctx, testNamespace, workloadName, utils.DeploymentReady)
+				err = adapter.WaitReady(ctx, testNamespace, workloadName, utils.WorkloadReadyTimeout)
 				Expect(err).NotTo(HaveOccurred())
 
 				By("Updating only the ConfigMap labels (no data change)")
@@ -305,7 +305,7 @@ var _ = Describe("Workload Reload Tests", func() {
 				DeferCleanup(func() { _ = adapter.Delete(ctx, testNamespace, workloadName) })
 
 				By("Waiting for workload to be ready")
-				err = adapter.WaitReady(ctx, testNamespace, workloadName, utils.DeploymentReady)
+				err = adapter.WaitReady(ctx, testNamespace, workloadName, utils.WorkloadReadyTimeout)
 				Expect(err).NotTo(HaveOccurred())
 
 				By("Updating only the Secret labels (no data change)")
@@ -359,12 +359,12 @@ var _ = Describe("Workload Reload Tests", func() {
 				DeferCleanup(func() { _ = adapter.Delete(ctx, testNamespace, workloadName) })
 
 				By("Waiting for workload to be ready")
-				err = adapter.WaitReady(ctx, testNamespace, workloadName, utils.DeploymentReady)
+				err = adapter.WaitReady(ctx, testNamespace, workloadName, utils.WorkloadReadyTimeout)
 				Expect(err).NotTo(HaveOccurred())
 
 				By("Finding the SPCPS created by CSI driver")
 				spcpsName, err := utils.FindSPCPSForDeployment(ctx, csiClient, kubeClient, testNamespace, workloadName,
-					utils.DeploymentReady)
+					utils.WorkloadReadyTimeout)
 				Expect(err).NotTo(HaveOccurred())
 
 				By("Updating only the SPCPS labels (no objects change)")
@@ -496,7 +496,7 @@ var _ = Describe("Workload Reload Tests", func() {
 			DeferCleanup(func() { _ = adapter.Delete(ctx, testNamespace, workloadName) })
 
 			By("Waiting for workload to be ready")
-			err = adapter.WaitReady(ctx, testNamespace, workloadName, utils.DeploymentReady)
+			err = adapter.WaitReady(ctx, testNamespace, workloadName, utils.WorkloadReadyTimeout)
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Updating the ConfigMap data")
@@ -536,7 +536,7 @@ var _ = Describe("Workload Reload Tests", func() {
 			DeferCleanup(func() { _ = adapter.Delete(ctx, testNamespace, workloadName) })
 
 			By("Waiting for workload to be ready")
-			err = adapter.WaitReady(ctx, testNamespace, workloadName, utils.DeploymentReady)
+			err = adapter.WaitReady(ctx, testNamespace, workloadName, utils.WorkloadReadyTimeout)
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Updating the Secret data")
@@ -576,7 +576,7 @@ var _ = Describe("Workload Reload Tests", func() {
 			DeferCleanup(func() { _ = adapter.Delete(ctx, testNamespace, workloadName) })
 
 			By("Waiting for workload to be ready")
-			err = adapter.WaitReady(ctx, testNamespace, workloadName, utils.DeploymentReady)
+			err = adapter.WaitReady(ctx, testNamespace, workloadName, utils.WorkloadReadyTimeout)
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Updating the ConfigMap data")
@@ -627,7 +627,7 @@ var _ = Describe("Workload Reload Tests", func() {
 				DeferCleanup(func() { _ = adapter.Delete(ctx, testNamespace, workloadName) })
 
 				By("Waiting for Deployment to be ready")
-				err = adapter.WaitReady(ctx, testNamespace, workloadName, utils.DeploymentReady)
+				err = adapter.WaitReady(ctx, testNamespace, workloadName, utils.WorkloadReadyTimeout)
 				Expect(err).NotTo(HaveOccurred())
 
 				By("Updating the second ConfigMap")
@@ -667,7 +667,7 @@ var _ = Describe("Workload Reload Tests", func() {
 				DeferCleanup(func() { _ = adapter.Delete(ctx, testNamespace, workloadName) })
 
 				By("Waiting for Deployment to be ready")
-				err = adapter.WaitReady(ctx, testNamespace, workloadName, utils.DeploymentReady)
+				err = adapter.WaitReady(ctx, testNamespace, workloadName, utils.WorkloadReadyTimeout)
 				Expect(err).NotTo(HaveOccurred())
 
 				By("Updating the second Secret")
@@ -700,7 +700,7 @@ var _ = Describe("Workload Reload Tests", func() {
 				DeferCleanup(func() { _ = adapter.Delete(ctx, testNamespace, workloadName) })
 
 				By("Waiting for Deployment to be ready")
-				err = adapter.WaitReady(ctx, testNamespace, workloadName, utils.DeploymentReady)
+				err = adapter.WaitReady(ctx, testNamespace, workloadName, utils.WorkloadReadyTimeout)
 				Expect(err).NotTo(HaveOccurred())
 
 				By("First update to ConfigMap")
@@ -759,7 +759,7 @@ var _ = Describe("Workload Reload Tests", func() {
 				DeferCleanup(func() { _ = adapter.Delete(ctx, testNamespace, workloadName) })
 
 				By("Waiting for Deployment to be ready")
-				err = adapter.WaitReady(ctx, testNamespace, workloadName, utils.DeploymentReady)
+				err = adapter.WaitReady(ctx, testNamespace, workloadName, utils.WorkloadReadyTimeout)
 				Expect(err).NotTo(HaveOccurred())
 
 				By("Updating the Secret")
@@ -792,7 +792,7 @@ var _ = Describe("Workload Reload Tests", func() {
 				DeferCleanup(func() { _ = adapter.Delete(ctx, testNamespace, workloadName) })
 
 				By("Waiting for Deployment to be ready")
-				err = adapter.WaitReady(ctx, testNamespace, workloadName, utils.DeploymentReady)
+				err = adapter.WaitReady(ctx, testNamespace, workloadName, utils.WorkloadReadyTimeout)
 				Expect(err).NotTo(HaveOccurred())
 
 				By("Updating the ConfigMap data")
@@ -837,7 +837,7 @@ var _ = Describe("Workload Reload Tests", func() {
 					DeferCleanup(func() { _ = adapter.Delete(ctx, testNamespace, workloadName) })
 
 					By("Waiting for workload to be ready")
-					err = adapter.WaitReady(ctx, testNamespace, workloadName, utils.DeploymentReady)
+					err = adapter.WaitReady(ctx, testNamespace, workloadName, utils.WorkloadReadyTimeout)
 					Expect(err).NotTo(HaveOccurred())
 
 					By("Updating the ConfigMap")
@@ -878,7 +878,7 @@ var _ = Describe("Workload Reload Tests", func() {
 					DeferCleanup(func() { _ = adapter.Delete(ctx, testNamespace, workloadName) })
 
 					By("Waiting for workload to be ready")
-					err = adapter.WaitReady(ctx, testNamespace, workloadName, utils.DeploymentReady)
+					err = adapter.WaitReady(ctx, testNamespace, workloadName, utils.WorkloadReadyTimeout)
 					Expect(err).NotTo(HaveOccurred())
 
 					By("Updating the Secret")
@@ -919,7 +919,7 @@ var _ = Describe("Workload Reload Tests", func() {
 					DeferCleanup(func() { _ = adapter.Delete(ctx, testNamespace, workloadName) })
 
 					By("Waiting for workload to be ready")
-					err = adapter.WaitReady(ctx, testNamespace, workloadName, utils.DeploymentReady)
+					err = adapter.WaitReady(ctx, testNamespace, workloadName, utils.WorkloadReadyTimeout)
 					Expect(err).NotTo(HaveOccurred())
 
 					By("Updating the ConfigMap")
@@ -971,12 +971,12 @@ var _ = Describe("Workload Reload Tests", func() {
 					DeferCleanup(func() { _ = adapter.Delete(ctx, testNamespace, workloadName) })
 
 					By("Waiting for workload to be ready")
-					err = adapter.WaitReady(ctx, testNamespace, workloadName, utils.DeploymentReady)
+					err = adapter.WaitReady(ctx, testNamespace, workloadName, utils.WorkloadReadyTimeout)
 					Expect(err).NotTo(HaveOccurred())
 
 					By("Finding the SPCPS created by CSI driver")
 					spcpsName, err := utils.FindSPCPSForDeployment(ctx, csiClient, kubeClient, testNamespace,
-						workloadName, utils.DeploymentReady)
+						workloadName, utils.WorkloadReadyTimeout)
 					Expect(err).NotTo(HaveOccurred())
 
 					By("Getting initial SPCPS version")
@@ -1037,12 +1037,12 @@ var _ = Describe("Workload Reload Tests", func() {
 					DeferCleanup(func() { _ = adapter.Delete(ctx, testNamespace, workloadName) })
 
 					By("Waiting for workload to be ready")
-					err = adapter.WaitReady(ctx, testNamespace, workloadName, utils.DeploymentReady)
+					err = adapter.WaitReady(ctx, testNamespace, workloadName, utils.WorkloadReadyTimeout)
 					Expect(err).NotTo(HaveOccurred())
 
 					By("Finding the SPCPS created by CSI driver")
 					spcpsName, err := utils.FindSPCPSForDeployment(ctx, csiClient, kubeClient, testNamespace,
-						workloadName, utils.DeploymentReady)
+						workloadName, utils.WorkloadReadyTimeout)
 					Expect(err).NotTo(HaveOccurred())
 
 					By("Getting initial SPCPS version")
@@ -1093,7 +1093,7 @@ var _ = Describe("Workload Reload Tests", func() {
 					DeferCleanup(func() { _ = adapter.Delete(ctx, testNamespace, workloadName) })
 
 					By("Waiting for workload to be ready")
-					err = adapter.WaitReady(ctx, testNamespace, workloadName, utils.DeploymentReady)
+					err = adapter.WaitReady(ctx, testNamespace, workloadName, utils.WorkloadReadyTimeout)
 					Expect(err).NotTo(HaveOccurred())
 
 					By("Updating the ConfigMap")
@@ -1138,7 +1138,7 @@ var _ = Describe("Workload Reload Tests", func() {
 					DeferCleanup(func() { _ = adapter.Delete(ctx, testNamespace, workloadName) })
 
 					By("Waiting for workload to be ready")
-					err = adapter.WaitReady(ctx, testNamespace, workloadName, utils.DeploymentReady)
+					err = adapter.WaitReady(ctx, testNamespace, workloadName, utils.WorkloadReadyTimeout)
 					Expect(err).NotTo(HaveOccurred())
 
 					By("Updating the Secret (not the ConfigMap)")
@@ -1224,7 +1224,7 @@ var _ = Describe("Workload Reload Tests", func() {
 			DeferCleanup(func() { _ = adapter.Delete(ctx, testNamespace, workloadName) })
 
 			By("Waiting for workload to be ready")
-			err = adapter.WaitReady(ctx, testNamespace, workloadName, utils.DeploymentReady)
+			err = adapter.WaitReady(ctx, testNamespace, workloadName, utils.WorkloadReadyTimeout)
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Updating the ConfigMap data")
@@ -1268,7 +1268,7 @@ var _ = Describe("Workload Reload Tests", func() {
 			DeferCleanup(func() { _ = adapter.Delete(ctx, testNamespace, workloadName) })
 
 			By("Waiting for workload to be ready")
-			err = adapter.WaitReady(ctx, testNamespace, workloadName, utils.DeploymentReady)
+			err = adapter.WaitReady(ctx, testNamespace, workloadName, utils.WorkloadReadyTimeout)
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Updating the Secret data")
@@ -1325,12 +1325,12 @@ var _ = Describe("Workload Reload Tests", func() {
 				DeferCleanup(func() { _ = adapter.Delete(ctx, testNamespace, workloadName) })
 
 				By("Waiting for workload to be ready")
-				err = adapter.WaitReady(ctx, testNamespace, workloadName, utils.DeploymentReady)
+				err = adapter.WaitReady(ctx, testNamespace, workloadName, utils.WorkloadReadyTimeout)
 				Expect(err).NotTo(HaveOccurred())
 
 				By("Finding the SPCPS created by CSI driver")
 				spcpsName, err := utils.FindSPCPSForDeployment(ctx, csiClient, kubeClient, testNamespace, workloadName,
-					utils.DeploymentReady)
+					utils.WorkloadReadyTimeout)
 				Expect(err).NotTo(HaveOccurred())
 
 				By("Getting initial SPCPS version")
@@ -1384,7 +1384,7 @@ var _ = Describe("Workload Reload Tests", func() {
 				DeferCleanup(func() { _ = adapter.Delete(ctx, testNamespace, workloadName) })
 
 				By("Waiting for workload to be ready")
-				err = adapter.WaitReady(ctx, testNamespace, workloadName, utils.DeploymentReady)
+				err = adapter.WaitReady(ctx, testNamespace, workloadName, utils.WorkloadReadyTimeout)
 				Expect(err).NotTo(HaveOccurred())
 
 				By("Updating only the ConfigMap labels")
@@ -1428,7 +1428,7 @@ var _ = Describe("Workload Reload Tests", func() {
 				DeferCleanup(func() { _ = adapter.Delete(ctx, testNamespace, workloadName) })
 
 				By("Waiting for workload to be ready")
-				err = adapter.WaitReady(ctx, testNamespace, workloadName, utils.DeploymentReady)
+				err = adapter.WaitReady(ctx, testNamespace, workloadName, utils.WorkloadReadyTimeout)
 				Expect(err).NotTo(HaveOccurred())
 
 				By("Updating only the Secret labels")
@@ -1484,12 +1484,12 @@ var _ = Describe("Workload Reload Tests", func() {
 				DeferCleanup(func() { _ = adapter.Delete(ctx, testNamespace, workloadName) })
 
 				By("Waiting for workload to be ready")
-				err = adapter.WaitReady(ctx, testNamespace, workloadName, utils.DeploymentReady)
+				err = adapter.WaitReady(ctx, testNamespace, workloadName, utils.WorkloadReadyTimeout)
 				Expect(err).NotTo(HaveOccurred())
 
 				By("Finding the SPCPS created by CSI driver")
 				spcpsName, err := utils.FindSPCPSForDeployment(ctx, csiClient, kubeClient, testNamespace, workloadName,
-					utils.DeploymentReady)
+					utils.WorkloadReadyTimeout)
 				Expect(err).NotTo(HaveOccurred())
 
 				By("Updating only the SPCPS labels (should NOT trigger reload)")
@@ -1540,12 +1540,12 @@ var _ = Describe("Workload Reload Tests", func() {
 			DeferCleanup(func() { _ = adapter.Delete(ctx, testNamespace, workloadName) })
 
 			By("Waiting for Deployment to be ready")
-			err = adapter.WaitReady(ctx, testNamespace, workloadName, utils.DeploymentReady)
+			err = adapter.WaitReady(ctx, testNamespace, workloadName, utils.WorkloadReadyTimeout)
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Finding the SPCPS created by CSI driver")
 			spcpsName, err := utils.FindSPCPSForDeployment(ctx, csiClient, kubeClient, testNamespace, workloadName,
-				utils.DeploymentReady)
+				utils.WorkloadReadyTimeout)
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Getting initial SPCPS version")
@@ -1600,12 +1600,12 @@ var _ = Describe("Workload Reload Tests", func() {
 			DeferCleanup(func() { _ = adapter.Delete(ctx, testNamespace, workloadName) })
 
 			By("Waiting for Deployment to be ready")
-			err = adapter.WaitReady(ctx, testNamespace, workloadName, utils.DeploymentReady)
+			err = adapter.WaitReady(ctx, testNamespace, workloadName, utils.WorkloadReadyTimeout)
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Finding the SPCPS created by CSI driver")
 			spcpsName, err := utils.FindSPCPSForDeployment(ctx, csiClient, kubeClient, testNamespace, workloadName,
-				utils.DeploymentReady)
+				utils.WorkloadReadyTimeout)
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Getting initial SPCPS version")
@@ -1657,12 +1657,12 @@ var _ = Describe("Workload Reload Tests", func() {
 			adapter := utils.NewDeploymentAdapter(kubeClient)
 
 			By("Waiting for Deployment to be ready")
-			err = adapter.WaitReady(ctx, testNamespace, workloadName, utils.DeploymentReady)
+			err = adapter.WaitReady(ctx, testNamespace, workloadName, utils.WorkloadReadyTimeout)
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Finding the SPCPS created by CSI driver")
 			spcpsName, err := utils.FindSPCPSForDeployment(ctx, csiClient, kubeClient, testNamespace, workloadName,
-				utils.DeploymentReady)
+				utils.WorkloadReadyTimeout)
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Getting initial SPCPS version")

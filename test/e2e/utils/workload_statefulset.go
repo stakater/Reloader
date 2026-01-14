@@ -2,7 +2,6 @@ package utils
 
 import (
 	"context"
-	"errors"
 	"time"
 
 	appsv1 "k8s.io/api/apps/v1"
@@ -53,10 +52,7 @@ func (a *StatefulSetAdapter) WaitReloaded(ctx context.Context, namespace, name, 
 		return a.client.AppsV1().StatefulSets(namespace).Watch(ctx, opts)
 	}
 	_, err := WatchUntil(ctx, watchFunc, name, HasPodTemplateAnnotation(StatefulSetPodTemplate, annotationKey), timeout)
-	if errors.Is(err, ErrWatchTimeout) {
-		return false, nil
-	}
-	return err == nil, err
+	return HandleWatchResult(err)
 }
 
 // WaitEnvVar waits for the StatefulSet to have a STAKATER_ env var using watches.
@@ -65,10 +61,7 @@ func (a *StatefulSetAdapter) WaitEnvVar(ctx context.Context, namespace, name, pr
 		return a.client.AppsV1().StatefulSets(namespace).Watch(ctx, opts)
 	}
 	_, err := WatchUntil(ctx, watchFunc, name, HasEnvVarPrefix(StatefulSetContainers, prefix), timeout)
-	if errors.Is(err, ErrWatchTimeout) {
-		return false, nil
-	}
-	return err == nil, err
+	return HandleWatchResult(err)
 }
 
 // SupportsEnvVarStrategy returns true as StatefulSets support env var reload strategy.

@@ -2,7 +2,6 @@ package utils
 
 import (
 	"context"
-	"errors"
 	"time"
 
 	appsv1 "k8s.io/api/apps/v1"
@@ -53,10 +52,7 @@ func (a *DaemonSetAdapter) WaitReloaded(ctx context.Context, namespace, name, an
 		return a.client.AppsV1().DaemonSets(namespace).Watch(ctx, opts)
 	}
 	_, err := WatchUntil(ctx, watchFunc, name, HasPodTemplateAnnotation(DaemonSetPodTemplate, annotationKey), timeout)
-	if errors.Is(err, ErrWatchTimeout) {
-		return false, nil
-	}
-	return err == nil, err
+	return HandleWatchResult(err)
 }
 
 // WaitEnvVar waits for the DaemonSet to have a STAKATER_ env var using watches.
@@ -65,10 +61,7 @@ func (a *DaemonSetAdapter) WaitEnvVar(ctx context.Context, namespace, name, pref
 		return a.client.AppsV1().DaemonSets(namespace).Watch(ctx, opts)
 	}
 	_, err := WatchUntil(ctx, watchFunc, name, HasEnvVarPrefix(DaemonSetContainers, prefix), timeout)
-	if errors.Is(err, ErrWatchTimeout) {
-		return false, nil
-	}
-	return err == nil, err
+	return HandleWatchResult(err)
 }
 
 // SupportsEnvVarStrategy returns true as DaemonSets support env var reload strategy.

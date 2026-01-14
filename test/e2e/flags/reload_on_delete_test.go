@@ -63,7 +63,7 @@ var _ = Describe("Reload On Delete Flag Tests", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Waiting for Deployment to be ready")
-			err = adapter.WaitReady(ctx, deleteNamespace, deploymentName, utils.DeploymentReady)
+			err = adapter.WaitReady(ctx, deleteNamespace, deploymentName, utils.WorkloadReadyTimeout)
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Deleting the ConfigMap")
@@ -92,7 +92,7 @@ var _ = Describe("Reload On Delete Flag Tests", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Waiting for Deployment to be ready")
-			err = adapter.WaitReady(ctx, deleteNamespace, deploymentName, utils.DeploymentReady)
+			err = adapter.WaitReady(ctx, deleteNamespace, deploymentName, utils.WorkloadReadyTimeout)
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Deleting the Secret")
@@ -139,7 +139,7 @@ var _ = Describe("Reload On Delete Flag Tests", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Waiting for Deployment to be ready")
-			err = adapter.WaitReady(ctx, deleteNamespace, deploymentName, utils.DeploymentReady)
+			err = adapter.WaitReady(ctx, deleteNamespace, deploymentName, utils.WorkloadReadyTimeout)
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Deleting the ConfigMap")

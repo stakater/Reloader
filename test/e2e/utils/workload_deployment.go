@@ -2,7 +2,6 @@ package utils
 
 import (
 	"context"
-	"errors"
 	"time"
 
 	appsv1 "k8s.io/api/apps/v1"
@@ -53,10 +52,7 @@ func (a *DeploymentAdapter) WaitReloaded(ctx context.Context, namespace, name, a
 		return a.client.AppsV1().Deployments(namespace).Watch(ctx, opts)
 	}
 	_, err := WatchUntil(ctx, watchFunc, name, HasPodTemplateAnnotation(DeploymentPodTemplate, annotationKey), timeout)
-	if errors.Is(err, ErrWatchTimeout) {
-		return false, nil
-	}
-	return err == nil, err
+	return HandleWatchResult(err)
 }
 
 // WaitEnvVar waits for the Deployment to have a STAKATER_ env var using watches.
@@ -65,10 +61,7 @@ func (a *DeploymentAdapter) WaitEnvVar(ctx context.Context, namespace, name, pre
 		return a.client.AppsV1().Deployments(namespace).Watch(ctx, opts)
 	}
 	_, err := WatchUntil(ctx, watchFunc, name, HasEnvVarPrefix(DeploymentContainers, prefix), timeout)
-	if errors.Is(err, ErrWatchTimeout) {
-		return false, nil
-	}
-	return err == nil, err
+	return HandleWatchResult(err)
 }
 
 // WaitPaused waits for the Deployment to have the paused annotation using watches.
@@ -77,10 +70,7 @@ func (a *DeploymentAdapter) WaitPaused(ctx context.Context, namespace, name, ann
 		return a.client.AppsV1().Deployments(namespace).Watch(ctx, opts)
 	}
 	_, err := WatchUntil(ctx, watchFunc, name, HasAnnotation(DeploymentAnnotations, annotationKey), timeout)
-	if errors.Is(err, ErrWatchTimeout) {
-		return false, nil
-	}
-	return err == nil, err
+	return HandleWatchResult(err)
 }
 
 // WaitUnpaused waits for the Deployment to NOT have the paused annotation using watches.
@@ -89,10 +79,7 @@ func (a *DeploymentAdapter) WaitUnpaused(ctx context.Context, namespace, name, a
 		return a.client.AppsV1().Deployments(namespace).Watch(ctx, opts)
 	}
 	_, err := WatchUntil(ctx, watchFunc, name, NoAnnotation(DeploymentAnnotations, annotationKey), timeout)
-	if errors.Is(err, ErrWatchTimeout) {
-		return false, nil
-	}
-	return err == nil, err
+	return HandleWatchResult(err)
 }
 
 // SupportsEnvVarStrategy returns true as Deployments support env var reload strategy.

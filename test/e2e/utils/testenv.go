@@ -159,7 +159,7 @@ func (e *TestEnvironment) DeployReloaderWithValues(values map[string]string) err
 func (e *TestEnvironment) WaitForReloader() error {
 	ginkgo.GinkgoWriter.Println("Waiting for Reloader to be ready...")
 	adapter := NewDeploymentAdapter(e.KubeClient)
-	return adapter.WaitReady(e.Ctx, e.Namespace, ReloaderDeploymentName(e.ReleaseName), DeploymentReady)
+	return adapter.WaitReady(e.Ctx, e.Namespace, ReloaderDeploymentName(e.ReleaseName), WorkloadReadyTimeout)
 }
 
 // DeployAndWait deploys Reloader with the given values and waits for it to be ready.

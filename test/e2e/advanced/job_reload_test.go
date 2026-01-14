@@ -52,7 +52,7 @@ var _ = Describe("Job Workload Recreation Tests", func() {
 			originalUID := string(job.UID)
 
 			By("Waiting for Job to be ready")
-			err = jobAdapter.WaitReady(ctx, testNamespace, jobName, utils.DeploymentReady)
+			err = jobAdapter.WaitReady(ctx, testNamespace, jobName, utils.WorkloadReadyTimeout)
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Updating the ConfigMap")
@@ -80,7 +80,7 @@ var _ = Describe("Job Workload Recreation Tests", func() {
 			originalUID := string(job.UID)
 
 			By("Waiting for Job to be ready")
-			err = jobAdapter.WaitReady(ctx, testNamespace, jobName, utils.DeploymentReady)
+			err = jobAdapter.WaitReady(ctx, testNamespace, jobName, utils.WorkloadReadyTimeout)
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Updating the Secret")
@@ -109,7 +109,7 @@ var _ = Describe("Job Workload Recreation Tests", func() {
 			originalUID := string(job.UID)
 
 			By("Waiting for Job to be ready")
-			err = jobAdapter.WaitReady(ctx, testNamespace, jobName, utils.DeploymentReady)
+			err = jobAdapter.WaitReady(ctx, testNamespace, jobName, utils.WorkloadReadyTimeout)
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Updating the ConfigMap")
@@ -138,7 +138,7 @@ var _ = Describe("Job Workload Recreation Tests", func() {
 			originalUID := string(job.UID)
 
 			By("Waiting for Job to be ready")
-			err = jobAdapter.WaitReady(ctx, testNamespace, jobName, utils.DeploymentReady)
+			err = jobAdapter.WaitReady(ctx, testNamespace, jobName, utils.WorkloadReadyTimeout)
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Updating the ConfigMap")
@@ -168,7 +168,7 @@ var _ = Describe("Job Workload Recreation Tests", func() {
 			originalUID := string(job.UID)
 
 			By("Waiting for Job to be ready")
-			err = jobAdapter.WaitReady(ctx, testNamespace, jobName, utils.DeploymentReady)
+			err = jobAdapter.WaitReady(ctx, testNamespace, jobName, utils.WorkloadReadyTimeout)
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Updating the Secret")
@@ -215,12 +215,12 @@ var _ = Describe("Job Workload Recreation Tests", func() {
 			originalUID := string(job.UID)
 
 			By("Waiting for Job to be ready")
-			err = jobAdapter.WaitReady(ctx, testNamespace, jobName, utils.DeploymentReady)
+			err = jobAdapter.WaitReady(ctx, testNamespace, jobName, utils.WorkloadReadyTimeout)
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Finding the SPCPS created by CSI driver")
 			spcpsName, err := utils.FindSPCPSForSPC(
-				ctx, csiClient, testNamespace, spcName, utils.DeploymentReady,
+				ctx, csiClient, testNamespace, spcName, utils.WorkloadReadyTimeout,
 			)
 			Expect(err).NotTo(HaveOccurred())
 			GinkgoWriter.Printf("Found SPCPS: %s\n", spcpsName)

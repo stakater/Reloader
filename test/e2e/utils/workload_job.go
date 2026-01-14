@@ -49,19 +49,15 @@ func (a *JobAdapter) WaitReady(ctx context.Context, namespace, name string, time
 	return err
 }
 
-// WaitReloaded waits for the Job to be recreated (new UID) using watches.
-// For Jobs, Reloader recreates the Job rather than updating annotations.
+// WaitReloaded returns an error because Jobs are recreated, not updated.
+// Use the Recreatable interface (GetOriginalUID + WaitRecreated) instead.
 func (a *JobAdapter) WaitReloaded(ctx context.Context, namespace, name, annotationKey string, timeout time.Duration) (bool, error) {
-	// For Jobs, we check if it was recreated by looking for a new UID
-	// This requires storing the original UID before the test
-	// For simplicity, we use the same pattern as other workloads
-	// The test should verify recreation using WaitForRecreation instead
-	return false, nil
+	return false, ErrUnsupportedOperation
 }
 
-// WaitEnvVar is not supported for Jobs as they don't use env var reload strategy.
+// WaitEnvVar returns an error because Jobs don't support env var reload strategy.
 func (a *JobAdapter) WaitEnvVar(ctx context.Context, namespace, name, prefix string, timeout time.Duration) (bool, error) {
-	return false, nil
+	return false, ErrUnsupportedOperation
 }
 
 // WaitRecreated waits for the Job to be recreated with a different UID using watches.

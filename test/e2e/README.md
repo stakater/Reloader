@@ -405,7 +405,7 @@ DescribeTable("should reload when ConfigMap changes",
         Expect(err).NotTo(HaveOccurred())
 
         // Wait for ready
-        err = adapter.WaitReady(ctx, testNamespace, workloadName, utils.DeploymentReady)
+        err = adapter.WaitReady(ctx, testNamespace, workloadName, utils.WorkloadReadyTimeout)
         Expect(err).NotTo(HaveOccurred())
 
         // Update ConfigMap

@@ -2,7 +2,6 @@ package utils
 
 import (
 	"context"
-	"errors"
 	"time"
 
 	rolloutv1alpha1 "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
@@ -61,10 +60,7 @@ func (a *ArgoRolloutAdapter) WaitReloaded(ctx context.Context, namespace, name, 
 		return a.rolloutsClient.ArgoprojV1alpha1().Rollouts(namespace).Watch(ctx, opts)
 	}
 	_, err := WatchUntil(ctx, watchFunc, name, HasPodTemplateAnnotation(RolloutPodTemplate, annotationKey), timeout)
-	if errors.Is(err, ErrWatchTimeout) {
-		return false, nil
-	}
-	return err == nil, err
+	return HandleWatchResult(err)
 }
 
 // WaitEnvVar waits for the Argo Rollout to have a STAKATER_ env var using watches.
@@ -73,10 +69,7 @@ func (a *ArgoRolloutAdapter) WaitEnvVar(ctx context.Context, namespace, name, pr
 		return a.rolloutsClient.ArgoprojV1alpha1().Rollouts(namespace).Watch(ctx, opts)
 	}
 	_, err := WatchUntil(ctx, watchFunc, name, HasEnvVarPrefix(RolloutContainers, prefix), timeout)
-	if errors.Is(err, ErrWatchTimeout) {
-		return false, nil
-	}
-	return err == nil, err
+	return HandleWatchResult(err)
 }
 
 // WaitRestartAt waits for the Argo Rollout to have the restartAt field set using watches.
@@ -86,10 +79,7 @@ func (a *ArgoRolloutAdapter) WaitRestartAt(ctx context.Context, namespace, name 
 		return a.rolloutsClient.ArgoprojV1alpha1().Rollouts(namespace).Watch(ctx, opts)
 	}
 	_, err := WatchUntil(ctx, watchFunc, name, IsReady(RolloutHasRestartAt), timeout)
-	if errors.Is(err, ErrWatchTimeout) {
-		return false, nil
-	}
-	return err == nil, err
+	return HandleWatchResult(err)
 }
 
 // SupportsEnvVarStrategy returns true as Argo Rollouts support env var reload strategy.

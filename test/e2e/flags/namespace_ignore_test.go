@@ -69,7 +69,7 @@ var _ = Describe("Namespace Ignore Flag Tests", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Waiting for Deployment to be ready")
-			err = adapter.WaitReady(ctx, ignoredNamespace, deploymentName, utils.DeploymentReady)
+			err = adapter.WaitReady(ctx, ignoredNamespace, deploymentName, utils.WorkloadReadyTimeout)
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Updating the ConfigMap")
@@ -98,7 +98,7 @@ var _ = Describe("Namespace Ignore Flag Tests", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Waiting for Deployment to be ready")
-			err = adapter.WaitReady(ctx, watchedNamespace, deploymentName, utils.DeploymentReady)
+			err = adapter.WaitReady(ctx, watchedNamespace, deploymentName, utils.WorkloadReadyTimeout)
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Updating the ConfigMap")

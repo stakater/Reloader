@@ -46,7 +46,7 @@ var _ = Describe("Search and Match Annotation Tests", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Waiting for Deployment to be ready")
-			err = adapter.WaitReady(ctx, testNamespace, deploymentName, utils.DeploymentReady)
+			err = adapter.WaitReady(ctx, testNamespace, deploymentName, utils.WorkloadReadyTimeout)
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Updating the ConfigMap data")
@@ -74,7 +74,7 @@ var _ = Describe("Search and Match Annotation Tests", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Waiting for Deployment to be ready")
-			err = adapter.WaitReady(ctx, testNamespace, deploymentName, utils.DeploymentReady)
+			err = adapter.WaitReady(ctx, testNamespace, deploymentName, utils.WorkloadReadyTimeout)
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Updating the ConfigMap data")
@@ -104,7 +104,7 @@ var _ = Describe("Search and Match Annotation Tests", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Waiting for Deployment to be ready")
-			err = adapter.WaitReady(ctx, testNamespace, deploymentName, utils.DeploymentReady)
+			err = adapter.WaitReady(ctx, testNamespace, deploymentName, utils.WorkloadReadyTimeout)
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Updating the ConfigMap data")
@@ -146,9 +146,9 @@ var _ = Describe("Search and Match Annotation Tests", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Waiting for both Deployments to be ready")
-			err = adapter.WaitReady(ctx, testNamespace, deploymentName, utils.DeploymentReady)
+			err = adapter.WaitReady(ctx, testNamespace, deploymentName, utils.WorkloadReadyTimeout)
 			Expect(err).NotTo(HaveOccurred())
-			err = adapter.WaitReady(ctx, testNamespace, deploymentName2, utils.DeploymentReady)
+			err = adapter.WaitReady(ctx, testNamespace, deploymentName2, utils.WorkloadReadyTimeout)
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Updating the ConfigMap data")
@@ -195,7 +195,7 @@ var _ = Describe("Search and Match Annotation Tests", func() {
 				DeferCleanup(func() { _ = adapter.Delete(ctx, testNamespace, workloadName) })
 
 				By("Waiting for workload to be ready")
-				err = adapter.WaitReady(ctx, testNamespace, workloadName, utils.DeploymentReady)
+				err = adapter.WaitReady(ctx, testNamespace, workloadName, utils.WorkloadReadyTimeout)
 				Expect(err).NotTo(HaveOccurred())
 
 				By("Updating the ConfigMap")
