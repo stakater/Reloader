@@ -239,7 +239,8 @@ var _ = Describe("Exclude Annotation Tests", func() {
 			Entry("DaemonSet", utils.WorkloadDaemonSet),
 			Entry("StatefulSet", utils.WorkloadStatefulSet),
 			Entry("ArgoRollout", Label("argo"), utils.WorkloadArgoRollout),
-			Entry("DeploymentConfig", Label("openshift"), utils.WorkloadDeploymentConfig))
+			Entry("DeploymentConfig", Label("openshift"), utils.WorkloadDeploymentConfig),
+		)
 	})
 
 	Context("SecretProviderClass exclude annotation", Label("csi"), func() {

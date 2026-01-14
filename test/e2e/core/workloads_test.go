@@ -86,7 +86,8 @@ var _ = Describe("Workload Reload Tests", func() {
 			Entry("DaemonSet", utils.WorkloadDaemonSet),
 			Entry("StatefulSet", utils.WorkloadStatefulSet),
 			Entry("ArgoRollout", Label("argo"), utils.WorkloadArgoRollout),
-			Entry("DeploymentConfig", Label("openshift"), utils.WorkloadDeploymentConfig))
+			Entry("DeploymentConfig", Label("openshift"), utils.WorkloadDeploymentConfig),
+		)
 
 		// Secret reload tests for standard workloads
 		DescribeTable("should reload when Secret changes", func(workloadType utils.WorkloadType) {
@@ -196,7 +197,8 @@ var _ = Describe("Workload Reload Tests", func() {
 			Entry("DaemonSet", Label("csi"), utils.WorkloadDaemonSet),
 			Entry("StatefulSet", Label("csi"), utils.WorkloadStatefulSet),
 			Entry("ArgoRollout", Label("csi", "argo"), utils.WorkloadArgoRollout),
-			Entry("DeploymentConfig", Label("csi", "openshift"), utils.WorkloadDeploymentConfig))
+			Entry("DeploymentConfig", Label("csi", "openshift"), utils.WorkloadDeploymentConfig),
+		)
 
 		// Auto=true annotation tests
 		DescribeTable("should reload with auto=true annotation when ConfigMap changes",
@@ -238,7 +240,8 @@ var _ = Describe("Workload Reload Tests", func() {
 			Entry("DaemonSet", utils.WorkloadDaemonSet),
 			Entry("StatefulSet", utils.WorkloadStatefulSet),
 			Entry("ArgoRollout", Label("argo"), utils.WorkloadArgoRollout),
-			Entry("DeploymentConfig", Label("openshift"), utils.WorkloadDeploymentConfig))
+			Entry("DeploymentConfig", Label("openshift"), utils.WorkloadDeploymentConfig),
+		)
 
 		// Negative tests: label-only changes should NOT trigger reload
 		DescribeTable("should NOT reload when only ConfigMap labels change (no data change)",
@@ -281,7 +284,8 @@ var _ = Describe("Workload Reload Tests", func() {
 			Entry("DaemonSet", utils.WorkloadDaemonSet),
 			Entry("StatefulSet", utils.WorkloadStatefulSet),
 			Entry("ArgoRollout", Label("argo"), utils.WorkloadArgoRollout),
-			Entry("DeploymentConfig", Label("openshift"), utils.WorkloadDeploymentConfig))
+			Entry("DeploymentConfig", Label("openshift"), utils.WorkloadDeploymentConfig),
+		)
 
 		DescribeTable("should NOT reload when only Secret labels change (no data change)",
 			func(workloadType utils.WorkloadType) {
@@ -323,7 +327,8 @@ var _ = Describe("Workload Reload Tests", func() {
 			Entry("DaemonSet", utils.WorkloadDaemonSet),
 			Entry("StatefulSet", utils.WorkloadStatefulSet),
 			Entry("ArgoRollout", Label("argo"), utils.WorkloadArgoRollout),
-			Entry("DeploymentConfig", Label("openshift"), utils.WorkloadDeploymentConfig))
+			Entry("DeploymentConfig", Label("openshift"), utils.WorkloadDeploymentConfig),
+		)
 
 		// Negative test: SPCPS label-only changes should NOT trigger reload
 		DescribeTable("should NOT reload when only SecretProviderClassPodStatus labels change",
@@ -381,7 +386,8 @@ var _ = Describe("Workload Reload Tests", func() {
 			Entry("DaemonSet", Label("csi"), utils.WorkloadDaemonSet),
 			Entry("StatefulSet", Label("csi"), utils.WorkloadStatefulSet),
 			Entry("ArgoRollout", Label("csi", "argo"), utils.WorkloadArgoRollout),
-			Entry("DeploymentConfig", Label("csi", "openshift"), utils.WorkloadDeploymentConfig))
+			Entry("DeploymentConfig", Label("csi", "openshift"), utils.WorkloadDeploymentConfig),
+		)
 
 		// CronJob special handling - triggers a Job instead of annotation
 		Context("CronJob (special handling)", func() {
@@ -513,7 +519,8 @@ var _ = Describe("Workload Reload Tests", func() {
 			Entry("DaemonSet", utils.WorkloadDaemonSet),
 			Entry("StatefulSet", utils.WorkloadStatefulSet),
 			Entry("ArgoRollout", Label("argo"), utils.WorkloadArgoRollout),
-			Entry("DeploymentConfig", Label("openshift"), utils.WorkloadDeploymentConfig))
+			Entry("DeploymentConfig", Label("openshift"), utils.WorkloadDeploymentConfig),
+		)
 
 		DescribeTable("should reload when volume-mounted Secret changes", func(workloadType utils.WorkloadType) {
 			adapter := registry.Get(workloadType)
@@ -553,7 +560,8 @@ var _ = Describe("Workload Reload Tests", func() {
 			Entry("DaemonSet", utils.WorkloadDaemonSet),
 			Entry("StatefulSet", utils.WorkloadStatefulSet),
 			Entry("ArgoRollout", Label("argo"), utils.WorkloadArgoRollout),
-			Entry("DeploymentConfig", Label("openshift"), utils.WorkloadDeploymentConfig))
+			Entry("DeploymentConfig", Label("openshift"), utils.WorkloadDeploymentConfig),
+		)
 
 		// Test for workloads without Reloader annotation
 		DescribeTable("should NOT reload without Reloader annotation", func(workloadType utils.WorkloadType) {
@@ -592,7 +600,8 @@ var _ = Describe("Workload Reload Tests", func() {
 		},
 			Entry("Deployment", utils.WorkloadDeployment),
 			Entry("DaemonSet", utils.WorkloadDaemonSet),
-			Entry("StatefulSet", utils.WorkloadStatefulSet))
+			Entry("StatefulSet", utils.WorkloadStatefulSet),
+		)
 
 		// Variable to track for use in lint
 		_ = standardWorkloads
@@ -854,7 +863,8 @@ var _ = Describe("Workload Reload Tests", func() {
 				Entry("DaemonSet", utils.WorkloadDaemonSet),
 				Entry("StatefulSet", utils.WorkloadStatefulSet),
 				Entry("ArgoRollout", Label("argo"), utils.WorkloadArgoRollout),
-				Entry("DeploymentConfig", Label("openshift"), utils.WorkloadDeploymentConfig))
+				Entry("DeploymentConfig", Label("openshift"), utils.WorkloadDeploymentConfig),
+			)
 
 			DescribeTable("should reload when Secret annotation is on pod template only",
 				func(workloadType utils.WorkloadType) {
@@ -895,7 +905,8 @@ var _ = Describe("Workload Reload Tests", func() {
 				Entry("DaemonSet", utils.WorkloadDaemonSet),
 				Entry("StatefulSet", utils.WorkloadStatefulSet),
 				Entry("ArgoRollout", Label("argo"), utils.WorkloadArgoRollout),
-				Entry("DeploymentConfig", Label("openshift"), utils.WorkloadDeploymentConfig))
+				Entry("DeploymentConfig", Label("openshift"), utils.WorkloadDeploymentConfig),
+			)
 
 			DescribeTable("should reload when auto=true annotation is on pod template only",
 				func(workloadType utils.WorkloadType) {
@@ -936,7 +947,8 @@ var _ = Describe("Workload Reload Tests", func() {
 				Entry("DaemonSet", utils.WorkloadDaemonSet),
 				Entry("StatefulSet", utils.WorkloadStatefulSet),
 				Entry("ArgoRollout", Label("argo"), utils.WorkloadArgoRollout),
-				Entry("DeploymentConfig", Label("openshift"), utils.WorkloadDeploymentConfig))
+				Entry("DeploymentConfig", Label("openshift"), utils.WorkloadDeploymentConfig),
+			)
 
 			DescribeTable("should reload when SecretProviderClass annotation is on pod template only",
 				func(workloadType utils.WorkloadType) {
@@ -1002,7 +1014,8 @@ var _ = Describe("Workload Reload Tests", func() {
 				Entry("DaemonSet", Label("csi"), utils.WorkloadDaemonSet),
 				Entry("StatefulSet", Label("csi"), utils.WorkloadStatefulSet),
 				Entry("ArgoRollout", Label("csi", "argo"), utils.WorkloadArgoRollout),
-				Entry("DeploymentConfig", Label("csi", "openshift"), utils.WorkloadDeploymentConfig))
+				Entry("DeploymentConfig", Label("csi", "openshift"), utils.WorkloadDeploymentConfig),
+			)
 
 			DescribeTable("should reload when secretproviderclass auto annotation is on pod template only",
 				func(workloadType utils.WorkloadType) {
@@ -1068,7 +1081,8 @@ var _ = Describe("Workload Reload Tests", func() {
 				Entry("DaemonSet", Label("csi"), utils.WorkloadDaemonSet),
 				Entry("StatefulSet", Label("csi"), utils.WorkloadStatefulSet),
 				Entry("ArgoRollout", Label("csi", "argo"), utils.WorkloadArgoRollout),
-				Entry("DeploymentConfig", Label("csi", "openshift"), utils.WorkloadDeploymentConfig))
+				Entry("DeploymentConfig", Label("csi", "openshift"), utils.WorkloadDeploymentConfig),
+			)
 
 			DescribeTable("should reload when annotations are on both workload and pod template",
 				func(workloadType utils.WorkloadType) {
@@ -1110,7 +1124,8 @@ var _ = Describe("Workload Reload Tests", func() {
 				Entry("DaemonSet", utils.WorkloadDaemonSet),
 				Entry("StatefulSet", utils.WorkloadStatefulSet),
 				Entry("ArgoRollout", Label("argo"), utils.WorkloadArgoRollout),
-				Entry("DeploymentConfig", Label("openshift"), utils.WorkloadDeploymentConfig))
+				Entry("DeploymentConfig", Label("openshift"), utils.WorkloadDeploymentConfig),
+			)
 
 			DescribeTable("should NOT reload when pod template has ConfigMap annotation but Secret is updated",
 				func(workloadType utils.WorkloadType) {
@@ -1156,7 +1171,8 @@ var _ = Describe("Workload Reload Tests", func() {
 				Entry("DaemonSet", utils.WorkloadDaemonSet),
 				Entry("StatefulSet", utils.WorkloadStatefulSet),
 				Entry("ArgoRollout", Label("argo"), utils.WorkloadArgoRollout),
-				Entry("DeploymentConfig", Label("openshift"), utils.WorkloadDeploymentConfig))
+				Entry("DeploymentConfig", Label("openshift"), utils.WorkloadDeploymentConfig),
+			)
 		})
 	})
 
@@ -1241,7 +1257,8 @@ var _ = Describe("Workload Reload Tests", func() {
 			Entry("DaemonSet", utils.WorkloadDaemonSet),
 			Entry("StatefulSet", utils.WorkloadStatefulSet),
 			Entry("ArgoRollout", Label("argo"), utils.WorkloadArgoRollout),
-			Entry("DeploymentConfig", Label("openshift"), utils.WorkloadDeploymentConfig))
+			Entry("DeploymentConfig", Label("openshift"), utils.WorkloadDeploymentConfig),
+		)
 
 		DescribeTable("should add STAKATER_ env var when Secret changes", func(workloadType utils.WorkloadType) {
 			adapter := registry.Get(workloadType)
@@ -1285,7 +1302,8 @@ var _ = Describe("Workload Reload Tests", func() {
 			Entry("DaemonSet", utils.WorkloadDaemonSet),
 			Entry("StatefulSet", utils.WorkloadStatefulSet),
 			Entry("ArgoRollout", Label("argo"), utils.WorkloadArgoRollout),
-			Entry("DeploymentConfig", Label("openshift"), utils.WorkloadDeploymentConfig))
+			Entry("DeploymentConfig", Label("openshift"), utils.WorkloadDeploymentConfig),
+		)
 
 		// CSI SecretProviderClassPodStatus env var tests with real Vault
 		DescribeTable("should add STAKATER_ env var when SecretProviderClassPodStatus changes",
@@ -1355,7 +1373,8 @@ var _ = Describe("Workload Reload Tests", func() {
 			Entry("DaemonSet", Label("csi"), utils.WorkloadDaemonSet),
 			Entry("StatefulSet", Label("csi"), utils.WorkloadStatefulSet),
 			Entry("ArgoRollout", Label("csi", "argo"), utils.WorkloadArgoRollout),
-			Entry("DeploymentConfig", Label("csi", "openshift"), utils.WorkloadDeploymentConfig))
+			Entry("DeploymentConfig", Label("csi", "openshift"), utils.WorkloadDeploymentConfig),
+		)
 
 		// Negative tests for env var strategy
 		DescribeTable("should NOT add STAKATER_ env var when only ConfigMap labels change",
@@ -1400,7 +1419,8 @@ var _ = Describe("Workload Reload Tests", func() {
 			},
 			Entry("Deployment", utils.WorkloadDeployment),
 			Entry("DaemonSet", utils.WorkloadDaemonSet),
-			Entry("StatefulSet", utils.WorkloadStatefulSet))
+			Entry("StatefulSet", utils.WorkloadStatefulSet),
+		)
 
 		DescribeTable("should NOT add STAKATER_ env var when only Secret labels change",
 			func(workloadType utils.WorkloadType) {
@@ -1444,7 +1464,8 @@ var _ = Describe("Workload Reload Tests", func() {
 			},
 			Entry("Deployment", utils.WorkloadDeployment),
 			Entry("DaemonSet", utils.WorkloadDaemonSet),
-			Entry("StatefulSet", utils.WorkloadStatefulSet))
+			Entry("StatefulSet", utils.WorkloadStatefulSet),
+		)
 
 		// CSI SPCPS label-only change negative test with real Vault
 		DescribeTable("should NOT add STAKATER_ env var when only SecretProviderClassPodStatus labels change",
@@ -1507,7 +1528,8 @@ var _ = Describe("Workload Reload Tests", func() {
 			Entry("DaemonSet", Label("csi"), utils.WorkloadDaemonSet),
 			Entry("StatefulSet", Label("csi"), utils.WorkloadStatefulSet),
 			Entry("ArgoRollout", Label("csi", "argo"), utils.WorkloadArgoRollout),
-			Entry("DeploymentConfig", Label("csi", "openshift"), utils.WorkloadDeploymentConfig))
+			Entry("DeploymentConfig", Label("csi", "openshift"), utils.WorkloadDeploymentConfig),
+		)
 
 		// CSI auto annotation with EnvVar strategy and real Vault
 		It("should add STAKATER_ env var with secretproviderclass auto annotation", Label("csi"), func() {
