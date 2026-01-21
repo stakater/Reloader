@@ -23,6 +23,9 @@ const (
 // ErrWatchTimeout is returned when a watch times out waiting for condition.
 var ErrWatchTimeout = errors.New("watch timeout waiting for condition")
 
+// ErrWatchError is returned when the watch receives an error event from the API server.
+var ErrWatchError = errors.New("watch received error event from API server")
+
 // ErrUnsupportedOperation is returned when an operation is not supported for a workload type.
 var ErrUnsupportedOperation = errors.New("operation not supported for this workload type")
 
@@ -109,7 +112,7 @@ func watchOnce[T runtime.Object](
 			case watch.Deleted:
 				continue
 			case watch.Error:
-				return zero, false, nil
+				return zero, false, ErrWatchError
 			}
 		}
 	}
@@ -172,7 +175,7 @@ func watchDeleteOnce(
 				return true, nil
 			}
 			if event.Type == watch.Error {
-				return false, nil
+				return false, ErrWatchError
 			}
 		}
 	}

@@ -412,7 +412,7 @@ func GetRolloutPodAnnotations(item runtime.Object) map[string]string {
 func GetDeploymentContainers(item runtime.Object) []v1.Container {
 	deployment, ok := item.(*appsv1.Deployment)
 	if !ok {
-		return nil
+		return []v1.Container{}
 	}
 	return deployment.Spec.Template.Spec.Containers
 }
@@ -421,7 +421,7 @@ func GetDeploymentContainers(item runtime.Object) []v1.Container {
 func GetCronJobContainers(item runtime.Object) []v1.Container {
 	cronJob, ok := item.(*batchv1.CronJob)
 	if !ok {
-		return nil
+		return []v1.Container{}
 	}
 	return cronJob.Spec.JobTemplate.Spec.Template.Spec.Containers
 }
@@ -430,7 +430,7 @@ func GetCronJobContainers(item runtime.Object) []v1.Container {
 func GetJobContainers(item runtime.Object) []v1.Container {
 	job, ok := item.(*batchv1.Job)
 	if !ok {
-		return nil
+		return []v1.Container{}
 	}
 	return job.Spec.Template.Spec.Containers
 }
@@ -439,7 +439,7 @@ func GetJobContainers(item runtime.Object) []v1.Container {
 func GetDaemonSetContainers(item runtime.Object) []v1.Container {
 	daemonSet, ok := item.(*appsv1.DaemonSet)
 	if !ok {
-		return nil
+		return []v1.Container{}
 	}
 	return daemonSet.Spec.Template.Spec.Containers
 }
@@ -448,7 +448,7 @@ func GetDaemonSetContainers(item runtime.Object) []v1.Container {
 func GetStatefulSetContainers(item runtime.Object) []v1.Container {
 	statefulSet, ok := item.(*appsv1.StatefulSet)
 	if !ok {
-		return nil
+		return []v1.Container{}
 	}
 	return statefulSet.Spec.Template.Spec.Containers
 }
@@ -457,7 +457,7 @@ func GetStatefulSetContainers(item runtime.Object) []v1.Container {
 func GetRolloutContainers(item runtime.Object) []v1.Container {
 	rollout, ok := item.(*argorolloutv1alpha1.Rollout)
 	if !ok {
-		return nil
+		return []v1.Container{}
 	}
 	return rollout.Spec.Template.Spec.Containers
 }
@@ -466,7 +466,7 @@ func GetRolloutContainers(item runtime.Object) []v1.Container {
 func GetDeploymentInitContainers(item runtime.Object) []v1.Container {
 	deployment, ok := item.(*appsv1.Deployment)
 	if !ok {
-		return nil
+		return []v1.Container{}
 	}
 	return deployment.Spec.Template.Spec.InitContainers
 }
@@ -475,7 +475,7 @@ func GetDeploymentInitContainers(item runtime.Object) []v1.Container {
 func GetCronJobInitContainers(item runtime.Object) []v1.Container {
 	cronJob, ok := item.(*batchv1.CronJob)
 	if !ok {
-		return nil
+		return []v1.Container{}
 	}
 	return cronJob.Spec.JobTemplate.Spec.Template.Spec.InitContainers
 }
@@ -484,7 +484,7 @@ func GetCronJobInitContainers(item runtime.Object) []v1.Container {
 func GetJobInitContainers(item runtime.Object) []v1.Container {
 	job, ok := item.(*batchv1.Job)
 	if !ok {
-		return nil
+		return []v1.Container{}
 	}
 	return job.Spec.Template.Spec.InitContainers
 }
@@ -493,7 +493,7 @@ func GetJobInitContainers(item runtime.Object) []v1.Container {
 func GetDaemonSetInitContainers(item runtime.Object) []v1.Container {
 	daemonSet, ok := item.(*appsv1.DaemonSet)
 	if !ok {
-		return nil
+		return []v1.Container{}
 	}
 	return daemonSet.Spec.Template.Spec.InitContainers
 }
@@ -502,7 +502,7 @@ func GetDaemonSetInitContainers(item runtime.Object) []v1.Container {
 func GetStatefulSetInitContainers(item runtime.Object) []v1.Container {
 	statefulSet, ok := item.(*appsv1.StatefulSet)
 	if !ok {
-		return nil
+		return []v1.Container{}
 	}
 	return statefulSet.Spec.Template.Spec.InitContainers
 }
@@ -511,7 +511,7 @@ func GetStatefulSetInitContainers(item runtime.Object) []v1.Container {
 func GetRolloutInitContainers(item runtime.Object) []v1.Container {
 	rollout, ok := item.(*argorolloutv1alpha1.Rollout)
 	if !ok {
-		return nil
+		return []v1.Container{}
 	}
 	return rollout.Spec.Template.Spec.InitContainers
 }
@@ -676,7 +676,7 @@ func PatchRollout(clients kube.Clients, namespace string, resource runtime.Objec
 func GetDeploymentVolumes(item runtime.Object) []v1.Volume {
 	deployment, ok := item.(*appsv1.Deployment)
 	if !ok {
-		return nil
+		return []v1.Volume{}
 	}
 	return deployment.Spec.Template.Spec.Volumes
 }
@@ -685,7 +685,7 @@ func GetDeploymentVolumes(item runtime.Object) []v1.Volume {
 func GetCronJobVolumes(item runtime.Object) []v1.Volume {
 	cronJob, ok := item.(*batchv1.CronJob)
 	if !ok {
-		return nil
+		return []v1.Volume{}
 	}
 	return cronJob.Spec.JobTemplate.Spec.Template.Spec.Volumes
 }
@@ -694,7 +694,7 @@ func GetCronJobVolumes(item runtime.Object) []v1.Volume {
 func GetJobVolumes(item runtime.Object) []v1.Volume {
 	job, ok := item.(*batchv1.Job)
 	if !ok {
-		return nil
+		return []v1.Volume{}
 	}
 	return job.Spec.Template.Spec.Volumes
 }
@@ -703,7 +703,7 @@ func GetJobVolumes(item runtime.Object) []v1.Volume {
 func GetDaemonSetVolumes(item runtime.Object) []v1.Volume {
 	daemonSet, ok := item.(*appsv1.DaemonSet)
 	if !ok {
-		return nil
+		return []v1.Volume{}
 	}
 	return daemonSet.Spec.Template.Spec.Volumes
 }
@@ -712,7 +712,7 @@ func GetDaemonSetVolumes(item runtime.Object) []v1.Volume {
 func GetStatefulSetVolumes(item runtime.Object) []v1.Volume {
 	statefulSet, ok := item.(*appsv1.StatefulSet)
 	if !ok {
-		return nil
+		return []v1.Volume{}
 	}
 	return statefulSet.Spec.Template.Spec.Volumes
 }
@@ -721,7 +721,7 @@ func GetStatefulSetVolumes(item runtime.Object) []v1.Volume {
 func GetRolloutVolumes(item runtime.Object) []v1.Volume {
 	rollout, ok := item.(*argorolloutv1alpha1.Rollout)
 	if !ok {
-		return nil
+		return []v1.Volume{}
 	}
 	return rollout.Spec.Template.Spec.Volumes
 }

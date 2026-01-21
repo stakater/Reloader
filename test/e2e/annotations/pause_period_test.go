@@ -100,8 +100,9 @@ var _ = Describe("Pause Period Tests", func() {
 			Expect(paused).To(BeFalse(), "Deployment should NOT have paused-at annotation without pause-period")
 		})
 
-		// TODO: Reloader currently only reads pause-period from deployment metadata, not pod template.
-		// This test documents the expected behavior but needs Reloader code changes to pass.
+		// FUTURE: Reloader currently only reads pause-period from deployment metadata, not pod template.
+		// This test is pending (skipped) and documents the expected future behavior.
+		// Requires Reloader code changes to support reading pause-period from pod template annotations.
 		PIt("should pause Deployment when pause-period annotation is on pod template", func() {
 			By("Creating a ConfigMap")
 			_, err := utils.CreateConfigMap(ctx, kubeClient, testNamespace, configMapName,
