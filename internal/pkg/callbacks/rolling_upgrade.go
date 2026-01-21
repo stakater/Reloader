@@ -7,14 +7,15 @@ import (
 	"time"
 
 	"github.com/sirupsen/logrus"
-	"github.com/stakater/Reloader/internal/pkg/options"
-	"github.com/stakater/Reloader/pkg/kube"
 	appsv1 "k8s.io/api/apps/v1"
 	batchv1 "k8s.io/api/batch/v1"
 	v1 "k8s.io/api/core/v1"
 	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	patchtypes "k8s.io/apimachinery/pkg/types"
+
+	"github.com/stakater/Reloader/internal/pkg/options"
+	"github.com/stakater/Reloader/pkg/kube"
 
 	"maps"
 
@@ -265,158 +266,254 @@ func GetRolloutItems(clients kube.Clients, namespace string) []runtime.Object {
 
 // GetDeploymentAnnotations returns the annotations of given deployment
 func GetDeploymentAnnotations(item runtime.Object) map[string]string {
-	if item.(*appsv1.Deployment).Annotations == nil {
-		item.(*appsv1.Deployment).Annotations = make(map[string]string)
+	deployment, ok := item.(*appsv1.Deployment)
+	if !ok {
+		return nil
 	}
-	return item.(*appsv1.Deployment).Annotations
+	if deployment.Annotations == nil {
+		deployment.Annotations = make(map[string]string)
+	}
+	return deployment.Annotations
 }
 
 // GetCronJobAnnotations returns the annotations of given cronjob
 func GetCronJobAnnotations(item runtime.Object) map[string]string {
-	if item.(*batchv1.CronJob).Annotations == nil {
-		item.(*batchv1.CronJob).Annotations = make(map[string]string)
+	cronJob, ok := item.(*batchv1.CronJob)
+	if !ok {
+		return nil
 	}
-	return item.(*batchv1.CronJob).Annotations
+	if cronJob.Annotations == nil {
+		cronJob.Annotations = make(map[string]string)
+	}
+	return cronJob.Annotations
 }
 
 // GetJobAnnotations returns the annotations of given job
 func GetJobAnnotations(item runtime.Object) map[string]string {
-	if item.(*batchv1.Job).Annotations == nil {
-		item.(*batchv1.Job).Annotations = make(map[string]string)
+	job, ok := item.(*batchv1.Job)
+	if !ok {
+		return nil
 	}
-	return item.(*batchv1.Job).Annotations
+	if job.Annotations == nil {
+		job.Annotations = make(map[string]string)
+	}
+	return job.Annotations
 }
 
 // GetDaemonSetAnnotations returns the annotations of given daemonSet
 func GetDaemonSetAnnotations(item runtime.Object) map[string]string {
-	if item.(*appsv1.DaemonSet).Annotations == nil {
-		item.(*appsv1.DaemonSet).Annotations = make(map[string]string)
+	daemonSet, ok := item.(*appsv1.DaemonSet)
+	if !ok {
+		return nil
 	}
-	return item.(*appsv1.DaemonSet).Annotations
+	if daemonSet.Annotations == nil {
+		daemonSet.Annotations = make(map[string]string)
+	}
+	return daemonSet.Annotations
 }
 
 // GetStatefulSetAnnotations returns the annotations of given statefulSet
 func GetStatefulSetAnnotations(item runtime.Object) map[string]string {
-	if item.(*appsv1.StatefulSet).Annotations == nil {
-		item.(*appsv1.StatefulSet).Annotations = make(map[string]string)
+	statefulSet, ok := item.(*appsv1.StatefulSet)
+	if !ok {
+		return nil
 	}
-	return item.(*appsv1.StatefulSet).Annotations
+	if statefulSet.Annotations == nil {
+		statefulSet.Annotations = make(map[string]string)
+	}
+	return statefulSet.Annotations
 }
 
 // GetRolloutAnnotations returns the annotations of given rollout
 func GetRolloutAnnotations(item runtime.Object) map[string]string {
-	if item.(*argorolloutv1alpha1.Rollout).Annotations == nil {
-		item.(*argorolloutv1alpha1.Rollout).Annotations = make(map[string]string)
+	rollout, ok := item.(*argorolloutv1alpha1.Rollout)
+	if !ok {
+		return nil
 	}
-	return item.(*argorolloutv1alpha1.Rollout).Annotations
+	if rollout.Annotations == nil {
+		rollout.Annotations = make(map[string]string)
+	}
+	return rollout.Annotations
 }
 
 // GetDeploymentPodAnnotations returns the pod's annotations of given deployment
 func GetDeploymentPodAnnotations(item runtime.Object) map[string]string {
-	if item.(*appsv1.Deployment).Spec.Template.Annotations == nil {
-		item.(*appsv1.Deployment).Spec.Template.Annotations = make(map[string]string)
+	deployment, ok := item.(*appsv1.Deployment)
+	if !ok {
+		return nil
 	}
-	return item.(*appsv1.Deployment).Spec.Template.Annotations
+	if deployment.Spec.Template.Annotations == nil {
+		deployment.Spec.Template.Annotations = make(map[string]string)
+	}
+	return deployment.Spec.Template.Annotations
 }
 
 // GetCronJobPodAnnotations returns the pod's annotations of given cronjob
 func GetCronJobPodAnnotations(item runtime.Object) map[string]string {
-	if item.(*batchv1.CronJob).Spec.JobTemplate.Spec.Template.Annotations == nil {
-		item.(*batchv1.CronJob).Spec.JobTemplate.Spec.Template.Annotations = make(map[string]string)
+	cronJob, ok := item.(*batchv1.CronJob)
+	if !ok {
+		return nil
 	}
-	return item.(*batchv1.CronJob).Spec.JobTemplate.Spec.Template.Annotations
+	if cronJob.Spec.JobTemplate.Spec.Template.Annotations == nil {
+		cronJob.Spec.JobTemplate.Spec.Template.Annotations = make(map[string]string)
+	}
+	return cronJob.Spec.JobTemplate.Spec.Template.Annotations
 }
 
 // GetJobPodAnnotations returns the pod's annotations of given job
 func GetJobPodAnnotations(item runtime.Object) map[string]string {
-	if item.(*batchv1.Job).Spec.Template.Annotations == nil {
-		item.(*batchv1.Job).Spec.Template.Annotations = make(map[string]string)
+	job, ok := item.(*batchv1.Job)
+	if !ok {
+		return nil
 	}
-	return item.(*batchv1.Job).Spec.Template.Annotations
+	if job.Spec.Template.Annotations == nil {
+		job.Spec.Template.Annotations = make(map[string]string)
+	}
+	return job.Spec.Template.Annotations
 }
 
 // GetDaemonSetPodAnnotations returns the pod's annotations of given daemonSet
 func GetDaemonSetPodAnnotations(item runtime.Object) map[string]string {
-	if item.(*appsv1.DaemonSet).Spec.Template.Annotations == nil {
-		item.(*appsv1.DaemonSet).Spec.Template.Annotations = make(map[string]string)
+	daemonSet, ok := item.(*appsv1.DaemonSet)
+	if !ok {
+		return nil
 	}
-	return item.(*appsv1.DaemonSet).Spec.Template.Annotations
+	if daemonSet.Spec.Template.Annotations == nil {
+		daemonSet.Spec.Template.Annotations = make(map[string]string)
+	}
+	return daemonSet.Spec.Template.Annotations
 }
 
 // GetStatefulSetPodAnnotations returns the pod's annotations of given statefulSet
 func GetStatefulSetPodAnnotations(item runtime.Object) map[string]string {
-	if item.(*appsv1.StatefulSet).Spec.Template.Annotations == nil {
-		item.(*appsv1.StatefulSet).Spec.Template.Annotations = make(map[string]string)
+	statefulSet, ok := item.(*appsv1.StatefulSet)
+	if !ok {
+		return nil
 	}
-	return item.(*appsv1.StatefulSet).Spec.Template.Annotations
+	if statefulSet.Spec.Template.Annotations == nil {
+		statefulSet.Spec.Template.Annotations = make(map[string]string)
+	}
+	return statefulSet.Spec.Template.Annotations
 }
 
 // GetRolloutPodAnnotations returns the pod's annotations of given rollout
 func GetRolloutPodAnnotations(item runtime.Object) map[string]string {
-	if item.(*argorolloutv1alpha1.Rollout).Spec.Template.Annotations == nil {
-		item.(*argorolloutv1alpha1.Rollout).Spec.Template.Annotations = make(map[string]string)
+	rollout, ok := item.(*argorolloutv1alpha1.Rollout)
+	if !ok {
+		return nil
 	}
-	return item.(*argorolloutv1alpha1.Rollout).Spec.Template.Annotations
+	if rollout.Spec.Template.Annotations == nil {
+		rollout.Spec.Template.Annotations = make(map[string]string)
+	}
+	return rollout.Spec.Template.Annotations
 }
 
 // GetDeploymentContainers returns the containers of given deployment
 func GetDeploymentContainers(item runtime.Object) []v1.Container {
-	return item.(*appsv1.Deployment).Spec.Template.Spec.Containers
+	deployment, ok := item.(*appsv1.Deployment)
+	if !ok {
+		return []v1.Container{}
+	}
+	return deployment.Spec.Template.Spec.Containers
 }
 
 // GetCronJobContainers returns the containers of given cronjob
 func GetCronJobContainers(item runtime.Object) []v1.Container {
-	return item.(*batchv1.CronJob).Spec.JobTemplate.Spec.Template.Spec.Containers
+	cronJob, ok := item.(*batchv1.CronJob)
+	if !ok {
+		return []v1.Container{}
+	}
+	return cronJob.Spec.JobTemplate.Spec.Template.Spec.Containers
 }
 
 // GetJobContainers returns the containers of given job
 func GetJobContainers(item runtime.Object) []v1.Container {
-	return item.(*batchv1.Job).Spec.Template.Spec.Containers
+	job, ok := item.(*batchv1.Job)
+	if !ok {
+		return []v1.Container{}
+	}
+	return job.Spec.Template.Spec.Containers
 }
 
 // GetDaemonSetContainers returns the containers of given daemonSet
 func GetDaemonSetContainers(item runtime.Object) []v1.Container {
-	return item.(*appsv1.DaemonSet).Spec.Template.Spec.Containers
+	daemonSet, ok := item.(*appsv1.DaemonSet)
+	if !ok {
+		return []v1.Container{}
+	}
+	return daemonSet.Spec.Template.Spec.Containers
 }
 
 // GetStatefulSetContainers returns the containers of given statefulSet
 func GetStatefulSetContainers(item runtime.Object) []v1.Container {
-	return item.(*appsv1.StatefulSet).Spec.Template.Spec.Containers
+	statefulSet, ok := item.(*appsv1.StatefulSet)
+	if !ok {
+		return []v1.Container{}
+	}
+	return statefulSet.Spec.Template.Spec.Containers
 }
 
 // GetRolloutContainers returns the containers of given rollout
 func GetRolloutContainers(item runtime.Object) []v1.Container {
-	return item.(*argorolloutv1alpha1.Rollout).Spec.Template.Spec.Containers
+	rollout, ok := item.(*argorolloutv1alpha1.Rollout)
+	if !ok {
+		return []v1.Container{}
+	}
+	return rollout.Spec.Template.Spec.Containers
 }
 
 // GetDeploymentInitContainers returns the containers of given deployment
 func GetDeploymentInitContainers(item runtime.Object) []v1.Container {
-	return item.(*appsv1.Deployment).Spec.Template.Spec.InitContainers
+	deployment, ok := item.(*appsv1.Deployment)
+	if !ok {
+		return []v1.Container{}
+	}
+	return deployment.Spec.Template.Spec.InitContainers
 }
 
 // GetCronJobInitContainers returns the containers of given cronjob
 func GetCronJobInitContainers(item runtime.Object) []v1.Container {
-	return item.(*batchv1.CronJob).Spec.JobTemplate.Spec.Template.Spec.InitContainers
+	cronJob, ok := item.(*batchv1.CronJob)
+	if !ok {
+		return []v1.Container{}
+	}
+	return cronJob.Spec.JobTemplate.Spec.Template.Spec.InitContainers
 }
 
 // GetJobInitContainers returns the containers of given job
 func GetJobInitContainers(item runtime.Object) []v1.Container {
-	return item.(*batchv1.Job).Spec.Template.Spec.InitContainers
+	job, ok := item.(*batchv1.Job)
+	if !ok {
+		return []v1.Container{}
+	}
+	return job.Spec.Template.Spec.InitContainers
 }
 
 // GetDaemonSetInitContainers returns the containers of given daemonSet
 func GetDaemonSetInitContainers(item runtime.Object) []v1.Container {
-	return item.(*appsv1.DaemonSet).Spec.Template.Spec.InitContainers
+	daemonSet, ok := item.(*appsv1.DaemonSet)
+	if !ok {
+		return []v1.Container{}
+	}
+	return daemonSet.Spec.Template.Spec.InitContainers
 }
 
 // GetStatefulSetInitContainers returns the containers of given statefulSet
 func GetStatefulSetInitContainers(item runtime.Object) []v1.Container {
-	return item.(*appsv1.StatefulSet).Spec.Template.Spec.InitContainers
+	statefulSet, ok := item.(*appsv1.StatefulSet)
+	if !ok {
+		return []v1.Container{}
+	}
+	return statefulSet.Spec.Template.Spec.InitContainers
 }
 
 // GetRolloutInitContainers returns the containers of given rollout
 func GetRolloutInitContainers(item runtime.Object) []v1.Container {
-	return item.(*argorolloutv1alpha1.Rollout).Spec.Template.Spec.InitContainers
+	rollout, ok := item.(*argorolloutv1alpha1.Rollout)
+	if !ok {
+		return []v1.Container{}
+	}
+	return rollout.Spec.Template.Spec.InitContainers
 }
 
 // GetPatchTemplates returns patch templates
@@ -430,21 +527,30 @@ func GetPatchTemplates() PatchTemplates {
 
 // UpdateDeployment performs rolling upgrade on deployment
 func UpdateDeployment(clients kube.Clients, namespace string, resource runtime.Object) error {
-	deployment := resource.(*appsv1.Deployment)
+	deployment, ok := resource.(*appsv1.Deployment)
+	if !ok {
+		return errors.New("resource is not a Deployment")
+	}
 	_, err := clients.KubernetesClient.AppsV1().Deployments(namespace).Update(context.TODO(), deployment, meta_v1.UpdateOptions{FieldManager: "Reloader"})
 	return err
 }
 
 // PatchDeployment performs rolling upgrade on deployment
 func PatchDeployment(clients kube.Clients, namespace string, resource runtime.Object, patchType patchtypes.PatchType, bytes []byte) error {
-	deployment := resource.(*appsv1.Deployment)
+	deployment, ok := resource.(*appsv1.Deployment)
+	if !ok {
+		return errors.New("resource is not a Deployment")
+	}
 	_, err := clients.KubernetesClient.AppsV1().Deployments(namespace).Patch(context.TODO(), deployment.Name, patchType, bytes, meta_v1.PatchOptions{FieldManager: "Reloader"})
 	return err
 }
 
 // CreateJobFromCronjob performs rolling upgrade on cronjob
 func CreateJobFromCronjob(clients kube.Clients, namespace string, resource runtime.Object) error {
-	cronJob := resource.(*batchv1.CronJob)
+	cronJob, ok := resource.(*batchv1.CronJob)
+	if !ok {
+		return errors.New("resource is not a CronJob")
+	}
 
 	annotations := make(map[string]string)
 	annotations["cronjob.kubernetes.io/instantiate"] = "manual"
@@ -470,7 +576,10 @@ func PatchCronJob(clients kube.Clients, namespace string, resource runtime.Objec
 
 // ReCreateJobFromjob performs rolling upgrade on job
 func ReCreateJobFromjob(clients kube.Clients, namespace string, resource runtime.Object) error {
-	oldJob := resource.(*batchv1.Job)
+	oldJob, ok := resource.(*batchv1.Job)
+	if !ok {
+		return errors.New("resource is not a Job")
+	}
 	job := oldJob.DeepCopy()
 
 	// Delete the old job
@@ -506,33 +615,48 @@ func PatchJob(clients kube.Clients, namespace string, resource runtime.Object, p
 
 // UpdateDaemonSet performs rolling upgrade on daemonSet
 func UpdateDaemonSet(clients kube.Clients, namespace string, resource runtime.Object) error {
-	daemonSet := resource.(*appsv1.DaemonSet)
+	daemonSet, ok := resource.(*appsv1.DaemonSet)
+	if !ok {
+		return errors.New("resource is not a DaemonSet")
+	}
 	_, err := clients.KubernetesClient.AppsV1().DaemonSets(namespace).Update(context.TODO(), daemonSet, meta_v1.UpdateOptions{FieldManager: "Reloader"})
 	return err
 }
 
 func PatchDaemonSet(clients kube.Clients, namespace string, resource runtime.Object, patchType patchtypes.PatchType, bytes []byte) error {
-	daemonSet := resource.(*appsv1.DaemonSet)
+	daemonSet, ok := resource.(*appsv1.DaemonSet)
+	if !ok {
+		return errors.New("resource is not a DaemonSet")
+	}
 	_, err := clients.KubernetesClient.AppsV1().DaemonSets(namespace).Patch(context.TODO(), daemonSet.Name, patchType, bytes, meta_v1.PatchOptions{FieldManager: "Reloader"})
 	return err
 }
 
 // UpdateStatefulSet performs rolling upgrade on statefulSet
 func UpdateStatefulSet(clients kube.Clients, namespace string, resource runtime.Object) error {
-	statefulSet := resource.(*appsv1.StatefulSet)
+	statefulSet, ok := resource.(*appsv1.StatefulSet)
+	if !ok {
+		return errors.New("resource is not a StatefulSet")
+	}
 	_, err := clients.KubernetesClient.AppsV1().StatefulSets(namespace).Update(context.TODO(), statefulSet, meta_v1.UpdateOptions{FieldManager: "Reloader"})
 	return err
 }
 
 func PatchStatefulSet(clients kube.Clients, namespace string, resource runtime.Object, patchType patchtypes.PatchType, bytes []byte) error {
-	statefulSet := resource.(*appsv1.StatefulSet)
+	statefulSet, ok := resource.(*appsv1.StatefulSet)
+	if !ok {
+		return errors.New("resource is not a StatefulSet")
+	}
 	_, err := clients.KubernetesClient.AppsV1().StatefulSets(namespace).Patch(context.TODO(), statefulSet.Name, patchType, bytes, meta_v1.PatchOptions{FieldManager: "Reloader"})
 	return err
 }
 
 // UpdateRollout performs rolling upgrade on rollout
 func UpdateRollout(clients kube.Clients, namespace string, resource runtime.Object) error {
-	rollout := resource.(*argorolloutv1alpha1.Rollout)
+	rollout, ok := resource.(*argorolloutv1alpha1.Rollout)
+	if !ok {
+		return errors.New("resource is not a Rollout")
+	}
 	strategy := rollout.GetAnnotations()[options.RolloutStrategyAnnotation]
 	var err error
 	switch options.ToArgoRolloutStrategy(strategy) {
@@ -550,30 +674,54 @@ func PatchRollout(clients kube.Clients, namespace string, resource runtime.Objec
 
 // GetDeploymentVolumes returns the Volumes of given deployment
 func GetDeploymentVolumes(item runtime.Object) []v1.Volume {
-	return item.(*appsv1.Deployment).Spec.Template.Spec.Volumes
+	deployment, ok := item.(*appsv1.Deployment)
+	if !ok {
+		return []v1.Volume{}
+	}
+	return deployment.Spec.Template.Spec.Volumes
 }
 
 // GetCronJobVolumes returns the Volumes of given cronjob
 func GetCronJobVolumes(item runtime.Object) []v1.Volume {
-	return item.(*batchv1.CronJob).Spec.JobTemplate.Spec.Template.Spec.Volumes
+	cronJob, ok := item.(*batchv1.CronJob)
+	if !ok {
+		return []v1.Volume{}
+	}
+	return cronJob.Spec.JobTemplate.Spec.Template.Spec.Volumes
 }
 
 // GetJobVolumes returns the Volumes of given job
 func GetJobVolumes(item runtime.Object) []v1.Volume {
-	return item.(*batchv1.Job).Spec.Template.Spec.Volumes
+	job, ok := item.(*batchv1.Job)
+	if !ok {
+		return []v1.Volume{}
+	}
+	return job.Spec.Template.Spec.Volumes
 }
 
 // GetDaemonSetVolumes returns the Volumes of given daemonSet
 func GetDaemonSetVolumes(item runtime.Object) []v1.Volume {
-	return item.(*appsv1.DaemonSet).Spec.Template.Spec.Volumes
+	daemonSet, ok := item.(*appsv1.DaemonSet)
+	if !ok {
+		return []v1.Volume{}
+	}
+	return daemonSet.Spec.Template.Spec.Volumes
 }
 
 // GetStatefulSetVolumes returns the Volumes of given statefulSet
 func GetStatefulSetVolumes(item runtime.Object) []v1.Volume {
-	return item.(*appsv1.StatefulSet).Spec.Template.Spec.Volumes
+	statefulSet, ok := item.(*appsv1.StatefulSet)
+	if !ok {
+		return []v1.Volume{}
+	}
+	return statefulSet.Spec.Template.Spec.Volumes
 }
 
 // GetRolloutVolumes returns the Volumes of given rollout
 func GetRolloutVolumes(item runtime.Object) []v1.Volume {
-	return item.(*argorolloutv1alpha1.Rollout).Spec.Template.Spec.Volumes
+	rollout, ok := item.(*argorolloutv1alpha1.Rollout)
+	if !ok {
+		return []v1.Volume{}
+	}
+	return rollout.Spec.Template.Spec.Volumes
 }

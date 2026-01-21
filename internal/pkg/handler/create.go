@@ -4,11 +4,12 @@ import (
 	"time"
 
 	"github.com/sirupsen/logrus"
+	v1 "k8s.io/api/core/v1"
+	"k8s.io/client-go/tools/record"
+
 	"github.com/stakater/Reloader/internal/pkg/metrics"
 	"github.com/stakater/Reloader/internal/pkg/options"
 	"github.com/stakater/Reloader/pkg/common"
-	v1 "k8s.io/api/core/v1"
-	"k8s.io/client-go/tools/record"
 )
 
 // ResourceCreatedHandler contains new objects
@@ -59,10 +60,10 @@ func (r ResourceCreatedHandler) Handle() error {
 func (r ResourceCreatedHandler) GetConfig() (common.Config, string) {
 	var oldSHAData string
 	var config common.Config
-	if _, ok := r.Resource.(*v1.ConfigMap); ok {
-		config = common.GetConfigmapConfig(r.Resource.(*v1.ConfigMap))
-	} else if _, ok := r.Resource.(*v1.Secret); ok {
-		config = common.GetSecretConfig(r.Resource.(*v1.Secret))
+	if cm, ok := r.Resource.(*v1.ConfigMap); ok {
+		config = common.GetConfigmapConfig(cm)
+	} else if secret, ok := r.Resource.(*v1.Secret); ok {
+		config = common.GetSecretConfig(secret)
 	} else {
 		logrus.Warnf("Invalid resource: Resource should be 'Secret' or 'Configmap' but found, %v", r.Resource)
 	}

@@ -137,13 +137,13 @@ func getConfig() (*rest.Config, error) {
 	if kubeconfigPath == "" {
 		kubeconfigPath = os.Getenv("HOME") + "/.kube/config"
 	}
-	//If file exists so use that config settings
+	// If file exists so use that config settings
 	if _, err := os.Stat(kubeconfigPath); err == nil {
 		config, err = clientcmd.BuildConfigFromFlags("", kubeconfigPath)
 		if err != nil {
 			return nil, err
 		}
-	} else { //Use Incluster Configuration
+	} else { // Use Incluster Configuration
 		config, err = rest.InClusterConfig()
 		if err != nil {
 			return nil, err

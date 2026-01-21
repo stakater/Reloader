@@ -14,6 +14,9 @@ DOCKER_IMAGE ?= ghcr.io/stakater/reloader
 # Default value "dev"
 VERSION ?= 0.0.1
 
+# Full image reference (used for docker-build)
+IMG ?= $(DOCKER_IMAGE):v$(VERSION)
+
 REPOSITORY_GENERIC = ${DOCKER_IMAGE}:${VERSION}
 REPOSITORY_ARCH = ${DOCKER_IMAGE}:v${VERSION}-${ARCH}
 BUILD=
@@ -34,14 +37,12 @@ KUBECTL ?= kubectl
 KUSTOMIZE ?= $(LOCALBIN)/kustomize-$(KUSTOMIZE_VERSION)
 CONTROLLER_GEN ?= $(LOCALBIN)/controller-gen-$(CONTROLLER_TOOLS_VERSION)
 ENVTEST ?= $(LOCALBIN)/setup-envtest-$(ENVTEST_VERSION)
-GOLANGCI_LINT = $(LOCALBIN)/golangci-lint-$(GOLANGCI_LINT_VERSION)
 YQ ?= $(LOCALBIN)/yq
 
 ## Tool Versions
 KUSTOMIZE_VERSION ?= v5.3.0
 CONTROLLER_TOOLS_VERSION ?= v0.14.0
 ENVTEST_VERSION ?= release-0.17
-GOLANGCI_LINT_VERSION ?= v2.6.1
 
 YQ_VERSION ?= v4.27.5
 YQ_DOWNLOAD_URL = "https://github.com/mikefarah/yq/releases/download/$(YQ_VERSION)/yq_$(OS)_$(ARCH)"
@@ -72,10 +73,6 @@ envtest: $(ENVTEST) ## Download setup-envtest locally if necessary.
 $(ENVTEST): $(LOCALBIN)
 	$(call go-install-tool,$(ENVTEST),sigs.k8s.io/controller-runtime/tools/setup-envtest,$(ENVTEST_VERSION))
 
-.PHONY: golangci-lint
-golangci-lint: $(GOLANGCI_LINT) ## Download golangci-lint locally if necessary.
-$(GOLANGCI_LINT): $(LOCALBIN)
-	$(call go-install-tool,$(GOLANGCI_LINT),github.com/golangci/golangci-lint/v2/cmd/golangci-lint,${GOLANGCI_LINT_VERSION})
 
 # go-install-tool will 'go install' any package with custom target and name of binary, if it doesn't exist
 # $1 - target path with name of binary (ideally with version)
@@ -102,8 +99,12 @@ run:
 build:
 	"$(GOCMD)" build ${GOFLAGS} ${LDFLAGS} -o "${BINARY}"
 
-lint: golangci-lint ## Run golangci-lint on the codebase
-	$(GOLANGCI_LINT) run ./...
+lint: ## Run golangci-lint on the codebase
+	go tool golangci-lint run ./...
+
+fmt: ## Format all Go files
+	go tool goimports -w -local github.com/stakater/Reloader .
+	gofmt -w .
 
 build-image:
 	docker buildx build \
@@ -140,7 +141,48 @@ manifest:
 	docker manifest annotate --arch $(ARCH) $(REPOSITORY_GENERIC)  $(REPOSITORY_ARCH)
 
 test:
-	"$(GOCMD)" test -timeout 1800s -v ./...
+	"$(GOCMD)" test -timeout 1800s -v -short -count=1 ./internal/... ./test/e2e/utils/...
+
+##@ E2E Tests
+
+E2E_IMG ?= ghcr.io/stakater/reloader:test
+E2E_TIMEOUT ?= 45m
+KIND_CLUSTER ?= reloader-e2e
+CONTAINER_RUNTIME ?= $(shell command -v docker 2>/dev/null || command -v podman 2>/dev/null)
+
+.PHONY: e2e-setup
+e2e-setup: ## One-time setup: create Kind cluster and install dependencies (Argo, CSI, Vault)
+	@if kind get clusters 2>/dev/null | grep -q "^$(KIND_CLUSTER)$$"; then \
+		echo "Kind cluster $(KIND_CLUSTER) already exists"; \
+	else \
+		echo "Creating Kind cluster $(KIND_CLUSTER)..."; \
+		kind create cluster --name $(KIND_CLUSTER); \
+	fi
+	./scripts/e2e-cluster-setup.sh
+
+.PHONY: e2e
+e2e: ## Run e2e tests (builds image, loads to Kind, runs tests in parallel)
+	$(CONTAINER_RUNTIME) build -t $(E2E_IMG) -f Dockerfile .
+ifeq ($(notdir $(CONTAINER_RUNTIME)),podman)
+	$(CONTAINER_RUNTIME) save $(E2E_IMG) -o /tmp/reloader-e2e.tar
+	kind load image-archive /tmp/reloader-e2e.tar --name $(KIND_CLUSTER)
+	rm -f /tmp/reloader-e2e.tar
+else
+	kind load docker-image $(E2E_IMG) --name $(KIND_CLUSTER)
+endif
+	SKIP_BUILD=true RELOADER_IMAGE=$(E2E_IMG) "$(GOCMD)" tool ginkgo --keep-going -v --timeout=$(E2E_TIMEOUT) ./test/e2e/...
+
+.PHONY: e2e-cleanup
+e2e-cleanup: ## Cleanup: remove test resources and delete Kind cluster
+	./scripts/e2e-cluster-cleanup.sh
+	kind delete cluster --name $(KIND_CLUSTER)
+
+.PHONY: e2e-ci
+e2e-ci: e2e-setup e2e e2e-cleanup ## CI pipeline: setup, run tests, cleanup
+
+.PHONY: docker-build
+docker-build: ## Build Docker image
+	$(CONTAINER_RUNTIME) build -t $(IMG) -f Dockerfile .
 
 stop:
 	@docker stop "${BINARY}"
