@@ -15,6 +15,7 @@ env:
   KIND_VERSION: "0.23.0"
   HELM_REGISTRY_URL: "https://stakater.github.io/stakater-charts"
   REGISTRY: ghcr.io
+  RELOADER_EDITION: oss
 
 jobs:
   build:
@@ -103,7 +104,12 @@ jobs:
           file: ${{ env.DOCKER_FILE_PATH  }}
           pull: true
           push: true
-          build-args: BUILD_PARAMETERS=${{ env.BUILD_PARAMETERS }}
+          build-args: |
+            VERSION=merge-${{ github.event.number }}
+            COMMIT=${{ github.sha }}
+            BUILD_DATE=${{ steps.prep.outputs.created }}
+            EDITION=${{ env.RELOADER_EDITION }}
+            BUILD_PARAMETERS=${{ env.BUILD_PARAMETERS }}
           cache-to: type=inline
           platforms: linux/amd64,linux/arm,linux/arm64
           tags: |
@@ -152,6 +158,7 @@ jobs:
             VERSION=merge-${{ github.event.number }}
             COMMIT=${{ github.sha }}
             BUILD_DATE=${{ steps.prep.outputs.created }}
+            EDITION=${{ env.RELOADER_EDITION }}
             BUILD_PARAMETERS=${{ env.BUILD_PARAMETERS }}
           cache-to: type=inline
           platforms: linux/amd64,linux/arm,linux/arm64
