@@ -96,6 +96,14 @@ rules:
       - list
       - get
 {{- end}}
+{{- if and .Values.reloader.ignoreCronJobs .Values.reloader.ignoreJobs }}{{- else }}
+  - apiGroups:
+      - ""
+    resources:
+      - pods
+    verbs:
+      - deletecollection
+{{- end }}
 {{- if .Values.reloader.enableHA }}
   - apiGroups:
       - "coordination.k8s.io"
