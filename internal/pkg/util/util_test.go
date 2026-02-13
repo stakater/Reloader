@@ -136,6 +136,81 @@ func TestGetIgnoredWorkloadTypesList(t *testing.T) {
 	}
 }
 
+func TestGetIgnoredResourcesList(t *testing.T) {
+	originalResources := options.ResourcesToIgnore
+	defer func() {
+		options.ResourcesToIgnore = originalResources
+	}()
+
+	tests := []struct {
+		name        string
+		resources   []string
+		expectError bool
+		expected    []string
+	}{
+		{
+			name:        "configMaps normalized to lowercase",
+			resources:   []string{"configMaps"},
+			expectError: false,
+			expected:    []string{"configmaps"},
+		},
+		{
+			name:        "secrets stays lowercase",
+			resources:   []string{"secrets"},
+			expectError: false,
+			expected:    []string{"secrets"},
+		},
+		{
+			name:        "Empty list",
+			resources:   []string{},
+			expectError: false,
+			expected:    []string{},
+		},
+		{
+			name:        "Invalid resource",
+			resources:   []string{"invalid"},
+			expectError: true,
+			expected:    nil,
+		},
+		{
+			name:        "Both resources - error",
+			resources:   []string{"configMaps", "secrets"},
+			expectError: true,
+			expected:    nil,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			options.ResourcesToIgnore = tt.resources
+
+			result, err := GetIgnoredResourcesList()
+
+			if tt.expectError && err == nil {
+				t.Errorf("Expected error but got none")
+			}
+
+			if !tt.expectError && err != nil {
+				t.Errorf("Expected no error but got: %v", err)
+			}
+
+			if !tt.expectError {
+				if len(result) != len(tt.expected) {
+					t.Errorf("Expected %v, got %v", tt.expected, result)
+					return
+				}
+
+				for i, expected := range tt.expected {
+					if i >= len(result) || result[i] != expected {
+						t.Errorf("Expected %v, got %v", tt.expected, result)
+						break
+					}
+				}
+			}
+		})
+	}
+}
+
 func TestListContains(t *testing.T) {
 	tests := []struct {
 		name     string
