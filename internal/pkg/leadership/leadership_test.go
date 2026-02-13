@@ -45,7 +45,7 @@ func TestHealthz(t *testing.T) {
 	want := 200
 
 	if got != want {
-		t.Fatalf("got: %q, want: %q", got, want)
+		t.Fatalf("got: %d, want: %d", got, want)
 	}
 
 	// Have the liveness probe serve a 500
@@ -63,7 +63,7 @@ func TestHealthz(t *testing.T) {
 	want = 500
 
 	if got != want {
-		t.Fatalf("got: %q, want: %q", got, want)
+		t.Fatalf("got: %d, want: %d", got, want)
 	}
 }
 
@@ -89,7 +89,7 @@ func TestRunLeaderElection(t *testing.T) {
 	want := 500
 
 	if got != want {
-		t.Fatalf("got: %q, want: %q", got, want)
+		t.Fatalf("got: %d, want: %d", got, want)
 	}
 
 	// Cancel the leader election context, so leadership is released and
@@ -108,7 +108,7 @@ func TestRunLeaderElection(t *testing.T) {
 	want = 500
 
 	if got != want {
-		t.Fatalf("got: %q, want: %q", got, want)
+		t.Fatalf("got: %d, want: %d", got, want)
 	}
 }
 
