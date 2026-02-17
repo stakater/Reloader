@@ -52,7 +52,7 @@ func GetDeploymentRollingUpgradeFuncs() callbacks.RollingUpgradeFuncs {
 	}
 }
 
-// GetDeploymentRollingUpgradeFuncs returns all callback funcs for a cronjob
+// GetCronJobCreateJobFuncs returns all callback funcs for a cronjob
 func GetCronJobCreateJobFuncs() callbacks.RollingUpgradeFuncs {
 	return callbacks.RollingUpgradeFuncs{
 		ItemFunc:           callbacks.GetCronJobItem,
@@ -61,7 +61,7 @@ func GetCronJobCreateJobFuncs() callbacks.RollingUpgradeFuncs {
 		PodAnnotationsFunc: callbacks.GetCronJobPodAnnotations,
 		ContainersFunc:     callbacks.GetCronJobContainers,
 		InitContainersFunc: callbacks.GetCronJobInitContainers,
-		UpdateFunc:         callbacks.CreateJobFromCronjob,
+		UpdateFunc:         callbacks.RestartRunningCronjobPods,
 		PatchFunc:          callbacks.PatchCronJob,
 		PatchTemplatesFunc: func() callbacks.PatchTemplates { return callbacks.PatchTemplates{} },
 		VolumesFunc:        callbacks.GetCronJobVolumes,
@@ -70,7 +70,7 @@ func GetCronJobCreateJobFuncs() callbacks.RollingUpgradeFuncs {
 	}
 }
 
-// GetDeploymentRollingUpgradeFuncs returns all callback funcs for a cronjob
+// GetJobCreateJobFuncs returns all callback funcs for a cronjob
 func GetJobCreateJobFuncs() callbacks.RollingUpgradeFuncs {
 	return callbacks.RollingUpgradeFuncs{
 		ItemFunc:           callbacks.GetJobItem,
