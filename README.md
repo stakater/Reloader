@@ -95,6 +95,12 @@ Stakater offers an enterprise-grade version of Reloader with:
 
 Contact [`sales@stakater.com`](mailto:sales@stakater.com) for info about Reloader Enterprise.
 
+## ⭐ Show Your Support
+
+Enjoying the project? Star Reloader on GitHub and stay updated with new releases.
+
+![star](https://github.com/user-attachments/assets/14ff6a8f-7414-4e4a-867e-874f9b0a7885)
+
 ## 🧩 Usage
 
 Reloader supports multiple annotation-based controls to let you **customize when and how your Kubernetes workloads are reloaded** upon changes in `Secrets` or `ConfigMaps`.
