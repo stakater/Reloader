@@ -16,6 +16,8 @@ spec:
       labels:
         app: reloader-reloader
     spec:
+      nodeSelector:
+        "kubernetes.io/os": linux
       containers:
         - image: "ghcr.io/stakater/reloader:v1.4.13"
           imagePullPolicy: IfNotPresent
