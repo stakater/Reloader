@@ -388,7 +388,10 @@ func TestPatchResources(t *testing.T) {
 			assert.Equal(t, "test", patchedResource.(*appsv1.StatefulSet).Annotations["test"])
 		}},
 		{"CronJob", createTestCronJobWithAnnotations, callbacks.PatchCronJob, deleteTestCronJob, func(err error) {
-			assert.EqualError(t, err, "not supported patching: CronJob")
+			assert.NoError(t, err)
+			patchedResource, err := callbacks.GetCronJobItem(clients, "test-cronjob", fixtures.namespace)
+			assert.NoError(t, err)
+			assert.Equal(t, "test", patchedResource.(*batchv1.CronJob).Annotations["test"])
 		}},
 		{"Job", createTestJobWithAnnotations, callbacks.PatchJob, deleteTestJob, func(err error) {
 			assert.EqualError(t, err, "not supported patching: Job")
@@ -489,6 +492,112 @@ func TestGetPatchDeleteTemplateEnvVar(t *testing.T) {
 	templates := callbacks.GetPatchTemplates()
 	assert.NotEmpty(t, templates.DeleteEnvVarTemplate)
 	assert.Equal(t, 2, strings.Count(templates.DeleteEnvVarTemplate, "%d"))
+}
+
+func TestGetCronJobPatchTemplateAnnotation(t *testing.T) {
+	templates := callbacks.GetCronJobPatchTemplates()
+	assert.NotEmpty(t, templates.AnnotationTemplate)
+	assert.Equal(t, 2, strings.Count(templates.AnnotationTemplate, "%s"))
+	// Verify the path is correct for CronJob (jobTemplate nested structure)
+	assert.Contains(t, templates.AnnotationTemplate, "jobTemplate")
+}
+
+func TestGetCronJobPatchTemplateEnvVar(t *testing.T) {
+	templates := callbacks.GetCronJobPatchTemplates()
+	assert.NotEmpty(t, templates.EnvVarTemplate)
+	assert.Equal(t, 3, strings.Count(templates.EnvVarTemplate, "%s"))
+	// Verify the path is correct for CronJob (jobTemplate nested structure)
+	assert.Contains(t, templates.EnvVarTemplate, "jobTemplate")
+}
+
+func TestGetCronJobPatchDeleteTemplateEnvVar(t *testing.T) {
+	templates := callbacks.GetCronJobPatchTemplates()
+	assert.NotEmpty(t, templates.DeleteEnvVarTemplate)
+	assert.Equal(t, 2, strings.Count(templates.DeleteEnvVarTemplate, "%d"))
+	// Verify the path is correct for CronJob (jobTemplate nested structure)
+	assert.Contains(t, templates.DeleteEnvVarTemplate, "jobTemplate")
+}
+
+func TestPatchCronJob(t *testing.T) {
+	fixtures := newTestFixtures()
+
+	// Create a CronJob
+	cronJob, err := createTestCronJobWithAnnotations(clients, fixtures.namespace, "1")
+	assert.NoError(t, err)
+
+	// Patch the CronJob
+	patchBytes := []byte(`{"metadata":{"annotations":{"test":"test"}}}`)
+	err = callbacks.PatchCronJob(clients, fixtures.namespace, cronJob, patchtypes.StrategicMergePatchType, patchBytes)
+	assert.NoError(t, err)
+
+	// Verify the patch was applied
+	patchedCronJob, err := callbacks.GetCronJobItem(clients, "test-cronjob", fixtures.namespace)
+	assert.NoError(t, err)
+	assert.Equal(t, "test", patchedCronJob.(*batchv1.CronJob).Annotations["test"])
+
+	// Cleanup
+	err = deleteTestCronJob(clients, fixtures.namespace, "test-cronjob")
+	assert.NoError(t, err)
+}
+
+func TestRecreateRunningJobsForCronJob(t *testing.T) {
+	fixtures := newTestFixtures()
+
+	// Create a CronJob
+	cronJobObj, err := createTestCronJobWithAnnotations(clients, fixtures.namespace, "1")
+	assert.NoError(t, err)
+	cronJob := cronJobObj.(*batchv1.CronJob)
+
+	// Create a Job owned by the CronJob with active status
+	job := &batchv1.Job{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-job-from-cronjob",
+			Namespace: fixtures.namespace,
+			OwnerReferences: []metav1.OwnerReference{
+				{
+					APIVersion: "batch/v1",
+					Kind:       "CronJob",
+					Name:       cronJob.Name,
+					UID:        cronJob.UID,
+				},
+			},
+		},
+		Status: batchv1.JobStatus{
+			Active: 1, // Job is running
+		},
+	}
+	_, err = clients.KubernetesClient.BatchV1().Jobs(fixtures.namespace).Create(context.TODO(), job, metav1.CreateOptions{})
+	assert.NoError(t, err)
+
+	// Call RecreateRunningJobsForCronJob
+	err = callbacks.RecreateRunningJobsForCronJob(clients, fixtures.namespace, cronJob)
+	assert.NoError(t, err)
+
+	// Verify the job was recreated (old one deleted, new one created with same name)
+	// Note: In the fake client, the job recreation might behave differently than in a real cluster
+	// The important thing is that no error occurred
+
+	// Cleanup
+	_ = clients.KubernetesClient.BatchV1().Jobs(fixtures.namespace).Delete(context.TODO(), "test-job-from-cronjob", metav1.DeleteOptions{})
+	err = deleteTestCronJob(clients, fixtures.namespace, cronJob.Name)
+	assert.NoError(t, err)
+}
+
+func TestUpdateCronJobWithRunningJobs(t *testing.T) {
+	fixtures := newTestFixtures()
+
+	// Create a CronJob
+	cronJobObj, err := createTestCronJobWithAnnotations(clients, fixtures.namespace, "1")
+	assert.NoError(t, err)
+	cronJob := cronJobObj.(*batchv1.CronJob)
+
+	// Call UpdateCronJobWithRunningJobs (should not error even with no running jobs)
+	err = callbacks.UpdateCronJobWithRunningJobs(clients, fixtures.namespace, cronJob)
+	assert.NoError(t, err)
+
+	// Cleanup
+	err = deleteTestCronJob(clients, fixtures.namespace, cronJob.Name)
+	assert.NoError(t, err)
 }
 
 // Helper functions

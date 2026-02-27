@@ -428,6 +428,15 @@ func GetPatchTemplates() PatchTemplates {
 	}
 }
 
+// GetCronJobPatchTemplates returns patch templates for CronJob resources
+func GetCronJobPatchTemplates() PatchTemplates {
+	return PatchTemplates{
+		AnnotationTemplate:   `{"spec":{"jobTemplate":{"spec":{"template":{"metadata":{"annotations":{"%s":"%s"}}}}}}}`,                                   // strategic merge patch
+		EnvVarTemplate:       `{"spec":{"jobTemplate":{"spec":{"template":{"spec":{"containers":[{"name":"%s","env":[{"name":"%s","value":"%s"}]}]}}}}}}`, // strategic merge patch
+		DeleteEnvVarTemplate: `[{"op":"remove","path":"/spec/jobTemplate/spec/template/spec/containers/%d/env/%d"}]`,                                      // JSON patch
+	}
+}
+
 // UpdateDeployment performs rolling upgrade on deployment
 func UpdateDeployment(clients kube.Clients, namespace string, resource runtime.Object) error {
 	deployment := resource.(*appsv1.Deployment)
@@ -464,8 +473,16 @@ func CreateJobFromCronjob(clients kube.Clients, namespace string, resource runti
 	return err
 }
 
+// PatchCronJob patches a CronJob's jobTemplate to update pod annotations/env vars
 func PatchCronJob(clients kube.Clients, namespace string, resource runtime.Object, patchType patchtypes.PatchType, bytes []byte) error {
-	return errors.New("not supported patching: CronJob")
+	cronJob := resource.(*batchv1.CronJob)
+	_, err := clients.KubernetesClient.BatchV1().CronJobs(namespace).Patch(
+		context.TODO(),
+		cronJob.Name,
+		patchType,
+		bytes,
+		meta_v1.PatchOptions{FieldManager: "Reloader"})
+	return err
 }
 
 // ReCreateJobFromjob performs rolling upgrade on job
@@ -498,6 +515,83 @@ func ReCreateJobFromjob(clients kube.Clients, namespace string, resource runtime
 	// Create the new job with same spec
 	_, err = clients.KubernetesClient.BatchV1().Jobs(namespace).Create(context.TODO(), job, meta_v1.CreateOptions{FieldManager: "Reloader"})
 	return err
+}
+
+// RecreateRunningJobsForCronJob finds and recreates any running Jobs owned by the CronJob
+func RecreateRunningJobsForCronJob(clients kube.Clients, namespace string, cronJob *batchv1.CronJob) error {
+	// List Jobs in the namespace
+	jobs, err := clients.KubernetesClient.BatchV1().Jobs(namespace).List(context.TODO(), meta_v1.ListOptions{})
+	if err != nil {
+		return err
+	}
+
+	for _, job := range jobs.Items {
+		// Check if Job is owned by this CronJob and is active
+		if isOwnedByCronJob(&job, cronJob) && job.Status.Active > 0 {
+			// Recreate the job
+			if err := recreateJob(clients, namespace, &job); err != nil {
+				logrus.Errorf("Failed to recreate Job %s owned by CronJob %s: %v", job.Name, cronJob.Name, err)
+				return err
+			}
+			logrus.Infof("Recreated running Job %s owned by CronJob %s", job.Name, cronJob.Name)
+		}
+	}
+	return nil
+}
+
+// isOwnedByCronJob checks if a Job is owned by a specific CronJob
+func isOwnedByCronJob(job *batchv1.Job, cronJob *batchv1.CronJob) bool {
+	for _, ownerRef := range job.OwnerReferences {
+		if ownerRef.Kind == "CronJob" && ownerRef.Name == cronJob.Name && ownerRef.UID == cronJob.UID {
+			return true
+		}
+	}
+	return false
+}
+
+// recreateJob deletes and recreates a Job with the same spec
+func recreateJob(clients kube.Clients, namespace string, oldJob *batchv1.Job) error {
+	job := oldJob.DeepCopy()
+
+	// Delete the old job
+	policy := meta_v1.DeletePropagationBackground
+	err := clients.KubernetesClient.BatchV1().Jobs(namespace).Delete(context.TODO(), job.Name, meta_v1.DeleteOptions{PropagationPolicy: &policy})
+	if err != nil {
+		return err
+	}
+
+	// Remove fields that should not be specified when creating a new Job
+	job.ResourceVersion = ""
+	job.UID = ""
+	job.CreationTimestamp = meta_v1.Time{}
+	job.Status = batchv1.JobStatus{}
+
+	// Remove problematic labels
+	delete(job.Spec.Template.Labels, "controller-uid")
+	delete(job.Spec.Template.Labels, batchv1.ControllerUidLabel)
+	delete(job.Spec.Template.Labels, batchv1.JobNameLabel)
+	delete(job.Spec.Template.Labels, "job-name")
+
+	// Remove the selector to allow it to be auto-generated
+	job.Spec.Selector = nil
+
+	// Create the new job with same spec
+	_, err = clients.KubernetesClient.BatchV1().Jobs(namespace).Create(context.TODO(), job, meta_v1.CreateOptions{FieldManager: "Reloader"})
+	return err
+}
+
+// UpdateCronJobWithRunningJobs patches the CronJob template and recreates any running Jobs
+func UpdateCronJobWithRunningJobs(clients kube.Clients, namespace string, resource runtime.Object) error {
+	cronJob := resource.(*batchv1.CronJob)
+
+	// Recreate any running Jobs so they pick up the new config
+	if err := RecreateRunningJobsForCronJob(clients, namespace, cronJob); err != nil {
+		return err
+	}
+
+	// The CronJob template will be patched by the caller using PatchFunc
+	// This UpdateFunc is a no-op for the CronJob itself since we use patching
+	return nil
 }
 
 func PatchJob(clients kube.Clients, namespace string, resource runtime.Object, patchType patchtypes.PatchType, bytes []byte) error {
