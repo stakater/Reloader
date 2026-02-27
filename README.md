@@ -169,7 +169,9 @@ metadata:
 
 This instructs Reloader to skip all reload logic for that resource across all workloads.
 
-### 4. ⚙️ Workload-Specific Rollout Strategy (Argo Rollouts Only)
+### 4. ⚙️ Workload-Specific Reload Strategies
+
+#### Argo Rollouts
 
 Note: This is only applicable when using [Argo Rollouts](https://argoproj.github.io/argo-rollouts/). It is ignored for standard Kubernetes `Deployments`, `StatefulSets`, or `DaemonSets`. To use this feature, Argo Rollouts support must be enabled in Reloader (for example via --is-argo-rollouts=true).
 
@@ -195,6 +197,43 @@ metadata:
 1. Your platform restricts metadata changes
 
 This setting affects Argo Rollouts behavior, not Argo CD sync settings.
+
+#### CronJobs
+
+By default, when a ConfigMap or Secret referenced by a CronJob is updated, Reloader creates an **immediate Job** from the CronJob template. This ensures the new configuration is applied right away.
+
+However, this default behavior has some drawbacks:
+- Creates out-of-schedule job executions
+- Produces "orphan" jobs not tracked by CronJob controller's history limits
+- Bypasses CronJob's `concurrencyPolicy`
+
+For use cases where you prefer to only update the CronJob template (so future scheduled runs get the new config) without creating immediate jobs, you can use the **patch** strategy:
+
+```yaml
+metadata:
+  annotations:
+    reloader.stakater.com/auto: "true"
+    reloader.stakater.com/cronjob-reload-strategy: "patch"
+```
+
+| Value                  | Behavior                                                                                     |
+|------------------------|----------------------------------------------------------------------------------------------|
+| (default/not set)      | Creates an immediate Job from the CronJob template                                           |
+| `patch`                | Patches the CronJob template and recreates any currently running Jobs owned by the CronJob  |
+
+✅ Use `patch` if:
+
+1. You want to respect the CronJob's schedule and `concurrencyPolicy`
+1. You want to avoid orphan jobs that bypass history limits
+1. You only need future scheduled runs to pick up the new configuration
+1. You have running Jobs that should be recreated with the new config
+
+| Scenario                              | Default (immediate-job)       | Patch mode                              |
+|---------------------------------------|-------------------------------|-----------------------------------------|
+| ConfigMap updated, no running Job     | Creates new Job immediately   | Patches CronJob template only           |
+| ConfigMap updated, Job running        | Creates new Job (parallel)    | Recreates running Job, patches template |
+| Respects `concurrencyPolicy`          | No                            | Yes (for scheduled runs)                |
+| Orphan jobs                           | Yes                           | No                                      |
 
 ### 5. ❗ Annotation Behavior Rules & Compatibility
 
