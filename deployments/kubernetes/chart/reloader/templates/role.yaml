@@ -142,4 +142,14 @@ rules:
       - watch
       - create
       - update
+{{- if .Values.reloader.enableHA }}
+  - apiGroups:
+      - "coordination.k8s.io"
+    resources:
+      - leases
+    verbs:
+      - create
+      - get
+      - update
+{{- end}}
 {{- end }}
