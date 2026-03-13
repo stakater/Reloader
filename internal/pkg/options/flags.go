@@ -47,6 +47,8 @@ var (
 	SearchMatchAnnotation = "reloader.stakater.com/match"
 	// RolloutStrategyAnnotation is an annotation to define rollout update strategy
 	RolloutStrategyAnnotation = "reloader.stakater.com/rollout-strategy"
+	// CronJobReloadStrategyAnnotation is an annotation to define cronjob reload strategy (default: "immediate-job", opt-in: "patch")
+	CronJobReloadStrategyAnnotation = "reloader.stakater.com/cronjob-reload-strategy"
 	// PauseDeploymentAnnotation is an annotation to define the time period to pause a deployment after
 	// a configmap/secret change has been detected. Valid values are described here: https://pkg.go.dev/time#ParseDuration
 	// only positive values are allowed
