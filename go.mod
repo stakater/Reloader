@@ -4,15 +4,15 @@ go 1.26
 
 require (
 	github.com/argoproj/argo-rollouts v1.8.3
-	github.com/openshift/api v0.0.0-20260102143802-d2ec16864f86
+	github.com/openshift/api v0.0.0-20260312224012-5e946e2d43b7
 	github.com/openshift/client-go v0.0.0-20251223102348-558b0eef16bc
 	github.com/parnurzeal/gorequest v0.3.0
 	github.com/prometheus/client_golang v1.23.2
 	github.com/sirupsen/logrus v1.9.3
 	github.com/spf13/cobra v1.10.2
 	github.com/stretchr/testify v1.11.1
-	k8s.io/api v0.35.0
-	k8s.io/apimachinery v0.35.0
+	k8s.io/api v0.35.1
+	k8s.io/apimachinery v0.35.1
 	k8s.io/client-go v0.35.0
 	k8s.io/kubectl v0.35.0
 	sigs.k8s.io/secrets-store-csi-driver v1.5.5
