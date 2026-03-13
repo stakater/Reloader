@@ -29,8 +29,8 @@ Usage: $0 <APP_VERSION> <CHART_VERSION>
 Automates the full Reloader release process.
 
 Arguments:
-  APP_VERSION    Application version without 'v' prefix (e.g. 1.5.0)
-  CHART_VERSION  Helm chart version (e.g. 2.3.0)
+  APP_VERSION    Application version without 'v' prefix (e.g. 1.5.0, 1.5.0-alpha)
+  CHART_VERSION  Helm chart version (e.g. 2.3.0, 2.3.0-rc.1)
 
 Prerequisites:
   - gh CLI authenticated with repo access
@@ -52,14 +52,16 @@ CHART_VERSION="$2"
 APP_VERSION="${APP_VERSION#v}"
 CHART_VERSION="${CHART_VERSION#v}"
 
-# Validate semver format
-if ! [[ "$APP_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-    error "APP_VERSION '$APP_VERSION' is not valid semver (expected X.Y.Z)"
+# Validate semver format (with optional prerelease suffix e.g. 1.5.0-alpha, 1.5.0-rc.1)
+SEMVER_RE='^[0-9]+\.[0-9]+\.[0-9]+([-][a-zA-Z0-9.]+)?$'
+
+if ! [[ "$APP_VERSION" =~ $SEMVER_RE ]]; then
+    error "APP_VERSION '$APP_VERSION' is not valid semver (expected X.Y.Z or X.Y.Z-prerelease)"
     exit 1
 fi
 
-if ! [[ "$CHART_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-    error "CHART_VERSION '$CHART_VERSION' is not valid semver (expected X.Y.Z)"
+if ! [[ "$CHART_VERSION" =~ $SEMVER_RE ]]; then
+    error "CHART_VERSION '$CHART_VERSION' is not valid semver (expected X.Y.Z or X.Y.Z-prerelease)"
     exit 1
 fi
 
