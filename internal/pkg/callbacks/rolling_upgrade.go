@@ -241,6 +241,8 @@ func GetRolloutItem(clients kube.Clients, name string, namespace string) (runtim
 		return nil, err
 	}
 
+	hydrateRolloutFromWorkloadRef(clients, rollout, namespace)
+
 	return rollout, nil
 }
 
@@ -253,14 +255,66 @@ func GetRolloutItems(clients kube.Clients, namespace string) []runtime.Object {
 
 	items := make([]runtime.Object, len(rollouts.Items))
 	// Ensure we always have pod annotations to add to
-	for i, v := range rollouts.Items {
-		if v.Spec.Template.Annotations == nil {
+	for i := range rollouts.Items {
+		hydrateRolloutFromWorkloadRef(clients, &rollouts.Items[i], namespace)
+		if rollouts.Items[i].Spec.Template.Annotations == nil {
 			rollouts.Items[i].Spec.Template.Annotations = make(map[string]string)
 		}
 		items[i] = &rollouts.Items[i]
 	}
 
 	return items
+}
+
+// hydrateRolloutFromWorkloadRef populates a Rollout's spec.template from the
+// referenced Deployment when spec.workloadRef is set. This allows Reloader's
+// container-scanning logic to discover ConfigMap/Secret references even though
+// the Rollout itself carries no pod template.
+// Safety: forces "restart" strategy so that UpdateRollout only patches
+// spec.restartAt and never writes the hydrated template back to the API.
+func hydrateRolloutFromWorkloadRef(clients kube.Clients, rollout *argorolloutv1alpha1.Rollout, namespace string) {
+	workloadRef := rollout.Spec.WorkloadRef
+	if workloadRef == nil {
+		return
+	}
+
+	// Only support Deployment references for now
+	if workloadRef.Kind != "Deployment" || workloadRef.APIVersion != "apps/v1" {
+		logrus.Debugf("Rollout '%s/%s' has unsupported workloadRef kind '%s/%s', skipping hydration",
+			namespace, rollout.Name, workloadRef.APIVersion, workloadRef.Kind)
+		return
+	}
+
+	// Skip if template is already populated (inline template takes precedence)
+	if len(rollout.Spec.Template.Spec.Containers) > 0 {
+		return
+	}
+
+	deployment, err := clients.KubernetesClient.AppsV1().Deployments(namespace).Get(
+		context.TODO(), workloadRef.Name, meta_v1.GetOptions{})
+	if err != nil {
+		logrus.Errorf("Rollout '%s/%s': failed to fetch referenced Deployment '%s': %v",
+			namespace, rollout.Name, workloadRef.Name, err)
+		return
+	}
+
+	// Copy the Deployment's pod template into the Rollout for container scanning
+	rollout.Spec.Template = *deployment.Spec.Template.DeepCopy()
+	rollout.Spec.TemplateResolvedFromRef = true
+
+	// Force restart strategy to prevent UpdateRollout from writing the
+	// hydrated template back to the API server via .Update()
+	if rollout.Annotations == nil {
+		rollout.Annotations = make(map[string]string)
+	}
+	if _, hasStrategy := rollout.Annotations[options.RolloutStrategyAnnotation]; !hasStrategy {
+		rollout.Annotations[options.RolloutStrategyAnnotation] = "restart"
+		logrus.Infof("Rollout '%s/%s' uses workloadRef; defaulting to 'restart' strategy",
+			namespace, rollout.Name)
+	}
+
+	logrus.Infof("Rollout '%s/%s': hydrated template from Deployment '%s' (%d containers)",
+		namespace, rollout.Name, workloadRef.Name, len(rollout.Spec.Template.Spec.Containers))
 }
 
 // GetDeploymentAnnotations returns the annotations of given deployment
