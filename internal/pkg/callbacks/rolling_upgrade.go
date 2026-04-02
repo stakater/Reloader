@@ -309,11 +309,11 @@ func hydrateRolloutFromWorkloadRef(clients kube.Clients, rollout *argorolloutv1a
 	}
 	if _, hasStrategy := rollout.Annotations[options.RolloutStrategyAnnotation]; !hasStrategy {
 		rollout.Annotations[options.RolloutStrategyAnnotation] = "restart"
-		logrus.Infof("Rollout '%s/%s' uses workloadRef; defaulting to 'restart' strategy",
+		logrus.Debugf("Rollout '%s/%s' uses workloadRef; defaulting to 'restart' strategy",
 			namespace, rollout.Name)
 	}
 
-	logrus.Infof("Rollout '%s/%s': hydrated template from Deployment '%s' (%d containers)",
+	logrus.Debugf("Rollout '%s/%s': hydrated template from Deployment '%s' (%d containers)",
 		namespace, rollout.Name, workloadRef.Name, len(rollout.Spec.Template.Spec.Containers))
 }
 
