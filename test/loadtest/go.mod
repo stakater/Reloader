@@ -1,6 +1,6 @@
 module github.com/stakater/Reloader/test/loadtest
 
-go 1.25
+go 1.26
 
 require (
 	github.com/spf13/cobra v1.8.1
