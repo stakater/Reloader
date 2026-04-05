@@ -209,7 +209,7 @@ runs:
     - name: Post PR comment
       if: inputs.post-comment == 'true' && inputs.pr-number != ''
       continue-on-error: true
-      uses: actions/github-script@v7
+      uses: actions/github-script@v8
       with:
         github-token: ${{ inputs.github-token }}
         script: |
