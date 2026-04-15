@@ -52,7 +52,7 @@ func GetDeploymentRollingUpgradeFuncs() callbacks.RollingUpgradeFuncs {
 	}
 }
 
-// GetDeploymentRollingUpgradeFuncs returns all callback funcs for a cronjob
+// GetCronJobCreateJobFuncs returns all callback funcs for a cronjob (default behavior - creates immediate job)
 func GetCronJobCreateJobFuncs() callbacks.RollingUpgradeFuncs {
 	return callbacks.RollingUpgradeFuncs{
 		ItemFunc:           callbacks.GetCronJobItem,
@@ -67,6 +67,25 @@ func GetCronJobCreateJobFuncs() callbacks.RollingUpgradeFuncs {
 		VolumesFunc:        callbacks.GetCronJobVolumes,
 		ResourceType:       "CronJob",
 		SupportsPatch:      false,
+	}
+}
+
+// GetCronJobPatchFuncs returns all callback funcs for a cronjob with patch strategy
+// This patches the CronJob template and recreates running Jobs instead of creating an immediate new job
+func GetCronJobPatchFuncs() callbacks.RollingUpgradeFuncs {
+	return callbacks.RollingUpgradeFuncs{
+		ItemFunc:           callbacks.GetCronJobItem,
+		ItemsFunc:          callbacks.GetCronJobItems,
+		AnnotationsFunc:    callbacks.GetCronJobAnnotations,
+		PodAnnotationsFunc: callbacks.GetCronJobPodAnnotations,
+		ContainersFunc:     callbacks.GetCronJobContainers,
+		InitContainersFunc: callbacks.GetCronJobInitContainers,
+		UpdateFunc:         callbacks.UpdateCronJobWithRunningJobs,
+		PatchFunc:          callbacks.PatchCronJob,
+		PatchTemplatesFunc: callbacks.GetCronJobPatchTemplates,
+		VolumesFunc:        callbacks.GetCronJobVolumes,
+		ResourceType:       "CronJob",
+		SupportsPatch:      true,
 	}
 }
 
@@ -195,7 +214,7 @@ func doRollingUpgrade(config common.Config, collectors metrics.Collectors, recor
 
 	// Only process CronJobs if they are not ignored
 	if !ignoredWorkloadTypes.Contains("cronjobs") {
-		err = rollingUpgrade(clients, config, GetCronJobCreateJobFuncs(), collectors, recorder, invoke)
+		err = rollingUpgradeCronJobs(clients, config, collectors, recorder, invoke)
 		if err != nil {
 			return err
 		}
@@ -234,6 +253,48 @@ func rollingUpgrade(clients kube.Clients, config common.Config, upgradeFuncs cal
 		logrus.Errorf("Rolling upgrade for '%s' failed with error = %v", config.ResourceName, err)
 	}
 	return err
+}
+
+// rollingUpgradeCronJobs handles CronJob upgrades with per-CronJob strategy selection
+// based on the reloader.stakater.com/cronjob-reload-strategy annotation
+func rollingUpgradeCronJobs(clients kube.Clients, config common.Config, collectors metrics.Collectors, recorder record.EventRecorder, strategy invokeStrategy) error {
+	// Get all CronJobs using the default funcs (just for listing)
+	defaultFuncs := GetCronJobCreateJobFuncs()
+	items := defaultFuncs.ItemsFunc(clients, config.Namespace)
+
+	// Record workloads scanned
+	collectors.RecordWorkloadsScanned("CronJob", len(items))
+
+	matchedCount := 0
+	for _, item := range items {
+		// Check the CronJob's annotation to determine which strategy to use
+		annotations := callbacks.GetCronJobAnnotations(item)
+		var upgradeFuncs callbacks.RollingUpgradeFuncs
+
+		if annotations[options.CronJobReloadStrategyAnnotation] == "patch" {
+			// Use patch mode: patches CronJob template and recreates running Jobs
+			upgradeFuncs = GetCronJobPatchFuncs()
+		} else {
+			// Default mode: creates an immediate Job from the CronJob
+			upgradeFuncs = GetCronJobCreateJobFuncs()
+		}
+
+		matched, err := retryOnConflict(retry.DefaultRetry, func(fetchResource bool) (bool, error) {
+			return upgradeResource(clients, config, upgradeFuncs, collectors, recorder, strategy, item, fetchResource)
+		})
+		if err != nil {
+			logrus.Errorf("Rolling upgrade for CronJob failed with error = %v", err)
+			return err
+		}
+		if matched {
+			matchedCount++
+		}
+	}
+
+	// Record workloads matched
+	collectors.RecordWorkloadsMatched("CronJob", matchedCount)
+
+	return nil
 }
 
 // PerformAction invokes the deployment if there is any change in configmap or secret data
