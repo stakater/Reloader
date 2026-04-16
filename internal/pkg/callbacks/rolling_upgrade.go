@@ -16,8 +16,6 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	patchtypes "k8s.io/apimachinery/pkg/types"
 
-	"maps"
-
 	argorolloutv1alpha1 "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 )
 
@@ -42,7 +40,7 @@ type UpdateFunc func(kube.Clients, string, runtime.Object) error
 // PatchFunc performs the resource patch
 type PatchFunc func(kube.Clients, string, runtime.Object, patchtypes.PatchType, []byte) error
 
-// PatchTemplateFunc is a generic func to return strategic merge JSON patch template
+// PatchTemplatesFunc is a generic func to return strategic merge JSON patch template
 type PatchTemplatesFunc func() PatchTemplates
 
 // AnnotationsFunc is a generic func to return annotations
@@ -442,26 +440,20 @@ func PatchDeployment(clients kube.Clients, namespace string, resource runtime.Ob
 	return err
 }
 
-// CreateJobFromCronjob performs rolling upgrade on cronjob
-func CreateJobFromCronjob(clients kube.Clients, namespace string, resource runtime.Object) error {
+// RestartRunningCronjobPods restarts all pods currently running cronjob jobs
+func RestartRunningCronjobPods(clients kube.Clients, namespace string, resource runtime.Object) error {
 	cronJob := resource.(*batchv1.CronJob)
-
-	annotations := make(map[string]string)
-	annotations["cronjob.kubernetes.io/instantiate"] = "manual"
-	maps.Copy(annotations, cronJob.Spec.JobTemplate.Annotations)
-
-	job := &batchv1.Job{
-		ObjectMeta: meta_v1.ObjectMeta{
-			GenerateName:    cronJob.Name + "-",
-			Namespace:       cronJob.Namespace,
-			Annotations:     annotations,
-			Labels:          cronJob.Spec.JobTemplate.Labels,
-			OwnerReferences: []meta_v1.OwnerReference{*meta_v1.NewControllerRef(cronJob, batchv1.SchemeGroupVersion.WithKind("CronJob"))},
-		},
-		Spec: cronJob.Spec.JobTemplate.Spec,
+	for _, job := range cronJob.Status.Active {
+		logrus.Debugf("Deleting running pods for active Job %s/%s", job.Namespace, job.Name)
+		listOpts := meta_v1.ListOptions{
+			LabelSelector: fmt.Sprintf("%s=%s", batchv1.JobNameLabel, job.Name),
+			FieldSelector: "status.phase=Running",
+		}
+		if err := clients.KubernetesClient.CoreV1().Pods(namespace).DeleteCollection(context.TODO(), meta_v1.DeleteOptions{}, listOpts); err != nil {
+			return err
+		}
 	}
-	_, err := clients.KubernetesClient.BatchV1().Jobs(namespace).Create(context.TODO(), job, meta_v1.CreateOptions{FieldManager: "Reloader"})
-	return err
+	return nil
 }
 
 func PatchCronJob(clients kube.Clients, namespace string, resource runtime.Object, patchType patchtypes.PatchType, bytes []byte) error {
