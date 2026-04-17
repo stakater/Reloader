@@ -196,6 +196,9 @@ spec:
         {{- if .Values.reloader.readOnlyRootFileSystem }}
           {{- $_ := set $containerSecurityContext "readOnlyRootFilesystem" true }}
         {{- end }}
+        {{- if .Values.reloader.isOpenshift }}
+            {{- $containerSecurityContext = (omit $containerSecurityContext "runAsUser" "runAsGroup" "fsGroup" "supplementalGroups") }}
+        {{- end }}
 
         securityContext:
           {{- toYaml $containerSecurityContext | nindent 10 }}
@@ -318,7 +321,13 @@ spec:
 {{ toYaml .Values.reloader.deployment.resources | indent 10 }}
       {{- end }}
 {{- if .Values.reloader.deployment.securityContext }}
-      securityContext: {{ toYaml .Values.reloader.deployment.securityContext | nindent 8 }}
+    {{- if .Values.reloader.isOpenshift }}
+      securityContext:
+        {{- toYaml (omit .Values.reloader.deployment.securityContext "runAsUser" "runAsGroup" "fsGroup" "supplementalGroups") | nindent 8 }}
+    {{- else }}
+      securityContext:
+        {{- toYaml .Values.reloader.deployment.securityContext | nindent 8 }}
+    {{- end }}
 {{- end }}
       serviceAccountName: {{ template "reloader-serviceAccountName" . }}
 {{- if hasKey .Values.reloader.deployment "automountServiceAccountToken" }}
