@@ -48,6 +48,9 @@ spec:
       imagePullSecrets:
 {{ include "reloader-imagePullSecrets" . | indent 8 }}
       {{- end }}
+      {{- if kindIs "bool" .Values.reloader.deployment.hostUsers }}
+      hostUsers: {{ .Values.reloader.deployment.hostUsers }}
+      {{- end }}
       {{- if .Values.reloader.deployment.nodeSelector }}
       nodeSelector:
 {{ toYaml .Values.reloader.deployment.nodeSelector | indent 8 }}
