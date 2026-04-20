@@ -78,6 +78,8 @@ reloader:
 
     revisionHistoryLimit: 2
 
+    hostUsers: null
+
     nodeSelector:
     # cloud.google.com/gke-nodepool: default-pool
 
