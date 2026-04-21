@@ -45,6 +45,7 @@ reloader:
   logFormat: "" # json
   logLevel: info # Log level to use (trace, debug, info, warning, error, fatal and panic)
   watchGlobally: true
+  watchNamespaces: "" # Comma separated list of namespaces to watch (overrides watchGlobally when set)
   # Set to true to enable leadership election allowing you to run multiple replicas
   enableHA: false
   # Set to true to enable pprof for profiling

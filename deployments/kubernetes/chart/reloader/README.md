@@ -16,6 +16,8 @@ helm install {{RELEASE_NAME}} stakater/reloader -n {{NAMESPACE}} --set reloader.
 
 helm install stakater/reloader --set reloader.watchGlobally=false --namespace test --generate-name # Install Reloader in `test` namespace which will only watch `Deployments`, `Daemonsets` `Statefulsets` and `Rollouts` in `test` namespace.
 
+helm install stakater/reloader --set reloader.watchNamespaces="team-a,team-b" --generate-name # Watch only the listed namespaces.
+
 helm install stakater/reloader --set reloader.ignoreJobs=true --set reloader.ignoreCronJobs=true --generate-name # Install Reloader ignoring Jobs and CronJobs from reload monitoring
 ```
 
@@ -61,6 +63,7 @@ helm uninstall {{RELEASE_NAME}} -n {{NAMESPACE}}
 | `reloader.resourceLabelSelector`    | List of comma separated label selectors, if multiple are provided they are combined with the AND operator                                           | string      | `""`      |
 | `reloader.logFormat`                | Set type of log format. Value could be either `json` or `""`                                                                                        | string      | `""`      |
 | `reloader.watchGlobally`            | Allow Reloader to watch in all namespaces (`true`) or just in a single namespace (`false`)                                                          | boolean     | `true`    |
+| `reloader.watchNamespaces`          | Comma separated list of namespaces to watch. When set, it overrides `reloader.watchGlobally`                                                        | string      | `""`      |
 | `reloader.enableHA`                 | Enable leadership election allowing you to run multiple replicas                                                                                    | boolean     | `false`   |
 | `reloader.enablePProf`              | Enables pprof for profiling | boolean | `false` |
 | `reloader.pprofAddr` | Address to start pprof server on | string | `:6060` |
