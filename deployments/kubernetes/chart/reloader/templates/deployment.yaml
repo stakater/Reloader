@@ -141,7 +141,10 @@ spec:
               fieldPath: {{ $value | quote}}
       {{- end }}
       {{- end }}
-      {{- if eq .Values.reloader.watchGlobally false }}
+      {{- if .Values.reloader.watchNamespaces }}
+        - name: KUBERNETES_NAMESPACE
+          value: {{ .Values.reloader.watchNamespaces | quote }}
+      {{- else if eq .Values.reloader.watchGlobally false }}
         - name: KUBERNETES_NAMESPACE
           valueFrom:
             fieldRef:

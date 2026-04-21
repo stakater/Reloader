@@ -102,6 +102,32 @@ func getHAEnvs() (string, string) {
 	return podName, podNamespace
 }
 
+func getWatchedNamespaces(namespaceEnv string) ([]string, bool) {
+	rawNamespaces := strings.Split(namespaceEnv, ",")
+	namespaces := make([]string, 0, len(rawNamespaces))
+	seen := make(map[string]struct{})
+
+	for _, ns := range rawNamespaces {
+		trimmedNamespace := strings.TrimSpace(ns)
+		if trimmedNamespace == "" {
+			continue
+		}
+
+		if _, exists := seen[trimmedNamespace]; exists {
+			continue
+		}
+
+		namespaces = append(namespaces, trimmedNamespace)
+		seen[trimmedNamespace] = struct{}{}
+	}
+
+	if len(namespaces) == 0 {
+		return []string{v1.NamespaceAll}, true
+	}
+
+	return namespaces, false
+}
+
 func startReloader(cmd *cobra.Command, args []string) {
 	common.GetCommandLineOptions()
 	err := configureLogging(options.LogFormat, options.LogLevel)
@@ -110,12 +136,11 @@ func startReloader(cmd *cobra.Command, args []string) {
 	}
 
 	logrus.Info("Starting Reloader")
-	isGlobal := false
-	currentNamespace := os.Getenv("KUBERNETES_NAMESPACE")
-	if len(currentNamespace) == 0 {
-		currentNamespace = v1.NamespaceAll
-		isGlobal = true
+	watchedNamespaces, isGlobal := getWatchedNamespaces(os.Getenv("KUBERNETES_NAMESPACE"))
+	if isGlobal {
 		logrus.Warnf("KUBERNETES_NAMESPACE is unset, will detect changes in all namespaces.")
+	} else {
+		logrus.Infof("will detect changes in namespaces: %s", strings.Join(watchedNamespaces, ","))
 	}
 
 	// create the clientset
@@ -168,22 +193,24 @@ func startReloader(cmd *cobra.Command, args []string) {
 			continue
 		}
 
-		c, err := controller.NewController(clientset, k, currentNamespace, ignoredNamespacesList, namespaceLabelSelector, resourceLabelSelector, collectors)
-		if err != nil {
-			logrus.Fatalf("%s", err)
-		}
+		for _, watchedNamespace := range watchedNamespaces {
+			c, err := controller.NewController(clientset, k, watchedNamespace, ignoredNamespacesList, namespaceLabelSelector, resourceLabelSelector, collectors)
+			if err != nil {
+				logrus.Fatalf("%s", err)
+			}
 
-		controllers = append(controllers, c)
+			controllers = append(controllers, c)
 
-		// If HA is enabled we only run the controller when
-		if options.EnableHA {
-			continue
+			// If HA is enabled we only run the controller when
+			if options.EnableHA {
+				continue
+			}
+			// Now let's start the controller
+			stop := make(chan struct{})
+			defer close(stop)
+			logrus.Infof("Starting Controller to watch resource type: %s in namespace: %s", k, watchedNamespace)
+			go c.Run(1, stop)
 		}
-		// Now let's start the controller
-		stop := make(chan struct{})
-		defer close(stop)
-		logrus.Infof("Starting Controller to watch resource type: %s", k)
-		go c.Run(1, stop)
 	}
 
 	// Run leadership election
