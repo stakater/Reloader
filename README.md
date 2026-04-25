@@ -8,7 +8,7 @@
 [![Release](https://img.shields.io/github/release/stakater/reloader.svg?style=flat-square)](https://github.com/stakater/reloader/releases/latest)
 [![GitHub tag](https://img.shields.io/github/tag/stakater/reloader.svg?style=flat-square)](https://github.com/stakater/reloader/releases/latest)
 [![Docker Pulls](https://img.shields.io/docker/pulls/stakater/reloader.svg?style=flat-square)](https://hub.docker.com/r/stakater/reloader/)
-[![Docker Stars](https://img.shields.io/docker/stars/stakater/reloader.svg?style=flat-square)](https://hub.docker.com/r/stakater/reloader/)
+[![GitHub Stars](https://img.shields.io/github/stars/stakater/Reloader.svg?style=flat-square)](https://github.com/stakater/Reloader)
 [![license](https://img.shields.io/github/license/stakater/reloader.svg?style=flat-square)](LICENSE)
 
 ## 🔁 What is Reloader?
@@ -85,15 +85,20 @@ spec:
 
 This tells Reloader to watch the `ConfigMap` and `Secret` referenced in this deployment. When either is updated, it will trigger a rollout.
 
-## 🏢 Enterprise Version
+## 🏢 Reloader Enterprise
 
-Stakater offers an enterprise-grade version of Reloader with:
+Reloader OSS is free and production-proven with 24B+ downloads.
 
-1. SLA-backed support
-1. Certified images
-1. Private Slack support
+For teams with stricter requirements:
 
-Contact [`sales@stakater.com`](mailto:sales@stakater.com) for info about Reloader Enterprise.
+| Need | Enterprise |
+|------|-----------|
+| CVE-free, signed images with SBOM | ✅ |
+| SLA-backed support from Kubernetes experts | ✅ |
+| Artifact provenance for compliance audits | ✅ |
+| Dedicated escalation path | ✅ |
+
+→ [Contact [`sales@stakater.com`](mailto:sales@stakater.com) for info about Reloader Enterprise.
 
 ## 🧩 Usage
 
