@@ -76,7 +76,7 @@ Note: Rolling upgrade also works in the same way for secrets.
 
 ### Hash Value Computation
 
-Reloader uses SHA1 to compute hash value. SHA1 is used because it is efficient and less prone to collision.
+Reloader uses SHA512 to compute hash value. SHA512 is used because it is efficient and less prone to collision.
 
 ## Monitor All Namespaces
 
@@ -90,4 +90,4 @@ The output file can then be used to deploy Reloader in specific namespace.
 
 ## Compatibility With Helm Install and Upgrade
 
-Reloader has no impact on helm deployment cycle. Reloader only injects an environment variable in  `deployment`, `daemonset` or `statefulset`. The environment variable contains the SHA1 value of `ConfigMaps` or `Secrets` data. So  if a deployment is created using Helm and Reloader updates the deployment, then next time you upgrade the helm release, Reloader will do nothing except changing that environment variable value in `deployment` , `daemonset` or `statefulset`.
+Reloader has no impact on helm deployment cycle. Reloader only injects an environment variable in  `deployment`, `daemonset` or `statefulset`. The environment variable contains the SHA512 value of `ConfigMaps` or `Secrets` data. So  if a deployment is created using Helm and Reloader updates the deployment, then next time you upgrade the helm release, Reloader will do nothing except changing that environment variable value in `deployment` , `daemonset` or `statefulset`.
