@@ -177,6 +177,20 @@ func SetupTestEnvironment(ctx context.Context, namespacePrefix string) (*TestEnv
 	return env, nil
 }
 
+// CleanupOnFailure attempts a best-effort cleanup of the namespace used
+// by this environment. It is intended to be deferred in a BeforeSuite
+// so that orphaned namespaces don't accumulate on a long-lived cluster
+// when the suite setup fails. Errors are logged but not fatal.
+func (e *TestEnvironment) CleanupOnFailure() {
+	if e.Namespace == "" || e.KubeClient == nil {
+		return
+	}
+	cleanupCtx, cancel := context.WithTimeout(context.Background(), 3*time.Minute)
+	defer cancel()
+	_ = UndeployReloader(e.Namespace, e.ReleaseName)
+	_ = DeleteNamespace(cleanupCtx, e.KubeClient, e.Namespace)
+}
+
 // Cleanup cleans up the test environment resources.
 // It uses a fresh context so it can run safely even after the suite context
 // has been cancelled by SynchronizedAfterSuite.

@@ -9,7 +9,7 @@ import (
 	"github.com/stakater/Reloader/test/e2e/utils"
 )
 
-var _ = Describe("Namespace Selector Flag Tests", func() {
+var _ = Describe("Namespace Selector Flag Tests", Serial, func() {
 	var (
 		deploymentName string
 		configMapName  string

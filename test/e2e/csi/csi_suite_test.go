@@ -36,6 +36,9 @@ var _ = SynchronizedBeforeSuite(
 	func() []byte {
 		setupEnv, err := utils.SetupTestEnvironment(context.Background(), "reloader-csi-test")
 		Expect(err).NotTo(HaveOccurred(), "Failed to setup test environment")
+		// Ensure the namespace is deleted even if DeployAndWait fails, so
+		// orphaned namespaces don't accumulate on long-lived clusters.
+		DeferCleanup(setupEnv.CleanupOnFailure)
 
 		if !utils.IsCSIDriverInstalled(context.Background(), setupEnv.CSIClient) {
 			Skip("CSI secrets store driver not installed - skipping CSI suite")

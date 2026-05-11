@@ -9,7 +9,7 @@ import (
 	"github.com/stakater/Reloader/test/e2e/utils"
 )
 
-var _ = Describe("Ignore Resources Flag Tests", func() {
+var _ = Describe("Ignore Resources Flag Tests", Serial, func() {
 	var (
 		deploymentName string
 		configMapName  string

@@ -9,7 +9,7 @@ import (
 	"github.com/stakater/Reloader/test/e2e/utils"
 )
 
-var _ = Describe("Ignored Workloads Flag Tests", func() {
+var _ = Describe("Ignored Workloads Flag Tests", Serial, func() {
 	var (
 		cronJobName      string
 		configMapName    string

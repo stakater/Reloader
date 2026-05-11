@@ -36,6 +36,9 @@ var _ = SynchronizedBeforeSuite(
 	func() []byte {
 		setupEnv, err := utils.SetupTestEnvironment(context.Background(), "reloader-advanced")
 		Expect(err).NotTo(HaveOccurred(), "Failed to setup test environment")
+		// Ensure the namespace is deleted even if DeployAndWait fails, so
+		// orphaned namespaces don't accumulate on long-lived clusters.
+		DeferCleanup(setupEnv.CleanupOnFailure)
 
 		deployValues := map[string]string{
 			"reloader.reloadStrategy": "annotations",

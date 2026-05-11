@@ -9,7 +9,7 @@ import (
 	"github.com/stakater/Reloader/test/e2e/utils"
 )
 
-var _ = Describe("Auto Reload All Flag Tests", func() {
+var _ = Describe("Auto Reload All Flag Tests", Serial, func() {
 	var (
 		deploymentName string
 		configMapName  string

@@ -52,7 +52,7 @@ func DeployReloader(opts DeployOptions) error {
 		opts.ReleaseName = DefaultHelmReleaseName
 	}
 	if opts.Timeout == "" {
-		opts.Timeout = "120s"
+		opts.Timeout = "180s"
 	}
 	if opts.Image == "" {
 		opts.Image = GetTestImage()

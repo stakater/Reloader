@@ -151,8 +151,8 @@ KIND_CLUSTER ?= reloader-e2e
 CONTAINER_RUNTIME ?= $(shell command -v docker 2>/dev/null || command -v podman 2>/dev/null)
 # Set SKIP_BUILD=true to skip the image build/load steps and use a pre-built image.
 SKIP_BUILD ?= false
-# Number of parallel Ginkgo workers. Set to 1 to run sequentially.
-GINKGO_PROCS ?= 4
+# Number of parallel Ginkgo workers. Defaults to 1 (sequential). Override with GINKGO_PROCS=N.
+GINKGO_PROCS ?= 1
 
 .PHONY: e2e-setup
 e2e-setup: ## One-time setup: create Kind cluster and install dependencies (Argo, CSI, Vault)

@@ -34,6 +34,9 @@ var _ = SynchronizedBeforeSuite(
 	func() []byte {
 		setupEnv, err := utils.SetupTestEnvironment(context.Background(), "reloader-argo")
 		Expect(err).NotTo(HaveOccurred(), "Failed to setup test environment")
+		// Ensure the namespace is deleted even if DeployAndWait fails, so
+		// orphaned namespaces don't accumulate on long-lived clusters.
+		DeferCleanup(setupEnv.CleanupOnFailure)
 
 		if !utils.IsArgoRolloutsInstalled(context.Background(), setupEnv.RolloutsClient) {
 			Skip("Argo Rollouts is not installed. Run ./scripts/e2e-cluster-setup.sh first")
