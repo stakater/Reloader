@@ -58,7 +58,9 @@ var selectedNamespacesCache atomic.Value // always stores map[string]struct{}
 // loadSelectedNamespaces returns the current namespace snapshot (never nil).
 func loadSelectedNamespaces() map[string]struct{} {
 	if v := selectedNamespacesCache.Load(); v != nil {
-		return v.(map[string]struct{})
+		if m, ok := v.(map[string]struct{}); ok {
+			return m
+		}
 	}
 	return map[string]struct{}{}
 }

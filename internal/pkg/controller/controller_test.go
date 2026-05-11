@@ -223,12 +223,12 @@ func TestResourceInSelectedNamespaces(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(
 			tt.name, func(t *testing.T) {
-			resetGlobalState()
-			storeSelectedNamespaces(tt.cachedNamespaces)
+				resetGlobalState()
+				storeSelectedNamespaces(tt.cachedNamespaces)
 
-			c := newTestController([]string{}, tt.namespaceSelector)
-			result := c.resourceInSelectedNamespaces(tt.resource)
-			assert.Equal(t, tt.expected, result)
+				c := newTestController([]string{}, tt.namespaceSelector)
+				result := c.resourceInSelectedNamespaces(tt.resource)
+				assert.Equal(t, tt.expected, result)
 			},
 		)
 	}
@@ -293,16 +293,16 @@ func TestRemoveSelectedNamespaceFromCache(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(
 			tt.name, func(t *testing.T) {
-			resetGlobalState()
-			storeSelectedNamespaces(tt.initialCache)
+				resetGlobalState()
+				storeSelectedNamespaces(tt.initialCache)
 
-			c := newTestController([]string{}, "env=prod")
-			ns := v1.Namespace{
-				ObjectMeta: metav1.ObjectMeta{Name: tt.namespaceToRemove},
-			}
-			c.removeSelectedNamespaceFromCache(ns)
+				c := newTestController([]string{}, "env=prod")
+				ns := v1.Namespace{
+					ObjectMeta: metav1.ObjectMeta{Name: tt.namespaceToRemove},
+				}
+				c.removeSelectedNamespaceFromCache(ns)
 
-			assert.ElementsMatch(t, tt.expectedCache, loadSelectedNamespacesList())
+				assert.ElementsMatch(t, tt.expectedCache, loadSelectedNamespacesList())
 			},
 		)
 	}
@@ -500,10 +500,10 @@ func TestUpdateHandler(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(
 			tt.name, func(t *testing.T) {
-			resetGlobalState()
-			if tt.cachedNamespaces != nil {
-				storeSelectedNamespaces(tt.cachedNamespaces)
-			}
+				resetGlobalState()
+				if tt.cachedNamespaces != nil {
+					storeSelectedNamespaces(tt.cachedNamespaces)
+				}
 
 				c := newTestController(tt.ignoredNamespaces, tt.namespaceSelector)
 				c.Update(tt.oldResource, tt.newResource)
