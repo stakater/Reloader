@@ -6,7 +6,6 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
-	"time"
 )
 
 // Helm-related constants.
@@ -121,18 +120,17 @@ func UndeployReloader(namespace, releaseName string) error {
 	return nil
 }
 
-// waitForReloaderGone waits for the Reloader deployment to be fully removed.
+// waitForReloaderGone waits for the Reloader deployment to be fully removed using kubectl wait.
+// This is watch-based (kubectl wait --for=delete) rather than a polling loop.
 func waitForReloaderGone(namespace, releaseName string) {
 	deploymentName := ReloaderDeploymentName(releaseName)
-
-	for i := 0; i < 30; i++ {
-		cmd := exec.Command("kubectl", "get", "deployment", deploymentName, "-n", namespace, "--ignore-not-found", "-o", "name")
-		output, _ := Run(cmd)
-		if strings.TrimSpace(output) == "" {
-			return
-		}
-		time.Sleep(1 * time.Second)
-	}
+	cmd := exec.Command("kubectl", "wait",
+		"deployment/"+deploymentName,
+		"--for=delete",
+		"--namespace", namespace,
+		"--timeout=120s",
+	)
+	_, _ = Run(cmd)
 }
 
 // cleanupClusterResources removes cluster-scoped resources that might be left over
@@ -154,8 +152,6 @@ func cleanupClusterResources(releaseName string) {
 		cmd := exec.Command("kubectl", "delete", res.kind, res.name, "--ignore-not-found", "--wait=true")
 		_, _ = Run(cmd)
 	}
-
-	time.Sleep(500 * time.Millisecond)
 }
 
 // GetTestImage returns the test image from environment or the default.
@@ -166,30 +162,41 @@ func GetTestImage() string {
 	return DefaultTestImage
 }
 
-// GetImageRepository extracts the repository (without tag) from a full image reference.
-// Example: "ghcr.io/stakater/reloader:v1.0.0" -> "ghcr.io/stakater/reloader"
+// GetImageRepository extracts the repository (without tag or digest) from a full image reference.
+// Examples:
+//
+//	"ghcr.io/stakater/reloader:v1.0.0"          -> "ghcr.io/stakater/reloader"
+//	"ghcr.io/stakater/reloader@sha256:abc123"    -> "ghcr.io/stakater/reloader"
 func GetImageRepository(image string) string {
-	for i := len(image) - 1; i >= 0; i-- {
-		if image[i] == ':' {
-			return image[:i]
-		}
-		if image[i] == '/' {
-			break
+	// Digest-based: repo@sha256:hash — split at '@'
+	if idx := strings.Index(image, "@"); idx != -1 {
+		return image[:idx]
+	}
+	// Tag-based: repo:tag — split at last ':' only if it comes after the last '/'
+	if lastColon := strings.LastIndex(image, ":"); lastColon != -1 {
+		if lastSlash := strings.LastIndex(image, "/"); lastSlash < lastColon {
+			return image[:lastColon]
 		}
 	}
 	return image
 }
 
 // GetImageTag extracts the tag from a full image reference.
-// Example: "ghcr.io/stakater/reloader:v1.0.0" -> "v1.0.0"
-// Returns "latest" if no tag is found.
+// Examples:
+//
+//	"ghcr.io/stakater/reloader:v1.0.0"          -> "v1.0.0"
+//	"ghcr.io/stakater/reloader@sha256:abc123"    -> "sha256:abc123"
+//
+// Returns "latest" if no tag or digest is found.
 func GetImageTag(image string) string {
-	for i := len(image) - 1; i >= 0; i-- {
-		if image[i] == ':' {
-			return image[i+1:]
-		}
-		if image[i] == '/' {
-			break
+	// Digest-based: return everything after '@'
+	if idx := strings.Index(image, "@"); idx != -1 {
+		return image[idx+1:]
+	}
+	// Tag-based: return everything after last ':' (only if it comes after the last '/')
+	if lastColon := strings.LastIndex(image, ":"); lastColon != -1 {
+		if lastSlash := strings.LastIndex(image, "/"); lastSlash < lastColon {
+			return image[lastColon+1:]
 		}
 	}
 	return "latest"

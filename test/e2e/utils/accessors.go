@@ -28,7 +28,8 @@ var (
 		if d.Spec.Replicas == nil {
 			return false
 		}
-		return d.Status.ReadyReplicas == *d.Spec.Replicas &&
+		return d.Status.ObservedGeneration >= d.Generation &&
+			d.Status.ReadyReplicas == *d.Spec.Replicas &&
 			d.Status.UpdatedReplicas == *d.Spec.Replicas &&
 			d.Status.AvailableReplicas == *d.Spec.Replicas
 	}
@@ -46,8 +47,10 @@ var (
 		return d.Spec.Template.Spec.Containers
 	}
 	DaemonSetIsReady StatusAccessor[*appsv1.DaemonSet] = func(d *appsv1.DaemonSet) bool {
-		return d.Status.DesiredNumberScheduled > 0 &&
-			d.Status.NumberReady == d.Status.DesiredNumberScheduled
+		return d.Status.ObservedGeneration >= d.Generation &&
+			d.Status.DesiredNumberScheduled > 0 &&
+			d.Status.NumberReady == d.Status.DesiredNumberScheduled &&
+			d.Status.UpdatedNumberScheduled == d.Status.DesiredNumberScheduled
 	}
 )
 
@@ -66,7 +69,9 @@ var (
 		if s.Spec.Replicas == nil {
 			return false
 		}
-		return s.Status.ReadyReplicas == *s.Spec.Replicas
+		return s.Status.ObservedGeneration >= s.Generation &&
+			s.Status.ReadyReplicas == *s.Spec.Replicas &&
+			s.Status.UpdatedReplicas == *s.Spec.Replicas
 	}
 )
 

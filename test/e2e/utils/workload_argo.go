@@ -55,20 +55,27 @@ func (a *ArgoRolloutAdapter) WaitReady(ctx context.Context, namespace, name stri
 }
 
 // WaitReloaded waits for the Argo Rollout to have the reload annotation using watches.
+// Captures the current annotation value first to avoid false positives from prior reloads.
 func (a *ArgoRolloutAdapter) WaitReloaded(ctx context.Context, namespace, name, annotationKey string, timeout time.Duration) (bool, error) {
+	priorValue, _ := a.GetPodTemplateAnnotation(ctx, namespace, name, annotationKey)
 	watchFunc := func(ctx context.Context, opts metav1.ListOptions) (watch.Interface, error) {
 		return a.rolloutsClient.ArgoprojV1alpha1().Rollouts(namespace).Watch(ctx, opts)
 	}
-	_, err := WatchUntil(ctx, watchFunc, name, HasPodTemplateAnnotation(RolloutPodTemplate, annotationKey), timeout)
+	_, err := WatchUntil(ctx, watchFunc, name, HasPodTemplateAnnotationChanged(RolloutPodTemplate, annotationKey, priorValue), timeout)
 	return HandleWatchResult(err)
 }
 
 // WaitEnvVar waits for the Argo Rollout to have a STAKATER_ env var using watches.
+// Captures the current env var value first to avoid false positives from prior reloads.
 func (a *ArgoRolloutAdapter) WaitEnvVar(ctx context.Context, namespace, name, prefix string, timeout time.Duration) (bool, error) {
+	priorValue := ""
+	if r, err := a.rolloutsClient.ArgoprojV1alpha1().Rollouts(namespace).Get(ctx, name, metav1.GetOptions{}); err == nil {
+		priorValue = GetEnvVarValueByPrefix(r.Spec.Template.Spec.Containers, prefix)
+	}
 	watchFunc := func(ctx context.Context, opts metav1.ListOptions) (watch.Interface, error) {
 		return a.rolloutsClient.ArgoprojV1alpha1().Rollouts(namespace).Watch(ctx, opts)
 	}
-	_, err := WatchUntil(ctx, watchFunc, name, HasEnvVarPrefix(RolloutContainers, prefix), timeout)
+	_, err := WatchUntil(ctx, watchFunc, name, HasEnvVarPrefixChanged(RolloutContainers, prefix, priorValue), timeout)
 	return HandleWatchResult(err)
 }
 

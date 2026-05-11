@@ -32,10 +32,13 @@ type TestEnvironment struct {
 }
 
 // SetupTestEnvironment creates a new test environment with kubernetes clients.
-// It creates a unique namespace with the given prefix.
+// It creates a unique namespace with the given prefix. The returned env.Cancel must be
+// called (e.g., in AfterSuite) to release the child context after env.Cleanup() completes.
 func SetupTestEnvironment(ctx context.Context, namespacePrefix string) (*TestEnvironment, error) {
+	childCtx, cancel := context.WithCancel(ctx)
 	env := &TestEnvironment{
-		Ctx:       ctx,
+		Ctx:       childCtx,
+		Cancel:    cancel,
 		TestImage: GetTestImage(),
 	}
 

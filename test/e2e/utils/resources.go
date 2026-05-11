@@ -548,44 +548,7 @@ func WithCSIVolume(spcName string) DeploymentOption {
 // WithInitContainerCSIVolume adds an init container with a CSI volume mount.
 func WithInitContainerCSIVolume(spcName string) DeploymentOption {
 	return func(d *appsv1.Deployment) {
-		volumeName := csiVolumeName(spcName)
-		mountPath := csiMountPath(spcName)
-
-		hasCSIVolume := false
-		for _, v := range d.Spec.Template.Spec.Volumes {
-			if v.Name == volumeName {
-				hasCSIVolume = true
-				break
-			}
-		}
-		if !hasCSIVolume {
-			d.Spec.Template.Spec.Volumes = append(d.Spec.Template.Spec.Volumes, corev1.Volume{
-				Name: volumeName,
-				VolumeSource: corev1.VolumeSource{
-					CSI: &corev1.CSIVolumeSource{
-						Driver:   CSIDriverName,
-						ReadOnly: ptr.To(true),
-						VolumeAttributes: map[string]string{
-							"secretProviderClass": spcName,
-						},
-					},
-				},
-			})
-		}
-
-		initContainer := corev1.Container{
-			Name:    fmt.Sprintf("init-csi-%s", spcName),
-			Image:   DefaultImage,
-			Command: []string{"sh", "-c", "echo init done"},
-			VolumeMounts: []corev1.VolumeMount{
-				{
-					Name:      volumeName,
-					MountPath: mountPath,
-					ReadOnly:  true,
-				},
-			},
-		}
-		d.Spec.Template.Spec.InitContainers = append(d.Spec.Template.Spec.InitContainers, initContainer)
+		AddCSIInitContainer(&d.Spec.Template.Spec, spcName)
 	}
 }
 

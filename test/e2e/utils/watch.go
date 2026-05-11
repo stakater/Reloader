@@ -66,6 +66,9 @@ func WatchUntil[T runtime.Object](ctx context.Context, watchFunc WatchFunc, name
 		opts.FieldSelector = fields.OneTermEqualSelector("metadata.name", name).String()
 	}
 
+	const maxReconnectDelay = 5 * time.Second
+	reconnectDelay := 100 * time.Millisecond
+
 	for {
 		select {
 		case <-ctx.Done():
@@ -80,7 +83,10 @@ func WatchUntil[T runtime.Object](ctx context.Context, watchFunc WatchFunc, name
 		select {
 		case <-ctx.Done():
 			return zero, ErrWatchTimeout
-		case <-time.After(100 * time.Millisecond):
+		case <-time.After(reconnectDelay):
+			if reconnectDelay < maxReconnectDelay {
+				reconnectDelay *= 2
+			}
 		}
 	}
 }
@@ -146,6 +152,9 @@ func WatchUntilDeleted(
 		ResourceVersion: "0",
 	}
 
+	const maxReconnectDelay = 5 * time.Second
+	reconnectDelay := 100 * time.Millisecond
+
 	for {
 		select {
 		case <-ctx.Done():
@@ -160,7 +169,10 @@ func WatchUntilDeleted(
 		select {
 		case <-ctx.Done():
 			return ErrWatchTimeout
-		case <-time.After(100 * time.Millisecond):
+		case <-time.After(reconnectDelay):
+			if reconnectDelay < maxReconnectDelay {
+				reconnectDelay *= 2
+			}
 		}
 	}
 }

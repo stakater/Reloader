@@ -47,20 +47,27 @@ func (a *DaemonSetAdapter) WaitReady(ctx context.Context, namespace, name string
 }
 
 // WaitReloaded waits for the DaemonSet to have the reload annotation using watches.
+// Captures the current annotation value first to avoid false positives from prior reloads.
 func (a *DaemonSetAdapter) WaitReloaded(ctx context.Context, namespace, name, annotationKey string, timeout time.Duration) (bool, error) {
+	priorValue, _ := a.GetPodTemplateAnnotation(ctx, namespace, name, annotationKey)
 	watchFunc := func(ctx context.Context, opts metav1.ListOptions) (watch.Interface, error) {
 		return a.client.AppsV1().DaemonSets(namespace).Watch(ctx, opts)
 	}
-	_, err := WatchUntil(ctx, watchFunc, name, HasPodTemplateAnnotation(DaemonSetPodTemplate, annotationKey), timeout)
+	_, err := WatchUntil(ctx, watchFunc, name, HasPodTemplateAnnotationChanged(DaemonSetPodTemplate, annotationKey, priorValue), timeout)
 	return HandleWatchResult(err)
 }
 
 // WaitEnvVar waits for the DaemonSet to have a STAKATER_ env var using watches.
+// Captures the current env var value first to avoid false positives from prior reloads.
 func (a *DaemonSetAdapter) WaitEnvVar(ctx context.Context, namespace, name, prefix string, timeout time.Duration) (bool, error) {
+	priorValue := ""
+	if ds, err := a.client.AppsV1().DaemonSets(namespace).Get(ctx, name, metav1.GetOptions{}); err == nil {
+		priorValue = GetEnvVarValueByPrefix(ds.Spec.Template.Spec.Containers, prefix)
+	}
 	watchFunc := func(ctx context.Context, opts metav1.ListOptions) (watch.Interface, error) {
 		return a.client.AppsV1().DaemonSets(namespace).Watch(ctx, opts)
 	}
-	_, err := WatchUntil(ctx, watchFunc, name, HasEnvVarPrefix(DaemonSetContainers, prefix), timeout)
+	_, err := WatchUntil(ctx, watchFunc, name, HasEnvVarPrefixChanged(DaemonSetContainers, prefix, priorValue), timeout)
 	return HandleWatchResult(err)
 }
 

@@ -5,7 +5,6 @@ import (
 	"strconv"
 
 	"github.com/sirupsen/logrus"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 // InterfaceSlice converts an interface to an interface array
@@ -22,20 +21,6 @@ func InterfaceSlice(slice interface{}) []interface{} {
 	}
 
 	return ret
-}
-
-type ObjectMeta struct {
-	metav1.ObjectMeta
-}
-
-func ToObjectMeta(kubernetesObject interface{}) ObjectMeta {
-	objectValue := reflect.ValueOf(kubernetesObject)
-	fieldName := reflect.TypeOf((*metav1.ObjectMeta)(nil)).Elem().Name()
-	field, _ := objectValue.FieldByName(fieldName).Interface().(metav1.ObjectMeta)
-
-	return ObjectMeta{
-		ObjectMeta: field,
-	}
 }
 
 // ParseBool returns result in bool format after parsing

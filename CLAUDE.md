@@ -18,7 +18,7 @@ Reloader is a Kubernetes operator that automatically triggers rolling restarts o
 - **Duplicate reload suppression**: If a workload references both a ConfigMap and a Secret that are updated in the same controller reconcile cycle, it may get reloaded twice. Could be solved with a per-workload debounce map keyed by namespace/name/resourceVersion, flushed after a short TTL.
 - **CronJob/Job reload is destructive**: Jobs are deleted and recreated on change, which loses run history. Could instead only annotate the CronJob template without spawning a new Job.
 - **No per-resource reload rate limiting**: A rapid-fire ConfigMap update (e.g., from a CI pipeline) can trigger many restarts. A cooldown window per resource would help.
-- **CSI integration gap**: CSI volumes are watched at the `SecretProviderClassPodStatus` level but the link back to the workload is indirect and may miss edge cases. Needs a direct map from SecretProviderClass → workloads that mount it.
+- **CSI integration gap**: CSI volumes are watched at the `SecretProviderClassPodStatus` level, but the link back to the workload is indirect and may miss edge cases. Needs a direct map from SecretProviderClass → workloads that mount it.
 
 ---
 
@@ -272,7 +272,7 @@ The `reloader.stakater.com/search` annotation on a workload pairs with `reloader
 
 - **Exact `ShouldReload()` precedence**: The code in `pkg/common/common.go` checks annotations in a specific order. The exact tie-breaking when both workload-level and pod-template-level annotations are set should be verified by reading that function fully before making annotation behavior changes.
 - **CSI → workload mapping**: How exactly does Reloader map a `SecretProviderClassPodStatus` change back to workloads? Is it via the SecretProviderClass name matching an annotation on the workload, or via volume reference scanning? Needs confirmation before adding CSI-related features.
-- **`ContainerPatchPathFunc` field**: `RollingUpgradeFuncs` has a `ContainerPatchPathFunc` field but it is not documented — unclear if/how it differs from `ContainersFunc` in patch scenarios.
+- **`ContainerPatchPathFunc` field**: `RollingUpgradeFuncs` has a `ContainerPatchPathFunc` field, but it is not documented — unclear if/how it differs from `ContainersFunc` in patch scenarios.
 - **Webhook vs alert**: `--webhook-url` replaces reloading with a POST request. `ALERT_WEBHOOK_URL` env var sends an alert *after* reloading. These are two different mechanisms; the naming is confusing and easy to conflate.
 - **Load test scenarios S7–S13**: Only S1, S4, and S6 are confirmed from CI. The behavior and coverage of the remaining scenarios is unknown without reading `test/loadtest/` in full.
 - **`SyncAfterRestart` semantics**: Flag docs say it "syncs add events after restart" but only if `ReloadOnCreate` is also true. The interaction between these two flags in HA mode (where controllers restart on leader change) needs verification.

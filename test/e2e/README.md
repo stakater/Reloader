@@ -12,7 +12,7 @@ make e2e-cleanup  # Teardown
 
 ## Prerequisites
 
-- Go 1.25+
+- Go 1.26+
 - Docker or Podman
 - [Kind](https://kind.sigs.k8s.io/) 0.20+
 - kubectl

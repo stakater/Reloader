@@ -47,11 +47,13 @@ func (a *CronJobAdapter) WaitReady(ctx context.Context, namespace, name string, 
 }
 
 // WaitReloaded waits for the CronJob pod template to have the reload annotation using watches.
+// Captures the current annotation value first to avoid false positives from prior reloads.
 func (a *CronJobAdapter) WaitReloaded(ctx context.Context, namespace, name, annotationKey string, timeout time.Duration) (bool, error) {
+	priorValue, _ := a.GetPodTemplateAnnotation(ctx, namespace, name, annotationKey)
 	watchFunc := func(ctx context.Context, opts metav1.ListOptions) (watch.Interface, error) {
 		return a.client.BatchV1().CronJobs(namespace).Watch(ctx, opts)
 	}
-	_, err := WatchUntil(ctx, watchFunc, name, HasPodTemplateAnnotation(CronJobPodTemplate, annotationKey), timeout)
+	_, err := WatchUntil(ctx, watchFunc, name, HasPodTemplateAnnotationChanged(CronJobPodTemplate, annotationKey, priorValue), timeout)
 	return HandleWatchResult(err)
 }
 

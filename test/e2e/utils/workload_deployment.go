@@ -47,20 +47,29 @@ func (a *DeploymentAdapter) WaitReady(ctx context.Context, namespace, name strin
 }
 
 // WaitReloaded waits for the Deployment to have the reload annotation using watches.
+// It captures the current annotation value before watching so that a prior reload's annotation
+// does not cause a false positive — the condition triggers only when the value changes.
 func (a *DeploymentAdapter) WaitReloaded(ctx context.Context, namespace, name, annotationKey string, timeout time.Duration) (bool, error) {
+	priorValue, _ := a.GetPodTemplateAnnotation(ctx, namespace, name, annotationKey)
 	watchFunc := func(ctx context.Context, opts metav1.ListOptions) (watch.Interface, error) {
 		return a.client.AppsV1().Deployments(namespace).Watch(ctx, opts)
 	}
-	_, err := WatchUntil(ctx, watchFunc, name, HasPodTemplateAnnotation(DeploymentPodTemplate, annotationKey), timeout)
+	_, err := WatchUntil(ctx, watchFunc, name, HasPodTemplateAnnotationChanged(DeploymentPodTemplate, annotationKey, priorValue), timeout)
 	return HandleWatchResult(err)
 }
 
 // WaitEnvVar waits for the Deployment to have a STAKATER_ env var using watches.
+// It captures the current env var value before watching so that a prior reload's value does not
+// cause a false positive — the condition triggers only when the value appears or changes.
 func (a *DeploymentAdapter) WaitEnvVar(ctx context.Context, namespace, name, prefix string, timeout time.Duration) (bool, error) {
+	priorValue := ""
+	if d, err := a.client.AppsV1().Deployments(namespace).Get(ctx, name, metav1.GetOptions{}); err == nil {
+		priorValue = GetEnvVarValueByPrefix(d.Spec.Template.Spec.Containers, prefix)
+	}
 	watchFunc := func(ctx context.Context, opts metav1.ListOptions) (watch.Interface, error) {
 		return a.client.AppsV1().Deployments(namespace).Watch(ctx, opts)
 	}
-	_, err := WatchUntil(ctx, watchFunc, name, HasEnvVarPrefix(DeploymentContainers, prefix), timeout)
+	_, err := WatchUntil(ctx, watchFunc, name, HasEnvVarPrefixChanged(DeploymentContainers, prefix, priorValue), timeout)
 	return HandleWatchResult(err)
 }
 

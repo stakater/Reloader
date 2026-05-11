@@ -156,11 +156,19 @@ func (r *AdapterRegistry) GetStandardWorkloads() []WorkloadType {
 	}
 }
 
-// GetAllWorkloads returns all registered workload types.
+// GetAllWorkloads returns all registered workload types in a canonical, deterministic order.
+// Map iteration order in Go is non-deterministic, so this uses a fixed ordering to ensure
+// consistent test parameterization across runs.
 func (r *AdapterRegistry) GetAllWorkloads() []WorkloadType {
+	canonical := []WorkloadType{
+		WorkloadDeployment, WorkloadDaemonSet, WorkloadStatefulSet,
+		WorkloadCronJob, WorkloadJob, WorkloadArgoRollout, WorkloadDeploymentConfig,
+	}
 	result := make([]WorkloadType, 0, len(r.adapters))
-	for wt := range r.adapters {
-		result = append(result, wt)
+	for _, wt := range canonical {
+		if _, ok := r.adapters[wt]; ok {
+			result = append(result, wt)
+		}
 	}
 	return result
 }

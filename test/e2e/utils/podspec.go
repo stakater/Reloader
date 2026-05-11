@@ -132,24 +132,36 @@ func AddCSIVolume(spec *corev1.PodSpec, containerIdx int, spcName string) {
 }
 
 // AddCSIInitContainer adds an init container that mounts a CSI SecretProviderClass volume.
+// The init container is named "init-csi-{spcName}" to avoid collisions when multiple CSI
+// volumes are mounted. The volume is only added if not already present (idempotent).
 // This is distinct from AddCSIVolume which mounts into a regular container.
 func AddCSIInitContainer(spec *corev1.PodSpec, spcName string) {
 	volumeName := "csi-" + spcName
 	mountPath := "/mnt/secrets-store/" + spcName
-	spec.Volumes = append(spec.Volumes, corev1.Volume{
-		Name: volumeName,
-		VolumeSource: corev1.VolumeSource{
-			CSI: &corev1.CSIVolumeSource{
-				Driver:   CSIDriverName,
-				ReadOnly: ptr.To(true),
-				VolumeAttributes: map[string]string{
-					"secretProviderClass": spcName,
+
+	hasVolume := false
+	for _, v := range spec.Volumes {
+		if v.Name == volumeName {
+			hasVolume = true
+			break
+		}
+	}
+	if !hasVolume {
+		spec.Volumes = append(spec.Volumes, corev1.Volume{
+			Name: volumeName,
+			VolumeSource: corev1.VolumeSource{
+				CSI: &corev1.CSIVolumeSource{
+					Driver:   CSIDriverName,
+					ReadOnly: ptr.To(true),
+					VolumeAttributes: map[string]string{
+						"secretProviderClass": spcName,
+					},
 				},
 			},
-		},
-	})
+		})
+	}
 	spec.InitContainers = append(spec.InitContainers, corev1.Container{
-		Name:    "init-csi",
+		Name:    "init-csi-" + spcName,
 		Image:   DefaultImage,
 		Command: []string{"sh", "-c", "echo init done"},
 		VolumeMounts: []corev1.VolumeMount{
