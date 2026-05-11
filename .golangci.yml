@@ -1,0 +1,74 @@
+version: "2"
+
+run:
+  go: "1.25"
+  timeout: 5m
+  allow-parallel-runners: true
+
+linters:
+  default: none
+  enable:
+    # Core linters
+    - errcheck
+    - govet
+    - staticcheck
+    - ineffassign
+    - unused
+
+    # Code quality
+    - revive
+    - misspell
+    - unconvert
+    - unparam
+    - nakedret
+    - copyloopvar
+
+    # Bug prevention
+    - bodyclose
+    - durationcheck
+    - errorlint
+
+    # Test framework
+    - ginkgolinter
+
+  settings:
+    revive:
+      rules:
+        - name: comment-spacings
+        - name: import-shadowing
+
+    govet:
+      enable-all: true
+      disable:
+        - shadow
+        - fieldalignment
+
+    errcheck:
+      check-type-assertions: true
+      exclude-functions:
+        - (io.Closer).Close
+        - (*os.File).Close
+
+    nakedret:
+      max-func-lines: 30
+
+  exclusions:
+    generated: lax
+    rules:
+      - linters:
+          - errcheck
+        path: _test\.go
+    paths:
+      - third_party$
+      - vendor$
+
+formatters:
+  enable:
+    - gofmt
+    - goimports
+  settings:
+    goimports:
+      local-prefixes:
+        - github.com/stakater/Reloader
+  exclusions:
+    generated: lax

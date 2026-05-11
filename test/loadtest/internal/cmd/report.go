@@ -122,15 +122,15 @@ type ReportExpectedMetrics struct {
 
 // ScenarioReport represents the full report for a scenario.
 type ScenarioReport struct {
-	Scenario        string             `json:"scenario"`
-	Timestamp       time.Time          `json:"timestamp"`
-	Comparisons     []MetricComparison `json:"comparisons"`
-	OverallStatus   string             `json:"overall_status"`
-	Summary         string             `json:"summary"`
-	PassCriteria    []string           `json:"pass_criteria"`
-	FailedCriteria  []string           `json:"failed_criteria"`
+	Scenario        string                `json:"scenario"`
+	Timestamp       time.Time             `json:"timestamp"`
+	Comparisons     []MetricComparison    `json:"comparisons"`
+	OverallStatus   string                `json:"overall_status"`
+	Summary         string                `json:"summary"`
+	PassCriteria    []string              `json:"pass_criteria"`
+	FailedCriteria  []string              `json:"failed_criteria"`
 	Expected        ReportExpectedMetrics `json:"expected"`
-	TestDescription string             `json:"test_description"`
+	TestDescription string                `json:"test_description"`
 }
 
 // MetricType defines how to evaluate a metric.

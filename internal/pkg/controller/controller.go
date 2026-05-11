@@ -6,12 +6,6 @@ import (
 	"time"
 
 	"github.com/sirupsen/logrus"
-	"github.com/stakater/Reloader/internal/pkg/constants"
-	"github.com/stakater/Reloader/internal/pkg/handler"
-	"github.com/stakater/Reloader/internal/pkg/metrics"
-	"github.com/stakater/Reloader/internal/pkg/options"
-	"github.com/stakater/Reloader/internal/pkg/util"
-	"github.com/stakater/Reloader/pkg/kube"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
@@ -24,12 +18,18 @@ import (
 	"k8s.io/client-go/util/workqueue"
 	"k8s.io/kubectl/pkg/scheme"
 	csiv1 "sigs.k8s.io/secrets-store-csi-driver/apis/v1"
+
+	"github.com/stakater/Reloader/internal/pkg/constants"
+	"github.com/stakater/Reloader/internal/pkg/handler"
+	"github.com/stakater/Reloader/internal/pkg/metrics"
+	"github.com/stakater/Reloader/internal/pkg/options"
+	"github.com/stakater/Reloader/internal/pkg/util"
+	"github.com/stakater/Reloader/pkg/kube"
 )
 
 // Controller for checking events
 type Controller struct {
 	client            kubernetes.Interface
-	indexer           cache.Indexer
 	queue             workqueue.TypedRateLimitingInterface[any]
 	informer          cache.Controller
 	namespace         string
@@ -42,14 +42,13 @@ type Controller struct {
 }
 
 // controllerInitialized flag determines whether controlled is being initialized
-var secretControllerInitialized bool = false
-var configmapControllerInitialized bool = false
+var secretControllerInitialized = false
+var configmapControllerInitialized = false
 var selectedNamespacesCache []string
 
 // NewController for initializing a Controller
-func NewController(
-	client kubernetes.Interface, resource string, namespace string, ignoredNamespaces []string, namespaceLabelSelector string, resourceLabelSelector string, collectors metrics.Collectors) (*Controller, error) {
-
+func NewController(client kubernetes.Interface, resource string, namespace string, ignoredNamespaces []string, namespaceLabelSelector string, resourceLabelSelector string, collectors metrics.Collectors) (*Controller,
+	error) {
 	if options.SyncAfterRestart {
 		secretControllerInitialized = true
 		configmapControllerInitialized = true
@@ -67,17 +66,18 @@ func NewController(
 	eventBroadcaster.StartRecordingToSink(&typedcorev1.EventSinkImpl{
 		Interface: client.CoreV1().Events(""),
 	})
-	recorder := eventBroadcaster.NewRecorder(scheme.Scheme, v1.EventSource{Component: fmt.Sprintf("reloader-%s", resource)})
+	recorder := eventBroadcaster.NewRecorder(scheme.Scheme,
+		v1.EventSource{Component: fmt.Sprintf("reloader-%s", resource)})
 
 	queue := workqueue.NewTypedRateLimitingQueue(workqueue.DefaultTypedControllerRateLimiter[any]())
 
-	optionsModifier := func(options *metav1.ListOptions) {
+	optionsModifier := func(opts *metav1.ListOptions) {
 		if resource == "namespaces" {
-			options.LabelSelector = c.namespaceSelector
+			opts.LabelSelector = c.namespaceSelector
 		} else if len(c.resourceSelector) > 0 {
-			options.LabelSelector = c.resourceSelector
+			opts.LabelSelector = c.resourceSelector
 		} else {
-			options.FieldSelector = fields.Everything().String()
+			opts.FieldSelector = fields.Everything().String()
 		}
 	}
 
@@ -299,7 +299,12 @@ func (c *Controller) processNextItem() bool {
 	startTime := time.Now()
 
 	// Invoke the method containing the business logic
-	err := resourceHandler.(handler.ResourceHandler).Handle()
+	rh, ok := resourceHandler.(handler.ResourceHandler)
+	if !ok {
+		logrus.Errorf("Invalid resource handler type: %T", resourceHandler)
+		return true
+	}
+	err := rh.Handle()
 
 	duration := time.Since(startTime)
 
