@@ -186,37 +186,6 @@ jobs:
             org.opencontainers.image.source=${{ github.event.repository.clone_url }}
             org.opencontainers.image.revision=${{ github.sha }}
 
-      - uses: dorny/paths-filter@v3
-        id: filter
-        with:
-          filters: |
-            docs:
-              - '.markdownlint.yaml'
-              - '.vale.ini'
-              - 'Dockerfile-docs'
-              - 'docs-nginx.conf'
-              - 'docs/**'
-              - 'README.md'
-              - 'theme_common'
-              - 'theme_override'
-
-      # run only if 'docs' files were changed
-      - name: Build and Push Docker Image for Docs to ghcr registry
-        if: steps.filter.outputs.docs == 'true'
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          file: Dockerfile-docs
-          pull: true
-          push: true
-          build-args: BUILD_PARAMETERS=${{ env.BUILD_PARAMETERS }}
-          cache-to: type=inline
-          tags: |
-            ${{ env.GHCR_IMAGE_REPOSITORY }}/docs:merge-${{ github.event.number }}
-          labels: |
-            org.opencontainers.image.source=${{ github.event.repository.clone_url }}
-            org.opencontainers.image.revision=${{ github.sha }}
-
       - name: Push Latest Tag
         uses: anothrNick/github-tag-action@1.75.0
         env:

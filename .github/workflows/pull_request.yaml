@@ -9,11 +9,6 @@ on:
       - '**'
       - '!.markdownlint.yaml'
       - '!.vale.ini'
-      - '!Dockerfile-docs'
-      - '!docs-nginx.conf'
-      - '!docs/**'
-      - '!theme_common'
-      - '!theme_override'
       - '!deployments/kubernetes/chart/reloader/**'
 
 env:
