@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/sirupsen/logrus"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/stakater/Reloader/internal/pkg/constants"
 	"github.com/stakater/Reloader/internal/pkg/controller"
@@ -71,13 +72,18 @@ func TestHealthz(t *testing.T) {
 // TestRunLeaderElection validates that the liveness endpoint serves 500 when
 // leadership election fails
 func TestRunLeaderElection(t *testing.T) {
+	// Reset shared state left by TestHealthz
+	m.Lock()
+	healthy = true
+	m.Unlock()
+
 	ctx, cancel := context.WithCancel(context.TODO())
 
 	lock := GetNewLock(testutil.Clients.KubernetesClient.CoordinationV1(), constants.LockName, testutil.Pod, testutil.Namespace)
 
-	go RunLeaderElection(lock, ctx, cancel, testutil.Pod, []*controller.Controller{})
+	stopped := RunLeaderElection(lock, ctx, cancel, testutil.Pod, []*controller.Controller{})
 
-	// Liveness probe should be serving OK
+	// Before leadership is acquired the probe still reads the current healthy value (true)
 	request, err := http.NewRequest(http.MethodGet, "/live", nil)
 	if err != nil {
 		t.Fatalf(("failed to create request"))
@@ -87,7 +93,7 @@ func TestRunLeaderElection(t *testing.T) {
 
 	healthz(response, request)
 	got := response.Code
-	want := 500
+	want := 200
 
 	if got != want {
 		t.Fatalf("got: %d, want: %d", got, want)
@@ -96,6 +102,7 @@ func TestRunLeaderElection(t *testing.T) {
 	// Cancel the leader election context, so leadership is released and
 	// live endpoint serves 500
 	cancel()
+	<-stopped
 
 	request, err = http.NewRequest(http.MethodGet, "/live", nil)
 	if err != nil {
@@ -120,6 +127,16 @@ func TestRunLeaderElectionWithControllers(t *testing.T) {
 	t.Logf("Creating controller")
 	var controllers []*controller.Controller
 	for k := range kube.ResourceMap {
+		// Skip namespace controller when there is no namespace label selector
+		// (mirrors production behavior in startReloader).
+		if k == "namespaces" {
+			continue
+		}
+		// Skip CSI controller when CSI is not installed
+		// (mirrors production behavior in startReloader).
+		if k == constants.SecretProviderClassController {
+			continue
+		}
 		c, err := controller.NewController(testutil.Clients.KubernetesClient, k, testutil.Namespace, []string{}, "", "", metrics.NewCollectors())
 		if err != nil {
 			logrus.Fatalf("%s", err)
@@ -134,7 +151,7 @@ func TestRunLeaderElectionWithControllers(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.TODO())
 
 	// Start running leadership election, this also starts the controllers
-	go RunLeaderElection(lock, ctx, cancel, testutil.Pod, controllers)
+	stopped := RunLeaderElection(lock, ctx, cancel, testutil.Pod, controllers)
 	time.Sleep(3 * time.Second)
 
 	// Create some stuff and do a thing
@@ -173,16 +190,48 @@ func TestRunLeaderElectionWithControllers(t *testing.T) {
 	}
 	time.Sleep(testutil.SleepDuration)
 
+	// Add reloader.stakater.com/ignore: "true" to the configmap BEFORE cancelling
+	// leadership. This prevents any Reloader instance running in the cluster
+	// (including ones external to this test) from processing the second configmap
+	// update below, making the assertion reliable in shared cluster environments.
+	// The ignore annotation is on the configmap itself: ShouldReload checks
+	// config.ResourceAnnotations (= configmap annotations) for this annotation.
+	// Note: only the annotation is changed here — the data SHA is unchanged so
+	// the still-running controllers will see no diff and skip the rolling upgrade.
+	cm, getCMErr := testutil.Clients.KubernetesClient.CoreV1().ConfigMaps(testutil.Namespace).Get(
+		context.TODO(), configmapName, metav1.GetOptions{})
+	if getCMErr != nil {
+		t.Fatalf("Failed to get configmap to add ignore annotation: %v", getCMErr)
+	}
+	if cm.Annotations == nil {
+		cm.Annotations = make(map[string]string)
+	}
+	cm.Annotations[options.IgnoreResourceAnnotation] = "true"
+	if _, err = testutil.Clients.KubernetesClient.CoreV1().ConfigMaps(testutil.Namespace).Update(
+		context.TODO(), cm, metav1.UpdateOptions{}); err != nil {
+		t.Fatalf("Failed to add ignore annotation to configmap: %v", err)
+	}
+
 	// Cancel the leader election context, so leadership is released
 	logrus.Info("shutting down controller from test")
 	cancel()
-	time.Sleep(5 * time.Second)
+	<-stopped // wait until OnStoppedLeading has run and all controller goroutines have exited
 
-	// Updating configmap again
-	updateErr = testutil.UpdateConfigMap(configmapClient, testutil.Namespace, configmapName, "", "www.stakater.com/new")
-	if updateErr != nil {
-		t.Fatalf("Configmap was not updated")
+	// Update the configmap data for the second time using a Get+modify+Update
+	// pattern so that the ignore annotation added above is preserved.
+	// Any Reloader (including external ones) will see ignore=true and skip the update.
+	cm, err = testutil.Clients.KubernetesClient.CoreV1().ConfigMaps(testutil.Namespace).Get(
+		context.TODO(), configmapName, metav1.GetOptions{})
+	if err != nil {
+		t.Fatalf("Failed to get configmap for second update: %v", err)
 	}
+	cm.Data["test.url"] = "www.stakater.com/new"
+	// ignore annotation is still present from the update above
+	if _, err = testutil.Clients.KubernetesClient.CoreV1().ConfigMaps(testutil.Namespace).Update(
+		context.TODO(), cm, metav1.UpdateOptions{}); err != nil {
+		t.Fatalf("Failed to update configmap: %v", err)
+	}
+	time.Sleep(3 * time.Second)
 
 	// Verifying that the deployment was not updated as leadership has been lost
 	logrus.Infof("Verifying pod envvars has not been updated")

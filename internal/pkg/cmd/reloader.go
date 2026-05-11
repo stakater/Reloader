@@ -192,7 +192,7 @@ func startReloader(cmd *cobra.Command, args []string) {
 		lock := leadership.GetNewLock(clientset.CoordinationV1(), constants.LockName, podName, podNamespace)
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
-		go leadership.RunLeaderElection(lock, ctx, cancel, podName, controllers)
+		leadership.RunLeaderElection(lock, ctx, cancel, podName, controllers)
 	}
 
 	common.PublishMetaInfoConfigmap(clientset)

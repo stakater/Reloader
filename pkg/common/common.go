@@ -194,12 +194,22 @@ func GetResourceLabelSelector(slice []string) (string, error) {
 // ShouldReload checks if a resource should be reloaded based on its annotations and the provided options.
 func ShouldReload(config Config, resourceType string, annotations Map, podAnnotations Map, reloaderOpts *ReloaderOptions) ReloadCheckResult {
 
-	// Check if this workload type should be ignored
+	// Check if this workload type should be ignored.
+	// Use reloaderOpts.WorkloadTypesToIgnore directly instead of re-reading the
+	// global via util.GetIgnoredWorkloadTypesList(), so that invalid entries simply
+	// skip the ignore check (allowing reload) rather than silently blocking it.
 	if len(reloaderOpts.WorkloadTypesToIgnore) > 0 {
-		ignoredWorkloadTypes, err := util.GetIgnoredWorkloadTypesList()
-		if err != nil {
-			logrus.Errorf("Failed to parse ignored workload types: %v", err)
-		} else {
+		validIgnored := util.List{}
+		valid := true
+		for _, v := range reloaderOpts.WorkloadTypesToIgnore {
+			if v != "jobs" && v != "cronjobs" {
+				logrus.Errorf("Failed to parse ignored workload types: 'ignored-workload-types' accepts 'jobs', 'cronjobs', or both, not '%s'", v)
+				valid = false
+				break
+			}
+			validIgnored = append(validIgnored, v)
+		}
+		if valid {
 			// Map Kubernetes resource types to CLI-friendly names for comparison
 			var resourceToCheck string
 			switch resourceType {
@@ -208,14 +218,10 @@ func ShouldReload(config Config, resourceType string, annotations Map, podAnnota
 			case "CronJob":
 				resourceToCheck = "cronjobs"
 			default:
-				resourceToCheck = resourceType // For other types, use as-is
+				resourceToCheck = resourceType
 			}
-
-			// Check if current resource type should be ignored
-			if ignoredWorkloadTypes.Contains(resourceToCheck) {
-				return ReloadCheckResult{
-					ShouldReload: false,
-				}
+			if validIgnored.Contains(resourceToCheck) {
+				return ReloadCheckResult{ShouldReload: false}
 			}
 		}
 	}

@@ -3,6 +3,7 @@ package controller
 import (
 	"fmt"
 	"slices"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -247,23 +248,36 @@ func (c *Controller) enqueue(item interface{}) {
 func (c *Controller) Run(threadiness int, stopCh chan struct{}) {
 	defer runtime.HandleCrash()
 
-	// Let the workers stop when we are done
-	defer c.queue.ShutDown()
+	var wg sync.WaitGroup
 
-	go c.informer.Run(stopCh)
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		c.informer.Run(stopCh)
+	}()
 
 	// Wait for all involved caches to be synced, before processing items from the queue is started
 	if !cache.WaitForCacheSync(stopCh, c.informer.HasSynced) {
 		runtime.HandleError(fmt.Errorf("timed out waiting for caches to sync"))
+		c.queue.ShutDown()
+		wg.Wait()
 		return
 	}
 
 	for i := 0; i < threadiness; i++ {
-		go wait.Until(c.runWorker, time.Second, stopCh)
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			wait.Until(c.runWorker, time.Second, stopCh)
+		}()
 	}
 
 	<-stopCh
-	logrus.Infof("Stopping Controller")
+	logrus.Infof("Stopping Controller for %s", c.resource)
+	c.queue.ShutDown() // unblock workers so they drain and exit
+	logrus.Infof("Queue shut down for %s, waiting for goroutines", c.resource)
+	wg.Wait() // block until informer and all workers have exited
+	logrus.Infof("All goroutines exited for %s", c.resource)
 }
 
 func (c *Controller) runWorker() {

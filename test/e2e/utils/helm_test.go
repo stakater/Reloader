@@ -26,9 +26,14 @@ func TestGetImageRepository(t *testing.T) {
 			expected: "ghcr.io/stakater/reloader",
 		},
 		{
-			name:     "image with digest (not fully supported)",
+			name:     "image with digest",
 			image:    "nginx@sha256:abc123",
-			expected: "nginx@sha256",
+			expected: "nginx",
+		},
+		{
+			name:     "full image with digest",
+			image:    "ghcr.io/stakater/reloader@sha256:deadbeef",
+			expected: "ghcr.io/stakater/reloader",
 		},
 		{
 			name:     "simple image name",
@@ -87,6 +92,16 @@ func TestGetImageTag(t *testing.T) {
 			name:     "tag with sha",
 			image:    "myimage:sha-abc123",
 			expected: "sha-abc123",
+		},
+		{
+			name:     "image with digest",
+			image:    "nginx@sha256:abc123",
+			expected: "sha256:abc123",
+		},
+		{
+			name:     "full image with digest",
+			image:    "ghcr.io/stakater/reloader@sha256:deadbeef",
+			expected: "sha256:deadbeef",
 		},
 	}
 
