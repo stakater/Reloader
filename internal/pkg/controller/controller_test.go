@@ -43,8 +43,8 @@ func (m *mockResourceHandler) GetEnqueueTime() time.Time {
 
 // resetGlobalState resets global variables between tests
 func resetGlobalState() {
-	secretControllerInitialized = false
-	configmapControllerInitialized = false
+	secretControllerInitialized.Store(false)
+	configmapControllerInitialized.Store(false)
 	selectedNamespacesCache = []string{}
 }
 
@@ -386,8 +386,8 @@ func TestAddHandler(t *testing.T) {
 			tt.name, func(t *testing.T) {
 				resetGlobalState()
 				options.ReloadOnCreate = tt.reloadOnCreate
-				secretControllerInitialized = tt.controllersInit
-				configmapControllerInitialized = tt.controllersInit
+				secretControllerInitialized.Store(tt.controllersInit)
+				configmapControllerInitialized.Store(tt.controllersInit)
 
 				c := newTestController(tt.ignoredNamespaces, "")
 				c.Add(tt.resource)
@@ -601,8 +601,8 @@ func TestDeleteHandler(t *testing.T) {
 			tt.name, func(t *testing.T) {
 				resetGlobalState()
 				options.ReloadOnDelete = tt.reloadOnDelete
-				secretControllerInitialized = tt.controllersInit
-				configmapControllerInitialized = tt.controllersInit
+				secretControllerInitialized.Store(tt.controllersInit)
+				configmapControllerInitialized.Store(tt.controllersInit)
 
 				c := newTestController(tt.ignoredNamespaces, "")
 				c.Delete(tt.resource)
@@ -685,8 +685,8 @@ func TestDeleteHandlerWithNamespaceEvent(t *testing.T) {
 
 	c := newTestController([]string{}, "env=prod")
 	options.ReloadOnDelete = "true"
-	secretControllerInitialized = true
-	configmapControllerInitialized = true
+	secretControllerInitialized.Store(true)
+	configmapControllerInitialized.Store(true)
 
 	ns := &v1.Namespace{
 		ObjectMeta: metav1.ObjectMeta{Name: "ns-to-delete"},

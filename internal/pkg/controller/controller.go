@@ -3,6 +3,7 @@ package controller
 import (
 	"fmt"
 	"slices"
+	"sync/atomic"
 	"time"
 
 	"github.com/sirupsen/logrus"
@@ -41,17 +42,19 @@ type Controller struct {
 	resourceSelector  string
 }
 
-// controllerInitialized flag determines whether controlled is being initialized
-var secretControllerInitialized = false
-var configmapControllerInitialized = false
+// controllerInitialized flags guard against processing Add/Delete events before
+// the worker goroutines have started. Written by runWorker (in a goroutine) and
+// read by the informer event handlers, so they must be atomic.
+var secretControllerInitialized atomic.Bool
+var configmapControllerInitialized atomic.Bool
 var selectedNamespacesCache []string
 
 // NewController for initializing a Controller
 func NewController(client kubernetes.Interface, resource string, namespace string, ignoredNamespaces []string, namespaceLabelSelector string, resourceLabelSelector string, collectors metrics.Collectors) (*Controller,
 	error) {
 	if options.SyncAfterRestart {
-		secretControllerInitialized = true
-		configmapControllerInitialized = true
+		secretControllerInitialized.Store(true)
+		configmapControllerInitialized.Store(true)
 	}
 
 	c := Controller{
@@ -121,7 +124,7 @@ func (c *Controller) Add(obj interface{}) {
 	}
 
 	if options.ReloadOnCreate == "true" {
-		if !c.resourceInIgnoredNamespace(obj) && c.resourceInSelectedNamespaces(obj) && secretControllerInitialized && configmapControllerInitialized {
+		if !c.resourceInIgnoredNamespace(obj) && c.resourceInSelectedNamespaces(obj) && secretControllerInitialized.Load() && configmapControllerInitialized.Load() {
 			c.enqueue(handler.ResourceCreatedHandler{
 				Resource:    obj,
 				Collectors:  c.collectors,
@@ -214,7 +217,7 @@ func (c *Controller) Delete(old interface{}) {
 	}
 
 	if options.ReloadOnDelete == "true" {
-		if !c.resourceInIgnoredNamespace(old) && c.resourceInSelectedNamespaces(old) && secretControllerInitialized && configmapControllerInitialized {
+		if !c.resourceInIgnoredNamespace(old) && c.resourceInSelectedNamespaces(old) && secretControllerInitialized.Load() && configmapControllerInitialized.Load() {
 			c.enqueue(handler.ResourceDeleteHandler{
 				Resource:    old,
 				Collectors:  c.collectors,
@@ -266,9 +269,9 @@ func (c *Controller) Run(threadiness int, stopCh chan struct{}) {
 func (c *Controller) runWorker() {
 	// At this point the controller is fully initialized and we can start processing the resources
 	if c.resource == string(v1.ResourceSecrets) {
-		secretControllerInitialized = true
+		secretControllerInitialized.Store(true)
 	} else if c.resource == string(v1.ResourceConfigMaps) {
-		configmapControllerInitialized = true
+		configmapControllerInitialized.Store(true)
 	}
 
 	for c.processNextItem() {

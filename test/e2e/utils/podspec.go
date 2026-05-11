@@ -131,6 +131,33 @@ func AddCSIVolume(spec *corev1.PodSpec, containerIdx int, spcName string) {
 	}
 }
 
+// AddCSIInitContainer adds an init container that mounts a CSI SecretProviderClass volume.
+// This is distinct from AddCSIVolume which mounts into a regular container.
+func AddCSIInitContainer(spec *corev1.PodSpec, spcName string) {
+	volumeName := "csi-" + spcName
+	mountPath := "/mnt/secrets-store/" + spcName
+	spec.Volumes = append(spec.Volumes, corev1.Volume{
+		Name: volumeName,
+		VolumeSource: corev1.VolumeSource{
+			CSI: &corev1.CSIVolumeSource{
+				Driver:   CSIDriverName,
+				ReadOnly: ptr.To(true),
+				VolumeAttributes: map[string]string{
+					"secretProviderClass": spcName,
+				},
+			},
+		},
+	})
+	spec.InitContainers = append(spec.InitContainers, corev1.Container{
+		Name:    "init-csi",
+		Image:   DefaultImage,
+		Command: []string{"sh", "-c", "echo init done"},
+		VolumeMounts: []corev1.VolumeMount{
+			{Name: volumeName, MountPath: mountPath, ReadOnly: true},
+		},
+	})
+}
+
 // AddInitContainer adds init container with optional envFrom references.
 func AddInitContainer(spec *corev1.PodSpec, cmName, secretName string) {
 	init := corev1.Container{
@@ -253,7 +280,7 @@ func ApplyWorkloadConfig(template *corev1.PodTemplateSpec, cfg WorkloadConfig) {
 		AddInitContainerWithVolumes(spec, cfg.ConfigMapName, cfg.SecretName)
 	}
 	if cfg.UseInitContainerCSI && cfg.SPCName != "" {
-		AddCSIVolume(spec, 0, cfg.SPCName)
+		AddCSIInitContainer(spec, cfg.SPCName)
 	}
 	if cfg.MultipleContainers > 1 {
 		for i := 1; i < cfg.MultipleContainers; i++ {

@@ -3,8 +3,10 @@ package utils
 import (
 	"context"
 	"errors"
+	"fmt"
 	"time"
 
+	. "github.com/onsi/ginkgo/v2" //nolint:revive,staticcheck
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -47,12 +49,19 @@ type Condition[T any] func(T) bool
 // WatchUntil watches a resource until the condition is met or timeout occurs.
 // It handles watch reconnection automatically on errors.
 // If name is empty, it watches all resources and returns the first matching one.
+//
+// ResourceVersion "0" is used so the API server sends the current state as an
+// initial ADDED event before streaming live updates, preventing the TOCTOU window
+// where a reload that completes before WatchUntil is called would be missed.
 func WatchUntil[T runtime.Object](ctx context.Context, watchFunc WatchFunc, name string, condition Condition[T], timeout time.Duration) (T, error) {
 	var zero T
 	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 
-	opts := metav1.ListOptions{Watch: true}
+	opts := metav1.ListOptions{
+		Watch:           true,
+		ResourceVersion: "0", // receive current state as initial ADDED event
+	}
 	if name != "" {
 		opts.FieldSelector = fields.OneTermEqualSelector("metadata.name", name).String()
 	}
@@ -87,6 +96,8 @@ func watchOnce[T runtime.Object](
 
 	watcher, err := watchFunc(ctx, opts)
 	if err != nil {
+		// Log and signal retry; transient API errors are expected during CI.
+		_, _ = fmt.Fprintf(GinkgoWriter, "watch: failed to start watch: %v — retrying\n", err)
 		return zero, false, nil
 	}
 	defer watcher.Stop()
@@ -112,7 +123,8 @@ func watchOnce[T runtime.Object](
 			case watch.Deleted:
 				continue
 			case watch.Error:
-				return zero, false, ErrWatchError
+				_, _ = fmt.Fprintf(GinkgoWriter, "watch: received error event: %v — retrying\n", event.Object)
+				return zero, false, nil
 			}
 		}
 	}
@@ -129,8 +141,9 @@ func WatchUntilDeleted(
 	defer cancel()
 
 	opts := metav1.ListOptions{
-		FieldSelector: fields.OneTermEqualSelector("metadata.name", name).String(),
-		Watch:         true,
+		FieldSelector:   fields.OneTermEqualSelector("metadata.name", name).String(),
+		Watch:           true,
+		ResourceVersion: "0",
 	}
 
 	for {
@@ -159,6 +172,7 @@ func watchDeleteOnce(
 ) (bool, error) {
 	watcher, err := watchFunc(ctx, opts)
 	if err != nil {
+		_, _ = fmt.Fprintf(GinkgoWriter, "watch: failed to start delete watch: %v — retrying\n", err)
 		return false, nil
 	}
 	defer watcher.Stop()
@@ -175,7 +189,8 @@ func watchDeleteOnce(
 				return true, nil
 			}
 			if event.Type == watch.Error {
-				return false, ErrWatchError
+				_, _ = fmt.Fprintf(GinkgoWriter, "watch: received error event during delete watch: %v — retrying\n", event.Object)
+				return false, nil
 			}
 		}
 	}
