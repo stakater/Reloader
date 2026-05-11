@@ -11,11 +11,11 @@ import (
 
 var _ = Describe("Ignored Workloads Flag Tests", Serial, func() {
 	var (
-		cronJobName      string
-		configMapName    string
-		ignoreNS         string
-		cronJobAdapter   *utils.CronJobAdapter
-		deploymentAdater *utils.DeploymentAdapter
+		cronJobName       string
+		configMapName     string
+		ignoreNS          string
+		cronJobAdapter    *utils.CronJobAdapter
+		deploymentAdapter *utils.DeploymentAdapter
 	)
 
 	BeforeEach(func() {
@@ -23,7 +23,7 @@ var _ = Describe("Ignored Workloads Flag Tests", Serial, func() {
 		configMapName = utils.RandName("cm")
 		ignoreNS = "ignore-wl-" + utils.RandName("ns")
 		cronJobAdapter = utils.NewCronJobAdapter(kubeClient)
-		deploymentAdater = utils.NewDeploymentAdapter(kubeClient)
+		deploymentAdapter = utils.NewDeploymentAdapter(kubeClient)
 	})
 
 	AfterEach(func() {
@@ -94,7 +94,7 @@ var _ = Describe("Ignored Workloads Flag Tests", Serial, func() {
 			}()
 
 			By("Waiting for Deployment to be ready")
-			err = deploymentAdater.WaitReady(ctx, ignoreNS, deploymentName, utils.WorkloadReadyTimeout)
+			err = deploymentAdapter.WaitReady(ctx, ignoreNS, deploymentName, utils.WorkloadReadyTimeout)
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Updating the ConfigMap")
@@ -102,7 +102,7 @@ var _ = Describe("Ignored Workloads Flag Tests", Serial, func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Waiting for Deployment to be reloaded (Deployment should still work)")
-			reloaded, err := deploymentAdater.WaitReloaded(ctx, ignoreNS, deploymentName,
+			reloaded, err := deploymentAdapter.WaitReloaded(ctx, ignoreNS, deploymentName,
 				utils.AnnotationLastReloadedFrom, utils.ReloadTimeout)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(reloaded).To(BeTrue(), "Deployment should still reload with ignoreCronJobs=true")
