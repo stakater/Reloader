@@ -50,9 +50,9 @@ jobs:
 
     # Setting up helm binary
     - name: Set up Helm
-      uses: azure/setup-helm@v4
+      uses: azure/setup-helm@v5
       with:
-        version: v3.11.3
+        version: v3.20.2
 
     - name: Helm chart unit tests
       uses: d3adb5/helm-unittest-action@v2
