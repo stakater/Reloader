@@ -467,7 +467,7 @@ If you're running Reloader in production, we'd love to hear from you:
 
 ### Documentation
 
-The Reloader documentation can be viewed from [the doc site](https://docs.stakater.com/reloader/). The doc source is in the [docs](./docs/) folder.
+The Reloader documentation can be viewed from [the doc site](https://docs.stakater.com/reloader/).
 
 ### Have a question?
 
