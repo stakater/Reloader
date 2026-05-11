@@ -2,6 +2,7 @@ package core
 
 import (
 	"context"
+	"encoding/json"
 	"testing"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -19,7 +20,6 @@ var (
 	restConfig    *rest.Config
 	testNamespace string
 	ctx           context.Context
-	cancel        context.CancelFunc
 	testEnv       *utils.TestEnvironment
 	registry      *utils.AdapterRegistry
 )
@@ -29,62 +29,81 @@ func TestCore(t *testing.T) {
 	RunSpecs(t, "Core Workload E2E Suite")
 }
 
-var _ = BeforeSuite(func() {
-	var err error
-	ctx, cancel = context.WithCancel(context.Background())
+// SynchronizedBeforeSuite ensures only process 1 deploys Reloader.
+// The namespace and release name are forwarded to all other processes so they
+// share a single Reloader instance, avoiding resource exhaustion on Kind.
+var _ = SynchronizedBeforeSuite(
+	// Process 1 only: create namespace, deploy Reloader.
+	func() []byte {
+		setupEnv, err := utils.SetupTestEnvironment(context.Background(), "reloader-core-test")
+		Expect(err).NotTo(HaveOccurred(), "Failed to setup test environment")
 
-	testEnv, err = utils.SetupTestEnvironment(ctx, "reloader-core-test")
-	Expect(err).NotTo(HaveOccurred(), "Failed to setup test environment")
+		deployValues := map[string]string{
+			"reloader.reloadStrategy": "annotations",
+			"reloader.watchGlobally":  "false",
+		}
+		if utils.IsArgoRolloutsInstalled(context.Background(), setupEnv.RolloutsClient) {
+			deployValues["reloader.isArgoRollouts"] = "true"
+			GinkgoWriter.Println("Deploying Reloader with Argo Rollouts support")
+		}
+		if utils.IsCSIDriverInstalled(context.Background(), setupEnv.CSIClient) {
+			deployValues["reloader.enableCSIIntegration"] = "true"
+			GinkgoWriter.Println("Deploying Reloader with CSI integration support")
+		}
 
-	kubeClient = testEnv.KubeClient
-	csiClient = testEnv.CSIClient
-	restConfig = testEnv.RestConfig
-	testNamespace = testEnv.Namespace
+		Expect(setupEnv.DeployAndWait(deployValues)).To(Succeed(), "Failed to deploy Reloader")
 
-	registry = utils.NewAdapterRegistry(kubeClient)
+		data, err := json.Marshal(utils.SharedEnvData{
+			Namespace:   setupEnv.Namespace,
+			ReleaseName: setupEnv.ReleaseName,
+		})
+		Expect(err).NotTo(HaveOccurred())
+		return data
+	},
+	// All processes (including #1): connect to shared environment and build adapter registry.
+	func(data []byte) {
+		var shared utils.SharedEnvData
+		Expect(json.Unmarshal(data, &shared)).To(Succeed())
 
-	if utils.IsArgoRolloutsInstalled(ctx, testEnv.RolloutsClient) {
-		GinkgoWriter.Println("Argo Rollouts detected, registering ArgoRolloutAdapter")
-		registry.RegisterAdapter(utils.NewArgoRolloutAdapter(testEnv.RolloutsClient))
-	} else {
-		GinkgoWriter.Println("Argo Rollouts not detected, skipping ArgoRolloutAdapter registration")
-	}
+		var err error
+		testEnv, err = utils.SetupSharedTestEnvironment(context.Background(), shared.Namespace, shared.ReleaseName)
+		Expect(err).NotTo(HaveOccurred(), "Failed to setup shared test environment")
 
-	if utils.HasDeploymentConfigSupport(testEnv.DiscoveryClient) && testEnv.OpenShiftClient != nil {
-		GinkgoWriter.Println("OpenShift detected, registering DeploymentConfigAdapter")
-		registry.RegisterAdapter(utils.NewDeploymentConfigAdapter(testEnv.OpenShiftClient))
-	} else {
-		GinkgoWriter.Println("OpenShift not detected, skipping DeploymentConfigAdapter registration")
-	}
+		kubeClient = testEnv.KubeClient
+		csiClient = testEnv.CSIClient
+		restConfig = testEnv.RestConfig
+		testNamespace = testEnv.Namespace
+		ctx = testEnv.Ctx
 
-	deployValues := map[string]string{
-		"reloader.reloadStrategy": "annotations",
-		"reloader.watchGlobally":  "false",
-	}
+		registry = utils.NewAdapterRegistry(kubeClient)
+		if utils.IsArgoRolloutsInstalled(ctx, testEnv.RolloutsClient) {
+			GinkgoWriter.Println("Argo Rollouts detected, registering ArgoRolloutAdapter")
+			registry.RegisterAdapter(utils.NewArgoRolloutAdapter(testEnv.RolloutsClient))
+		} else {
+			GinkgoWriter.Println("Argo Rollouts not detected, skipping ArgoRolloutAdapter registration")
+		}
+		if utils.HasDeploymentConfigSupport(testEnv.DiscoveryClient) && testEnv.OpenShiftClient != nil {
+			GinkgoWriter.Println("OpenShift detected, registering DeploymentConfigAdapter")
+			registry.RegisterAdapter(utils.NewDeploymentConfigAdapter(testEnv.OpenShiftClient))
+		} else {
+			GinkgoWriter.Println("OpenShift not detected, skipping DeploymentConfigAdapter registration")
+		}
+	},
+)
 
-	if utils.IsArgoRolloutsInstalled(ctx, testEnv.RolloutsClient) {
-		deployValues["reloader.isArgoRollouts"] = "true"
-		GinkgoWriter.Println("Deploying Reloader with Argo Rollouts support")
-	}
-
-	if utils.IsCSIDriverInstalled(ctx, csiClient) {
-		deployValues["reloader.enableCSIIntegration"] = "true"
-		GinkgoWriter.Println("Deploying Reloader with CSI integration support")
-	}
-
-	err = testEnv.DeployAndWait(deployValues)
-	Expect(err).NotTo(HaveOccurred(), "Failed to deploy Reloader")
-})
-
-var _ = AfterSuite(func() {
-	if testEnv != nil {
-		err := testEnv.Cleanup()
-		Expect(err).NotTo(HaveOccurred(), "Failed to cleanup test environment")
-	}
-
-	if cancel != nil {
-		cancel()
-	}
-
-	GinkgoWriter.Println("Core E2E Suite cleanup complete")
-})
+var _ = SynchronizedAfterSuite(
+	// All processes: cancel the per-process context.
+	func() {
+		if testEnv != nil {
+			testEnv.Cancel()
+		}
+	},
+	// Process 1 only (runs last): undeploy Reloader and delete namespace.
+	func() {
+		if testEnv != nil {
+			err := testEnv.Cleanup()
+			Expect(err).NotTo(HaveOccurred(), "Failed to cleanup test environment")
+		}
+		GinkgoWriter.Println("Core E2E Suite cleanup complete")
+	},
+)

@@ -45,7 +45,7 @@ func (m *mockResourceHandler) GetEnqueueTime() time.Time {
 func resetGlobalState() {
 	secretControllerInitialized.Store(false)
 	configmapControllerInitialized.Store(false)
-	selectedNamespacesCache = []string{}
+	storeSelectedNamespaces([]string{})
 }
 
 // newTestController creates a controller for testing without starting informers
@@ -223,12 +223,12 @@ func TestResourceInSelectedNamespaces(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(
 			tt.name, func(t *testing.T) {
-				resetGlobalState()
-				selectedNamespacesCache = tt.cachedNamespaces
+			resetGlobalState()
+			storeSelectedNamespaces(tt.cachedNamespaces)
 
-				c := newTestController([]string{}, tt.namespaceSelector)
-				result := c.resourceInSelectedNamespaces(tt.resource)
-				assert.Equal(t, tt.expected, result)
+			c := newTestController([]string{}, tt.namespaceSelector)
+			result := c.resourceInSelectedNamespaces(tt.resource)
+			assert.Equal(t, tt.expected, result)
 			},
 		)
 	}
@@ -244,17 +244,17 @@ func TestAddSelectedNamespaceToCache(t *testing.T) {
 		ObjectMeta: metav1.ObjectMeta{Name: "namespace-1"},
 	}
 	c.addSelectedNamespaceToCache(ns1)
-	assert.Contains(t, selectedNamespacesCache, "namespace-1")
-	assert.Len(t, selectedNamespacesCache, 1)
+	assert.Contains(t, loadSelectedNamespaces(), "namespace-1")
+	assert.Len(t, loadSelectedNamespaces(), 1)
 
 	// Add second namespace
 	ns2 := v1.Namespace{
 		ObjectMeta: metav1.ObjectMeta{Name: "namespace-2"},
 	}
 	c.addSelectedNamespaceToCache(ns2)
-	assert.Contains(t, selectedNamespacesCache, "namespace-1")
-	assert.Contains(t, selectedNamespacesCache, "namespace-2")
-	assert.Len(t, selectedNamespacesCache, 2)
+	assert.Contains(t, loadSelectedNamespaces(), "namespace-1")
+	assert.Contains(t, loadSelectedNamespaces(), "namespace-2")
+	assert.Len(t, loadSelectedNamespaces(), 2)
 }
 
 func TestRemoveSelectedNamespaceFromCache(t *testing.T) {
@@ -293,16 +293,16 @@ func TestRemoveSelectedNamespaceFromCache(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(
 			tt.name, func(t *testing.T) {
-				resetGlobalState()
-				selectedNamespacesCache = tt.initialCache
+			resetGlobalState()
+			storeSelectedNamespaces(tt.initialCache)
 
-				c := newTestController([]string{}, "env=prod")
-				ns := v1.Namespace{
-					ObjectMeta: metav1.ObjectMeta{Name: tt.namespaceToRemove},
-				}
-				c.removeSelectedNamespaceFromCache(ns)
+			c := newTestController([]string{}, "env=prod")
+			ns := v1.Namespace{
+				ObjectMeta: metav1.ObjectMeta{Name: tt.namespaceToRemove},
+			}
+			c.removeSelectedNamespaceFromCache(ns)
 
-				assert.Equal(t, tt.expectedCache, selectedNamespacesCache)
+			assert.ElementsMatch(t, tt.expectedCache, loadSelectedNamespacesList())
 			},
 		)
 	}
@@ -500,10 +500,10 @@ func TestUpdateHandler(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(
 			tt.name, func(t *testing.T) {
-				resetGlobalState()
-				if tt.cachedNamespaces != nil {
-					selectedNamespacesCache = tt.cachedNamespaces
-				}
+			resetGlobalState()
+			if tt.cachedNamespaces != nil {
+				storeSelectedNamespaces(tt.cachedNamespaces)
+			}
 
 				c := newTestController(tt.ignoredNamespaces, tt.namespaceSelector)
 				c.Update(tt.oldResource, tt.newResource)
@@ -675,13 +675,13 @@ func TestAddHandlerWithNamespaceEvent(t *testing.T) {
 
 	c.Add(ns)
 
-	assert.Contains(t, selectedNamespacesCache, "new-namespace")
+	assert.Contains(t, loadSelectedNamespaces(), "new-namespace")
 	assert.Equal(t, 0, c.queue.Len(), "Namespace add should not queue anything")
 }
 
 func TestDeleteHandlerWithNamespaceEvent(t *testing.T) {
 	resetGlobalState()
-	selectedNamespacesCache = []string{"ns-1", "ns-to-delete", "ns-2"}
+	storeSelectedNamespaces([]string{"ns-1", "ns-to-delete", "ns-2"})
 
 	c := newTestController([]string{}, "env=prod")
 	options.ReloadOnDelete = "true"
@@ -694,9 +694,9 @@ func TestDeleteHandlerWithNamespaceEvent(t *testing.T) {
 
 	c.Delete(ns)
 
-	assert.NotContains(t, selectedNamespacesCache, "ns-to-delete")
-	assert.Contains(t, selectedNamespacesCache, "ns-1")
-	assert.Contains(t, selectedNamespacesCache, "ns-2")
+	assert.NotContains(t, loadSelectedNamespaces(), "ns-to-delete")
+	assert.Contains(t, loadSelectedNamespaces(), "ns-1")
+	assert.Contains(t, loadSelectedNamespaces(), "ns-2")
 	assert.Equal(t, 0, c.queue.Len(), "Namespace delete should not queue anything")
 }
 

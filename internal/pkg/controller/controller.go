@@ -2,7 +2,6 @@ package controller
 
 import (
 	"fmt"
-	"slices"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -48,11 +47,46 @@ type Controller struct {
 // read by the informer event handlers, so they must be atomic.
 var secretControllerInitialized atomic.Bool
 var configmapControllerInitialized atomic.Bool
-var selectedNamespacesCache []string
+
+// selectedNamespacesCache holds an immutable snapshot of the set of namespace
+// names that match the namespace label selector. Written exclusively by the
+// namespace controller's informer goroutine; read concurrently by configmap/
+// secret controller informer goroutines. Using atomic.Value with an immutable
+// map[string]struct{} snapshot avoids mutexes and prevents data races.
+var selectedNamespacesCache atomic.Value // always stores map[string]struct{}
+
+// loadSelectedNamespaces returns the current namespace snapshot (never nil).
+func loadSelectedNamespaces() map[string]struct{} {
+	if v := selectedNamespacesCache.Load(); v != nil {
+		return v.(map[string]struct{})
+	}
+	return map[string]struct{}{}
+}
+
+// storeSelectedNamespaces replaces the current snapshot with one built from ns.
+// It is the only mutator of selectedNamespacesCache and is called only from
+// the namespace controller's informer goroutine (or from tests for setup).
+func storeSelectedNamespaces(ns []string) {
+	m := make(map[string]struct{}, len(ns))
+	for _, n := range ns {
+		m[n] = struct{}{}
+	}
+	selectedNamespacesCache.Store(m)
+}
+
+// loadSelectedNamespacesList returns the current namespace names as a slice.
+// Intended for use in tests where slice-based assertions are more convenient.
+func loadSelectedNamespacesList() []string {
+	m := loadSelectedNamespaces()
+	result := make([]string, 0, len(m))
+	for k := range m {
+		result = append(result, k)
+	}
+	return result
+}
 
 // NewController for initializing a Controller
-func NewController(client kubernetes.Interface, resource string, namespace string, ignoredNamespaces []string, namespaceLabelSelector string, resourceLabelSelector string, collectors metrics.Collectors) (*Controller,
-	error) {
+func NewController(client kubernetes.Interface, resource string, namespace string, ignoredNamespaces []string, namespaceLabelSelector string, resourceLabelSelector string, collectors metrics.Collectors) (*Controller, error) {
 	if options.SyncAfterRestart {
 		secretControllerInitialized.Store(true)
 		configmapControllerInitialized.Store(true)
@@ -155,36 +189,45 @@ func (c *Controller) resourceInSelectedNamespaces(raw interface{}) bool {
 		return true
 	}
 
+	namespaces := loadSelectedNamespaces()
+	var ns string
 	switch object := raw.(type) {
 	case *v1.ConfigMap:
-		if slices.Contains(selectedNamespacesCache, object.GetNamespace()) {
-			return true
-		}
+		ns = object.GetNamespace()
 	case *v1.Secret:
-		if slices.Contains(selectedNamespacesCache, object.GetNamespace()) {
-			return true
-		}
+		ns = object.GetNamespace()
 	case *csiv1.SecretProviderClassPodStatus:
-		if slices.Contains(selectedNamespacesCache, object.GetNamespace()) {
-			return true
-		}
+		ns = object.GetNamespace()
+	default:
+		return false
 	}
-	return false
+	_, ok := namespaces[ns]
+	return ok
 }
 
 func (c *Controller) addSelectedNamespaceToCache(namespace v1.Namespace) {
-	selectedNamespacesCache = append(selectedNamespacesCache, namespace.GetName())
+	old := loadSelectedNamespaces()
+	next := make(map[string]struct{}, len(old)+1)
+	for k := range old {
+		next[k] = struct{}{}
+	}
+	next[namespace.GetName()] = struct{}{}
+	selectedNamespacesCache.Store(next)
 	logrus.Infof("added namespace to be watched: %s", namespace.GetName())
 }
 
 func (c *Controller) removeSelectedNamespaceFromCache(namespace v1.Namespace) {
-	for i, v := range selectedNamespacesCache {
-		if v == namespace.GetName() {
-			selectedNamespacesCache = append(selectedNamespacesCache[:i], selectedNamespacesCache[i+1:]...)
-			logrus.Infof("removed namespace from watch: %s", namespace.GetName())
-			return
-		}
+	old := loadSelectedNamespaces()
+	if _, ok := old[namespace.GetName()]; !ok {
+		return
 	}
+	next := make(map[string]struct{}, len(old))
+	for k := range old {
+		next[k] = struct{}{}
+	}
+	delete(next, namespace.GetName())
+	selectedNamespacesCache.Store(next)
+	logrus.Infof("removed namespace from watch: %s", namespace.GetName())
 }
 
 // Update function to add an old object and a new object to the queue in case of updating a resource
@@ -319,6 +362,9 @@ func (c *Controller) processNextItem() bool {
 	rh, ok := resourceHandler.(handler.ResourceHandler)
 	if !ok {
 		logrus.Errorf("Invalid resource handler type: %T", resourceHandler)
+		// Clear rate-limiter state so the item doesn't leak memory in the queue.
+		c.queue.Forget(resourceHandler)
+		c.collectors.RecordError("invalid_handler_type")
 		return true
 	}
 	err := rh.Handle()

@@ -149,6 +149,10 @@ E2E_IMG ?= ghcr.io/stakater/reloader:test
 E2E_TIMEOUT ?= 45m
 KIND_CLUSTER ?= reloader-e2e
 CONTAINER_RUNTIME ?= $(shell command -v docker 2>/dev/null || command -v podman 2>/dev/null)
+# Set SKIP_BUILD=true to skip the image build/load steps and use a pre-built image.
+SKIP_BUILD ?= false
+# Number of parallel Ginkgo workers. Set to 1 to run sequentially.
+GINKGO_PROCS ?= 4
 
 .PHONY: e2e-setup
 e2e-setup: ## One-time setup: create Kind cluster and install dependencies (Argo, CSI, Vault)
@@ -161,7 +165,8 @@ e2e-setup: ## One-time setup: create Kind cluster and install dependencies (Argo
 	./scripts/e2e-cluster-setup.sh
 
 .PHONY: e2e
-e2e: ## Run e2e tests (builds image, loads to Kind, runs tests in parallel)
+e2e: ## Run e2e tests (build/load image unless SKIP_BUILD=true, then run tests in parallel)
+ifneq ($(SKIP_BUILD),true)
 	$(CONTAINER_RUNTIME) build -t $(E2E_IMG) -f Dockerfile .
 ifeq ($(notdir $(CONTAINER_RUNTIME)),podman)
 	$(CONTAINER_RUNTIME) save $(E2E_IMG) -o /tmp/reloader-e2e.tar
@@ -170,7 +175,8 @@ ifeq ($(notdir $(CONTAINER_RUNTIME)),podman)
 else
 	kind load docker-image $(E2E_IMG) --name $(KIND_CLUSTER)
 endif
-	SKIP_BUILD=true RELOADER_IMAGE=$(E2E_IMG) "$(GOCMD)" tool ginkgo --keep-going -v --timeout=$(E2E_TIMEOUT) ./test/e2e/...
+endif
+	RELOADER_IMAGE=$(E2E_IMG) "$(GOCMD)" tool ginkgo --keep-going -v --procs=$(GINKGO_PROCS) --timeout=$(E2E_TIMEOUT) ./test/e2e/...
 
 .PHONY: e2e-cleanup
 e2e-cleanup: ## Cleanup: remove test resources and delete Kind cluster
