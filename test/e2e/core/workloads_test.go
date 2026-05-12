@@ -10,7 +10,7 @@ import (
 	"github.com/stakater/Reloader/test/e2e/utils"
 )
 
-var _ = Describe("Workload Reload Tests", func() {
+var _ = Describe("Workload Reload Tests", Serial, func() {
 	var (
 		configMapName   string
 		secretName      string

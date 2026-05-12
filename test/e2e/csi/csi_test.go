@@ -10,7 +10,7 @@ import (
 	"github.com/stakater/Reloader/test/e2e/utils"
 )
 
-var _ = Describe("CSI SecretProviderClass Tests", Label("csi"), func() {
+var _ = Describe("CSI SecretProviderClass Tests", Label("csi"), Serial, func() {
 	var (
 		deploymentName  string
 		configMapName   string
