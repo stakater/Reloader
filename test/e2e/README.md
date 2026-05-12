@@ -40,13 +40,13 @@ SKIP_BUILD=true RELOADER_IMAGE=ghcr.io/stakater/reloader:v1.2.0 make e2e
 
 ### Environment Variables
 
-| Variable | Default | Description |
-|----------|---------|-------------|
+| Variable | Default                          | Description |
+|----------|----------------------------------|-------------|
 | `RELOADER_IMAGE` | `ghcr.io/stakater/reloader:test` | Image to test |
-| `SKIP_BUILD` | `false` | Skip the container image build and Kind load steps; requires `RELOADER_IMAGE` to point to an already-loaded image |
-| `KIND_CLUSTER` | `reloader-e2e` | Kind cluster name |
-| `E2E_TIMEOUT` | `45m` | Test timeout |
-| `GINKGO_PROCS` | `4` | Number of parallel Ginkgo worker processes |
+| `SKIP_BUILD` | `false`                          | Skip the container image build and Kind load steps; requires `RELOADER_IMAGE` to point to an already-loaded image |
+| `KIND_CLUSTER` | `reloader-e2e`                   | Kind cluster name |
+| `E2E_TIMEOUT` | `45m`                            | Test timeout |
+| `GINKGO_PROCS` | `1`                              | Number of parallel Ginkgo worker processes |
 
 ## Test Structure
 

@@ -23,15 +23,21 @@ func InterfaceSlice(slice interface{}) []interface{} {
 	return ret
 }
 
-// ParseBool returns result in bool format after parsing
+// ParseBool returns result in bool format after parsing.
+// It handles concrete bool/string types as well as any named type whose
+// underlying kind is bool or string (e.g. type MyBool bool).
 func ParseBool(value interface{}) bool {
-	if reflect.Bool == reflect.TypeOf(value).Kind() {
-		b, _ := value.(bool)
-		return b
-	} else if reflect.String == reflect.TypeOf(value).Kind() {
-		s, _ := value.(string)
-		result, _ := strconv.ParseBool(s)
-		return result
+	if value == nil {
+		return false
 	}
-	return false
+	v := reflect.ValueOf(value)
+	switch v.Kind() {
+	case reflect.Bool:
+		return v.Bool()
+	case reflect.String:
+		result, _ := strconv.ParseBool(v.String())
+		return result
+	default:
+		return false
+	}
 }
