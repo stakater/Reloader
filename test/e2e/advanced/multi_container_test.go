@@ -10,7 +10,7 @@ import (
 	"github.com/stakater/Reloader/test/e2e/utils"
 )
 
-var _ = Describe("Multi-Container Tests", func() {
+var _ = Describe("Multi-Container Tests", Serial, func() {
 	var (
 		deploymentName string
 		configMapName  string
