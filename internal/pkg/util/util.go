@@ -93,7 +93,7 @@ func ConfigureReloaderFlags(cmd *cobra.Command) {
 	cmd.PersistentFlags().StringVar(&options.LogFormat, "log-format", "", "Log format to use (empty string for text, or JSON)")
 	cmd.PersistentFlags().StringVar(&options.LogLevel, "log-level", "info", "Log level to use (trace, debug, info, warning, error, fatal and panic)")
 	cmd.PersistentFlags().StringVar(&options.WebhookUrl, "webhook-url", "", "webhook to trigger instead of performing a reload")
-	cmd.PersistentFlags().StringSliceVar(&options.ResourcesToIgnore, "resources-to-ignore", options.ResourcesToIgnore, "list of resources to ignore (valid options 'configMaps' or 'secrets')")
+	cmd.PersistentFlags().StringSliceVar(&options.ResourcesToIgnore, "resources-to-ignore", options.ResourcesToIgnore, "list of resources to ignore (valid options 'configmaps' or 'secrets'; 'configMaps' is also accepted for backward compatibility)")
 	cmd.PersistentFlags().StringSliceVar(&options.WorkloadTypesToIgnore, "ignored-workload-types", options.WorkloadTypesToIgnore, "list of workload types to ignore (valid options: 'jobs', 'cronjobs', or both)")
 	cmd.PersistentFlags().StringSliceVar(&options.NamespacesToIgnore, "namespaces-to-ignore", options.NamespacesToIgnore, "list of namespaces to ignore")
 	cmd.PersistentFlags().StringSliceVar(&options.NamespaceSelectors, "namespace-selector", options.NamespaceSelectors, "list of key:value labels to filter on for namespaces")
@@ -113,17 +113,26 @@ func GetIgnoredResourcesList() (List, error) {
 
 	ignoredResourcesList := options.ResourcesToIgnore // getStringSliceFromFlags(cmd, "resources-to-ignore")
 
+	// Normalize to the canonical lowercase keys used in kube.ResourceMap.
+	// Accept the legacy "configMaps" spelling for backward compatibility with
+	// charts that still emit the camelCase form.
+	normalized := make(List, 0, len(ignoredResourcesList))
 	for _, v := range ignoredResourcesList {
-		if v != "configMaps" && v != "secrets" {
-			return nil, fmt.Errorf("'resources-to-ignore' only accepts 'configMaps' or 'secrets', not '%s'", v)
+		switch v {
+		case "configMaps", "configmaps":
+			normalized = append(normalized, "configmaps")
+		case "secrets":
+			normalized = append(normalized, "secrets")
+		default:
+			return nil, fmt.Errorf("'resources-to-ignore' only accepts 'configmaps' or 'secrets', not '%s'", v)
 		}
 	}
 
-	if len(ignoredResourcesList) > 1 {
-		return nil, errors.New("'resources-to-ignore' only accepts 'configMaps' or 'secrets', not both")
+	if len(normalized) > 1 {
+		return nil, errors.New("'resources-to-ignore' only accepts 'configmaps' or 'secrets', not both")
 	}
 
-	return ignoredResourcesList, nil
+	return normalized, nil
 }
 
 func GetIgnoredWorkloadTypesList() (List, error) {
