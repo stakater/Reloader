@@ -213,6 +213,7 @@ reloader:
   #   custom_annotations:
   #     configmap: "my.company.com/configmap"
   #     secret: "my.company.com/secret"
+  #     ignore: "my.company.com/reloader-ignore"
   custom_annotations: {}
 
   serviceMonitor:
