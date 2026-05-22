@@ -13,6 +13,7 @@ import (
 	"github.com/stakater/Reloader/internal/pkg/crypto"
 	"github.com/stakater/Reloader/internal/pkg/options"
 	v1 "k8s.io/api/core/v1"
+	csiv1 "sigs.k8s.io/secrets-store-csi-driver/apis/v1"
 )
 
 // ConvertToEnvVarName converts the given text into a usable env var
@@ -57,6 +58,16 @@ func GetSHAfromSecret(data map[string][]byte) string {
 	return crypto.GenerateSHA(strings.Join(values, ";"))
 }
 
+func GetSHAfromSecretProviderClassPodStatus(data csiv1.SecretProviderClassPodStatusStatus) string {
+	values := []string{}
+	for _, v := range data.Objects {
+		values = append(values, v.ID+"="+v.Version)
+	}
+	values = append(values, "SecretProviderClassName="+data.SecretProviderClassName)
+	sort.Strings(values)
+	return crypto.GenerateSHA(strings.Join(values, ";"))
+}
+
 type List []string
 
 func (l *List) Contains(s string) bool {
@@ -95,6 +106,7 @@ func ConfigureReloaderFlags(cmd *cobra.Command) {
 	cmd.PersistentFlags().BoolVar(&options.SyncAfterRestart, "sync-after-restart", false, "Sync add events after reloader restarts")
 	cmd.PersistentFlags().BoolVar(&options.EnablePProf, "enable-pprof", false, "Enable pprof for profiling")
 	cmd.PersistentFlags().StringVar(&options.PProfAddr, "pprof-addr", ":6060", "Address to start pprof server on. Default is :6060")
+	cmd.PersistentFlags().BoolVar(&options.EnableCSIIntegration, "enable-csi-integration", false, "Enables CSI integration. Default is :false")
 }
 
 func GetIgnoredResourcesList() (List, error) {

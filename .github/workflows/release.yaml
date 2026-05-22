@@ -11,6 +11,7 @@ env:
   KUBERNETES_VERSION: "1.30.0"
   KIND_VERSION: "0.23.0"
   REGISTRY: ghcr.io
+  RELOADER_EDITION: oss
 
 jobs:
   release:
@@ -110,6 +111,7 @@ jobs:
             VERSION=${{ steps.generate_tag.outputs.RELEASE_VERSION }}
             COMMIT=${{ github.sha }}
             BUILD_DATE=${{ steps.prep.outputs.created }}
+            EDITION=${{ env.RELOADER_EDITION }}
           labels: |
             org.opencontainers.image.source=${{ github.event.repository.clone_url }}
             org.opencontainers.image.created=${{ steps.prep.outputs.created }}
@@ -160,6 +162,7 @@ jobs:
             VERSION=${{ steps.generate_tag.outputs.RELEASE_VERSION }}
             COMMIT=${{ github.sha }}
             BUILD_DATE=${{ steps.prep.outputs.created }}
+            EDITION=${{ env.RELOADER_EDITION }}
           labels: |
             org.opencontainers.image.source=${{ github.event.repository.clone_url }}
             org.opencontainers.image.created=${{ steps.prep.outputs.created }}
@@ -178,21 +181,6 @@ jobs:
           platforms: linux/amd64,linux/arm64
           tags: |
             ${{ env.GHCR_IMAGE_REPOSITORY }}:${{ steps.generate_tag.outputs.RELEASE_VERSION }}-ubi
-          labels: |
-            org.opencontainers.image.source=${{ github.event.repository.clone_url }}
-            org.opencontainers.image.created=${{ steps.prep.outputs.created }}
-            org.opencontainers.image.revision=${{ github.sha }}
-
-      - name: Build and Push Docker Image for Docs to ghcr registry
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          file: Dockerfile-docs
-          pull: true
-          push: true
-          cache-to: type=inline
-          tags: |
-            ${{ env.GHCR_IMAGE_REPOSITORY }}/docs:${{ steps.generate_tag.outputs.RELEASE_VERSION }}
           labels: |
             org.opencontainers.image.source=${{ github.event.repository.clone_url }}
             org.opencontainers.image.created=${{ steps.prep.outputs.created }}

@@ -160,6 +160,10 @@ func startReloader(cmd *cobra.Command, args []string) {
 
 	var controllers []*controller.Controller
 	for k := range kube.ResourceMap {
+		if k == constants.SecretProviderClassController && !shouldRunCSIController() {
+			continue
+		}
+
 		if ignoredResourcesList.Contains(k) || (len(namespaceLabelSelector) == 0 && k == "namespaces") {
 			continue
 		}
@@ -206,4 +210,16 @@ func startPProfServer() {
 	if err := http.ListenAndServe(options.PProfAddr, nil); err != nil {
 		logrus.Errorf("Failed to start pprof server: %v", err)
 	}
+}
+
+func shouldRunCSIController() bool {
+	if !options.EnableCSIIntegration {
+		logrus.Info("Skipping secretproviderclasspodstatuses controller: EnableCSIIntegration is disabled")
+		return false
+	}
+	if !kube.IsCSIInstalled {
+		logrus.Info("Skipping secretproviderclasspodstatuses controller: CSI CRDs not installed")
+		return false
+	}
+	return true
 }

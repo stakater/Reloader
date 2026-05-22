@@ -87,3 +87,19 @@ Create the namespace selector if it does not watch globally
     {{ .Values.reloader.namespaceSelector }}
 {{- end -}}
 {{- end -}}
+
+{{/*
+Normalizes global.imagePullSecrets to a list of objects with name fields.
+Supports both of these in values.yaml:
+  # - name: my-pull-secret
+  # - my-pull-secret
+*/}}
+{{- define "reloader-imagePullSecrets" -}}
+{{- range $s := .Values.global.imagePullSecrets }}
+{{- if kindIs "map" $s }}
+- {{ toYaml $s | nindent 2 | trim }}
+{{- else }}
+- name: {{ $s }}
+{{- end }}
+{{- end }}
+{{- end -}}

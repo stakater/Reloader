@@ -49,7 +49,7 @@ func newTestFixtures() testFixtures {
 
 func setupTestClients() kube.Clients {
 	return kube.Clients{
-		KubernetesClient:  fake.NewSimpleClientset(),
+		KubernetesClient:  fake.NewClientset(),
 		ArgoRolloutClient: fakeargoclientset.NewSimpleClientset(),
 	}
 }

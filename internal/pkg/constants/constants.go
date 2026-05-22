@@ -8,6 +8,8 @@ const (
 	ConfigmapEnvVarPostfix = "CONFIGMAP"
 	// SecretEnvVarPostfix is a postfix for secret envVar
 	SecretEnvVarPostfix = "SECRET"
+	// SecretProviderClassEnvVarPostfix is a postfix for secretproviderclasspodstatus envVar
+	SecretProviderClassEnvVarPostfix = "SECRETPROVIDERCLASS"
 	// EnvVarPrefix is a Prefix for environment variable
 	EnvVarPrefix = "STAKATER_"
 
@@ -22,6 +24,8 @@ const (
 	EnvVarsReloadStrategy = "env-vars"
 	// AnnotationsReloadStrategy instructs Reloader to add pod template annotations to facilitate a restart
 	AnnotationsReloadStrategy = "annotations"
+	// SecretProviderClassController enables support for SecretProviderClassPodStatus resources
+	SecretProviderClassController = "secretproviderclasspodstatuses"
 )
 
 // Leadership election related consts

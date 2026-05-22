@@ -9,11 +9,6 @@ on:
       - '**'
       - '!.markdownlint.yaml'
       - '!.vale.ini'
-      - '!Dockerfile-docs'
-      - '!docs-nginx.conf'
-      - '!docs/**'
-      - '!theme_common'
-      - '!theme_override'
       - '!deployments/kubernetes/chart/reloader/**'
 
 env:
@@ -22,6 +17,7 @@ env:
   KUBERNETES_VERSION: "1.30.0"
   KIND_VERSION: "0.23.0"
   REGISTRY: ghcr.io
+  RELOADER_EDITION: oss
 
 jobs:
   qa:
@@ -35,6 +31,8 @@ jobs:
 
     permissions:
       contents: read
+      pull-requests: write
+      issues: write
 
     runs-on: ubuntu-latest
     name: Build
@@ -47,14 +45,16 @@ jobs:
 
     # Setting up helm binary
     - name: Set up Helm
-      uses: azure/setup-helm@v4
+      uses: azure/setup-helm@v5
       with:
-        version: v3.11.3
+        version: v3.20.2
 
     - name: Helm chart unit tests
       uses: d3adb5/helm-unittest-action@v2
       with:
         charts: deployments/kubernetes/chart/reloader
+        helm-version: v3.20.2
+        github-token: ${{ secrets.GITHUB_TOKEN }}
 
     - name: Set up Go
       uses: actions/setup-go@v6
@@ -109,6 +109,17 @@ jobs:
     - name: Test
       run: make test
 
+    - name: Run quick A/B load tests
+      uses: ./.github/actions/loadtest
+      with:
+        old-ref: ${{ github.event.pull_request.base.sha }}
+        # new-ref defaults to current checkout (PR branch)
+        scenarios: 'S1,S4,S6'
+        test-type: 'quick'
+        kind-cluster: 'kind'  # Use the existing cluster created above
+        post-comment: 'true'
+        pr-number: ${{ github.event.pull_request.number }}
+
     - name: Generate Tags
       id: generate_tag
       run: |
@@ -141,6 +152,7 @@ jobs:
           VERSION=merge-${{ steps.generate_tag.outputs.GIT_TAG }}
           COMMIT=${{github.event.pull_request.head.sha}}
           BUILD_DATE=${{ steps.prep.outputs.created }}
+          EDITION=${{ env.RELOADER_EDITION }}
           BUILD_PARAMETERS=${{ env.BUILD_PARAMETERS }}
         
         cache-to: type=inline
@@ -160,6 +172,10 @@ jobs:
         pull: true
         push: false
         build-args: |
+          VERSION=merge-${{ steps.generate_tag.outputs.GIT_UBI_TAG }}
+          COMMIT=${{github.event.pull_request.head.sha}}
+          BUILD_DATE=${{ steps.prep.outputs.created }}
+          EDITION=${{ env.RELOADER_EDITION }}
           BUILD_PARAMETERS=${{ env.BUILD_PARAMETERS }}
           BUILDER_IMAGE=${{ env.GHCR_IMAGE_REPOSITORY }}:${{ steps.highest_tag.outputs.tag }}
         cache-to: type=inline
