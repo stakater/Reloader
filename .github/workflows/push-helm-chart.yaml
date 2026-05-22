@@ -17,6 +17,9 @@ env:
   HELM_REGISTRY_URL: "https://stakater.github.io/stakater-charts"
   REGISTRY: ghcr.io # container registry
 
+# Default to no GITHUB_TOKEN permissions; each job opts into the minimum it needs.
+permissions: {}
+
 jobs:
   verify-and-push-helm-chart:
 
@@ -31,7 +34,7 @@ jobs:
 
     steps:
       - name: Check out code
-        uses: actions/checkout@v5
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
         with:
           token: ${{ secrets.PUBLISH_TOKEN }}
           fetch-depth: 0 # otherwise, you will fail to push refs to dest repo
@@ -39,7 +42,7 @@ jobs:
 
       # Setting up helm binary
       - name: Set up Helm
-        uses: azure/setup-helm@v4
+        uses: azure/setup-helm@1a275c3b69536ee54be43f2070a358922e12c8d4 # v4
         with:
           version: v3.11.3
 
@@ -54,13 +57,13 @@ jobs:
           echo "CURRENT_CHART_VERSION=$(echo ${current_chart_version})" >> $GITHUB_OUTPUT
 
       - name: Get Updated Chart version from Chart.yaml
-        uses: mikefarah/yq@master
+        uses: mikefarah/yq@751d8ad57b84f1794661bc70c0afb92a22ad7b3c # v4.53.2
         id: new_chart_version
         with:
           cmd: yq e '.version' deployments/kubernetes/chart/reloader/Chart.yaml
 
       - name: Check Version
-        uses: aleoyakas/check-semver-increased-action@v1
+        uses: aleoyakas/check-semver-increased-action@415c9c60054c2442c03478b6dd96a195deac6695 # v1
         id: check-version
         with:
           current-version: ${{ steps.new_chart_version.outputs.result }}
@@ -73,10 +76,10 @@ jobs:
           exit 1
 
       - name: Install Cosign
-        uses: sigstore/cosign-installer@v4.0.0
+        uses: sigstore/cosign-installer@faadad0cce49287aee09b3a48701e75088a2c6ad # v4.0.0
 
       - name: Login to GHCR Registry
-        uses: docker/login-action@v3
+        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
         with:
           registry: ${{ env.REGISTRY }}
           username: stakater-user
@@ -92,7 +95,7 @@ jobs:
         run: cosign sign --yes ghcr.io/stakater/charts/reloader:${{ steps.new_chart_version.outputs.result }}
 
       - name: Publish Helm chart to gh-pages
-        uses: stefanprodan/helm-gh-pages@master
+        uses: stefanprodan/helm-gh-pages@0ad2bb377311d61ac04ad9eb6f252fb68e207260 # v1.7.0
         with:
           branch: master
           repository: stakater-charts
@@ -106,14 +109,14 @@ jobs:
           commit_email: stakater@gmail.com
 
       - name: Push new chart tag
-        uses: anothrNick/github-tag-action@1.75.0
+        uses: anothrNick/github-tag-action@4ed44965e0db8dab2b466a16da04aec3cc312fd8 # 1.75.0
         env:
           GITHUB_TOKEN: ${{ secrets.PUBLISH_TOKEN }}
           WITH_V: false
           CUSTOM_TAG: chart-v${{ steps.new_chart_version.outputs.result }}
 
       - name: Notify Slack
-        uses: 8398a7/action-slack@v3
+        uses: 8398a7/action-slack@77eaa4f1c608a7d68b38af4e3f739dcd8cba273e # v3
         if: always() # Pick up events even if the job fails or is canceled.
         with:
           status: ${{ job.status }}
