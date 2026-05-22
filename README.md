@@ -8,7 +8,7 @@
 [![Release](https://img.shields.io/github/release/stakater/reloader.svg?style=flat-square)](https://github.com/stakater/reloader/releases/latest)
 [![GitHub tag](https://img.shields.io/github/tag/stakater/reloader.svg?style=flat-square)](https://github.com/stakater/reloader/releases/latest)
 [![Docker Pulls](https://img.shields.io/docker/pulls/stakater/reloader.svg?style=flat-square)](https://hub.docker.com/r/stakater/reloader/)
-[![Docker Stars](https://img.shields.io/docker/stars/stakater/reloader.svg?style=flat-square)](https://hub.docker.com/r/stakater/reloader/)
+[![GitHub Stars](https://img.shields.io/github/stars/stakater/Reloader.svg?style=flat-square)](https://github.com/stakater/Reloader)
 [![license](https://img.shields.io/github/license/stakater/reloader.svg?style=flat-square)](LICENSE)
 
 ## 🔁 What is Reloader?
@@ -18,6 +18,8 @@ Reloader is a Kubernetes controller that automatically triggers rollouts of work
 In a traditional Kubernetes setup, updating a `Secret` or `ConfigMap` does not automatically restart or redeploy your workloads. This can lead to stale configurations running in production, especially when dealing with dynamic values like credentials, feature flags, or environment configs.
 
 Reloader bridges that gap by ensuring your workloads stay in sync with configuration changes — automatically and safely.
+
+📚 Full documentation is available at [Stakater documentation site](https://docs.stakater.com/reloader/)
 
 ## 🚀 Why Reloader?
 
@@ -49,6 +51,27 @@ flowchart LR
 - Sources like `ExternalSecret`, `SealedSecret`, or `Certificate` from `cert-manager` can create or manage Kubernetes `Secrets` — but they can also be created manually or delivered through GitOps workflows.
 - `Secrets` and `ConfigMaps` are watched by Reloader.
 - When changes are detected, Reloader automatically triggers a rollout of the associated workloads, ensuring your app always runs with the latest configuration.
+
+## ⭐ Show Your Support
+
+Enjoying the project? Star Reloader on GitHub and stay updated with new releases.
+
+![star](https://github.com/user-attachments/assets/14ff6a8f-7414-4e4a-867e-874f9b0a7885)
+
+## 🏢 Reloader Enterprise
+
+Reloader OSS is free and production-proven with 24B+ downloads.
+
+For teams with stricter requirements:
+
+| Need | Enterprise |
+|------|-----------|
+| CVE-free, signed images with SBOM | ✅ |
+| SLA-backed support from Kubernetes experts | ✅ |
+| Artifact provenance for compliance audits | ✅ |
+| Dedicated escalation path | ✅ |
+
+→ [Contact Sales](mailto:sales@stakater.com) for info about Reloader Enterprise.
 
 ## ⚡ Quick Start
 
@@ -94,12 +117,6 @@ Stakater offers an enterprise-grade version of Reloader with:
 1. Private Slack support
 
 Contact [`sales@stakater.com`](mailto:sales@stakater.com) for info about Reloader Enterprise.
-
-## ⭐ Show Your Support
-
-Enjoying the project? Star Reloader on GitHub and stay updated with new releases.
-
-![star](https://github.com/user-attachments/assets/14ff6a8f-7414-4e4a-867e-874f9b0a7885)
 
 ## 🧩 Usage
 
@@ -453,11 +470,18 @@ These flags allow you to redefine annotation keys used in your workloads or reso
 
 Reloader is compatible with Kubernetes >= 1.19
 
+## 🏢 Adopters
+
+Reloader has **24B+ Docker pulls** across thousands of Kubernetes clusters worldwide.
+
+If you're running Reloader in production, we'd love to hear from you:
+
+- 💬 **Share your story** → [Show & Tell Discussion](https://github.com/stakater/Reloader/discussions/1137)
+- 🏷️ **Add your logo** → [ADOPTERS.md](./adopters/ADOPTERS.md)
+
+[See who's using Reloader →](./adopters/ADOPTERS.md)
+
 ## Help
-
-### Documentation
-
-The Reloader documentation can be viewed from [the doc site](https://docs.stakater.com/reloader/). The doc source is in the [docs](./docs/) folder.
 
 ### Have a question?
 
