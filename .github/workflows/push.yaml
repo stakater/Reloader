@@ -17,6 +17,9 @@ env:
   REGISTRY: ghcr.io
   RELOADER_EDITION: oss
 
+# Default to no GITHUB_TOKEN permissions; each job opts into the minimum it needs.
+permissions: {}
+
 jobs:
   build:
 
@@ -30,7 +33,7 @@ jobs:
 
     steps:
       - name: Check out code
-        uses: actions/checkout@v5
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
         with:
           token: ${{ secrets.PUBLISH_TOKEN }}
           fetch-depth: 0 # otherwise, you will fail to push refs to dest repo
@@ -38,16 +41,16 @@ jobs:
 
       # Setting up helm binary
       - name: Set up Helm
-        uses: azure/setup-helm@v4
+        uses: azure/setup-helm@1a275c3b69536ee54be43f2070a358922e12c8d4 # v4
         with:
           version: v3.11.3
 
       - name: Set up Go
-        uses: actions/setup-go@v6
+        uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6
         with:
           go-version-file: 'go.mod'
           check-latest: true
-          cache: true
+          cache: false
 
       - name: Install Dependencies
         run: |
@@ -78,13 +81,13 @@ jobs:
         run: make test
 
       - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
+        uses: docker/setup-qemu-action@c7c53464625b32c7a7e944ae62b3e17d2b600130 # v3
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
 
       - name: Login to Docker Registry
-        uses: docker/login-action@v3
+        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
         with:
           username: ${{ secrets.STAKATER_DOCKERHUB_USERNAME }}
           password: ${{ secrets.STAKATER_DOCKERHUB_PASSWORD }}
@@ -98,7 +101,7 @@ jobs:
           echo DOCKER_IMAGE_REPOSITORY=$(echo ${{ github.repository }} | tr '[:upper:]' '[:lower:]') >> $GITHUB_ENV
 
       - name: Build and Push Docker Image to Docker registry
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
         with:
           context: .
           file: ${{ env.DOCKER_FILE_PATH  }}
@@ -110,7 +113,6 @@ jobs:
             BUILD_DATE=${{ steps.prep.outputs.created }}
             EDITION=${{ env.RELOADER_EDITION }}
             BUILD_PARAMETERS=${{ env.BUILD_PARAMETERS }}
-          cache-to: type=inline
           platforms: linux/amd64,linux/arm,linux/arm64
           tags: |
             ${{ env.DOCKER_IMAGE_REPOSITORY }}:merge-${{ github.event.number }}
@@ -119,7 +121,7 @@ jobs:
             org.opencontainers.image.revision=${{ github.sha }}
 
       - name: Build and Push Docker UBI Image to Docker registry
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
         with:
           context: .
           file: ${{ env.DOCKER_UBI_FILE_PATH  }}
@@ -128,7 +130,6 @@ jobs:
           build-args: |
             BUILD_PARAMETERS=${{ env.BUILD_PARAMETERS }}
             BUILDER_IMAGE=${{ env.DOCKER_IMAGE_REPOSITORY }}:merge-${{ github.event.number }}
-          cache-to: type=inline
           platforms: linux/amd64,linux/arm64
           tags: |
             ${{ env.DOCKER_IMAGE_REPOSITORY }}:merge-${{ github.event.number }}-ubi
@@ -137,7 +138,7 @@ jobs:
             org.opencontainers.image.revision=${{ github.sha }}
 
       - name: Login to ghcr registry
-        uses: docker/login-action@v3
+        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
         with:
           registry: ${{env.REGISTRY}}
           username: stakater-user
@@ -148,7 +149,7 @@ jobs:
           echo GHCR_IMAGE_REPOSITORY=${{env.REGISTRY}}/$(echo ${{ github.repository }} | tr '[:upper:]' '[:lower:]') >> $GITHUB_ENV
 
       - name: Build and Push Docker Image to ghcr registry
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
         with:
           context: .
           file: ${{ env.DOCKER_FILE_PATH  }}
@@ -160,7 +161,6 @@ jobs:
             BUILD_DATE=${{ steps.prep.outputs.created }}
             EDITION=${{ env.RELOADER_EDITION }}
             BUILD_PARAMETERS=${{ env.BUILD_PARAMETERS }}
-          cache-to: type=inline
           platforms: linux/amd64,linux/arm,linux/arm64
           tags: |
             ${{ env.GHCR_IMAGE_REPOSITORY }}:merge-${{ github.event.number }}
@@ -169,7 +169,7 @@ jobs:
             org.opencontainers.image.revision=${{ github.sha }}
 
       - name: Build and Push Docker UBI Image to ghcr registry
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
         with:
           context: .
           file: ${{ env.DOCKER_UBI_FILE_PATH  }}
@@ -178,7 +178,6 @@ jobs:
           build-args: |
             BUILD_PARAMETERS=${{ env.BUILD_PARAMETERS }}
             BUILDER_IMAGE=${{ env.GHCR_IMAGE_REPOSITORY }}:merge-${{ github.event.number }}
-          cache-to: type=inline
           platforms: linux/amd64,linux/arm64
           tags: |
             ${{ env.GHCR_IMAGE_REPOSITORY }}:merge-${{ github.event.number }}-ubi
@@ -187,14 +186,14 @@ jobs:
             org.opencontainers.image.revision=${{ github.sha }}
 
       - name: Push Latest Tag
-        uses: anothrNick/github-tag-action@1.75.0
+        uses: anothrNick/github-tag-action@4ed44965e0db8dab2b466a16da04aec3cc312fd8 # 1.75.0
         env:
           GITHUB_TOKEN: ${{ secrets.PUBLISH_TOKEN }}
           WITH_V: false
           CUSTOM_TAG: merge-${{ github.event.number }}
 
       - name: Notify Slack
-        uses: 8398a7/action-slack@v3
+        uses: 8398a7/action-slack@77eaa4f1c608a7d68b38af4e3f739dcd8cba273e # v3
         if: always() # Pick up events even if the job fails or is canceled.
         with:
           status: ${{ job.status }}
