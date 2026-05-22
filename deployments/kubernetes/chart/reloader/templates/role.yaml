@@ -149,6 +149,13 @@ rules:
       - leases
     verbs:
       - create
+  - apiGroups:
+      - "coordination.k8s.io"
+    resourceNames:
+      - stakater-reloader-lock
+    resources:
+      - leases
+    verbs:
       - get
       - update
 {{- end}}
