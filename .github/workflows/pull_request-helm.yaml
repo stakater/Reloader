@@ -44,6 +44,8 @@ jobs:
       uses: d3adb5/helm-unittest-action@850bc76597579183998069830d5fa8c3ef0ea34a # v2
       with:
         charts: deployments/kubernetes/chart/reloader
+        helm-version: v3.20.2
+        github-token: ${{ secrets.GITHUB_TOKEN }}
 
   helm-version-validation:
     needs: helm-chart-validation
