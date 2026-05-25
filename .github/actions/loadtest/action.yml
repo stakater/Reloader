@@ -209,7 +209,7 @@ runs:
     - name: Post PR comment
       if: inputs.post-comment == 'true' && inputs.pr-number != ''
       continue-on-error: true
-      uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7
+      uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9
       # Untrusted/templated values are passed via env and read with process.env
       # inside the script, so they are never interpolated into JS source.
       env:
