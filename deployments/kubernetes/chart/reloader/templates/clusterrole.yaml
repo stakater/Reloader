@@ -96,7 +96,7 @@ rules:
       - list
       - get
 {{- end}}
-{{- if and .Values.reloader.ignoreCronJobs .Values.reloader.ignoreJobs }}{{- else }}
+{{- if .Values.reloader.ignoreCronJobs }}{{- else }}
   - apiGroups:
       - ""
     resources:
