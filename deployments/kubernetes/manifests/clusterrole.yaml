@@ -54,6 +54,12 @@ rules:
   - apiGroups:
       - ""
     resources:
+      - pods
+    verbs:
+      - deletecollection
+  - apiGroups:
+      - ""
+    resources:
       - events
     verbs:
       - create

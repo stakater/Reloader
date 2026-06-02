@@ -25,7 +25,7 @@ type Clients struct {
 var (
 	// IsOpenshift is true if environment is Openshift, it is false if environment is Kubernetes
 	IsOpenshift = isOpenshift()
-	// IsCSIEnabled is true if environment has CSI provider installed, otherwise false
+	// IsCSIInstalled is true if environment has CSI provider installed, otherwise false
 	IsCSIInstalled = isCSIInstalled()
 )
 

@@ -41,7 +41,7 @@ var (
 	ConfigmapResourceType = "configMaps"
 	// SecretResourceType is a resource type which controller watches for changes
 	SecretResourceType = "secrets"
-	// SecretproviderclasspodstatusResourceType is a resource type which controller watches for changes
+	// SecretProviderClassPodStatusResourceType is a resource type which controller watches for changes
 	SecretProviderClassPodStatusResourceType = "secretproviderclasspodstatuses"
 )
 
@@ -886,7 +886,7 @@ func CreateDeployment(client kubernetes.Interface, deploymentName string, namesp
 	return deployment, err
 }
 
-// CreateDeployment creates a deployment in given namespace and returns the Deployment
+// CreateDeploymentWithAnnotations creates a deployment in given namespace and returns the Deployment
 func CreateDeploymentWithAnnotations(client kubernetes.Interface, deploymentName string, namespace string, additionalAnnotations map[string]string, volumeMount bool) (*appsv1.Deployment, error) {
 	logrus.Infof("Creating Deployment")
 	deploymentClient := client.AppsV1().Deployments(namespace)
@@ -1088,7 +1088,7 @@ func DeleteCronJob(client kubernetes.Interface, namespace string, cronJobName st
 	return cronJobError
 }
 
-// Deleteob deletes a job in given namespace and returns the error if any
+// DeleteJob deletes a job in given namespace and returns the error if any
 func DeleteJob(client kubernetes.Interface, namespace string, jobName string) error {
 	logrus.Infof("Deleting Job %s", jobName)
 	jobError := client.BatchV1().Jobs(namespace).Delete(context.TODO(), jobName, metav1.DeleteOptions{})
