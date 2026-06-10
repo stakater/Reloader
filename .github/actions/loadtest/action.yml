@@ -209,12 +209,21 @@ runs:
     - name: Post PR comment
       if: inputs.post-comment == 'true' && inputs.pr-number != ''
       continue-on-error: true
-      uses: actions/github-script@v7
+      uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7
+      # Untrusted/templated values are passed via env and read with process.env
+      # inside the script, so they are never interpolated into JS source.
+      env:
+        SUMMARY_PATH: ${{ github.workspace }}/test/loadtest/summary.md
+        COMMENT_HEADER: ${{ inputs.comment-header }}
+        RUN_STATUS: ${{ steps.run.outputs.status }}
+        TEST_TYPE: ${{ inputs.test-type }}
+        PR_NUMBER: ${{ inputs.pr-number }}
+        RUN_URL: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
       with:
         github-token: ${{ inputs.github-token }}
         script: |
           const fs = require('fs');
-          const summaryPath = '${{ github.workspace }}/test/loadtest/summary.md';
+          const summaryPath = process.env.SUMMARY_PATH;
           let summary = 'No results available';
           try {
             summary = fs.readFileSync(summaryPath, 'utf8');
@@ -222,24 +231,24 @@ runs:
             console.log('Could not read summary file:', e.message);
           }
 
-          const header = '${{ inputs.comment-header }}';
-          const status = '${{ steps.run.outputs.status }}';
+          const header = process.env.COMMENT_HEADER;
+          const status = process.env.RUN_STATUS;
           const statusEmoji = status === 'pass' ? ':white_check_mark:' : ':x:';
 
           const body = [
-            header ? header : `## ${statusEmoji} Load Test Results (${{ inputs.test-type }})`,
+            header ? header : `## ${statusEmoji} Load Test Results (${process.env.TEST_TYPE})`,
             '',
             summary,
             '',
             '---',
-            `**Artifacts:** [Download](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})`,
+            `**Artifacts:** [Download](${process.env.RUN_URL})`,
           ].join('\n');
 
           try {
             await github.rest.issues.createComment({
               owner: context.repo.owner,
               repo: context.repo.repo,
-              issue_number: ${{ inputs.pr-number }},
+              issue_number: Number(process.env.PR_NUMBER),
               body: body
             });
             console.log('Comment posted successfully');
@@ -252,7 +261,7 @@ runs:
           }
 
     - name: Upload results
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
       if: always()
       with:
         name: loadtest-${{ inputs.test-type }}-results
