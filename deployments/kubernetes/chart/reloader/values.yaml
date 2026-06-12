@@ -19,7 +19,7 @@ fullnameOverride: ""
 image:
   name: stakater/reloader
   repository: ghcr.io/stakater/reloader
-  tag: v1.4.16
+  tag: v1.4.17
   # digest: sha256:1234567
   pullPolicy: IfNotPresent
 
@@ -77,6 +77,8 @@ reloader:
     replicas: 1
 
     revisionHistoryLimit: 2
+
+    hostUsers: null
 
     nodeSelector:
     # cloud.google.com/gke-nodepool: default-pool
