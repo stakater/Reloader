@@ -162,8 +162,20 @@ func TestGetIgnoredResourcesList(t *testing.T) {
 			expected:    []string{"configmaps"},
 		},
 		{
+			name:        "Mixed-case ConfigMaps normalizes to configmaps",
+			resources:   []string{"ConfigMaps"},
+			expectError: false,
+			expected:    []string{"configmaps"},
+		},
+		{
 			name:        "secrets",
 			resources:   []string{"secrets"},
+			expectError: false,
+			expected:    []string{"secrets"},
+		},
+		{
+			name:        "Mixed-case sEcrets normalizes to secrets",
+			resources:   []string{"sEcrets"},
 			expectError: false,
 			expected:    []string{"secrets"},
 		},
