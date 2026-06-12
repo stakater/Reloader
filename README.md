@@ -440,6 +440,7 @@ These flags allow you to redefine annotation keys used in your workloads or reso
 | `--search-match-annotation` | Overrides `reloader.stakater.com/match` |
 | `--secret-annotation` | Overrides `secret.reloader.stakater.com/reload` |
 | `--configmap-annotation` | Overrides `configmap.reloader.stakater.com/reload` |
+| `--ignore-annotation` | Overrides `reloader.stakater.com/ignore` |
 | `--pause-deployment-annotation` | Overrides `deployment.reloader.stakater.com/pause-period` |
 | `--pause-deployment-time-annotation` | Overrides `deployment.reloader.stakater.com/paused-at` |
 

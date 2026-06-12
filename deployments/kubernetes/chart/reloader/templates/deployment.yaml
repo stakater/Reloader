@@ -48,6 +48,9 @@ spec:
       imagePullSecrets:
 {{ include "reloader-imagePullSecrets" . | indent 8 }}
       {{- end }}
+      {{- if kindIs "bool" .Values.reloader.deployment.hostUsers }}
+      hostUsers: {{ .Values.reloader.deployment.hostUsers }}
+      {{- end }}
       {{- if .Values.reloader.deployment.nodeSelector }}
       nodeSelector:
 {{ toYaml .Values.reloader.deployment.nodeSelector | indent 8 }}
@@ -277,6 +280,10 @@ spec:
             {{- if .Values.reloader.custom_annotations.match }}
           - "--search-match-annotation"
           - "{{ .Values.reloader.custom_annotations.match }}"
+            {{- end }}
+            {{- if .Values.reloader.custom_annotations.ignore }}
+          - "--ignore-annotation"
+          - "{{ .Values.reloader.custom_annotations.ignore }}"
             {{- end }}
             {{- if .Values.reloader.custom_annotations.pausePeriod }}
           - "--pause-deployment-annotation"

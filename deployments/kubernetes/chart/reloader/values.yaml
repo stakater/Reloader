@@ -78,6 +78,8 @@ reloader:
 
     revisionHistoryLimit: 2
 
+    hostUsers: null
+
     nodeSelector:
     # cloud.google.com/gke-nodepool: default-pool
 
@@ -213,6 +215,7 @@ reloader:
   #   custom_annotations:
   #     configmap: "my.company.com/configmap"
   #     secret: "my.company.com/secret"
+  #     ignore: "my.company.com/reloader-ignore"
   custom_annotations: {}
 
   serviceMonitor:
