@@ -5151,3 +5151,59 @@ func TestGetContainerUsingResourceWithArgoRolloutEmptyContainers(t *testing.T) {
 		})
 	}
 }
+
+// TestGetCronJobPatchFuncs tests that the CronJob patch funcs are configured correctly
+func TestGetCronJobPatchFuncs(t *testing.T) {
+	patchFuncs := GetCronJobPatchFuncs()
+
+	assert.True(t, patchFuncs.SupportsPatch, "CronJob patch funcs should support patching")
+	assert.Equal(t, "CronJob", patchFuncs.ResourceType)
+	assert.NotNil(t, patchFuncs.ItemFunc)
+	assert.NotNil(t, patchFuncs.ItemsFunc)
+	assert.NotNil(t, patchFuncs.AnnotationsFunc)
+	assert.NotNil(t, patchFuncs.PodAnnotationsFunc)
+	assert.NotNil(t, patchFuncs.ContainersFunc)
+	assert.NotNil(t, patchFuncs.InitContainersFunc)
+	assert.NotNil(t, patchFuncs.UpdateFunc)
+	assert.NotNil(t, patchFuncs.PatchFunc)
+	assert.NotNil(t, patchFuncs.PatchTemplatesFunc)
+	assert.NotNil(t, patchFuncs.VolumesFunc)
+
+	// Verify patch templates are correct for CronJob
+	templates := patchFuncs.PatchTemplatesFunc()
+	assert.NotEmpty(t, templates.AnnotationTemplate)
+	assert.Contains(t, templates.AnnotationTemplate, "jobTemplate")
+	assert.NotEmpty(t, templates.EnvVarTemplate)
+	assert.Contains(t, templates.EnvVarTemplate, "jobTemplate")
+	assert.NotEmpty(t, templates.DeleteEnvVarTemplate)
+	assert.Contains(t, templates.DeleteEnvVarTemplate, "jobTemplate")
+}
+
+// TestGetCronJobCreateJobFuncs tests that the default CronJob funcs are configured correctly
+func TestGetCronJobCreateJobFuncs(t *testing.T) {
+	createJobFuncs := GetCronJobCreateJobFuncs()
+
+	assert.False(t, createJobFuncs.SupportsPatch, "CronJob create-job funcs should not support patching")
+	assert.Equal(t, "CronJob", createJobFuncs.ResourceType)
+	assert.NotNil(t, createJobFuncs.ItemFunc)
+	assert.NotNil(t, createJobFuncs.ItemsFunc)
+	assert.NotNil(t, createJobFuncs.AnnotationsFunc)
+	assert.NotNil(t, createJobFuncs.PodAnnotationsFunc)
+	assert.NotNil(t, createJobFuncs.ContainersFunc)
+	assert.NotNil(t, createJobFuncs.InitContainersFunc)
+	assert.NotNil(t, createJobFuncs.UpdateFunc)
+	assert.NotNil(t, createJobFuncs.PatchFunc)
+	assert.NotNil(t, createJobFuncs.PatchTemplatesFunc)
+	assert.NotNil(t, createJobFuncs.VolumesFunc)
+
+	// Verify patch templates are empty for default CronJob funcs (since it doesn't support patching)
+	templates := createJobFuncs.PatchTemplatesFunc()
+	assert.Empty(t, templates.AnnotationTemplate)
+	assert.Empty(t, templates.EnvVarTemplate)
+	assert.Empty(t, templates.DeleteEnvVarTemplate)
+}
+
+// TestCronJobReloadStrategyAnnotation tests that the CronJobReloadStrategyAnnotation constant is set correctly
+func TestCronJobReloadStrategyAnnotation(t *testing.T) {
+	assert.Equal(t, "reloader.stakater.com/cronjob-reload-strategy", options.CronJobReloadStrategyAnnotation)
+}
