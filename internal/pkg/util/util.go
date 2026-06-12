@@ -124,7 +124,12 @@ func GetIgnoredResourcesList() (List, error) {
 		return nil, errors.New("'resources-to-ignore' only accepts 'configMaps' or 'secrets', not both")
 	}
 
-	return ignoredResourcesList, nil
+	normalizedList := make(List, len(ignoredResourcesList))
+	for i, v := range ignoredResourcesList {
+		normalizedList[i] = strings.ToLower(v)
+	}
+
+	return normalizedList, nil
 }
 
 func GetIgnoredWorkloadTypesList() (List, error) {
