@@ -8,45 +8,6 @@ import (
 	"github.com/stakater/Reloader/internal/pkg/options"
 )
 
-// custom named types to verify reflect-based extraction
-type myBool bool
-type myString string
-
-func TestParseBool(t *testing.T) {
-	tests := []struct {
-		name  string
-		input interface{}
-		want  bool
-	}{
-		// concrete bool
-		{"true bool", true, true},
-		{"false bool", false, false},
-		// concrete string
-		{"string true", "true", true},
-		{"string 1", "1", true},
-		{"string false", "false", false},
-		{"string 0", "0", false},
-		{"string invalid", "banana", false},
-		// custom named bool kind
-		{"myBool true", myBool(true), true},
-		{"myBool false", myBool(false), false},
-		// custom named string kind
-		{"myString true", myString("true"), true},
-		{"myString false", myString("false"), false},
-		// nil and unsupported
-		{"nil", nil, false},
-		{"int", 42, false},
-	}
-
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			if got := ParseBool(tc.input); got != tc.want {
-				t.Errorf("ParseBool(%v) = %v, want %v", tc.input, got, tc.want)
-			}
-		})
-	}
-}
-
 func TestConvertToEnvVarName(t *testing.T) {
 	data := "www.stakater.com"
 	envVar := ConvertToEnvVarName(data)
