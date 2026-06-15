@@ -2,16 +2,11 @@ package controller
 
 import (
 	"fmt"
-	"slices"
+	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/sirupsen/logrus"
-	"github.com/stakater/Reloader/internal/pkg/constants"
-	"github.com/stakater/Reloader/internal/pkg/handler"
-	"github.com/stakater/Reloader/internal/pkg/metrics"
-	"github.com/stakater/Reloader/internal/pkg/options"
-	"github.com/stakater/Reloader/internal/pkg/util"
-	"github.com/stakater/Reloader/pkg/kube"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
@@ -24,12 +19,18 @@ import (
 	"k8s.io/client-go/util/workqueue"
 	"k8s.io/kubectl/pkg/scheme"
 	csiv1 "sigs.k8s.io/secrets-store-csi-driver/apis/v1"
+
+	"github.com/stakater/Reloader/internal/pkg/constants"
+	"github.com/stakater/Reloader/internal/pkg/handler"
+	"github.com/stakater/Reloader/internal/pkg/metrics"
+	"github.com/stakater/Reloader/internal/pkg/options"
+	"github.com/stakater/Reloader/internal/pkg/util"
+	"github.com/stakater/Reloader/pkg/kube"
 )
 
 // Controller for checking events
 type Controller struct {
 	client            kubernetes.Interface
-	indexer           cache.Indexer
 	queue             workqueue.TypedRateLimitingInterface[any]
 	informer          cache.Controller
 	namespace         string
@@ -41,18 +42,56 @@ type Controller struct {
 	resourceSelector  string
 }
 
-// controllerInitialized flag determines whether controlled is being initialized
-var secretControllerInitialized bool = false
-var configmapControllerInitialized bool = false
-var selectedNamespacesCache []string
+// controllerInitialized flags guard against processing Add/Delete events before
+// the worker goroutines have started. Written by runWorker (in a goroutine) and
+// read by the informer event handlers, so they must be atomic.
+var secretControllerInitialized atomic.Bool
+var configmapControllerInitialized atomic.Bool
+
+// selectedNamespacesCache holds an immutable snapshot of the set of namespace
+// names that match the namespace label selector. Written exclusively by the
+// namespace controller's informer goroutine; read concurrently by configmap/
+// secret controller informer goroutines. Using atomic.Value with an immutable
+// map[string]struct{} snapshot avoids mutexes and prevents data races.
+var selectedNamespacesCache atomic.Value // always stores map[string]struct{}
+
+// loadSelectedNamespaces returns the current namespace snapshot (never nil).
+func loadSelectedNamespaces() map[string]struct{} {
+	if v := selectedNamespacesCache.Load(); v != nil {
+		if m, ok := v.(map[string]struct{}); ok {
+			return m
+		}
+	}
+	return map[string]struct{}{}
+}
+
+// storeSelectedNamespaces replaces the current snapshot with one built from ns.
+// It is the only mutator of selectedNamespacesCache and is called only from
+// the namespace controller's informer goroutine (or from tests for setup).
+func storeSelectedNamespaces(ns []string) {
+	m := make(map[string]struct{}, len(ns))
+	for _, n := range ns {
+		m[n] = struct{}{}
+	}
+	selectedNamespacesCache.Store(m)
+}
+
+// loadSelectedNamespacesList returns the current namespace names as a slice.
+// Intended for use in tests where slice-based assertions are more convenient.
+func loadSelectedNamespacesList() []string {
+	m := loadSelectedNamespaces()
+	result := make([]string, 0, len(m))
+	for k := range m {
+		result = append(result, k)
+	}
+	return result
+}
 
 // NewController for initializing a Controller
-func NewController(
-	client kubernetes.Interface, resource string, namespace string, ignoredNamespaces []string, namespaceLabelSelector string, resourceLabelSelector string, collectors metrics.Collectors) (*Controller, error) {
-
+func NewController(client kubernetes.Interface, resource string, namespace string, ignoredNamespaces []string, namespaceLabelSelector string, resourceLabelSelector string, collectors metrics.Collectors) (*Controller, error) {
 	if options.SyncAfterRestart {
-		secretControllerInitialized = true
-		configmapControllerInitialized = true
+		secretControllerInitialized.Store(true)
+		configmapControllerInitialized.Store(true)
 	}
 
 	c := Controller{
@@ -67,17 +106,18 @@ func NewController(
 	eventBroadcaster.StartRecordingToSink(&typedcorev1.EventSinkImpl{
 		Interface: client.CoreV1().Events(""),
 	})
-	recorder := eventBroadcaster.NewRecorder(scheme.Scheme, v1.EventSource{Component: fmt.Sprintf("reloader-%s", resource)})
+	recorder := eventBroadcaster.NewRecorder(scheme.Scheme,
+		v1.EventSource{Component: fmt.Sprintf("reloader-%s", resource)})
 
 	queue := workqueue.NewTypedRateLimitingQueue(workqueue.DefaultTypedControllerRateLimiter[any]())
 
-	optionsModifier := func(options *metav1.ListOptions) {
+	optionsModifier := func(opts *metav1.ListOptions) {
 		if resource == "namespaces" {
-			options.LabelSelector = c.namespaceSelector
+			opts.LabelSelector = c.namespaceSelector
 		} else if len(c.resourceSelector) > 0 {
-			options.LabelSelector = c.resourceSelector
+			opts.LabelSelector = c.resourceSelector
 		} else {
-			options.FieldSelector = fields.Everything().String()
+			opts.FieldSelector = fields.Everything().String()
 		}
 	}
 
@@ -121,7 +161,7 @@ func (c *Controller) Add(obj interface{}) {
 	}
 
 	if options.ReloadOnCreate == "true" {
-		if !c.resourceInIgnoredNamespace(obj) && c.resourceInSelectedNamespaces(obj) && secretControllerInitialized && configmapControllerInitialized {
+		if !c.resourceInIgnoredNamespace(obj) && c.resourceInSelectedNamespaces(obj) && secretControllerInitialized.Load() && configmapControllerInitialized.Load() {
 			c.enqueue(handler.ResourceCreatedHandler{
 				Resource:    obj,
 				Collectors:  c.collectors,
@@ -151,36 +191,45 @@ func (c *Controller) resourceInSelectedNamespaces(raw interface{}) bool {
 		return true
 	}
 
+	namespaces := loadSelectedNamespaces()
+	var ns string
 	switch object := raw.(type) {
 	case *v1.ConfigMap:
-		if slices.Contains(selectedNamespacesCache, object.GetNamespace()) {
-			return true
-		}
+		ns = object.GetNamespace()
 	case *v1.Secret:
-		if slices.Contains(selectedNamespacesCache, object.GetNamespace()) {
-			return true
-		}
+		ns = object.GetNamespace()
 	case *csiv1.SecretProviderClassPodStatus:
-		if slices.Contains(selectedNamespacesCache, object.GetNamespace()) {
-			return true
-		}
+		ns = object.GetNamespace()
+	default:
+		return false
 	}
-	return false
+	_, ok := namespaces[ns]
+	return ok
 }
 
 func (c *Controller) addSelectedNamespaceToCache(namespace v1.Namespace) {
-	selectedNamespacesCache = append(selectedNamespacesCache, namespace.GetName())
+	old := loadSelectedNamespaces()
+	next := make(map[string]struct{}, len(old)+1)
+	for k := range old {
+		next[k] = struct{}{}
+	}
+	next[namespace.GetName()] = struct{}{}
+	selectedNamespacesCache.Store(next)
 	logrus.Infof("added namespace to be watched: %s", namespace.GetName())
 }
 
 func (c *Controller) removeSelectedNamespaceFromCache(namespace v1.Namespace) {
-	for i, v := range selectedNamespacesCache {
-		if v == namespace.GetName() {
-			selectedNamespacesCache = append(selectedNamespacesCache[:i], selectedNamespacesCache[i+1:]...)
-			logrus.Infof("removed namespace from watch: %s", namespace.GetName())
-			return
-		}
+	old := loadSelectedNamespaces()
+	if _, ok := old[namespace.GetName()]; !ok {
+		return
 	}
+	next := make(map[string]struct{}, len(old))
+	for k := range old {
+		next[k] = struct{}{}
+	}
+	delete(next, namespace.GetName())
+	selectedNamespacesCache.Store(next)
+	logrus.Infof("removed namespace from watch: %s", namespace.GetName())
 }
 
 // Update function to add an old object and a new object to the queue in case of updating a resource
@@ -214,7 +263,7 @@ func (c *Controller) Delete(old interface{}) {
 	}
 
 	if options.ReloadOnDelete == "true" {
-		if !c.resourceInIgnoredNamespace(old) && c.resourceInSelectedNamespaces(old) && secretControllerInitialized && configmapControllerInitialized {
+		if !c.resourceInIgnoredNamespace(old) && c.resourceInSelectedNamespaces(old) && secretControllerInitialized.Load() && configmapControllerInitialized.Load() {
 			c.enqueue(handler.ResourceDeleteHandler{
 				Resource:    old,
 				Collectors:  c.collectors,
@@ -244,31 +293,44 @@ func (c *Controller) enqueue(item interface{}) {
 func (c *Controller) Run(threadiness int, stopCh chan struct{}) {
 	defer runtime.HandleCrash()
 
-	// Let the workers stop when we are done
-	defer c.queue.ShutDown()
+	var wg sync.WaitGroup
 
-	go c.informer.Run(stopCh)
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		c.informer.Run(stopCh)
+	}()
 
 	// Wait for all involved caches to be synced, before processing items from the queue is started
 	if !cache.WaitForCacheSync(stopCh, c.informer.HasSynced) {
 		runtime.HandleError(fmt.Errorf("timed out waiting for caches to sync"))
+		c.queue.ShutDown()
+		wg.Wait()
 		return
 	}
 
 	for i := 0; i < threadiness; i++ {
-		go wait.Until(c.runWorker, time.Second, stopCh)
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			wait.Until(c.runWorker, time.Second, stopCh)
+		}()
 	}
 
 	<-stopCh
-	logrus.Infof("Stopping Controller")
+	logrus.Infof("Stopping Controller for %s", c.resource)
+	c.queue.ShutDown() // unblock workers so they drain and exit
+	logrus.Infof("Queue shut down for %s, waiting for goroutines", c.resource)
+	wg.Wait() // block until informer and all workers have exited
+	logrus.Infof("All goroutines exited for %s", c.resource)
 }
 
 func (c *Controller) runWorker() {
 	// At this point the controller is fully initialized and we can start processing the resources
 	if c.resource == string(v1.ResourceSecrets) {
-		secretControllerInitialized = true
+		secretControllerInitialized.Store(true)
 	} else if c.resource == string(v1.ResourceConfigMaps) {
-		configmapControllerInitialized = true
+		configmapControllerInitialized.Store(true)
 	}
 
 	for c.processNextItem() {
@@ -299,7 +361,15 @@ func (c *Controller) processNextItem() bool {
 	startTime := time.Now()
 
 	// Invoke the method containing the business logic
-	err := resourceHandler.(handler.ResourceHandler).Handle()
+	rh, ok := resourceHandler.(handler.ResourceHandler)
+	if !ok {
+		logrus.Errorf("Invalid resource handler type: %T", resourceHandler)
+		// Clear rate-limiter state so the item doesn't leak memory in the queue.
+		c.queue.Forget(resourceHandler)
+		c.collectors.RecordError("invalid_handler_type")
+		return true
+	}
+	err := rh.Handle()
 
 	duration := time.Since(startTime)
 

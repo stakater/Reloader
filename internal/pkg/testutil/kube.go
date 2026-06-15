@@ -15,14 +15,6 @@ import (
 	openshiftv1 "github.com/openshift/api/apps/v1"
 	appsclient "github.com/openshift/client-go/apps/clientset/versioned"
 	"github.com/sirupsen/logrus"
-	"github.com/stakater/Reloader/internal/pkg/callbacks"
-	"github.com/stakater/Reloader/internal/pkg/constants"
-	"github.com/stakater/Reloader/internal/pkg/crypto"
-	"github.com/stakater/Reloader/internal/pkg/metrics"
-	"github.com/stakater/Reloader/internal/pkg/options"
-	"github.com/stakater/Reloader/internal/pkg/util"
-	"github.com/stakater/Reloader/pkg/common"
-	"github.com/stakater/Reloader/pkg/kube"
 	appsv1 "k8s.io/api/apps/v1"
 	batchv1 "k8s.io/api/batch/v1"
 	v1 "k8s.io/api/core/v1"
@@ -33,6 +25,15 @@ import (
 	csiv1 "sigs.k8s.io/secrets-store-csi-driver/apis/v1"
 	csiclient "sigs.k8s.io/secrets-store-csi-driver/pkg/client/clientset/versioned"
 	csiclient_v1 "sigs.k8s.io/secrets-store-csi-driver/pkg/client/clientset/versioned/typed/apis/v1"
+
+	"github.com/stakater/Reloader/internal/pkg/callbacks"
+	"github.com/stakater/Reloader/internal/pkg/constants"
+	"github.com/stakater/Reloader/internal/pkg/crypto"
+	"github.com/stakater/Reloader/internal/pkg/metrics"
+	"github.com/stakater/Reloader/internal/pkg/options"
+	"github.com/stakater/Reloader/internal/pkg/util"
+	"github.com/stakater/Reloader/pkg/common"
+	"github.com/stakater/Reloader/pkg/kube"
 )
 
 var (

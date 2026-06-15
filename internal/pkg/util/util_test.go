@@ -3,8 +3,9 @@ package util
 import (
 	"testing"
 
-	"github.com/stakater/Reloader/internal/pkg/options"
 	v1 "k8s.io/api/core/v1"
+
+	"github.com/stakater/Reloader/internal/pkg/options"
 )
 
 func TestConvertToEnvVarName(t *testing.T) {

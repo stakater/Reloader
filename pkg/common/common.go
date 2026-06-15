@@ -8,12 +8,13 @@ import (
 	"strings"
 
 	"github.com/sirupsen/logrus"
-	"github.com/stakater/Reloader/internal/pkg/constants"
-	"github.com/stakater/Reloader/internal/pkg/options"
-	"github.com/stakater/Reloader/internal/pkg/util"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/client-go/kubernetes"
+
+	"github.com/stakater/Reloader/internal/pkg/constants"
+	"github.com/stakater/Reloader/internal/pkg/options"
+	"github.com/stakater/Reloader/internal/pkg/util"
 )
 
 type Map map[string]string
@@ -191,14 +192,24 @@ func GetResourceLabelSelector(slice []string) (string, error) {
 }
 
 // ShouldReload checks if a resource should be reloaded based on its annotations and the provided options.
-func ShouldReload(config Config, resourceType string, annotations Map, podAnnotations Map, options *ReloaderOptions) ReloadCheckResult {
+func ShouldReload(config Config, resourceType string, annotations Map, podAnnotations Map, reloaderOpts *ReloaderOptions) ReloadCheckResult {
 
-	// Check if this workload type should be ignored
-	if len(options.WorkloadTypesToIgnore) > 0 {
-		ignoredWorkloadTypes, err := util.GetIgnoredWorkloadTypesList()
-		if err != nil {
-			logrus.Errorf("Failed to parse ignored workload types: %v", err)
-		} else {
+	// Check if this workload type should be ignored.
+	// Use reloaderOpts.WorkloadTypesToIgnore directly instead of re-reading the
+	// global via util.GetIgnoredWorkloadTypesList(), so that invalid entries simply
+	// skip the ignore check (allowing reload) rather than silently blocking it.
+	if len(reloaderOpts.WorkloadTypesToIgnore) > 0 {
+		validIgnored := util.List{}
+		valid := true
+		for _, v := range reloaderOpts.WorkloadTypesToIgnore {
+			if v != "jobs" && v != "cronjobs" {
+				logrus.Errorf("Failed to parse ignored workload types: 'ignored-workload-types' accepts 'jobs', 'cronjobs', or both, not '%s'", v)
+				valid = false
+				break
+			}
+			validIgnored = append(validIgnored, v)
+		}
+		if valid {
 			// Map Kubernetes resource types to CLI-friendly names for comparison
 			var resourceToCheck string
 			switch resourceType {
@@ -207,19 +218,15 @@ func ShouldReload(config Config, resourceType string, annotations Map, podAnnota
 			case "CronJob":
 				resourceToCheck = "cronjobs"
 			default:
-				resourceToCheck = resourceType // For other types, use as-is
+				resourceToCheck = resourceType
 			}
-
-			// Check if current resource type should be ignored
-			if ignoredWorkloadTypes.Contains(resourceToCheck) {
-				return ReloadCheckResult{
-					ShouldReload: false,
-				}
+			if validIgnored.Contains(resourceToCheck) {
+				return ReloadCheckResult{ShouldReload: false}
 			}
 		}
 	}
 
-	ignoreResourceAnnotatonValue := config.ResourceAnnotations[options.IgnoreResourceAnnotation]
+	ignoreResourceAnnotatonValue := config.ResourceAnnotations[reloaderOpts.IgnoreResourceAnnotation]
 	if ignoreResourceAnnotatonValue == "true" {
 		return ReloadCheckResult{
 			ShouldReload: false,
@@ -227,18 +234,18 @@ func ShouldReload(config Config, resourceType string, annotations Map, podAnnota
 	}
 
 	annotationValue, found := annotations[config.Annotation]
-	searchAnnotationValue, foundSearchAnn := annotations[options.AutoSearchAnnotation]
-	reloaderEnabledValue, foundAuto := annotations[options.ReloaderAutoAnnotation]
+	searchAnnotationValue, foundSearchAnn := annotations[reloaderOpts.AutoSearchAnnotation]
+	reloaderEnabledValue, foundAuto := annotations[reloaderOpts.ReloaderAutoAnnotation]
 	typedAutoAnnotationEnabledValue, foundTypedAuto := annotations[config.TypedAutoAnnotation]
-	excludeConfigmapAnnotationValue, foundExcludeConfigmap := annotations[options.ConfigmapExcludeReloaderAnnotation]
-	excludeSecretAnnotationValue, foundExcludeSecret := annotations[options.SecretExcludeReloaderAnnotation]
-	excludeSecretProviderClassProviderAnnotationValue, foundExcludeSecretProviderClass := annotations[options.SecretProviderClassExcludeReloaderAnnotation]
+	excludeConfigmapAnnotationValue, foundExcludeConfigmap := annotations[reloaderOpts.ConfigmapExcludeReloaderAnnotation]
+	excludeSecretAnnotationValue, foundExcludeSecret := annotations[reloaderOpts.SecretExcludeReloaderAnnotation]
+	excludeSecretProviderClassProviderAnnotationValue, foundExcludeSecretProviderClass := annotations[reloaderOpts.SecretProviderClassExcludeReloaderAnnotation]
 
 	if !found && !foundAuto && !foundTypedAuto && !foundSearchAnn {
 		annotations = podAnnotations
 		annotationValue = annotations[config.Annotation]
-		searchAnnotationValue = annotations[options.AutoSearchAnnotation]
-		reloaderEnabledValue = annotations[options.ReloaderAutoAnnotation]
+		searchAnnotationValue = annotations[reloaderOpts.AutoSearchAnnotation]
+		reloaderEnabledValue = annotations[reloaderOpts.ReloaderAutoAnnotation]
 		typedAutoAnnotationEnabledValue = annotations[config.TypedAutoAnnotation]
 	}
 
@@ -279,7 +286,7 @@ func ShouldReload(config Config, resourceType string, annotations Map, podAnnota
 	}
 
 	if searchAnnotationValue == "true" {
-		matchAnnotationValue := config.ResourceAnnotations[options.SearchMatchAnnotation]
+		matchAnnotationValue := config.ResourceAnnotations[reloaderOpts.SearchMatchAnnotation]
 		if matchAnnotationValue == "true" {
 			return ReloadCheckResult{
 				ShouldReload: true,
@@ -290,7 +297,7 @@ func ShouldReload(config Config, resourceType string, annotations Map, podAnnota
 
 	reloaderEnabled, _ := strconv.ParseBool(reloaderEnabledValue)
 	typedAutoAnnotationEnabled, _ := strconv.ParseBool(typedAutoAnnotationEnabledValue)
-	if reloaderEnabled || typedAutoAnnotationEnabled || reloaderEnabledValue == "" && typedAutoAnnotationEnabledValue == "" && options.AutoReloadAll {
+	if reloaderEnabled || typedAutoAnnotationEnabled || reloaderEnabledValue == "" && typedAutoAnnotationEnabledValue == "" && reloaderOpts.AutoReloadAll {
 		return ReloadCheckResult{
 			ShouldReload: true,
 			AutoReload:   true,

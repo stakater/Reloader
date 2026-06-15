@@ -14,12 +14,13 @@ import (
 	"time"
 
 	"github.com/spf13/cobra"
+	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/tools/clientcmd"
+
 	"github.com/stakater/Reloader/test/loadtest/internal/cluster"
 	"github.com/stakater/Reloader/test/loadtest/internal/prometheus"
 	"github.com/stakater/Reloader/test/loadtest/internal/reloader"
 	"github.com/stakater/Reloader/test/loadtest/internal/scenarios"
-	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/tools/clientcmd"
 )
 
 // RunConfig holds CLI configuration for the run command.
@@ -645,4 +646,3 @@ func cleanupTestNamespaces(ctx context.Context, kubeContext string) {
 		exec.CommandContext(ctx, "kubectl", args...).Run()
 	}
 }
-

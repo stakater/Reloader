@@ -7,10 +7,11 @@ import (
 	"time"
 
 	"github.com/sirupsen/logrus"
-	"github.com/stakater/Reloader/internal/pkg/controller"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/tools/leaderelection"
 	"k8s.io/client-go/tools/leaderelection/resourcelock"
+
+	"github.com/stakater/Reloader/internal/pkg/controller"
 
 	coordinationv1 "k8s.io/client-go/kubernetes/typed/coordination/v1"
 )
@@ -34,50 +35,71 @@ func GetNewLock(client coordinationv1.CoordinationV1Interface, lockName, podname
 	}
 }
 
-// runLeaderElection runs leadership election. If an instance of the controller is the leader and stops leading it will shutdown.
-func RunLeaderElection(lock *resourcelock.LeaseLock, ctx context.Context, cancel context.CancelFunc, id string, controllers []*controller.Controller) {
-	// Construct channels for the controllers to use
-	var stopChannels []chan struct{}
-	for i := 0; i < len(controllers); i++ {
-		stop := make(chan struct{})
-		stopChannels = append(stopChannels, stop)
-	}
+// RunLeaderElection runs leadership election in a background goroutine and
+// returns a channel that is closed once the goroutine has fully exited
+// (i.e., OnStoppedLeading has run and all controller goroutines have returned).
+func RunLeaderElection(lock *resourcelock.LeaseLock, ctx context.Context, cancel context.CancelFunc, id string, controllers []*controller.Controller) <-chan struct{} {
+	stopped := make(chan struct{})
 
-	leaderelection.RunOrDie(ctx, leaderelection.LeaderElectionConfig{
-		Lock:            lock,
-		ReleaseOnCancel: true,
-		LeaseDuration:   15 * time.Second,
-		RenewDeadline:   10 * time.Second,
-		RetryPeriod:     2 * time.Second,
-		Callbacks: leaderelection.LeaderCallbacks{
-			OnStartedLeading: func(c context.Context) {
-				logrus.Info("became leader, starting controllers")
-				runControllers(controllers, stopChannels)
-			},
-			OnStoppedLeading: func() {
-				logrus.Info("no longer leader, shutting down")
-				stopControllers(stopChannels)
-				cancel()
-				m.Lock()
-				defer m.Unlock()
-				healthy = false
-			},
-			OnNewLeader: func(current_id string) {
-				if current_id == id {
-					logrus.Info("still the leader!")
-					return
-				}
-				logrus.Infof("new leader is %s", current_id)
-			},
-		},
-	})
-}
+	go func() {
+		defer close(stopped)
 
-func runControllers(controllers []*controller.Controller, stopChannels []chan struct{}) {
-	for i, c := range controllers {
-		c := c
-		go c.Run(1, stopChannels[i])
-	}
+		var stopChannels []chan struct{}
+		for range controllers {
+			stopChannels = append(stopChannels, make(chan struct{}))
+		}
+
+		// controllerWg tracks the controller.Run goroutines so that
+		// OnStoppedLeading can wait for them to fully exit before returning.
+		var controllerWg sync.WaitGroup
+
+		leaderelection.RunOrDie(ctx, leaderelection.LeaderElectionConfig{
+			Lock:            lock,
+			ReleaseOnCancel: true,
+			LeaseDuration:   15 * time.Second,
+			RenewDeadline:   10 * time.Second,
+			RetryPeriod:     2 * time.Second,
+			Callbacks: leaderelection.LeaderCallbacks{
+				OnStartedLeading: func(c context.Context) {
+					m.Lock()
+					healthy = true
+					m.Unlock()
+					logrus.Info("became leader, starting controllers")
+					for i, ctrl := range controllers {
+						controllerWg.Add(1)
+						go func(ctrl *controller.Controller, stopCh chan struct{}) {
+							defer controllerWg.Done()
+							ctrl.Run(1, stopCh)
+						}(ctrl, stopChannels[i])
+					}
+				},
+				OnStoppedLeading: func() {
+					logrus.Info("no longer leader, shutting down")
+					stopControllers(stopChannels)
+					// Wait for all controller.Run goroutines to fully exit.
+					// controller.Run blocks until its informer and workers exit,
+					// so this guarantees no controller goroutine is still running
+					// when OnStoppedLeading returns.
+					logrus.Info("waiting for all controller goroutines to exit")
+					controllerWg.Wait()
+					logrus.Info("all controller goroutines exited")
+					cancel()
+					m.Lock()
+					defer m.Unlock()
+					healthy = false
+				},
+				OnNewLeader: func(current_id string) {
+					if current_id == id {
+						logrus.Info("still the leader!")
+						return
+					}
+					logrus.Infof("new leader is %s", current_id)
+				},
+			},
+		})
+	}()
+
+	return stopped
 }
 
 func stopControllers(stopChannels []chan struct{}) {
