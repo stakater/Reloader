@@ -1,13 +1,10 @@
 package utils
 
 import (
-	"strings"
-
 	appsv1 "k8s.io/api/apps/v1"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
-	csiv1 "sigs.k8s.io/secrets-store-csi-driver/apis/v1"
 
 	rolloutsv1alpha1 "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	openshiftappsv1 "github.com/openshift/api/apps/v1"
@@ -148,29 +145,5 @@ var (
 	}
 	DeploymentConfigIsReady StatusAccessor[*openshiftappsv1.DeploymentConfig] = func(d *openshiftappsv1.DeploymentConfig) bool {
 		return d.Status.ReadyReplicas == d.Spec.Replicas
-	}
-)
-
-// SecretProviderClassPodStatus accessors
-var (
-	SPCPSIsMounted StatusAccessor[*csiv1.SecretProviderClassPodStatus] = func(s *csiv1.SecretProviderClassPodStatus) bool {
-		return s.Status.Mounted
-	}
-	SPCPSClassName ValueAccessor[*csiv1.SecretProviderClassPodStatus, string] = func(s *csiv1.SecretProviderClassPodStatus) string {
-		return s.Status.SecretProviderClassName
-	}
-	SPCPSPodName ValueAccessor[*csiv1.SecretProviderClassPodStatus, string] = func(s *csiv1.SecretProviderClassPodStatus) string {
-		return s.Status.PodName
-	}
-	// SPCPSVersions returns concatenated versions of all objects for change detection.
-	SPCPSVersions ValueAccessor[*csiv1.SecretProviderClassPodStatus, string] = func(s *csiv1.SecretProviderClassPodStatus) string {
-		if len(s.Status.Objects) == 0 {
-			return ""
-		}
-		var versions []string
-		for _, obj := range s.Status.Objects {
-			versions = append(versions, obj.Version)
-		}
-		return strings.Join(versions, ",")
 	}
 )

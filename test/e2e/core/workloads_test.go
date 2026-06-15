@@ -12,28 +12,20 @@ import (
 
 var _ = Describe("Workload Reload Tests", Serial, func() {
 	var (
-		configMapName   string
-		secretName      string
-		workloadName    string
-		spcName         string
-		vaultSecretPath string
+		configMapName string
+		secretName    string
+		workloadName  string
 	)
 
 	BeforeEach(func() {
 		configMapName = utils.RandName("cm")
 		secretName = utils.RandName("secret")
 		workloadName = utils.RandName("workload")
-		spcName = utils.RandName("spc")
-		vaultSecretPath = fmt.Sprintf("secret/%s", utils.RandName("test"))
 	})
 
 	AfterEach(func() {
 		_ = utils.DeleteConfigMap(ctx, kubeClient, testNamespace, configMapName)
 		_ = utils.DeleteSecret(ctx, kubeClient, testNamespace, secretName)
-		if csiClient != nil {
-			_ = utils.DeleteSecretProviderClass(ctx, csiClient, testNamespace, spcName)
-		}
-		_ = utils.DeleteVaultSecret(ctx, kubeClient, restConfig, vaultSecretPath)
 	})
 
 	// ============================================================
@@ -129,75 +121,6 @@ var _ = Describe("Workload Reload Tests", Serial, func() {
 			Entry("StatefulSet", utils.WorkloadStatefulSet),
 			Entry("ArgoRollout", Label("argo"), utils.WorkloadArgoRollout),
 			Entry("DeploymentConfig", Label("openshift"), utils.WorkloadDeploymentConfig),
-		)
-
-		// SecretProviderClassPodStatus (CSI) reload tests with real Vault
-		DescribeTable("should reload when SecretProviderClassPodStatus changes", func(workloadType utils.WorkloadType) {
-			if !utils.IsCSIDriverInstalled(ctx, csiClient) {
-				Skip("CSI secrets store driver not installed")
-			}
-			if !utils.IsVaultProviderInstalled(ctx, kubeClient) {
-				Skip("Vault CSI provider not installed")
-			}
-
-			adapter := registry.Get(workloadType)
-			if adapter == nil {
-				Skip(fmt.Sprintf("%s adapter not available (CRD not installed)", workloadType))
-			}
-
-			By("Creating a secret in Vault")
-			err := utils.CreateVaultSecret(ctx, kubeClient, restConfig, vaultSecretPath, map[string]string{"api_key": "initial-value-v1"})
-			Expect(err).NotTo(HaveOccurred())
-
-			By("Creating a SecretProviderClass pointing to Vault secret")
-			_, err = utils.CreateSecretProviderClassWithSecret(ctx, csiClient, testNamespace, spcName, vaultSecretPath,
-				"api_key")
-			Expect(err).NotTo(HaveOccurred())
-
-			By("Creating workload with CSI volume and SPC reload annotation")
-			err = adapter.Create(ctx, testNamespace, workloadName, utils.WorkloadConfig{
-				SPCName:      spcName,
-				UseCSIVolume: true,
-				Annotations:  utils.BuildSecretProviderClassReloadAnnotation(spcName),
-			})
-			Expect(err).NotTo(HaveOccurred())
-			DeferCleanup(func() { _ = adapter.Delete(ctx, testNamespace, workloadName) })
-
-			By("Waiting for workload to be ready")
-			err = adapter.WaitReady(ctx, testNamespace, workloadName, utils.WorkloadReadyTimeout)
-			Expect(err).NotTo(HaveOccurred())
-
-			By("Finding the SPCPS created by CSI driver")
-			spcpsName, err := utils.FindSPCPSForDeployment(ctx, csiClient, kubeClient, testNamespace, workloadName,
-				utils.WorkloadReadyTimeout)
-			Expect(err).NotTo(HaveOccurred())
-			GinkgoWriter.Printf("Found SPCPS: %s\n", spcpsName)
-
-			By("Getting initial SPCPS version")
-			initialVersion, err := utils.GetSPCPSVersion(ctx, csiClient, testNamespace, spcpsName)
-			Expect(err).NotTo(HaveOccurred())
-			GinkgoWriter.Printf("Initial SPCPS version: %s\n", initialVersion)
-
-			By("Updating the Vault secret")
-			err = utils.UpdateVaultSecret(ctx, kubeClient, restConfig, vaultSecretPath, map[string]string{"api_key": "updated-value-v2"})
-			Expect(err).NotTo(HaveOccurred())
-
-			By("Waiting for CSI driver to sync the new secret version")
-			err = utils.WaitForSPCPSVersionChange(ctx, csiClient, testNamespace, spcpsName, initialVersion,
-				10*time.Second)
-			Expect(err).NotTo(HaveOccurred())
-			GinkgoWriter.Println("CSI driver synced new secret version")
-
-			By("Waiting for workload to be reloaded")
-			reloaded, err := adapter.WaitReloaded(ctx, testNamespace, workloadName, utils.AnnotationLastReloadedFrom,
-				utils.ReloadTimeout)
-			Expect(err).NotTo(HaveOccurred())
-			Expect(reloaded).To(BeTrue(), "%s should have been reloaded when Vault secret changed", workloadType)
-		}, Entry("Deployment", Label("csi"), utils.WorkloadDeployment),
-			Entry("DaemonSet", Label("csi"), utils.WorkloadDaemonSet),
-			Entry("StatefulSet", Label("csi"), utils.WorkloadStatefulSet),
-			Entry("ArgoRollout", Label("csi", "argo"), utils.WorkloadArgoRollout),
-			Entry("DeploymentConfig", Label("csi", "openshift"), utils.WorkloadDeploymentConfig),
 		)
 
 		// Auto=true annotation tests
@@ -328,65 +251,6 @@ var _ = Describe("Workload Reload Tests", Serial, func() {
 			Entry("StatefulSet", utils.WorkloadStatefulSet),
 			Entry("ArgoRollout", Label("argo"), utils.WorkloadArgoRollout),
 			Entry("DeploymentConfig", Label("openshift"), utils.WorkloadDeploymentConfig),
-		)
-
-		// Negative test: SPCPS label-only changes should NOT trigger reload
-		DescribeTable("should NOT reload when only SecretProviderClassPodStatus labels change",
-			func(workloadType utils.WorkloadType) {
-				if !utils.IsCSIDriverInstalled(ctx, csiClient) {
-					Skip("CSI secrets store driver not installed")
-				}
-				if !utils.IsVaultProviderInstalled(ctx, kubeClient) {
-					Skip("Vault CSI provider not installed")
-				}
-
-				adapter := registry.Get(workloadType)
-				if adapter == nil {
-					Skip(fmt.Sprintf("%s adapter not available (CRD not installed)", workloadType))
-				}
-
-				By("Creating a secret in Vault")
-				err := utils.CreateVaultSecret(ctx, kubeClient, restConfig, vaultSecretPath, map[string]string{"api_key": "initial-value"})
-				Expect(err).NotTo(HaveOccurred())
-
-				By("Creating a SecretProviderClass pointing to Vault secret")
-				_, err = utils.CreateSecretProviderClassWithSecret(ctx, csiClient, testNamespace, spcName,
-					vaultSecretPath, "api_key")
-				Expect(err).NotTo(HaveOccurred())
-
-				By("Creating workload with CSI volume and SPC reload annotation")
-				err = adapter.Create(ctx, testNamespace, workloadName, utils.WorkloadConfig{
-					SPCName:      spcName,
-					UseCSIVolume: true,
-					Annotations:  utils.BuildSecretProviderClassReloadAnnotation(spcName),
-				})
-				Expect(err).NotTo(HaveOccurred())
-				DeferCleanup(func() { _ = adapter.Delete(ctx, testNamespace, workloadName) })
-
-				By("Waiting for workload to be ready")
-				err = adapter.WaitReady(ctx, testNamespace, workloadName, utils.WorkloadReadyTimeout)
-				Expect(err).NotTo(HaveOccurred())
-
-				By("Finding the SPCPS created by CSI driver")
-				spcpsName, err := utils.FindSPCPSForDeployment(ctx, csiClient, kubeClient, testNamespace, workloadName,
-					utils.WorkloadReadyTimeout)
-				Expect(err).NotTo(HaveOccurred())
-
-				By("Updating only the SPCPS labels (no objects change)")
-				err = utils.UpdateSecretProviderClassPodStatusLabels(ctx, csiClient, testNamespace, spcpsName, map[string]string{"new-label": "new-value"})
-				Expect(err).NotTo(HaveOccurred())
-
-				By("Verifying workload was NOT reloaded (negative test)")
-				time.Sleep(utils.NegativeTestWait)
-				reloaded, err := adapter.WaitReloaded(ctx, testNamespace, workloadName,
-					utils.AnnotationLastReloadedFrom, utils.ShortTimeout)
-				Expect(err).NotTo(HaveOccurred())
-				Expect(reloaded).To(BeFalse(), "%s should NOT reload when only SPCPS labels change", workloadType)
-			}, Entry("Deployment", Label("csi"), utils.WorkloadDeployment),
-			Entry("DaemonSet", Label("csi"), utils.WorkloadDaemonSet),
-			Entry("StatefulSet", Label("csi"), utils.WorkloadStatefulSet),
-			Entry("ArgoRollout", Label("csi", "argo"), utils.WorkloadArgoRollout),
-			Entry("DeploymentConfig", Label("csi", "openshift"), utils.WorkloadDeploymentConfig),
 		)
 
 		// CronJob special handling - triggers a Job instead of annotation
@@ -996,140 +860,6 @@ var _ = Describe("Workload Reload Tests", Serial, func() {
 				Entry("DeploymentConfig", Label("openshift"), utils.WorkloadDeploymentConfig),
 			)
 
-			DescribeTable("should reload when SecretProviderClass annotation is on pod template only",
-				func(workloadType utils.WorkloadType) {
-					if !utils.IsCSIDriverInstalled(ctx, csiClient) {
-						Skip("CSI secrets store driver not installed")
-					}
-					if !utils.IsVaultProviderInstalled(ctx, kubeClient) {
-						Skip("Vault CSI provider not installed")
-					}
-
-					adapter := registry.Get(workloadType)
-					if adapter == nil {
-						Skip(fmt.Sprintf("%s adapter not available (CRD not installed)", workloadType))
-					}
-
-					By("Creating a secret in Vault")
-					err := utils.CreateVaultSecret(ctx, kubeClient, restConfig, vaultSecretPath, map[string]string{"api_key": "initial-value-v1"})
-					Expect(err).NotTo(HaveOccurred())
-
-					By("Creating a SecretProviderClass pointing to Vault secret")
-					_, err = utils.CreateSecretProviderClassWithSecret(ctx, csiClient, testNamespace, spcName,
-						vaultSecretPath, "api_key")
-					Expect(err).NotTo(HaveOccurred())
-
-					By("Creating workload with SPC annotation on pod template ONLY")
-					err = adapter.Create(ctx, testNamespace, workloadName, utils.WorkloadConfig{
-						SPCName:                spcName,
-						UseCSIVolume:           true,
-						PodTemplateAnnotations: utils.BuildSecretProviderClassReloadAnnotation(spcName),
-					})
-					Expect(err).NotTo(HaveOccurred())
-					DeferCleanup(func() { _ = adapter.Delete(ctx, testNamespace, workloadName) })
-
-					By("Waiting for workload to be ready")
-					err = adapter.WaitReady(ctx, testNamespace, workloadName, utils.WorkloadReadyTimeout)
-					Expect(err).NotTo(HaveOccurred())
-
-					By("Finding the SPCPS created by CSI driver")
-					spcpsName, err := utils.FindSPCPSForDeployment(ctx, csiClient, kubeClient, testNamespace,
-						workloadName, utils.WorkloadReadyTimeout)
-					Expect(err).NotTo(HaveOccurred())
-
-					By("Getting initial SPCPS version")
-					initialVersion, err := utils.GetSPCPSVersion(ctx, csiClient, testNamespace, spcpsName)
-					Expect(err).NotTo(HaveOccurred())
-
-					By("Updating the Vault secret")
-					err = utils.UpdateVaultSecret(ctx, kubeClient, restConfig, vaultSecretPath, map[string]string{"api_key": "updated-value-v2"})
-					Expect(err).NotTo(HaveOccurred())
-
-					By("Waiting for CSI driver to sync the new secret version")
-					err = utils.WaitForSPCPSVersionChange(ctx, csiClient, testNamespace, spcpsName,
-						initialVersion, 10*time.Second)
-					Expect(err).NotTo(HaveOccurred())
-
-					By("Waiting for workload to be reloaded")
-					reloaded, err := adapter.WaitReloaded(ctx, testNamespace, workloadName,
-						utils.AnnotationLastReloadedFrom, utils.ReloadTimeout)
-					Expect(err).NotTo(HaveOccurred())
-					Expect(reloaded).To(BeTrue(), "%s should reload with SPC annotation on pod template", workloadType)
-				},
-				Entry("Deployment", Label("csi"), utils.WorkloadDeployment),
-				Entry("DaemonSet", Label("csi"), utils.WorkloadDaemonSet),
-				Entry("StatefulSet", Label("csi"), utils.WorkloadStatefulSet),
-				Entry("ArgoRollout", Label("csi", "argo"), utils.WorkloadArgoRollout),
-				Entry("DeploymentConfig", Label("csi", "openshift"), utils.WorkloadDeploymentConfig),
-			)
-
-			DescribeTable("should reload when secretproviderclass auto annotation is on pod template only",
-				func(workloadType utils.WorkloadType) {
-					if !utils.IsCSIDriverInstalled(ctx, csiClient) {
-						Skip("CSI secrets store driver not installed")
-					}
-					if !utils.IsVaultProviderInstalled(ctx, kubeClient) {
-						Skip("Vault CSI provider not installed")
-					}
-
-					adapter := registry.Get(workloadType)
-					if adapter == nil {
-						Skip(fmt.Sprintf("%s adapter not available (CRD not installed)", workloadType))
-					}
-
-					By("Creating a secret in Vault")
-					err := utils.CreateVaultSecret(ctx, kubeClient, restConfig, vaultSecretPath, map[string]string{"api_key": "initial-value-v1"})
-					Expect(err).NotTo(HaveOccurred())
-
-					By("Creating a SecretProviderClass pointing to Vault secret")
-					_, err = utils.CreateSecretProviderClassWithSecret(ctx, csiClient, testNamespace, spcName,
-						vaultSecretPath, "api_key")
-					Expect(err).NotTo(HaveOccurred())
-
-					By("Creating workload with SPC auto annotation on pod template ONLY")
-					err = adapter.Create(ctx, testNamespace, workloadName, utils.WorkloadConfig{
-						SPCName:                spcName,
-						UseCSIVolume:           true,
-						PodTemplateAnnotations: utils.BuildSecretProviderClassAutoAnnotation(),
-					})
-					Expect(err).NotTo(HaveOccurred())
-					DeferCleanup(func() { _ = adapter.Delete(ctx, testNamespace, workloadName) })
-
-					By("Waiting for workload to be ready")
-					err = adapter.WaitReady(ctx, testNamespace, workloadName, utils.WorkloadReadyTimeout)
-					Expect(err).NotTo(HaveOccurred())
-
-					By("Finding the SPCPS created by CSI driver")
-					spcpsName, err := utils.FindSPCPSForDeployment(ctx, csiClient, kubeClient, testNamespace,
-						workloadName, utils.WorkloadReadyTimeout)
-					Expect(err).NotTo(HaveOccurred())
-
-					By("Getting initial SPCPS version")
-					initialVersion, err := utils.GetSPCPSVersion(ctx, csiClient, testNamespace, spcpsName)
-					Expect(err).NotTo(HaveOccurred())
-
-					By("Updating the Vault secret")
-					err = utils.UpdateVaultSecret(ctx, kubeClient, restConfig, vaultSecretPath, map[string]string{"api_key": "updated-value-v2"})
-					Expect(err).NotTo(HaveOccurred())
-
-					By("Waiting for CSI driver to sync the new secret version")
-					err = utils.WaitForSPCPSVersionChange(ctx, csiClient, testNamespace, spcpsName,
-						initialVersion, 10*time.Second)
-					Expect(err).NotTo(HaveOccurred())
-
-					By("Waiting for workload to be reloaded")
-					reloaded, err := adapter.WaitReloaded(ctx, testNamespace, workloadName,
-						utils.AnnotationLastReloadedFrom, utils.ReloadTimeout)
-					Expect(err).NotTo(HaveOccurred())
-					Expect(reloaded).To(BeTrue(), "%s should reload with SPC auto on pod template", workloadType)
-				},
-				Entry("Deployment", Label("csi"), utils.WorkloadDeployment),
-				Entry("DaemonSet", Label("csi"), utils.WorkloadDaemonSet),
-				Entry("StatefulSet", Label("csi"), utils.WorkloadStatefulSet),
-				Entry("ArgoRollout", Label("csi", "argo"), utils.WorkloadArgoRollout),
-				Entry("DeploymentConfig", Label("csi", "openshift"), utils.WorkloadDeploymentConfig),
-			)
-
 			DescribeTable("should reload when annotations are on both workload and pod template",
 				func(workloadType utils.WorkloadType) {
 					adapter := registry.Get(workloadType)
@@ -1236,10 +966,6 @@ var _ = Describe("Workload Reload Tests", Serial, func() {
 			if utils.IsArgoRolloutsInstalled(ctx, testEnv.RolloutsClient) {
 				deployValues["reloader.isArgoRollouts"] = "true"
 			}
-			// Enable CSI integration if CSI driver is installed
-			if utils.IsCSIDriverInstalled(ctx, csiClient) {
-				deployValues["reloader.enableCSIIntegration"] = "true"
-			}
 			err := testEnv.DeployAndWait(deployValues)
 			Expect(err).NotTo(HaveOccurred(), "Failed to redeploy Reloader with envvars strategy")
 		})
@@ -1252,10 +978,6 @@ var _ = Describe("Workload Reload Tests", Serial, func() {
 			// Preserve Argo support if available
 			if utils.IsArgoRolloutsInstalled(ctx, testEnv.RolloutsClient) {
 				deployValues["reloader.isArgoRollouts"] = "true"
-			}
-			// Preserve CSI integration if CSI driver is installed
-			if utils.IsCSIDriverInstalled(ctx, csiClient) {
-				deployValues["reloader.enableCSIIntegration"] = "true"
 			}
 			err := testEnv.DeployAndWait(deployValues)
 			Expect(err).NotTo(HaveOccurred(), "Failed to restore Reloader to annotations strategy")
@@ -1351,77 +1073,6 @@ var _ = Describe("Workload Reload Tests", Serial, func() {
 			Entry("DeploymentConfig", Label("openshift"), utils.WorkloadDeploymentConfig),
 		)
 
-		// CSI SecretProviderClassPodStatus env var tests with real Vault
-		DescribeTable("should add STAKATER_ env var when SecretProviderClassPodStatus changes",
-			func(workloadType utils.WorkloadType) {
-				if !utils.IsCSIDriverInstalled(ctx, csiClient) {
-					Skip("CSI secrets store driver not installed")
-				}
-				if !utils.IsVaultProviderInstalled(ctx, kubeClient) {
-					Skip("Vault CSI provider not installed")
-				}
-
-				adapter := registry.Get(workloadType)
-				if adapter == nil {
-					Skip(fmt.Sprintf("%s adapter not available (CRD not installed)", workloadType))
-				}
-
-				if !adapter.SupportsEnvVarStrategy() {
-					Skip("Workload type does not support env var strategy")
-				}
-
-				By("Creating a secret in Vault")
-				err := utils.CreateVaultSecret(ctx, kubeClient, restConfig, vaultSecretPath, map[string]string{"api_key": "initial-value-v1"})
-				Expect(err).NotTo(HaveOccurred())
-
-				By("Creating a SecretProviderClass pointing to Vault secret")
-				_, err = utils.CreateSecretProviderClassWithSecret(ctx, csiClient, testNamespace, spcName,
-					vaultSecretPath, "api_key")
-				Expect(err).NotTo(HaveOccurred())
-
-				By("Creating workload with CSI volume and SPC reload annotation")
-				err = adapter.Create(ctx, testNamespace, workloadName, utils.WorkloadConfig{
-					SPCName:      spcName,
-					UseCSIVolume: true,
-					Annotations:  utils.BuildSecretProviderClassReloadAnnotation(spcName),
-				})
-				Expect(err).NotTo(HaveOccurred())
-				DeferCleanup(func() { _ = adapter.Delete(ctx, testNamespace, workloadName) })
-
-				By("Waiting for workload to be ready")
-				err = adapter.WaitReady(ctx, testNamespace, workloadName, utils.WorkloadReadyTimeout)
-				Expect(err).NotTo(HaveOccurred())
-
-				By("Finding the SPCPS created by CSI driver")
-				spcpsName, err := utils.FindSPCPSForDeployment(ctx, csiClient, kubeClient, testNamespace, workloadName,
-					utils.WorkloadReadyTimeout)
-				Expect(err).NotTo(HaveOccurred())
-
-				By("Getting initial SPCPS version")
-				initialVersion, err := utils.GetSPCPSVersion(ctx, csiClient, testNamespace, spcpsName)
-				Expect(err).NotTo(HaveOccurred())
-
-				By("Updating the Vault secret")
-				err = utils.UpdateVaultSecret(ctx, kubeClient, restConfig, vaultSecretPath, map[string]string{"api_key": "updated-value-v2"})
-				Expect(err).NotTo(HaveOccurred())
-
-				By("Waiting for CSI driver to sync the new secret version")
-				err = utils.WaitForSPCPSVersionChange(ctx, csiClient, testNamespace, spcpsName, initialVersion,
-					10*time.Second)
-				Expect(err).NotTo(HaveOccurred())
-
-				By("Waiting for workload to have STAKATER_ env var")
-				found, err := adapter.WaitEnvVar(ctx, testNamespace, workloadName, utils.StakaterEnvVarPrefix,
-					utils.ReloadTimeout)
-				Expect(err).NotTo(HaveOccurred())
-				Expect(found).To(BeTrue(), "%s should have STAKATER_ env var after Vault secret change", workloadType)
-			}, Entry("Deployment", Label("csi"), utils.WorkloadDeployment),
-			Entry("DaemonSet", Label("csi"), utils.WorkloadDaemonSet),
-			Entry("StatefulSet", Label("csi"), utils.WorkloadStatefulSet),
-			Entry("ArgoRollout", Label("csi", "argo"), utils.WorkloadArgoRollout),
-			Entry("DeploymentConfig", Label("csi", "openshift"), utils.WorkloadDeploymentConfig),
-		)
-
 		// Negative tests for env var strategy
 		DescribeTable("should NOT add STAKATER_ env var when only ConfigMap labels change",
 			func(workloadType utils.WorkloadType) {
@@ -1512,245 +1163,5 @@ var _ = Describe("Workload Reload Tests", Serial, func() {
 			Entry("DaemonSet", utils.WorkloadDaemonSet),
 			Entry("StatefulSet", utils.WorkloadStatefulSet),
 		)
-
-		// CSI SPCPS label-only change negative test with real Vault
-		DescribeTable("should NOT add STAKATER_ env var when only SecretProviderClassPodStatus labels change",
-			func(workloadType utils.WorkloadType) {
-				if !utils.IsCSIDriverInstalled(ctx, csiClient) {
-					Skip("CSI secrets store driver not installed")
-				}
-				if !utils.IsVaultProviderInstalled(ctx, kubeClient) {
-					Skip("Vault CSI provider not installed")
-				}
-
-				adapter := registry.Get(workloadType)
-				if adapter == nil {
-					Skip(fmt.Sprintf("%s adapter not available (CRD not installed)", workloadType))
-				}
-
-				if !adapter.SupportsEnvVarStrategy() {
-					Skip("Workload type does not support env var strategy")
-				}
-
-				By("Creating a secret in Vault")
-				err := utils.CreateVaultSecret(ctx, kubeClient, restConfig, vaultSecretPath, map[string]string{"api_key": "initial-value"})
-				Expect(err).NotTo(HaveOccurred())
-
-				By("Creating a SecretProviderClass pointing to Vault secret")
-				_, err = utils.CreateSecretProviderClassWithSecret(ctx, csiClient, testNamespace, spcName,
-					vaultSecretPath, "api_key")
-				Expect(err).NotTo(HaveOccurred())
-
-				By("Creating workload with CSI volume and SPC reload annotation")
-				err = adapter.Create(ctx, testNamespace, workloadName, utils.WorkloadConfig{
-					SPCName:      spcName,
-					UseCSIVolume: true,
-					Annotations:  utils.BuildSecretProviderClassReloadAnnotation(spcName),
-				})
-				Expect(err).NotTo(HaveOccurred())
-				DeferCleanup(func() { _ = adapter.Delete(ctx, testNamespace, workloadName) })
-
-				By("Waiting for workload to be ready")
-				err = adapter.WaitReady(ctx, testNamespace, workloadName, utils.WorkloadReadyTimeout)
-				Expect(err).NotTo(HaveOccurred())
-
-				By("Finding the SPCPS created by CSI driver")
-				spcpsName, err := utils.FindSPCPSForDeployment(ctx, csiClient, kubeClient, testNamespace, workloadName,
-					utils.WorkloadReadyTimeout)
-				Expect(err).NotTo(HaveOccurred())
-
-				By("Updating only the SPCPS labels (should NOT trigger reload)")
-				err = utils.UpdateSecretProviderClassPodStatusLabels(ctx, csiClient, testNamespace, spcpsName, map[string]string{"new-label": "new-value"})
-				Expect(err).NotTo(HaveOccurred())
-
-				By("Verifying workload does NOT have STAKATER_ env var")
-				time.Sleep(utils.NegativeTestWait)
-				found, err := adapter.WaitEnvVar(ctx, testNamespace, workloadName, utils.StakaterEnvVarPrefix,
-					utils.ShortTimeout)
-				Expect(err).NotTo(HaveOccurred())
-				Expect(found).To(BeFalse(), "%s should NOT have STAKATER_ env var for SPCPS label-only change",
-					workloadType)
-			}, Entry("Deployment", Label("csi"), utils.WorkloadDeployment),
-			Entry("DaemonSet", Label("csi"), utils.WorkloadDaemonSet),
-			Entry("StatefulSet", Label("csi"), utils.WorkloadStatefulSet),
-			Entry("ArgoRollout", Label("csi", "argo"), utils.WorkloadArgoRollout),
-			Entry("DeploymentConfig", Label("csi", "openshift"), utils.WorkloadDeploymentConfig),
-		)
-
-		// CSI auto annotation with EnvVar strategy and real Vault
-		It("should add STAKATER_ env var with secretproviderclass auto annotation", Label("csi"), func() {
-			if !utils.IsCSIDriverInstalled(ctx, csiClient) {
-				Skip("CSI secrets store driver not installed")
-			}
-			if !utils.IsVaultProviderInstalled(ctx, kubeClient) {
-				Skip("Vault CSI provider not installed")
-			}
-
-			adapter := registry.Get(utils.WorkloadDeployment)
-			Expect(adapter).NotTo(BeNil())
-
-			By("Creating a secret in Vault")
-			err := utils.CreateVaultSecret(ctx, kubeClient, restConfig, vaultSecretPath, map[string]string{"api_key": "initial-value-v1"})
-			Expect(err).NotTo(HaveOccurred())
-
-			By("Creating a SecretProviderClass pointing to Vault secret")
-			_, err = utils.CreateSecretProviderClassWithSecret(ctx, csiClient, testNamespace, spcName, vaultSecretPath,
-				"api_key")
-			Expect(err).NotTo(HaveOccurred())
-
-			By("Creating Deployment with CSI volume and SPC auto annotation")
-			err = adapter.Create(ctx, testNamespace, workloadName, utils.WorkloadConfig{
-				SPCName:      spcName,
-				UseCSIVolume: true,
-				Annotations:  utils.BuildSecretProviderClassAutoAnnotation(),
-			})
-			Expect(err).NotTo(HaveOccurred())
-			DeferCleanup(func() { _ = adapter.Delete(ctx, testNamespace, workloadName) })
-
-			By("Waiting for Deployment to be ready")
-			err = adapter.WaitReady(ctx, testNamespace, workloadName, utils.WorkloadReadyTimeout)
-			Expect(err).NotTo(HaveOccurred())
-
-			By("Finding the SPCPS created by CSI driver")
-			spcpsName, err := utils.FindSPCPSForDeployment(ctx, csiClient, kubeClient, testNamespace, workloadName,
-				utils.WorkloadReadyTimeout)
-			Expect(err).NotTo(HaveOccurred())
-
-			By("Getting initial SPCPS version")
-			initialVersion, err := utils.GetSPCPSVersion(ctx, csiClient, testNamespace, spcpsName)
-			Expect(err).NotTo(HaveOccurred())
-
-			By("Updating the Vault secret")
-			err = utils.UpdateVaultSecret(ctx, kubeClient, restConfig, vaultSecretPath, map[string]string{"api_key": "updated-value-v2"})
-			Expect(err).NotTo(HaveOccurred())
-
-			By("Waiting for CSI driver to sync the new secret version")
-			err = utils.WaitForSPCPSVersionChange(ctx, csiClient, testNamespace, spcpsName, initialVersion,
-				10*time.Second)
-			Expect(err).NotTo(HaveOccurred())
-
-			By("Waiting for Deployment to have STAKATER_ env var")
-			found, err := adapter.WaitEnvVar(ctx, testNamespace, workloadName, utils.StakaterEnvVarPrefix,
-				utils.ReloadTimeout)
-			Expect(err).NotTo(HaveOccurred())
-			Expect(found).To(BeTrue(), "Deployment with SPC auto annotation should have STAKATER_ env var")
-		})
-
-		// CSI exclude annotation with EnvVar strategy and real Vault
-		It("should NOT add STAKATER_ env var when excluded SecretProviderClassPodStatus changes", Label("csi"), func() {
-			if !utils.IsCSIDriverInstalled(ctx, csiClient) {
-				Skip("CSI secrets store driver not installed")
-			}
-			if !utils.IsVaultProviderInstalled(ctx, kubeClient) {
-				Skip("Vault CSI provider not installed")
-			}
-
-			adapter := registry.Get(utils.WorkloadDeployment)
-			Expect(adapter).NotTo(BeNil())
-
-			By("Creating a secret in Vault")
-			err := utils.CreateVaultSecret(ctx, kubeClient, restConfig, vaultSecretPath, map[string]string{"api_key": "initial-value-v1"})
-			Expect(err).NotTo(HaveOccurred())
-
-			By("Creating a SecretProviderClass pointing to Vault secret")
-			_, err = utils.CreateSecretProviderClassWithSecret(ctx, csiClient, testNamespace, spcName, vaultSecretPath,
-				"api_key")
-			Expect(err).NotTo(HaveOccurred())
-
-			By("Creating Deployment with auto=true and SPC exclude annotation")
-			err = adapter.Create(ctx, testNamespace, workloadName, utils.WorkloadConfig{
-				SPCName:      spcName,
-				UseCSIVolume: true,
-				Annotations: utils.MergeAnnotations(utils.BuildAutoTrueAnnotation(),
-					utils.BuildSecretProviderClassExcludeAnnotation(spcName)),
-			})
-			Expect(err).NotTo(HaveOccurred())
-			DeferCleanup(func() { _ = adapter.Delete(ctx, testNamespace, workloadName) })
-
-			By("Waiting for Deployment to be ready")
-			err = adapter.WaitReady(ctx, testNamespace, workloadName, utils.WorkloadReadyTimeout)
-			Expect(err).NotTo(HaveOccurred())
-
-			By("Finding the SPCPS created by CSI driver")
-			spcpsName, err := utils.FindSPCPSForDeployment(ctx, csiClient, kubeClient, testNamespace, workloadName,
-				utils.WorkloadReadyTimeout)
-			Expect(err).NotTo(HaveOccurred())
-
-			By("Getting initial SPCPS version")
-			initialVersion, err := utils.GetSPCPSVersion(ctx, csiClient, testNamespace, spcpsName)
-			Expect(err).NotTo(HaveOccurred())
-
-			By("Updating the Vault secret (excluded SPC - should NOT trigger reload)")
-			err = utils.UpdateVaultSecret(ctx, kubeClient, restConfig, vaultSecretPath, map[string]string{"api_key": "updated-value-v2"})
-			Expect(err).NotTo(HaveOccurred())
-
-			By("Waiting for CSI driver to sync the new secret version")
-			err = utils.WaitForSPCPSVersionChange(ctx, csiClient, testNamespace, spcpsName, initialVersion,
-				10*time.Second)
-			Expect(err).NotTo(HaveOccurred())
-
-			By("Verifying Deployment does NOT have STAKATER_ env var")
-			time.Sleep(utils.NegativeTestWait)
-			found, err := adapter.WaitEnvVar(ctx, testNamespace, workloadName, utils.StakaterEnvVarPrefix,
-				utils.ShortTimeout)
-			Expect(err).NotTo(HaveOccurred())
-			Expect(found).To(BeFalse(), "Deployment should NOT have STAKATER_ env var for excluded SPCPS change")
-		})
-
-		// CSI init container with EnvVar strategy and real Vault
-		It("should add STAKATER_ env var when SecretProviderClassPodStatus used by init container changes", Label("csi"), func() {
-			if !utils.IsCSIDriverInstalled(ctx, csiClient) {
-				Skip("CSI secrets store driver not installed")
-			}
-			if !utils.IsVaultProviderInstalled(ctx, kubeClient) {
-				Skip("Vault CSI provider not installed")
-			}
-
-			By("Creating a secret in Vault")
-			err := utils.CreateVaultSecret(ctx, kubeClient, restConfig, vaultSecretPath, map[string]string{"api_key": "initial-value-v1"})
-			Expect(err).NotTo(HaveOccurred())
-
-			By("Creating a SecretProviderClass pointing to Vault secret")
-			_, err = utils.CreateSecretProviderClassWithSecret(ctx, csiClient, testNamespace, spcName,
-				vaultSecretPath, "api_key")
-			Expect(err).NotTo(HaveOccurred())
-
-			By("Creating Deployment with init container using CSI volume")
-			_, err = utils.CreateDeployment(ctx, kubeClient, testNamespace, workloadName,
-				utils.WithInitContainerCSIVolume(spcName),
-				utils.WithAnnotations(utils.BuildSecretProviderClassReloadAnnotation(spcName)))
-			Expect(err).NotTo(HaveOccurred())
-			DeferCleanup(func() { _ = utils.DeleteDeployment(ctx, kubeClient, testNamespace, workloadName) })
-
-			adapter := utils.NewDeploymentAdapter(kubeClient)
-
-			By("Waiting for Deployment to be ready")
-			err = adapter.WaitReady(ctx, testNamespace, workloadName, utils.WorkloadReadyTimeout)
-			Expect(err).NotTo(HaveOccurred())
-
-			By("Finding the SPCPS created by CSI driver")
-			spcpsName, err := utils.FindSPCPSForDeployment(ctx, csiClient, kubeClient, testNamespace, workloadName,
-				utils.WorkloadReadyTimeout)
-			Expect(err).NotTo(HaveOccurred())
-
-			By("Getting initial SPCPS version")
-			initialVersion, err := utils.GetSPCPSVersion(ctx, csiClient, testNamespace, spcpsName)
-			Expect(err).NotTo(HaveOccurred())
-
-			By("Updating the Vault secret")
-			err = utils.UpdateVaultSecret(ctx, kubeClient, restConfig, vaultSecretPath, map[string]string{"api_key": "updated-value-v2"})
-			Expect(err).NotTo(HaveOccurred())
-
-			By("Waiting for CSI driver to sync the new secret version")
-			err = utils.WaitForSPCPSVersionChange(ctx, csiClient, testNamespace, spcpsName, initialVersion,
-				10*time.Second)
-			Expect(err).NotTo(HaveOccurred())
-
-			By("Waiting for Deployment to have STAKATER_ env var")
-			found, err := adapter.WaitEnvVar(ctx, testNamespace, workloadName,
-				utils.StakaterEnvVarPrefix, utils.ReloadTimeout)
-			Expect(err).NotTo(HaveOccurred())
-			Expect(found).To(BeTrue(), "Deployment with init container CSI should have STAKATER_ env var")
-		})
 	})
 })

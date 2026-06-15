@@ -9,14 +9,12 @@ import (
 	. "github.com/onsi/gomega"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
-	csiclient "sigs.k8s.io/secrets-store-csi-driver/pkg/client/clientset/versioned"
 
 	"github.com/stakater/Reloader/test/e2e/utils"
 )
 
 var (
 	kubeClient    kubernetes.Interface
-	csiClient     csiclient.Interface
 	restConfig    *rest.Config
 	testNamespace string
 	ctx           context.Context
@@ -49,10 +47,6 @@ var _ = SynchronizedBeforeSuite(
 			deployValues["reloader.isArgoRollouts"] = "true"
 			GinkgoWriter.Println("Deploying Reloader with Argo Rollouts support")
 		}
-		if utils.IsCSIDriverInstalled(context.Background(), setupEnv.CSIClient) {
-			deployValues["reloader.enableCSIIntegration"] = "true"
-			GinkgoWriter.Println("Deploying Reloader with CSI integration support")
-		}
 
 		Expect(setupEnv.DeployAndWait(deployValues)).To(Succeed(), "Failed to deploy Reloader")
 
@@ -73,7 +67,6 @@ var _ = SynchronizedBeforeSuite(
 		Expect(err).NotTo(HaveOccurred(), "Failed to setup shared test environment")
 
 		kubeClient = testEnv.KubeClient
-		csiClient = testEnv.CSIClient
 		restConfig = testEnv.RestConfig
 		testNamespace = testEnv.Namespace
 		ctx = testEnv.Ctx

@@ -4,7 +4,6 @@ import (
 	"fmt"
 
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/utils/ptr"
 )
 
 // AddEnvFromSource adds ConfigMap or Secret envFrom to a container.
@@ -105,69 +104,6 @@ func AddKeyRef(spec *corev1.PodSpec, containerIdx int, resourceName, key, envVar
 		}
 	}
 	spec.Containers[containerIdx].Env = append(spec.Containers[containerIdx].Env, envVar)
-}
-
-// AddCSIVolume adds CSI volume referencing SecretProviderClass.
-func AddCSIVolume(spec *corev1.PodSpec, containerIdx int, spcName string) {
-	volumeName := "csi-" + spcName
-	mountPath := "/mnt/secrets-store/" + spcName
-	spec.Volumes = append(spec.Volumes, corev1.Volume{
-		Name: volumeName,
-		VolumeSource: corev1.VolumeSource{
-			CSI: &corev1.CSIVolumeSource{
-				Driver:   CSIDriverName,
-				ReadOnly: ptr.To(true),
-				VolumeAttributes: map[string]string{
-					"secretProviderClass": spcName,
-				},
-			},
-		},
-	})
-	if containerIdx < len(spec.Containers) {
-		spec.Containers[containerIdx].VolumeMounts = append(
-			spec.Containers[containerIdx].VolumeMounts,
-			corev1.VolumeMount{Name: volumeName, MountPath: mountPath, ReadOnly: true},
-		)
-	}
-}
-
-// AddCSIInitContainer adds an init container that mounts a CSI SecretProviderClass volume.
-// The init container is named "init-csi-{spcName}" to avoid collisions when multiple CSI
-// volumes are mounted. The volume is only added if not already present (idempotent).
-// This is distinct from AddCSIVolume which mounts into a regular container.
-func AddCSIInitContainer(spec *corev1.PodSpec, spcName string) {
-	volumeName := "csi-" + spcName
-	mountPath := "/mnt/secrets-store/" + spcName
-
-	hasVolume := false
-	for _, v := range spec.Volumes {
-		if v.Name == volumeName {
-			hasVolume = true
-			break
-		}
-	}
-	if !hasVolume {
-		spec.Volumes = append(spec.Volumes, corev1.Volume{
-			Name: volumeName,
-			VolumeSource: corev1.VolumeSource{
-				CSI: &corev1.CSIVolumeSource{
-					Driver:   CSIDriverName,
-					ReadOnly: ptr.To(true),
-					VolumeAttributes: map[string]string{
-						"secretProviderClass": spcName,
-					},
-				},
-			},
-		})
-	}
-	spec.InitContainers = append(spec.InitContainers, corev1.Container{
-		Name:    "init-csi-" + spcName,
-		Image:   DefaultImage,
-		Command: []string{"sh", "-c", "echo init done"},
-		VolumeMounts: []corev1.VolumeMount{
-			{Name: volumeName, MountPath: mountPath, ReadOnly: true},
-		},
-	})
 }
 
 // AddInitContainer adds init container with optional envFrom references.
@@ -282,17 +218,11 @@ func ApplyWorkloadConfig(template *corev1.PodTemplateSpec, cfg WorkloadConfig) {
 		}
 		AddKeyRef(spec, 0, cfg.SecretName, key, envVar, true)
 	}
-	if cfg.UseCSIVolume && cfg.SPCName != "" {
-		AddCSIVolume(spec, 0, cfg.SPCName)
-	}
 	if cfg.UseInitContainer {
 		AddInitContainer(spec, cfg.ConfigMapName, cfg.SecretName)
 	}
 	if cfg.UseInitContainerVolume {
 		AddInitContainerWithVolumes(spec, cfg.ConfigMapName, cfg.SecretName)
-	}
-	if cfg.UseInitContainerCSI && cfg.SPCName != "" {
-		AddCSIInitContainer(spec, cfg.SPCName)
 	}
 	if cfg.MultipleContainers > 1 {
 		for i := 1; i < cfg.MultipleContainers; i++ {
