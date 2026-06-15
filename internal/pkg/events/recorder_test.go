@@ -7,7 +7,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/client-go/tools/record"
+	k8sevents "k8s.io/client-go/tools/events"
 )
 
 func TestNewRecorder_NilInput(t *testing.T) {
@@ -18,7 +18,7 @@ func TestNewRecorder_NilInput(t *testing.T) {
 }
 
 func TestNewRecorder_ValidInput(t *testing.T) {
-	fakeRecorder := record.NewFakeRecorder(10)
+	fakeRecorder := k8sevents.NewFakeRecorder(10)
 	r := NewRecorder(fakeRecorder)
 	if r == nil {
 		t.Error("NewRecorder with valid recorder should not return nil")
@@ -26,7 +26,7 @@ func TestNewRecorder_ValidInput(t *testing.T) {
 }
 
 func TestReloadSuccess_RecordsEvent(t *testing.T) {
-	fakeRecorder := record.NewFakeRecorder(10)
+	fakeRecorder := k8sevents.NewFakeRecorder(10)
 	r := NewRecorder(fakeRecorder)
 
 	pod := &corev1.Pod{
@@ -56,7 +56,7 @@ func TestReloadSuccess_RecordsEvent(t *testing.T) {
 }
 
 func TestReloadFailed_RecordsWarningEvent(t *testing.T) {
-	fakeRecorder := record.NewFakeRecorder(10)
+	fakeRecorder := k8sevents.NewFakeRecorder(10)
 	r := NewRecorder(fakeRecorder)
 
 	pod := &corev1.Pod{
@@ -116,7 +116,7 @@ func TestRecorder_NilInternalRecorder(t *testing.T) {
 }
 
 func TestReloadSuccess_DifferentObjectTypes(t *testing.T) {
-	fakeRecorder := record.NewFakeRecorder(10)
+	fakeRecorder := k8sevents.NewFakeRecorder(10)
 	r := NewRecorder(fakeRecorder)
 
 	tests := []struct {

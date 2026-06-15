@@ -1,11 +1,9 @@
 package events
 
 import (
-	"fmt"
-
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/client-go/tools/record"
+	"k8s.io/client-go/tools/events"
 )
 
 const (
@@ -18,15 +16,18 @@ const (
 	ReasonReloaded = "Reloaded"
 	// ReasonReloadFailed indicates a workload reload failed.
 	ReasonReloadFailed = "ReloadFailed"
+
+	// actionReloading is the action reported on reload events.
+	actionReloading = "Reloading"
 )
 
 // Recorder wraps the Kubernetes event recorder.
 type Recorder struct {
-	recorder record.EventRecorder
+	recorder events.EventRecorder
 }
 
 // NewRecorder creates a new event Recorder.
-func NewRecorder(recorder record.EventRecorder) *Recorder {
+func NewRecorder(recorder events.EventRecorder) *Recorder {
 	if recorder == nil {
 		return nil
 	}
@@ -38,11 +39,13 @@ func (r *Recorder) ReloadSuccess(object runtime.Object, resourceType, resourceNa
 	if r == nil || r.recorder == nil {
 		return
 	}
-	r.recorder.Event(
+	r.recorder.Eventf(
 		object,
+		nil,
 		EventTypeNormal,
 		ReasonReloaded,
-		fmt.Sprintf("Reloaded due to %s %s change", resourceType, resourceName),
+		actionReloading,
+		"Reloaded due to %s %s change", resourceType, resourceName,
 	)
 }
 
@@ -51,10 +54,12 @@ func (r *Recorder) ReloadFailed(object runtime.Object, resourceType, resourceNam
 	if r == nil || r.recorder == nil {
 		return
 	}
-	r.recorder.Event(
+	r.recorder.Eventf(
 		object,
+		nil,
 		EventTypeWarning,
 		ReasonReloadFailed,
-		fmt.Sprintf("Failed to reload due to %s %s change: %v", resourceType, resourceName, err),
+		actionReloading,
+		"Failed to reload due to %s %s change: %v", resourceType, resourceName, err,
 	)
 }

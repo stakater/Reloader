@@ -152,7 +152,7 @@ func SetupReconcilers(mgr ctrl.Manager, cfg *config.Config, log logr.Logger, col
 		},
 	)
 	reloadService := reload.NewService(cfg, log.WithName("reload"))
-	eventRecorder := events.NewRecorder(mgr.GetEventRecorderFor("reloader"))
+	eventRecorder := events.NewRecorder(mgr.GetEventRecorder("reloader"))
 	pauseHandler := reload.NewPauseHandler(cfg)
 
 	// Create alerter based on configuration
