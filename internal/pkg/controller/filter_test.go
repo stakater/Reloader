@@ -2,6 +2,7 @@ package controller
 
 import (
 	"testing"
+	"time"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -11,47 +12,59 @@ import (
 )
 
 func TestCreateEventPredicate_CreateEvent(t *testing.T) {
+	startTime := time.Date(2024, 1, 1, 12, 0, 0, 0, time.UTC)
+
 	tests := []struct {
 		name             string
 		reloadOnCreate   bool
 		syncAfterRestart bool
-		initialized      bool
-		expectedResult   bool
+		// createdAfterStart controls the resource's creation timestamp relative
+		// to the controller start time: true => created after start (a genuine
+		// post-startup create), false => created before start (initial-sync replay).
+		createdAfterStart bool
+		expectedResult    bool
 	}{
 		{
-			name:             "reload on create enabled, initialized",
-			reloadOnCreate:   true,
-			syncAfterRestart: false,
-			initialized:      true,
-			expectedResult:   true,
+			// Regression: a genuine create after startup must be honored even
+			// when it is the very first event the controller sees (no prior
+			// reconcile). This is the reloadOnCreate e2e scenario.
+			name:              "reload on create enabled, created after start",
+			reloadOnCreate:    true,
+			syncAfterRestart:  false,
+			createdAfterStart: true,
+			expectedResult:    true,
 		},
 		{
-			name:             "reload on create disabled, initialized",
-			reloadOnCreate:   false,
-			syncAfterRestart: false,
-			initialized:      true,
-			expectedResult:   false,
+			// Pre-existing resources replayed during initial sync must not
+			// trigger reloads on startup.
+			name:              "reload on create enabled, created before start (initial sync replay)",
+			reloadOnCreate:    true,
+			syncAfterRestart:  false,
+			createdAfterStart: false,
+			expectedResult:    false,
 		},
 		{
-			name:             "not initialized, sync after restart enabled",
-			reloadOnCreate:   true,
-			syncAfterRestart: true,
-			initialized:      false,
-			expectedResult:   true,
+			name:              "reload on create disabled",
+			reloadOnCreate:    false,
+			syncAfterRestart:  false,
+			createdAfterStart: true,
+			expectedResult:    false,
 		},
 		{
-			name:             "not initialized, sync after restart disabled",
-			reloadOnCreate:   true,
-			syncAfterRestart: false,
-			initialized:      false,
-			expectedResult:   false,
+			// SyncAfterRestart processes every create, including initial-sync
+			// replays of pre-existing resources.
+			name:              "sync after restart honors pre-existing create",
+			reloadOnCreate:    true,
+			syncAfterRestart:  true,
+			createdAfterStart: false,
+			expectedResult:    true,
 		},
 		{
-			name:             "not initialized, sync after restart disabled, reload on create disabled",
-			reloadOnCreate:   false,
-			syncAfterRestart: false,
-			initialized:      false,
-			expectedResult:   false,
+			name:              "sync after restart but reload on create disabled",
+			reloadOnCreate:    false,
+			syncAfterRestart:  true,
+			createdAfterStart: true,
+			expectedResult:    false,
 		},
 	}
 
@@ -62,12 +75,20 @@ func TestCreateEventPredicate_CreateEvent(t *testing.T) {
 					ReloadOnCreate:   tt.reloadOnCreate,
 					SyncAfterRestart: tt.syncAfterRestart,
 				}
-				initialized := tt.initialized
 
-				pred := createEventPredicate(cfg, &initialized)
+				pred := createEventPredicate(cfg, startTime)
+
+				creationTime := startTime.Add(-time.Hour)
+				if tt.createdAfterStart {
+					creationTime = startTime.Add(time.Hour)
+				}
 
 				cm := &corev1.ConfigMap{
-					ObjectMeta: metav1.ObjectMeta{Name: "test", Namespace: "default"},
+					ObjectMeta: metav1.ObjectMeta{
+						Name:              "test",
+						Namespace:         "default",
+						CreationTimestamp: metav1.NewTime(creationTime),
+					},
 				}
 
 				e := event.CreateEvent{Object: cm}
@@ -83,9 +104,8 @@ func TestCreateEventPredicate_CreateEvent(t *testing.T) {
 
 func TestCreateEventPredicate_UpdateEvent(t *testing.T) {
 	cfg := &config.Config{}
-	initialized := true
 
-	pred := createEventPredicate(cfg, &initialized)
+	pred := createEventPredicate(cfg, time.Now())
 
 	cm := &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{Name: "test", Namespace: "default"},
@@ -123,9 +143,8 @@ func TestCreateEventPredicate_DeleteEvent(t *testing.T) {
 				cfg := &config.Config{
 					ReloadOnDelete: tt.reloadOnDelete,
 				}
-				initialized := true
 
-				pred := createEventPredicate(cfg, &initialized)
+				pred := createEventPredicate(cfg, time.Now())
 
 				cm := &corev1.ConfigMap{
 					ObjectMeta: metav1.ObjectMeta{Name: "test", Namespace: "default"},
@@ -144,9 +163,8 @@ func TestCreateEventPredicate_DeleteEvent(t *testing.T) {
 
 func TestCreateEventPredicate_GenericEvent(t *testing.T) {
 	cfg := &config.Config{}
-	initialized := true
 
-	pred := createEventPredicate(cfg, &initialized)
+	pred := createEventPredicate(cfg, time.Now())
 
 	cm := &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{Name: "test", Namespace: "default"},
@@ -165,11 +183,10 @@ func TestBuildEventFilter(t *testing.T) {
 		ReloadOnCreate: true,
 		ReloadOnDelete: true,
 	}
-	initialized := true
 
 	resourcePred := &alwaysTruePredicate{}
 
-	filter := BuildEventFilter(resourcePred, cfg, &initialized)
+	filter := BuildEventFilter(resourcePred, cfg, time.Now())
 
 	if filter == nil {
 		t.Fatal("BuildEventFilter() should return a non-nil predicate")

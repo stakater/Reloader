@@ -2,7 +2,6 @@ package controller
 
 import (
 	"context"
-	"sync"
 	"time"
 
 	"github.com/go-logr/logr"
@@ -55,9 +54,7 @@ type ResourceReconciler[T client.Object] struct {
 	ResourceReconcilerDeps
 	ResourceConfig[T]
 
-	handler     *ReloadHandler
-	initialized bool
-	initOnce    sync.Once
+	handler *ReloadHandler
 }
 
 // NewResourceReconciler creates a new generic resource reconciler.
@@ -76,13 +73,6 @@ func (r *ResourceReconciler[T]) Reconcile(ctx context.Context, req ctrl.Request)
 	startTime := time.Now()
 	resourceType := string(r.ResourceType)
 	log := r.Log.WithValues(resourceType, req.NamespacedName)
-
-	r.initOnce.Do(
-		func() {
-			r.initialized = true
-			log.Info(resourceType + " controller initialized")
-		},
-	)
 
 	r.Collectors.RecordEventReceived("reconcile", resourceType)
 
@@ -184,19 +174,20 @@ func (r *ResourceReconciler[T]) reloadHandler() *ReloadHandler {
 	return r.handler
 }
 
-// Initialized returns whether the reconciler has been initialized.
-func (r *ResourceReconciler[T]) Initialized() *bool {
-	return &r.initialized
-}
-
 // SetupWithManager sets up the controller with the Manager.
 func (r *ResourceReconciler[T]) SetupWithManager(mgr ctrl.Manager, forObject T) error {
+	// Capture the moment the controller is wired up (before the manager starts
+	// watching). Resources that already exist are replayed during the initial
+	// cache sync with an older creation timestamp; the create predicate uses
+	// this to ignore those replays while still honoring genuine creates that
+	// arrive afterwards.
+	startTime := time.Now()
 	return ctrl.NewControllerManagedBy(mgr).
 		For(forObject).
 		WithEventFilter(
 			BuildEventFilter(
 				r.CreatePredicates(r.Config, r.ReloadService.Hasher()),
-				r.Config, r.Initialized(),
+				r.Config, startTime,
 			),
 		).
 		Complete(r)
