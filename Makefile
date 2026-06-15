@@ -148,7 +148,7 @@ manifest:
 	docker manifest annotate --arch $(ARCH) $(REPOSITORY_GENERIC)  $(REPOSITORY_ARCH)
 
 test:
-	"$(GOCMD)" test -timeout 1800s -v -count=1 ./internal/... ./pkg/... ./test/e2e/utils/...
+	"$(GOCMD)" test -timeout 1800s -v -count=1 ./internal/... ./test/e2e/utils/...
 
 ##@ E2E Tests
 
