@@ -48,6 +48,9 @@ spec:
       imagePullSecrets:
 {{ include "reloader-imagePullSecrets" . | indent 8 }}
       {{- end }}
+      {{- if kindIs "bool" .Values.reloader.deployment.hostUsers }}
+      hostUsers: {{ .Values.reloader.deployment.hostUsers }}
+      {{- end }}
       {{- if .Values.reloader.deployment.nodeSelector }}
       nodeSelector:
 {{ toYaml .Values.reloader.deployment.nodeSelector | indent 8 }}
@@ -212,7 +215,7 @@ spec:
           {{- . | toYaml | nindent 10 }}
           {{- end }}
       {{- end }}
-      {{- if or (.Values.reloader.logFormat) (.Values.reloader.logLevel) (.Values.reloader.ignoreSecrets) (.Values.reloader.ignoreNamespaces) (include "reloader-namespaceSelector" .) (.Values.reloader.resourceLabelSelector) (.Values.reloader.ignoreConfigMaps) (.Values.reloader.custom_annotations) (eq .Values.reloader.isArgoRollouts true) (eq .Values.reloader.reloadOnCreate true) (eq .Values.reloader.reloadOnDelete true) (ne .Values.reloader.reloadStrategy "default") (.Values.reloader.enableHA) (.Values.reloader.autoReloadAll) (.Values.reloader.ignoreJobs) (.Values.reloader.ignoreCronJobs)}}
+      {{- if or (.Values.reloader.logFormat) (.Values.reloader.logLevel) (.Values.reloader.ignoreSecrets) (.Values.reloader.ignoreNamespaces) (include "reloader-namespaceSelector" .) (.Values.reloader.resourceLabelSelector) (.Values.reloader.ignoreConfigMaps) (.Values.reloader.custom_annotations) (eq .Values.reloader.isArgoRollouts true) (eq .Values.reloader.reloadOnCreate true) (eq .Values.reloader.reloadOnDelete true) (ne .Values.reloader.reloadStrategy "default") (.Values.reloader.enableHA) (.Values.reloader.autoReloadAll) (.Values.reloader.ignoreJobs) (.Values.reloader.ignoreCronJobs) (.Values.reloader.enableCSIIntegration)}}
         args:
           {{- if .Values.reloader.logFormat }}
           - "--log-format={{ .Values.reloader.logFormat }}"
@@ -224,7 +227,7 @@ spec:
           - "--resources-to-ignore=secrets"
           {{- end }}
           {{- if .Values.reloader.ignoreConfigMaps }}
-          - "--resources-to-ignore=configMaps"
+          - "--resources-to-ignore=configmaps"
           {{- end }}
           {{- if and (.Values.reloader.ignoreJobs) (.Values.reloader.ignoreCronJobs) }}
           - "--ignored-workload-types=jobs,cronjobs"
@@ -247,6 +250,9 @@ spec:
           {{- if and .Values.reloader.pprofAddr }}
           - "--pprof-addr={{ .Values.reloader.pprofAddr }}"
           {{- end }}
+          {{- end }}
+          {{- if .Values.reloader.enableCSIIntegration }}
+          - "--enable-csi-integration=true"
           {{- end }}
           {{- if .Values.reloader.custom_annotations }}
             {{- if .Values.reloader.custom_annotations.configmap }}
@@ -276,6 +282,10 @@ spec:
             {{- if .Values.reloader.custom_annotations.match }}
           - "--search-match-annotation"
           - "{{ .Values.reloader.custom_annotations.match }}"
+            {{- end }}
+            {{- if .Values.reloader.custom_annotations.ignore }}
+          - "--ignore-annotation"
+          - "{{ .Values.reloader.custom_annotations.ignore }}"
             {{- end }}
             {{- if .Values.reloader.custom_annotations.pausePeriod }}
           - "--pause-deployment-annotation"

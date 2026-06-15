@@ -14,6 +14,9 @@ env:
   KIND_VERSION: "0.23.0"
   REGISTRY: ghcr.io
 
+# Default to no GITHUB_TOKEN permissions; each job opts into the minimum it needs.
+permissions: {}
+
 jobs:
 
   helm-chart-validation:
@@ -26,21 +29,23 @@ jobs:
     steps:
 
     - name: Check out code
-      uses: actions/checkout@v5
+      uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
       with:
         ref: ${{github.event.pull_request.head.sha}}
         fetch-depth: 0
 
     # Setting up helm binary
     - name: Set up Helm
-      uses: azure/setup-helm@v4
+      uses: azure/setup-helm@1a275c3b69536ee54be43f2070a358922e12c8d4 # v4
       with:
-        version: v3.11.3
+        version: v3.20.2
 
     - name: Helm chart unit tests
-      uses: d3adb5/helm-unittest-action@v2
+      uses: d3adb5/helm-unittest-action@850bc76597579183998069830d5fa8c3ef0ea34a # v2
       with:
         charts: deployments/kubernetes/chart/reloader
+        helm-version: v3.20.2
+        github-token: ${{ secrets.GITHUB_TOKEN }}
 
   helm-version-validation:
     needs: helm-chart-validation
@@ -55,7 +60,7 @@ jobs:
     steps:
 
     - name: Check out code
-      uses: actions/checkout@v5
+      uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
       with:
         ref: ${{github.event.pull_request.head.sha}}
         fetch-depth: 0
@@ -71,13 +76,13 @@ jobs:
         echo "CURRENT_CHART_VERSION=$(echo ${current_chart_version})" >> $GITHUB_OUTPUT
 
     - name: Get Updated Chart version from Chart.yaml
-      uses: mikefarah/yq@master
+      uses: mikefarah/yq@751d8ad57b84f1794661bc70c0afb92a22ad7b3c # v4.53.2
       id: new_chart_version
       with:
         cmd: yq e '.version' deployments/kubernetes/chart/reloader/Chart.yaml
 
     - name: Check Version
-      uses: aleoyakas/check-semver-increased-action@v1
+      uses: aleoyakas/check-semver-increased-action@415c9c60054c2442c03478b6dd96a195deac6695 # v1
       id: check-version
       with:
         current-version: ${{ steps.new_chart_version.outputs.result }}

@@ -2,7 +2,7 @@ ARG BUILDER_IMAGE
 ARG BASE_IMAGE
 
 # Build the manager binary
-FROM --platform=${BUILDPLATFORM} ${BUILDER_IMAGE:-golang:1.25.5} AS builder
+FROM --platform=${BUILDPLATFORM} ${BUILDER_IMAGE:-golang:1.26} AS builder
 
 ARG TARGETOS
 ARG TARGETARCH
@@ -12,6 +12,7 @@ ARG GOPRIVATE
 ARG COMMIT
 ARG VERSION
 ARG BUILD_DATE
+ARG EDITION=oss
 
 WORKDIR /workspace
 
@@ -33,10 +34,10 @@ RUN CGO_ENABLED=0 \
     GOPROXY=${GOPROXY} \
     GOPRIVATE=${GOPRIVATE} \
     GO111MODULE=on \
-    go build -ldflags="-s -w \
-         -X github.com/stakater/Reloader/internal/pkg/metadata.Version=${VERSION} \
-         -X github.com/stakater/Reloader/internal/pkg/metadata.Commit=${COMMIT} \
-         -X github.com/stakater/Reloader/internal/pkg/metadata.BuildDate=${BUILD_DATE}" \
+    go build -ldflags="-s -w -X github.com/stakater/Reloader/pkg/common.Version=${VERSION} \
+         -X github.com/stakater/Reloader/pkg/common.Commit=${COMMIT} \
+         -X github.com/stakater/Reloader/pkg/common.BuildDate=${BUILD_DATE} \
+         -X github.com/stakater/Reloader/pkg/common.Edition=${EDITION}" \
         -installsuffix 'static' -mod=mod -a -o manager ./cmd/reloader
 
 # Use distroless as minimal base image to package the manager binary

@@ -9,23 +9,25 @@ on:
       - '**'
       - '!.markdownlint.yaml'
       - '!.vale.ini'
-      - '!Dockerfile-docs'
-      - '!docs-nginx.conf'
-      - '!docs/**'
-      - '!theme_common'
-      - '!theme_override'
       - '!deployments/kubernetes/chart/reloader/**'
 
 env:
   DOCKER_FILE_PATH: Dockerfile
   DOCKER_UBI_FILE_PATH: Dockerfile.ubi
   KUBERNETES_VERSION: "1.30.0"
-  KIND_VERSION: "0.23.0"
+  KIND_VERSION: "0.31.0"
   REGISTRY: ghcr.io
+  RELOADER_EDITION: oss
+
+# Default to no GITHUB_TOKEN permissions; each job opts into the minimum it needs.
+permissions: {}
 
 jobs:
   qa:
-    uses: stakater/.github/.github/workflows/pull_request_doc_qa.yaml@v0.0.163
+    permissions:
+      contents: read
+      pull-requests: write # reusable workflow posts languagetool review comments
+    uses: stakater/.github/.github/workflows/pull_request_doc_qa.yaml@3dfb835dba6b596fe32e1d0f5eadbb4a3a139a1c # v0.0.163
     with:
       MD_CONFIG: .github/md_config.json
       DOC_SRC: README.md
@@ -35,33 +37,37 @@ jobs:
 
     permissions:
       contents: read
+      pull-requests: write
+      issues: write
 
     runs-on: ubuntu-latest
     name: Build
     steps:
     - name: Check out code
-      uses: actions/checkout@v5
+      uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
       with:
         ref: ${{github.event.pull_request.head.sha}}
         fetch-depth: 0
 
     # Setting up helm binary
     - name: Set up Helm
-      uses: azure/setup-helm@v4
+      uses: azure/setup-helm@dda3372f752e03dde6b3237bc9431cdc2f7a02a2 # v5
       with:
-        version: v3.11.3
+        version: v3.20.2
 
     - name: Helm chart unit tests
-      uses: d3adb5/helm-unittest-action@v2
+      uses: d3adb5/helm-unittest-action@850bc76597579183998069830d5fa8c3ef0ea34a # v2
       with:
         charts: deployments/kubernetes/chart/reloader
+        helm-version: v3.20.2
+        github-token: ${{ secrets.GITHUB_TOKEN }}
 
     - name: Set up Go
-      uses: actions/setup-go@v6
+      uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6
       with:
         go-version-file: 'go.mod'
         check-latest: true
-        cache: true
+        cache: false
 
     - name: Create timestamp
       id: prep
@@ -100,17 +106,25 @@ jobs:
         kind version
         kind version | grep -q ${KIND_VERSION}
 
-    - name: Create Kind Cluster
-      run: |
-        kind create cluster
-        kubectl cluster-info
+    - name: Create Kind Cluster and Setup E2E Dependencies
+      run: KIND_CLUSTER=kind make e2e-setup
 
-
-    - name: Unit Tests
+    - name: Run unit tests
       run: make test
 
-    - name: E2E Tests
-      run: make e2e
+    - name: Run E2E tests
+      run: KIND_CLUSTER=kind make e2e
+
+    - name: Run quick A/B load tests
+      uses: ./.github/actions/loadtest
+      with:
+        old-ref: ${{ github.event.pull_request.base.sha }}
+        # new-ref defaults to current checkout (PR branch)
+        scenarios: 'S1,S4,S6'
+        test-type: 'quick'
+        kind-cluster: 'kind'  # Use the existing cluster created above
+        post-comment: 'true'
+        pr-number: ${{ github.event.pull_request.number }}
 
     - name: Generate Tags
       id: generate_tag
@@ -122,10 +136,10 @@ jobs:
         echo "GIT_UBI_TAG=$(echo ${ubi_tag})" >> $GITHUB_OUTPUT
 
     - name: Set up QEMU
-      uses: docker/setup-qemu-action@v3
+      uses: docker/setup-qemu-action@c7c53464625b32c7a7e944ae62b3e17d2b600130 # v3
 
     - name: Set up Docker Buildx
-      uses: docker/setup-buildx-action@v3
+      uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
 
     - name: Generate image repository path for ghcr registry
       run: |
@@ -134,7 +148,7 @@ jobs:
     # To identify any broken changes in dockerfiles or dependencies
 
     - name: Build Docker Image
-      uses: docker/build-push-action@v6
+      uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
       with:
         context: .
         file: ${{ env.DOCKER_FILE_PATH  }}
@@ -144,9 +158,9 @@ jobs:
           VERSION=merge-${{ steps.generate_tag.outputs.GIT_TAG }}
           COMMIT=${{github.event.pull_request.head.sha}}
           BUILD_DATE=${{ steps.prep.outputs.created }}
+          EDITION=${{ env.RELOADER_EDITION }}
           BUILD_PARAMETERS=${{ env.BUILD_PARAMETERS }}
         
-        cache-to: type=inline
         platforms: linux/amd64,linux/arm,linux/arm64
         tags: |
           ${{ env.GHCR_IMAGE_REPOSITORY }}:${{ steps.generate_tag.outputs.GIT_TAG }}
@@ -156,16 +170,19 @@ jobs:
           org.opencontainers.image.revision=${{ github.sha }}
 
     - name: Build Docker UBI Image
-      uses: docker/build-push-action@v6
+      uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
       with:
         context: .
         file: ${{ env.DOCKER_UBI_FILE_PATH  }}
         pull: true
         push: false
         build-args: |
+          VERSION=merge-${{ steps.generate_tag.outputs.GIT_UBI_TAG }}
+          COMMIT=${{github.event.pull_request.head.sha}}
+          BUILD_DATE=${{ steps.prep.outputs.created }}
+          EDITION=${{ env.RELOADER_EDITION }}
           BUILD_PARAMETERS=${{ env.BUILD_PARAMETERS }}
           BUILDER_IMAGE=${{ env.GHCR_IMAGE_REPOSITORY }}:${{ steps.highest_tag.outputs.tag }}
-        cache-to: type=inline
         platforms: linux/amd64,linux/arm64
         tags: |
           ${{ env.GHCR_IMAGE_REPOSITORY }}:${{ steps.generate_tag.outputs.GIT_UBI_TAG }}

@@ -19,7 +19,7 @@ fullnameOverride: ""
 image:
   name: stakater/reloader
   repository: ghcr.io/stakater/reloader
-  tag: v1.4.12
+  tag: v1.4.17
   # digest: sha256:1234567
   pullPolicy: IfNotPresent
 
@@ -49,6 +49,7 @@ reloader:
   enableHA: false
   # Set to true to enable pprof for profiling
   enablePProf: false
+  enableCSIIntegration: false
   # Address to start pprof server on. Default is ":6060"
   pprofAddr: ":6060"
   # Set to true if you have a pod security policy that enforces readOnlyRootFilesystem
@@ -76,6 +77,8 @@ reloader:
     replicas: 1
 
     revisionHistoryLimit: 2
+
+    hostUsers: null
 
     nodeSelector:
     # cloud.google.com/gke-nodepool: default-pool
@@ -132,7 +135,7 @@ reloader:
     labels:
       provider: stakater
       group: com.stakater.platform
-      version: v1.4.12
+      version: v1.4.14
     # Support for extra environment variables.
     env:
       # Open supports Key value pair as environment variables.
@@ -212,6 +215,7 @@ reloader:
   #   custom_annotations:
   #     configmap: "my.company.com/configmap"
   #     secret: "my.company.com/secret"
+  #     ignore: "my.company.com/reloader-ignore"
   custom_annotations: {}
 
   serviceMonitor:

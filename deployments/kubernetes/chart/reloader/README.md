@@ -75,6 +75,7 @@ helm uninstall {{RELEASE_NAME}} -n {{NAMESPACE}}
 | ----------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- | ------ | ----------------- |
 | `reloader.deployment.replicas`                  | Number of replicas, if you wish to run multiple replicas set `reloader.enableHA = true`. The replicas will be limited to 1 when `reloader.enableHA = false` | int    | 1                 |
 | `reloader.deployment.revisionHistoryLimit`      | Limit the number of revisions retained in the revision history                                                                                              | int    | 2                 |
+| `reloader.deployment.hostUsers`                 | Enable user namespace                                                                                                       | boolean    |               |
 | `reloader.deployment.nodeSelector`              | Scheduling pod to a specific node based on set labels                                                                                                       | map    | `{}`              |
 | `reloader.deployment.affinity`                  | Set affinity rules on pod                                                                                                                                   | map    | `{}`              |
 | `reloader.deployment.securityContext`           | Set pod security context                                                                                                                                    | map    | `{}`              |
@@ -139,20 +140,25 @@ helm uninstall {{RELEASE_NAME}} -n {{NAMESPACE}}
 
 #### 🔄 `reloadOnCreate` Behavior
 **When true:**
-✅ New ConfigMaps/Secrets trigger rolling updates
-✅ New deployments referencing existing resources reload
+✅ New ConfigMaps/Secrets trigger rolling updates for referencing workloads
+
+**When false:**
+❌ ConfigMaps/Secrets creations have no effect on referencing workloads
+
+#### 🗑️ `reloadOnDelete` Behavior
+**When true:**
+✅ Deleted ConfigMaps/Secrets trigger rolling updates for referencing workloads
+
+**When false:**
+❌ ConfigMaps/Secrets deletions have no effect on referencing workloads
+
+#### 🔄 `syncAfterRestart` Behavior
+**When true:**
 ✅ In HA mode, new leader reloads all tracked workloads
 
 **When false:**
 ❌ Updates during leader downtime are missed
 ⏳ Potential 15s delay window (default `LeaseDuration`)
-
-#### 🗑️ `reloadOnDelete` Behavior
-**When true:**
-✅ Deleted resources trigger rolling updates of referencing workloads
-
-**When false:**
-❌ Deletions have no effect on referencing pods
 
 #### Default Settings
 ⚠️ All flags default to `false` (must be enabled explicitly):

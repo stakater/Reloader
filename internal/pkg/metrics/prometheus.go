@@ -169,6 +169,7 @@ func (c *Collectors) RecordWorkloadsMatched(kind string, count int) {
 }
 
 func NewCollectors() Collectors {
+	// Existing metrics (preserved)
 	reloaded := prometheus.NewCounterVec(
 		prometheus.CounterOpts{
 			Namespace: "reloader",

@@ -1,7 +1,7 @@
 version: "2"
 
 run:
-  go: "1.25"
+  go: "1.26"
   timeout: 5m
   allow-parallel-runners: true
 

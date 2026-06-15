@@ -8,16 +8,18 @@
 [![Release](https://img.shields.io/github/release/stakater/reloader.svg?style=flat-square)](https://github.com/stakater/reloader/releases/latest)
 [![GitHub tag](https://img.shields.io/github/tag/stakater/reloader.svg?style=flat-square)](https://github.com/stakater/reloader/releases/latest)
 [![Docker Pulls](https://img.shields.io/docker/pulls/stakater/reloader.svg?style=flat-square)](https://hub.docker.com/r/stakater/reloader/)
-[![Docker Stars](https://img.shields.io/docker/stars/stakater/reloader.svg?style=flat-square)](https://hub.docker.com/r/stakater/reloader/)
+[![GitHub Stars](https://img.shields.io/github/stars/stakater/Reloader.svg?style=flat-square)](https://github.com/stakater/Reloader)
 [![license](https://img.shields.io/github/license/stakater/reloader.svg?style=flat-square)](LICENSE)
 
 ## 🔁 What is Reloader?
 
-Reloader is a Kubernetes controller that automatically triggers rollouts of workloads (like Deployments, StatefulSets, and more) whenever referenced `Secrets` or `ConfigMaps` are updated.
+Reloader is a Kubernetes controller that automatically triggers rollouts of workloads (like Deployments, StatefulSets, and more) whenever referenced `Secrets`, `ConfigMaps` or **optionally CSI-mounted secrets** are updated.
 
 In a traditional Kubernetes setup, updating a `Secret` or `ConfigMap` does not automatically restart or redeploy your workloads. This can lead to stale configurations running in production, especially when dealing with dynamic values like credentials, feature flags, or environment configs.
 
 Reloader bridges that gap by ensuring your workloads stay in sync with configuration changes — automatically and safely.
+
+📚 Full documentation is available at [Stakater documentation site](https://docs.stakater.com/reloader/)
 
 ## 🚀 Why Reloader?
 
@@ -49,6 +51,21 @@ flowchart LR
 - Sources like `ExternalSecret`, `SealedSecret`, or `Certificate` from `cert-manager` can create or manage Kubernetes `Secrets` — but they can also be created manually or delivered through GitOps workflows.
 - `Secrets` and `ConfigMaps` are watched by Reloader.
 - When changes are detected, Reloader automatically triggers a rollout of the associated workloads, ensuring your app always runs with the latest configuration.
+
+## 🏢 Reloader Enterprise
+
+Reloader OSS is free and production-proven with 24B+ downloads.
+
+For teams with stricter requirements:
+
+| Need | Enterprise |
+|------|-----------|
+| CVE-free, signed images with SBOM | ✅ |
+| SLA-backed support from Kubernetes experts | ✅ |
+| Artifact provenance for compliance audits | ✅ |
+| Dedicated escalation path | ✅ |
+
+→ [Contact Sales](mailto:sales@stakater.com) for info about Reloader Enterprise.
 
 ## ⚡ Quick Start
 
@@ -84,16 +101,6 @@ spec:
 ```
 
 This tells Reloader to watch the `ConfigMap` and `Secret` referenced in this deployment. When either is updated, it will trigger a rollout.
-
-## 🏢 Enterprise Version
-
-Stakater offers an enterprise-grade version of Reloader with:
-
-1. SLA-backed support
-1. Certified images
-1. Private Slack support
-
-Contact [`sales@stakater.com`](mailto:sales@stakater.com) for info about Reloader Enterprise.
 
 ## 🧩 Usage
 
@@ -169,9 +176,11 @@ metadata:
 
 This instructs Reloader to skip all reload logic for that resource across all workloads.
 
-### 4. ⚙️ Workload-Specific Rollout Strategy
+### 4. ⚙️ Workload-Specific Rollout Strategy (Argo Rollouts Only)
 
-By default, Reloader uses the **rollout** strategy — it updates the pod template to trigger a new rollout. This works well in most cases, but it can cause problems if you're using GitOps tools like ArgoCD, which detect this as configuration drift.
+Note: This is only applicable when using [Argo Rollouts](https://argoproj.github.io/argo-rollouts/). It is ignored for standard Kubernetes `Deployments`, `StatefulSets`, or `DaemonSets`. To use this feature, Argo Rollouts support must be enabled in Reloader (for example via --is-argo-rollouts=true).
+
+By default, Reloader triggers the Argo Rollout controller to perform a standard rollout by updating the pod template. This works well in most cases, however, because this modifies the workload spec, GitOps tools like ArgoCD will detect this as "Configuration Drift" and mark your application as OutOfSync.
 
 To avoid that, you can switch to the **restart** strategy, which simply restarts the pod without changing the pod template.
 
@@ -191,6 +200,8 @@ metadata:
 1. You're using GitOps and want to avoid drift
 1. You want a quick restart without changing the workload spec
 1. Your platform restricts metadata changes
+
+This setting affects Argo Rollouts behavior, not Argo CD sync settings.
 
 ### 5. ❗ Annotation Behavior Rules & Compatibility
 
@@ -238,6 +249,61 @@ This feature allows you to pause rollouts for a deployment for a specified durat
 
 1. ✅ Your deployment references multiple ConfigMaps or Secrets that may be updated at the same time.
 1. ✅ You want to minimize unnecessary rollouts and reduce downtime caused by back-to-back configuration changes.
+
+### 8. 🔐 CSI Secret Provider Support
+
+Reloader supports the [Secrets Store CSI Driver](https://secrets-store-csi-driver.sigs.k8s.io/), which allows mounting secrets from external secret stores (like AWS Secrets Manager, Azure Key Vault, HashiCorp Vault) directly into pods.
+Unlike Kubernetes Secret objects, CSI-mounted secrets do not always trigger native Kubernetes update events. Reloader solves this by watching CSI status resources and restarting affected workloads when mounted secret versions change.
+
+#### How it works
+
+When secret rotation is enabled, the Secrets Store CSI Driver updates a Kubernetes resource called: `SecretProviderClassPodStatus`
+
+This resource reflects the currently mounted secret versions for a pod.
+Reloader watches these updates and triggers a rollout when a change is detected.
+
+#### Prerequisites
+
+- Secrets Store CSI Driver must be installed in your cluster
+- Secret rotation enabled in the CSI driver.
+- Enable CSI integration in Reloader: `--enable-csi-integration=true`
+
+#### Annotations for CSI-mounted Secrets
+
+| Annotation                                                                   | Description                                                                                                                 |
+|------------------------------------------------------------------------------|-----------------------------------------------------------------------------------------------------------------------------|
+| `reloader.stakater.com/auto: "true"`                                         | Global Discovery: Automatically discovers and reloads the workload when any mounted ConfigMap or Secret is updated.         |
+| `secretproviderclass.reloader.stakater.com/auto: 'true'`                     | CSI Discovery: Specifically watches for updates to all SecretProviderClasses used by the workload (CSI driver integration). |
+| `secretproviderclass.reloader.stakater.com/reload: "my-secretproviderclass"` | Targeted Reload: Only reloads the workload when the specifically named SecretProviderClass(es) are updated.                 |
+
+Reloader monitors changes at the **per-secret level** by watching the `SecretProviderClassPodStatus`. Make sure each secret you want to monitor is properly defined with a `secretKey` in your `SecretProviderClass`:
+
+```yaml
+apiVersion: secrets-store.csi.x-k8s.io/v1
+kind: SecretProviderClass
+metadata:
+  name: vault-reloader-demo
+  namespace: test
+spec:
+  provider: vault
+  parameters:
+    vaultAddress: "http://vault.vault.svc:8200"
+    vaultSkipTLSVerify: "true"
+    roleName: "demo-role"
+    objects: |
+      - objectName: "password"
+        secretPath: "secret/data/reloader-demo"
+        secretKey: "password"
+```
+
+***Important***: Reloader tracks changes to individual secrets (identified by `secretKey`). If your SecretProviderClass doesn't specify `secretKey` for each object, Reloader may not detect updates correctly.
+
+#### Notes & Limitations
+
+Reloader reacts to CSI status changes, not direct updates to external secret stores
+Secret rotation must be enabled in the CSI driver for updates to be detected
+CSI limitations (such as `subPath` mounts) still apply and may require pod restarts
+If secrets are synced to Kubernetes Secret objects, standard Reloader behavior applies and CSI support may not be required
 
 ## 🚀 Installation
 
@@ -374,6 +440,7 @@ These flags allow you to redefine annotation keys used in your workloads or reso
 | `--search-match-annotation` | Overrides `reloader.stakater.com/match` |
 | `--secret-annotation` | Overrides `secret.reloader.stakater.com/reload` |
 | `--configmap-annotation` | Overrides `configmap.reloader.stakater.com/reload` |
+| `--ignore-annotation` | Overrides `reloader.stakater.com/ignore` |
 | `--pause-deployment-annotation` | Overrides `deployment.reloader.stakater.com/pause-period` |
 | `--pause-deployment-time-annotation` | Overrides `deployment.reloader.stakater.com/paused-at` |
 
@@ -388,11 +455,18 @@ These flags allow you to redefine annotation keys used in your workloads or reso
 
 Reloader is compatible with Kubernetes >= 1.19
 
+## 🏢 Adopters
+
+Reloader has **24B+ Docker pulls** across thousands of Kubernetes clusters worldwide.
+
+If you're running Reloader in production, we'd love to hear from you:
+
+- 💬 **Share your story** → [Show & Tell Discussion](https://github.com/stakater/Reloader/discussions/1137)
+- 🏷️ **Add your logo** → [ADOPTERS.md](./adopters/ADOPTERS.md)
+
+[See who's using Reloader →](./adopters/ADOPTERS.md)
+
 ## Help
-
-### Documentation
-
-The Reloader documentation can be viewed from [the doc site](https://docs.stakater.com/reloader/). The doc source is in the [docs](./docs/) folder.
 
 ### Have a question?
 
@@ -430,7 +504,7 @@ PRs are welcome. In general, we follow the "fork-and-pull" Git workflow:
 
 ## Release Processes
 
-_Repository GitHub releases_: As requested by the community in [issue 685](https://github.com/stakater/Reloader/issues/685), Reloader is now based on a manual release process. Releases are no longer done on every merged PR to the main branch, but manually on request.
+*Repository GitHub releases*: As requested by the community in [issue 685](https://github.com/stakater/Reloader/issues/685), Reloader is now based on a manual release process. Releases are no longer done on every merged PR to the main branch, but manually on request.
 
 To make a GitHub release:
 
@@ -443,7 +517,7 @@ To make a GitHub release:
 1. Code owners create another branch from `master` and bump the helm chart version as well as Reloader image version.
     - Code owners create a PR with `release/helm-chart` label, example: [PR-846](https://github.com/stakater/Reloader/pull/846)
 
-_Repository git tagging_: Push to the main branch will create a merge-image and merge-tag named `merge-${{ github.event.number }}`, for example `merge-800` when pull request number 800 is merged.
+*Repository git tagging*: Push to the main branch will create a merge-image and merge-tag named `merge-${{ github.event.number }}`, for example `merge-800` when pull request number 800 is merged.
 
 ## Changelog
 
