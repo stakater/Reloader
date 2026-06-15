@@ -41,7 +41,7 @@ func createEventPredicate(cfg *config.Config, startTime time.Time) predicate.Pre
 			// an older creation timestamp and must not trigger reloads on
 			// startup, but a genuine create that arrives afterwards must be
 			// honored even if it is the very first event this controller sees.
-			return e.Object.GetCreationTimestamp().Time.After(startTime)
+			return e.Object.GetCreationTimestamp().After(startTime)
 		},
 		UpdateFunc: func(e event.UpdateEvent) bool {
 			return true
