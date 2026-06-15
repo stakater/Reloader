@@ -225,7 +225,7 @@ spec:
           - "--resources-to-ignore=secrets"
           {{- end }}
           {{- if .Values.reloader.ignoreConfigMaps }}
-          - "--resources-to-ignore=configMaps"
+          - "--resources-to-ignore=configmaps"
           {{- end }}
           {{- if and (.Values.reloader.ignoreJobs) (.Values.reloader.ignoreCronJobs) }}
           - "--ignored-workload-types=jobs,cronjobs"
