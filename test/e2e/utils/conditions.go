@@ -6,7 +6,6 @@ import (
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
-	csiv1 "sigs.k8s.io/secrets-store-csi-driver/apis/v1"
 )
 
 // PodTemplateAccessor extracts PodTemplateSpec from a workload.
@@ -214,45 +213,5 @@ func IsTriggeredJobForCronJob(cronJobName string) Condition[*batchv1.Job] {
 			}
 		}
 		return false
-	}
-}
-
-// SPCPSVersionChanged returns a condition that checks if the SPCPS version has changed
-// from the initial version and the SPCPS is mounted.
-func SPCPSVersionChanged(initialVersion string) Condition[*csiv1.SecretProviderClassPodStatus] {
-	return func(spcps *csiv1.SecretProviderClassPodStatus) bool {
-		if !spcps.Status.Mounted || len(spcps.Status.Objects) == 0 {
-			return false
-		}
-		for _, obj := range spcps.Status.Objects {
-			if obj.Version != initialVersion {
-				return true
-			}
-		}
-		return false
-	}
-}
-
-// SPCPSForSPC returns a condition that checks if the SPCPS references a specific
-// SecretProviderClass and is mounted.
-func SPCPSForSPC(spcName string) Condition[*csiv1.SecretProviderClassPodStatus] {
-	return func(spcps *csiv1.SecretProviderClassPodStatus) bool {
-		return spcps.Status.SecretProviderClassName == spcName && spcps.Status.Mounted
-	}
-}
-
-// SPCPSForPod returns a condition that checks if the SPCPS references a specific
-// pod and is mounted.
-func SPCPSForPod(podName string) Condition[*csiv1.SecretProviderClassPodStatus] {
-	return func(spcps *csiv1.SecretProviderClassPodStatus) bool {
-		return spcps.Status.PodName == podName && spcps.Status.Mounted
-	}
-}
-
-// SPCPSForPods returns a condition that checks if the SPCPS references any of the
-// specified pods and is mounted.
-func SPCPSForPods(podNames map[string]bool) Condition[*csiv1.SecretProviderClassPodStatus] {
-	return func(spcps *csiv1.SecretProviderClassPodStatus) bool {
-		return podNames[spcps.Status.PodName] && spcps.Status.Mounted
 	}
 }

@@ -1,59 +1,14 @@
 package metrics
 
 import (
-	"context"
 	"net/http"
-	"net/url"
 	"os"
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
-	"k8s.io/client-go/tools/metrics"
+	ctrlmetrics "sigs.k8s.io/controller-runtime/pkg/metrics"
 )
-
-// clientGoRequestMetrics implements metrics.LatencyMetric and metrics.ResultMetric
-// to expose client-go's rest_client_requests_total metric
-type clientGoRequestMetrics struct {
-	requestCounter *prometheus.CounterVec
-	requestLatency *prometheus.HistogramVec
-}
-
-func (m *clientGoRequestMetrics) Increment(ctx context.Context, code string, method string, host string) {
-	m.requestCounter.WithLabelValues(code, method, host).Inc()
-}
-
-func (m *clientGoRequestMetrics) Observe(ctx context.Context, verb string, u url.URL, latency time.Duration) {
-	m.requestLatency.WithLabelValues(verb, u.Host).Observe(latency.Seconds())
-}
-
-var clientGoMetrics = &clientGoRequestMetrics{
-	requestCounter: prometheus.NewCounterVec(
-		prometheus.CounterOpts{
-			Name: "rest_client_requests_total",
-			Help: "Number of HTTP requests, partitioned by status code, method, and host.",
-		},
-		[]string{"code", "method", "host"},
-	),
-	requestLatency: prometheus.NewHistogramVec(
-		prometheus.HistogramOpts{
-			Name:    "rest_client_request_duration_seconds",
-			Help:    "Request latency in seconds. Broken down by verb and host.",
-			Buckets: []float64{0.001, 0.01, 0.05, 0.1, 0.5, 1, 5, 10, 30},
-		},
-		[]string{"verb", "host"},
-	),
-}
-
-func init() {
-	// Register the metrics collectors
-	prometheus.MustRegister(clientGoMetrics.requestCounter)
-	prometheus.MustRegister(clientGoMetrics.requestLatency)
-
-	// Register our metrics implementation with client-go
-	metrics.RequestResult = clientGoMetrics
-	metrics.RequestLatency = clientGoMetrics
-}
 
 // Collectors holds all Prometheus metrics collectors for Reloader.
 type Collectors struct {
@@ -61,24 +16,38 @@ type Collectors struct {
 	ReloadedByNamespace *prometheus.CounterVec
 	countByNamespace    bool
 
+	// === Comprehensive metrics for load testing ===
+
+	// Reconcile/Handler metrics
 	ReconcileTotal    *prometheus.CounterVec   // Total reconcile calls by result
 	ReconcileDuration *prometheus.HistogramVec // Time spent in reconcile/handler
-	ActionTotal       *prometheus.CounterVec   // Total actions by workload kind and result
-	ActionLatency     *prometheus.HistogramVec // Time from event to action applied
-	SkippedTotal      *prometheus.CounterVec   // Skipped operations by reason
-	QueueDepth        prometheus.Gauge         // Current queue depth
-	QueueAdds         prometheus.Counter       // Total items added to queue
-	QueueLatency      *prometheus.HistogramVec // Time spent in queue
-	ErrorsTotal       *prometheus.CounterVec   // Errors by type
-	RetriesTotal      prometheus.Counter       // Total retries
-	EventsReceived    *prometheus.CounterVec   // Events received by type (add/update/delete)
-	EventsProcessed   *prometheus.CounterVec   // Events processed by type and result
-	WorkloadsScanned  *prometheus.CounterVec   // Workloads scanned by kind
-	WorkloadsMatched  *prometheus.CounterVec   // Workloads matched for reload by kind
+
+	// Action metrics
+	ActionTotal   *prometheus.CounterVec   // Total actions by workload kind and result
+	ActionLatency *prometheus.HistogramVec // Time from event to action applied
+
+	// Skip metrics
+	SkippedTotal *prometheus.CounterVec // Skipped operations by reason
+
+	// Queue metrics (controller-runtime exposes some automatically, but we add custom ones)
+	QueueDepth   prometheus.Gauge         // Current queue depth
+	QueueAdds    prometheus.Counter       // Total items added to queue
+	QueueLatency *prometheus.HistogramVec // Time spent in queue
+
+	// Error and retry metrics
+	ErrorsTotal  *prometheus.CounterVec // Errors by type
+	RetriesTotal prometheus.Counter     // Total retries
+
+	// Event processing metrics
+	EventsReceived  *prometheus.CounterVec // Events received by type (add/update/delete)
+	EventsProcessed *prometheus.CounterVec // Events processed by type and result
+
+	// Resource discovery metrics
+	WorkloadsScanned *prometheus.CounterVec // Workloads scanned by kind
+	WorkloadsMatched *prometheus.CounterVec // Workloads matched for reload by kind
 }
 
 // RecordReload records a reload event with the given success status and namespace.
-// Preserved for backward compatibility.
 func (c *Collectors) RecordReload(success bool, namespace string) {
 	if c == nil {
 		return
@@ -92,10 +61,12 @@ func (c *Collectors) RecordReload(success bool, namespace string) {
 	c.Reloaded.With(prometheus.Labels{"success": successLabel}).Inc()
 
 	if c.countByNamespace {
-		c.ReloadedByNamespace.With(prometheus.Labels{
-			"success":   successLabel,
-			"namespace": namespace,
-		}).Inc()
+		c.ReloadedByNamespace.With(
+			prometheus.Labels{
+				"success":   successLabel,
+				"namespace": namespace,
+			},
+		).Inc()
 	}
 }
 
@@ -218,6 +189,8 @@ func NewCollectors() Collectors {
 		},
 		[]string{"success", "namespace"},
 	)
+
+	// === Comprehensive metrics ===
 
 	reconcileTotal := prometheus.NewCounterVec(
 		prometheus.CounterOpts{
@@ -370,26 +343,29 @@ func NewCollectors() Collectors {
 func SetupPrometheusEndpoint() Collectors {
 	collectors := NewCollectors()
 
-	prometheus.MustRegister(collectors.Reloaded)
-	prometheus.MustRegister(collectors.ReconcileTotal)
-	prometheus.MustRegister(collectors.ReconcileDuration)
-	prometheus.MustRegister(collectors.ActionTotal)
-	prometheus.MustRegister(collectors.ActionLatency)
-	prometheus.MustRegister(collectors.SkippedTotal)
-	prometheus.MustRegister(collectors.QueueDepth)
-	prometheus.MustRegister(collectors.QueueAdds)
-	prometheus.MustRegister(collectors.QueueLatency)
-	prometheus.MustRegister(collectors.ErrorsTotal)
-	prometheus.MustRegister(collectors.RetriesTotal)
-	prometheus.MustRegister(collectors.EventsReceived)
-	prometheus.MustRegister(collectors.EventsProcessed)
-	prometheus.MustRegister(collectors.WorkloadsScanned)
-	prometheus.MustRegister(collectors.WorkloadsMatched)
+	ctrlmetrics.Registry.MustRegister(collectors.Reloaded)
+	ctrlmetrics.Registry.MustRegister(collectors.ReconcileTotal)
+	ctrlmetrics.Registry.MustRegister(collectors.ReconcileDuration)
+	ctrlmetrics.Registry.MustRegister(collectors.ActionTotal)
+	ctrlmetrics.Registry.MustRegister(collectors.ActionLatency)
+	ctrlmetrics.Registry.MustRegister(collectors.SkippedTotal)
+	ctrlmetrics.Registry.MustRegister(collectors.QueueDepth)
+	ctrlmetrics.Registry.MustRegister(collectors.QueueAdds)
+	ctrlmetrics.Registry.MustRegister(collectors.QueueLatency)
+	ctrlmetrics.Registry.MustRegister(collectors.ErrorsTotal)
+	ctrlmetrics.Registry.MustRegister(collectors.RetriesTotal)
+	ctrlmetrics.Registry.MustRegister(collectors.EventsReceived)
+	ctrlmetrics.Registry.MustRegister(collectors.EventsProcessed)
+	ctrlmetrics.Registry.MustRegister(collectors.WorkloadsScanned)
+	ctrlmetrics.Registry.MustRegister(collectors.WorkloadsMatched)
 
 	if os.Getenv("METRICS_COUNT_BY_NAMESPACE") == "enabled" {
-		prometheus.MustRegister(collectors.ReloadedByNamespace)
+		ctrlmetrics.Registry.MustRegister(collectors.ReloadedByNamespace)
 	}
 
+	// Note: For controller-runtime based Reloader, the metrics are served
+	// by controller-runtime's metrics server. This http.Handle is kept for
+	// the legacy informer-based Reloader which uses its own HTTP server.
 	http.Handle("/metrics", promhttp.Handler())
 
 	return collectors

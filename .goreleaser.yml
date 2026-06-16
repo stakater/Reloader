@@ -1,5 +1,7 @@
 builds:
-- env:
+- main: ./cmd/reloader
+  binary: reloader
+  env:
   - CGO_ENABLED=0
   goos:
   - windows
@@ -11,6 +13,11 @@ builds:
   - arm
   - arm64
   - ppc64le
+  ldflags:
+  - -s -w
+  - -X github.com/stakater/Reloader/internal/pkg/metadata.Version={{.Version}}
+  - -X github.com/stakater/Reloader/internal/pkg/metadata.Commit={{.Commit}}
+  - -X github.com/stakater/Reloader/internal/pkg/metadata.BuildDate={{.Date}}
 archives:
 - name_template: "{{ .ProjectName }}_v{{ .Version }}_{{ .Os }}_{{ .Arch }}{{ if .Arm }}v{{ .Arm }}{{ end }}"
 snapshot:

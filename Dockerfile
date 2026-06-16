@@ -24,9 +24,8 @@ COPY go.sum go.sum
 RUN go mod download
 
 # Copy the go source
-COPY main.go main.go
+COPY cmd/ cmd/
 COPY internal/ internal/
-COPY pkg/ pkg/
 
 # Build
 RUN CGO_ENABLED=0 \
@@ -39,7 +38,7 @@ RUN CGO_ENABLED=0 \
          -X github.com/stakater/Reloader/pkg/common.Commit=${COMMIT} \
          -X github.com/stakater/Reloader/pkg/common.BuildDate=${BUILD_DATE} \
          -X github.com/stakater/Reloader/pkg/common.Edition=${EDITION}" \
-        -installsuffix 'static' -mod=mod -a -o manager ./
+        -installsuffix 'static' -mod=mod -a -o manager ./cmd/reloader
 
 # Use distroless as minimal base image to package the manager binary
 # Refer to https://github.com/GoogleContainerTools/distroless for more details

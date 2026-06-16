@@ -23,9 +23,16 @@ BUILD=
 
 GOCMD = go
 GOFLAGS ?= $(GOFLAGS:)
-LDFLAGS =
 GOPROXY   ?=
 GOPRIVATE ?=
+
+# Version information for ldflags
+GIT_COMMIT ?= $(shell git rev-parse --short HEAD 2>/dev/null || echo "unknown")
+BUILD_DATE ?= $(shell date -u +"%Y-%m-%dT%H:%M:%SZ")
+LDFLAGS = -s -w \
+	-X github.com/stakater/Reloader/internal/pkg/metadata.Version=$(VERSION) \
+	-X github.com/stakater/Reloader/internal/pkg/metadata.Commit=$(GIT_COMMIT) \
+	-X github.com/stakater/Reloader/internal/pkg/metadata.BuildDate=$(BUILD_DATE)
 
 ## Location to install dependencies to
 LOCALBIN ?= $(shell pwd)/bin
@@ -94,10 +101,10 @@ install:
 	"$(GOCMD)" mod download
 
 run:
-	go run ./main.go
+	go run ./cmd/reloader
 
 build:
-	"$(GOCMD)" build ${GOFLAGS} ${LDFLAGS} -o "${BINARY}"
+	"$(GOCMD)" build ${GOFLAGS} -ldflags '${LDFLAGS}' -o "${BINARY}" ./cmd/reloader
 
 lint: ## Run golangci-lint on the codebase
 	go tool golangci-lint run ./...
@@ -141,7 +148,7 @@ manifest:
 	docker manifest annotate --arch $(ARCH) $(REPOSITORY_GENERIC)  $(REPOSITORY_ARCH)
 
 test:
-	"$(GOCMD)" test -timeout 1800s -v -count=1 ./internal/... ./pkg/... ./test/e2e/utils/...
+	"$(GOCMD)" test -timeout 1800s -v -count=1 ./internal/... ./test/e2e/utils/...
 
 ##@ E2E Tests
 
@@ -199,8 +206,8 @@ apply:
 deploy: binary-image push apply
 
 .PHONY: k8s-manifests
-k8s-manifests: $(KUSTOMIZE) ## Generate k8s manifests using Kustomize from 'manifests' folder
-	$(KUSTOMIZE) build ./deployments/kubernetes/ -o ./deployments/kubernetes/reloader.yaml
+k8s-manifests: ## Generate k8s manifests using Kustomize from 'manifests' folder
+	go tool kustomize build ./deployments/kubernetes/ -o ./deployments/kubernetes/reloader.yaml
 
 .PHONY: update-manifests-version
 update-manifests-version: ## Generate k8s manifests using Kustomize from 'manifests' folder

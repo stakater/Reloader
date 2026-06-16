@@ -516,42 +516,6 @@ func WithInitContainerProjectedVolume(cmName, secretName string) DeploymentOptio
 	}
 }
 
-// WithCSIVolume adds a CSI volume referencing a SecretProviderClass to a Deployment.
-func WithCSIVolume(spcName string) DeploymentOption {
-	return func(d *appsv1.Deployment) {
-		volumeName := csiVolumeName(spcName)
-		mountPath := csiMountPath(spcName)
-
-		d.Spec.Template.Spec.Volumes = append(d.Spec.Template.Spec.Volumes, corev1.Volume{
-			Name: volumeName,
-			VolumeSource: corev1.VolumeSource{
-				CSI: &corev1.CSIVolumeSource{
-					Driver:   CSIDriverName,
-					ReadOnly: ptr.To(true),
-					VolumeAttributes: map[string]string{
-						"secretProviderClass": spcName,
-					},
-				},
-			},
-		})
-		d.Spec.Template.Spec.Containers[0].VolumeMounts = append(
-			d.Spec.Template.Spec.Containers[0].VolumeMounts,
-			corev1.VolumeMount{
-				Name:      volumeName,
-				MountPath: mountPath,
-				ReadOnly:  true,
-			},
-		)
-	}
-}
-
-// WithInitContainerCSIVolume adds an init container with a CSI volume mount.
-func WithInitContainerCSIVolume(spcName string) DeploymentOption {
-	return func(d *appsv1.Deployment) {
-		AddCSIInitContainer(&d.Spec.Template.Spec, spcName)
-	}
-}
-
 func baseDeploymentResource(namespace, name string) *appsv1.Deployment {
 	labels := map[string]string{"app": name}
 	return &appsv1.Deployment{
@@ -868,35 +832,6 @@ func WithJobCommand(command string) JobOption {
 	}
 }
 
-// WithJobCSIVolume adds a CSI volume referencing a SecretProviderClass to a Job.
-func WithJobCSIVolume(spcName string) JobOption {
-	return func(j *batchv1.Job) {
-		volumeName := csiVolumeName(spcName)
-		mountPath := csiMountPath(spcName)
-
-		j.Spec.Template.Spec.Volumes = append(j.Spec.Template.Spec.Volumes, corev1.Volume{
-			Name: volumeName,
-			VolumeSource: corev1.VolumeSource{
-				CSI: &corev1.CSIVolumeSource{
-					Driver:   CSIDriverName,
-					ReadOnly: ptr.To(true),
-					VolumeAttributes: map[string]string{
-						"secretProviderClass": spcName,
-					},
-				},
-			},
-		})
-		j.Spec.Template.Spec.Containers[0].VolumeMounts = append(
-			j.Spec.Template.Spec.Containers[0].VolumeMounts,
-			corev1.VolumeMount{
-				Name:      volumeName,
-				MountPath: mountPath,
-				ReadOnly:  true,
-			},
-		)
-	}
-}
-
 // baseJobResource creates a base Job template.
 func baseJobResource(namespace, name string) *batchv1.Job {
 	labels := map[string]string{"app": name}
@@ -931,14 +866,6 @@ func DeleteJob(ctx context.Context, client kubernetes.Interface, namespace, name
 	return client.BatchV1().Jobs(namespace).Delete(ctx, name, metav1.DeleteOptions{
 		PropagationPolicy: &propagation,
 	})
-}
-
-func csiVolumeName(spcName string) string {
-	return fmt.Sprintf("csi-%s", spcName)
-}
-
-func csiMountPath(spcName string) string {
-	return fmt.Sprintf("/mnt/secrets-store/%s", spcName)
 }
 
 // GetDeployment retrieves a deployment by name.
