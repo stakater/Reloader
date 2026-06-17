@@ -8,6 +8,7 @@ on:
       - closed
     branches:
       - master
+      - 'v**'      
     paths:
       - 'deployments/kubernetes/chart/reloader/**'
       - '.github/workflows/push-helm-chart.yaml'
