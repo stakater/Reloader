@@ -4,6 +4,7 @@ on:
   pull_request:
     branches:
       - master
+      - 'v**'      
     paths:
       - 'deployments/kubernetes/chart/reloader/**'
 
