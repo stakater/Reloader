@@ -47,6 +47,12 @@ func BindFlags(fs *pflag.FlagSet, cfg *Config) {
 		"Enable OpenShift DeploymentConfig support (true/false/auto). Empty or 'auto' enables auto-detection",
 	)
 
+	// CSI integration
+	fs.Bool(
+		"enable-csi-integration", cfg.CSIIntegrationEnabled,
+		"Enable CSI SecretProviderClass integration (requires secrets-store CSI driver CRDs)",
+	)
+
 	// Event watching
 	fs.String(
 		"reload-on-create", "false",
@@ -241,6 +247,7 @@ func ApplyFlags(cfg *Config) error {
 	cfg.SyncAfterRestart = v.GetBool("sync-after-restart")
 	cfg.EnableHA = v.GetBool("enable-ha")
 	cfg.EnablePProf = v.GetBool("enable-pprof")
+	cfg.CSIIntegrationEnabled = v.GetBool("enable-csi-integration")
 
 	// Boolean string flags (legacy format: "true"/"false" strings)
 	cfg.ArgoRolloutsEnabled = parseBoolString(v.GetString("is-Argo-Rollouts"))
@@ -286,6 +293,18 @@ func ApplyFlags(cfg *Config) error {
 	cfg.Annotations.Match = v.GetString("search-match-annotation")
 	cfg.Annotations.PausePeriod = v.GetString("pause-deployment-annotation")
 	cfg.Annotations.PausedAt = v.GetString("pause-deployment-time-annotation")
+
+	// SecretProviderClass annotations have no dedicated CLI flag (parity with
+	// master); keep the configured defaults.
+	if cfg.Annotations.SecretProviderClassAuto == "" {
+		cfg.Annotations.SecretProviderClassAuto = DefaultAnnotations().SecretProviderClassAuto
+	}
+	if cfg.Annotations.SecretProviderClassReload == "" {
+		cfg.Annotations.SecretProviderClassReload = DefaultAnnotations().SecretProviderClassReload
+	}
+	if cfg.Annotations.SecretProviderClassExclude == "" {
+		cfg.Annotations.SecretProviderClassExclude = DefaultAnnotations().SecretProviderClassExclude
+	}
 
 	// Alerting
 	cfg.Alerting.Enabled = v.GetBool("alert-on-reload")

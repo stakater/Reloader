@@ -173,6 +173,25 @@ func TestConfig_IsWorkloadIgnored(t *testing.T) {
 	}
 }
 
+func TestDefaultAnnotationsSecretProviderClass(t *testing.T) {
+	a := DefaultAnnotations()
+	if a.SecretProviderClassAuto != "secretproviderclass.reloader.stakater.com/auto" {
+		t.Fatalf("SecretProviderClassAuto = %q", a.SecretProviderClassAuto)
+	}
+	if a.SecretProviderClassReload != "secretproviderclass.reloader.stakater.com/reload" {
+		t.Fatalf("SecretProviderClassReload = %q", a.SecretProviderClassReload)
+	}
+	if a.SecretProviderClassExclude != "secretproviderclasses.exclude.reloader.stakater.com/reload" {
+		t.Fatalf("SecretProviderClassExclude = %q", a.SecretProviderClassExclude)
+	}
+}
+
+func TestNewDefaultCSIDisabled(t *testing.T) {
+	if NewDefault().CSIIntegrationEnabled {
+		t.Fatal("CSIIntegrationEnabled should default to false")
+	}
+}
+
 func TestConfig_IsNamespaceIgnored(t *testing.T) {
 	cfg := NewDefault()
 	cfg.IgnoredNamespaces = []string{"kube-system", "kube-public"}

@@ -26,6 +26,8 @@ func TestBindFlags(t *testing.T) {
 		"auto-reload-all",
 		"reload-strategy",
 		"is-Argo-Rollouts",
+		"is-openshift",
+		"enable-csi-integration",
 		"reload-on-create",
 		"reload-on-delete",
 		"sync-after-restart",
@@ -367,6 +369,22 @@ func TestApplyFlags_LegacyProxyEnvVar(t *testing.T) {
 
 	if cfg.Alerting.Proxy != "http://legacy-proxy:8080" {
 		t.Errorf("Alerting.Proxy = %q, want %q", cfg.Alerting.Proxy, "http://legacy-proxy:8080")
+	}
+}
+
+func TestApplyFlagsCSIIntegration(t *testing.T) {
+	resetViper()
+	cfg := NewDefault()
+	fs := pflag.NewFlagSet("test", pflag.ContinueOnError)
+	BindFlags(fs, cfg)
+	if err := fs.Parse([]string{"--enable-csi-integration=true"}); err != nil {
+		t.Fatal(err)
+	}
+	if err := ApplyFlags(cfg); err != nil {
+		t.Fatal(err)
+	}
+	if !cfg.CSIIntegrationEnabled {
+		t.Fatal("expected CSIIntegrationEnabled=true")
 	}
 }
 

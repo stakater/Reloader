@@ -19,6 +19,8 @@ const (
 	ConfigmapEnvVarPostfix = "CONFIGMAP"
 	// SecretEnvVarPostfix is the postfix for Secret environment variables.
 	SecretEnvVarPostfix = "SECRET"
+	// SecretProviderClassEnvVarPostfix is the postfix for SecretProviderClass environment variables.
+	SecretProviderClassEnvVarPostfix = "SECRETPROVIDERCLASS"
 )
 
 // Strategy defines how workload restarts are triggered.
@@ -108,6 +110,8 @@ func (s *EnvVarStrategy) envVarName(resourceName string, resourceType ResourceTy
 		postfix = ConfigmapEnvVarPostfix
 	case ResourceTypeSecret:
 		postfix = SecretEnvVarPostfix
+	case ResourceTypeSecretProviderClass:
+		postfix = SecretProviderClassEnvVarPostfix
 	}
 	return EnvVarPrefix + convertToEnvVarName(resourceName) + "_" + postfix
 }

@@ -404,6 +404,52 @@ func TestMatcher_AutoDoesNotIgnoreExplicit(t *testing.T) {
 	t.Log("✓ Explicit reload annotation works even when auto is enabled")
 }
 
+func TestMatcherSecretProviderClassExplicit(t *testing.T) {
+	cfg := config.NewDefault()
+	m := NewMatcher(cfg)
+	res := m.ShouldReload(MatchInput{
+		ResourceName: "my-spc",
+		ResourceType: ResourceTypeSecretProviderClass,
+		WorkloadAnnotations: map[string]string{
+			"secretproviderclass.reloader.stakater.com/reload": "my-spc",
+		},
+	})
+	if !res.ShouldReload || res.AutoReload {
+		t.Fatalf("explicit SPC reload: got %+v", res)
+	}
+}
+
+func TestMatcherSecretProviderClassAuto(t *testing.T) {
+	cfg := config.NewDefault()
+	m := NewMatcher(cfg)
+	res := m.ShouldReload(MatchInput{
+		ResourceName: "my-spc",
+		ResourceType: ResourceTypeSecretProviderClass,
+		WorkloadAnnotations: map[string]string{
+			"secretproviderclass.reloader.stakater.com/auto": "true",
+		},
+	})
+	if !res.ShouldReload || !res.AutoReload {
+		t.Fatalf("auto SPC reload: got %+v", res)
+	}
+}
+
+func TestMatcherSecretProviderClassExcluded(t *testing.T) {
+	cfg := config.NewDefault()
+	m := NewMatcher(cfg)
+	res := m.ShouldReload(MatchInput{
+		ResourceName: "my-spc",
+		ResourceType: ResourceTypeSecretProviderClass,
+		WorkloadAnnotations: map[string]string{
+			"secretproviderclass.reloader.stakater.com/auto":             "true",
+			"secretproviderclasses.exclude.reloader.stakater.com/reload": "my-spc",
+		},
+	})
+	if res.ShouldReload {
+		t.Fatalf("excluded SPC should not reload: got %+v", res)
+	}
+}
+
 // TestMatcher_PrecedenceOrder verifies the correct order of precedence:
 // 1. Ignore annotation → skip
 // 2. Exclude annotation → skip

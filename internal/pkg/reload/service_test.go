@@ -7,6 +7,7 @@ import (
 	"github.com/go-logr/logr/testr"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	csiv1 "sigs.k8s.io/secrets-store-csi-driver/apis/v1"
 
 	"github.com/stakater/Reloader/internal/pkg/config"
 	"github.com/stakater/Reloader/internal/pkg/testutil"
@@ -1329,6 +1330,31 @@ func TestService_ProcessNilChange(t *testing.T) {
 	decisions := svc.Process(change, workloads)
 	if decisions != nil {
 		t.Errorf("Expected nil decisions for nil change, got %v", decisions)
+	}
+}
+
+func TestServiceProcessSecretProviderClassAuto(t *testing.T) {
+	cfg := config.NewDefault()
+	svc := NewService(cfg, testr.New(t))
+
+	deploy := testutil.NewDeployment("test-deploy", "default", map[string]string{
+		"secretproviderclass.reloader.stakater.com/auto": "true",
+	})
+	workloads := []workload.Workload{workload.NewDeploymentWorkload(deploy)}
+
+	change := SecretProviderClassChange{
+		Name:      "my-spc",
+		Namespace: "default",
+		Status: csiv1.SecretProviderClassPodStatusStatus{
+			SecretProviderClassName: "my-spc",
+			Objects:                 []csiv1.SecretProviderClassObject{{ID: "a", Version: "1"}},
+		},
+		EventType: EventTypeUpdate,
+	}
+
+	decisions := svc.Process(change, workloads)
+	if len(decisions) != 1 || !decisions[0].ShouldReload {
+		t.Fatalf("expected auto SPC reload, got %+v", decisions)
 	}
 }
 

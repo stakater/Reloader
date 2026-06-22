@@ -83,6 +83,10 @@ func (s *Service) processResource(
 			usesResource = wl.UsesConfigMap(resourceName)
 		case ResourceTypeSecret:
 			usesResource = wl.UsesSecret(resourceName)
+		case ResourceTypeSecretProviderClass:
+			// Annotation-only matching (parity with master): the workload's
+			// annotations alone decide the reload; no volume-uses scan.
+			usesResource = true
 		}
 
 		input := MatchInput{

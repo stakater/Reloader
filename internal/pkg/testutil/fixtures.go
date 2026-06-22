@@ -7,6 +7,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	csiv1 "sigs.k8s.io/secrets-store-csi-driver/apis/v1"
 )
 
 // NewDeploymentConfig creates a minimal DeploymentConfig for unit testing.
@@ -72,6 +73,7 @@ func NewScheme() *runtime.Scheme {
 	_ = appsv1.AddToScheme(scheme)
 	_ = batchv1.AddToScheme(scheme)
 	_ = openshiftv1.AddToScheme(scheme)
+	_ = csiv1.AddToScheme(scheme)
 	return scheme
 }
 

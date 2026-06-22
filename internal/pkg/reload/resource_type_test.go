@@ -26,3 +26,12 @@ func TestResourceType_Kind(t *testing.T) {
 		)
 	}
 }
+
+func TestResourceTypeSecretProviderClassKind(t *testing.T) {
+	if got := ResourceTypeSecretProviderClass.Kind(); got != "SecretProviderClass" {
+		t.Fatalf("Kind() = %q, want SecretProviderClass", got)
+	}
+	if string(ResourceTypeSecretProviderClass) != "secretproviderclass" {
+		t.Fatalf("value = %q, want secretproviderclass", ResourceTypeSecretProviderClass)
+	}
+}

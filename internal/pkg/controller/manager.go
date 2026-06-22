@@ -15,6 +15,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	ctrlmetrics "sigs.k8s.io/controller-runtime/pkg/metrics/server"
+	csiv1 "sigs.k8s.io/secrets-store-csi-driver/apis/v1"
 
 	"github.com/stakater/Reloader/internal/pkg/alerting"
 	"github.com/stakater/Reloader/internal/pkg/config"
@@ -31,13 +32,16 @@ func init() {
 	utilruntime.Must(clientgoscheme.AddToScheme(runtimeScheme))
 }
 
-// AddOptionalSchemes adds optional workload type schemes if enabled.
-func AddOptionalSchemes(argoRolloutsEnabled, deploymentConfigEnabled bool) {
+// AddOptionalSchemes adds optional workload/resource type schemes if enabled.
+func AddOptionalSchemes(argoRolloutsEnabled, deploymentConfigEnabled, csiEnabled bool) {
 	if argoRolloutsEnabled {
 		utilruntime.Must(argorolloutsv1alpha1.AddToScheme(runtimeScheme))
 	}
 	if deploymentConfigEnabled {
 		utilruntime.Must(openshiftv1.AddToScheme(runtimeScheme))
+	}
+	if csiEnabled {
+		utilruntime.Must(csiv1.AddToScheme(runtimeScheme))
 	}
 }
 
@@ -222,6 +226,30 @@ func SetupReconcilers(mgr ctrl.Manager, cfg *config.Config, log logr.Logger, col
 		if err := SetupSecretReconciler(mgr, secretReconciler); err != nil {
 			return fmt.Errorf("setting up secret reconciler: %w", err)
 		}
+	}
+
+	// Setup SecretProviderClass reconciler (CSI integration)
+	if cfg.CSIIntegrationEnabled {
+		spcReconciler := NewSecretProviderClassReconciler(
+			ResourceReconcilerDeps{
+				Client:         mgr.GetClient(),
+				Log:            log.WithName("secretproviderclass-reconciler"),
+				Config:         cfg,
+				ReloadService:  reloadService,
+				Registry:       registry,
+				Collectors:     collectors,
+				EventRecorder:  eventRecorder,
+				WebhookClient:  webhookClient,
+				Alerter:        alerter,
+				PauseHandler:   pauseHandler,
+				NamespaceCache: nsCache,
+			},
+			mgr.GetAPIReader(),
+		)
+		if err := spcReconciler.SetupWithManager(mgr); err != nil {
+			return fmt.Errorf("setting up secretproviderclass reconciler: %w", err)
+		}
+		log.Info("CSI SecretProviderClass reconciler enabled")
 	}
 
 	// Setup Deployment reconciler for pause handling

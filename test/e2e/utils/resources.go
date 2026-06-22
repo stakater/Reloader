@@ -516,6 +516,43 @@ func WithInitContainerProjectedVolume(cmName, secretName string) DeploymentOptio
 	}
 }
 
+// WithCSIVolume adds a CSI volume referencing a SecretProviderClass to a Deployment.
+func WithCSIVolume(spcName string) DeploymentOption {
+	return func(d *appsv1.Deployment) {
+		volumeName := csiVolumeName(spcName)
+		mountPath := csiMountPath(spcName)
+
+		d.Spec.Template.Spec.Volumes = append(d.Spec.Template.Spec.Volumes, corev1.Volume{
+			Name: volumeName,
+			VolumeSource: corev1.VolumeSource{
+				CSI: &corev1.CSIVolumeSource{
+					Driver:   CSIDriverName,
+					ReadOnly: ptr.To(true),
+					VolumeAttributes: map[string]string{
+						"secretProviderClass": spcName,
+					},
+				},
+			},
+		})
+		d.Spec.Template.Spec.Containers[0].VolumeMounts = append(
+			d.Spec.Template.Spec.Containers[0].VolumeMounts,
+			corev1.VolumeMount{
+				Name:      volumeName,
+				MountPath: mountPath,
+				ReadOnly:  true,
+			},
+		)
+	}
+}
+
+func csiVolumeName(spcName string) string {
+	return fmt.Sprintf("csi-%s", spcName)
+}
+
+func csiMountPath(spcName string) string {
+	return fmt.Sprintf("/mnt/secrets-store/%s", spcName)
+}
+
 func baseDeploymentResource(namespace, name string) *appsv1.Deployment {
 	labels := map[string]string{"app": name}
 	return &appsv1.Deployment{

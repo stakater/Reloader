@@ -19,6 +19,7 @@ import (
 
 	"github.com/stakater/Reloader/internal/pkg/config"
 	"github.com/stakater/Reloader/internal/pkg/controller"
+	"github.com/stakater/Reloader/internal/pkg/csi"
 	"github.com/stakater/Reloader/internal/pkg/metadata"
 	"github.com/stakater/Reloader/internal/pkg/metrics"
 	"github.com/stakater/Reloader/internal/pkg/openshift"
@@ -108,17 +109,30 @@ func run(cmd *cobra.Command, args []string) error {
 
 	collectors := metrics.SetupPrometheusEndpoint()
 
+	restConfig := controllerruntime.GetConfigOrDie()
+	discoveryClient, discErr := discovery.NewDiscoveryClientForConfig(restConfig)
+	if discErr != nil {
+		log.V(1).Info("Failed to create discovery client", "error", discErr)
+	}
+
 	if config.ShouldAutoDetectOpenShift() {
-		restConfig := controllerruntime.GetConfigOrDie()
-		discoveryClient, err := discovery.NewDiscoveryClientForConfig(restConfig)
-		if err != nil {
-			log.V(1).Info("Failed to create discovery client for DeploymentConfig detection", "error", err)
-		} else if openshift.HasDeploymentConfigSupport(discoveryClient, log) {
+		if discoveryClient != nil && openshift.HasDeploymentConfigSupport(discoveryClient, log) {
 			cfg.DeploymentConfigEnabled = true
 		}
 	}
 
-	controller.AddOptionalSchemes(cfg.ArgoRolloutsEnabled, cfg.DeploymentConfigEnabled)
+	// CSI: require both the flag AND CRD presence (parity with master's
+	// shouldRunCSIController). If the flag is set but CRDs are missing, log and
+	// disable so the watch is not added (controller-runtime would crash on an
+	// absent CRD).
+	if cfg.CSIIntegrationEnabled {
+		if discoveryClient == nil || !csi.HasCSISupport(discoveryClient, log) {
+			log.Info("Disabling CSI integration: secrets-store CSI driver CRDs not detected")
+			cfg.CSIIntegrationEnabled = false
+		}
+	}
+
+	controller.AddOptionalSchemes(cfg.ArgoRolloutsEnabled, cfg.DeploymentConfigEnabled, cfg.CSIIntegrationEnabled)
 
 	mgr, err := controller.NewManager(
 		controller.ManagerOptions{

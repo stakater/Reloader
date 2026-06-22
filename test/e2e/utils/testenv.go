@@ -13,6 +13,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
+	csiclient "sigs.k8s.io/secrets-store-csi-driver/pkg/client/clientset/versioned"
 )
 
 // TestEnvironment holds the common test environment state.
@@ -21,6 +22,7 @@ type TestEnvironment struct {
 	Cancel          context.CancelFunc
 	KubeClient      kubernetes.Interface
 	DiscoveryClient discovery.DiscoveryInterface
+	CSIClient       csiclient.Interface
 	RolloutsClient  rolloutsclient.Interface
 	OpenShiftClient openshiftclient.Interface
 	RestConfig      *rest.Config
@@ -82,6 +84,9 @@ func SetupSharedTestEnvironment(ctx context.Context, namespace, releaseName stri
 	}
 
 	// Optional clients — failures are non-fatal.
+	if env.CSIClient, err = csiclient.NewForConfig(config); err != nil {
+		env.CSIClient = nil
+	}
 	if env.RolloutsClient, err = rolloutsclient.NewForConfig(config); err != nil {
 		env.RolloutsClient = nil
 	}
@@ -128,6 +133,12 @@ func SetupTestEnvironment(ctx context.Context, namespacePrefix string) (*TestEnv
 	env.DiscoveryClient, err = discovery.NewDiscoveryClientForConfig(config)
 	if err != nil {
 		return nil, fmt.Errorf("creating discovery client: %w", err)
+	}
+
+	env.CSIClient, err = csiclient.NewForConfig(config)
+	if err != nil {
+		ginkgo.GinkgoWriter.Printf("Warning: Could not create CSI client: %v (CSI tests will be skipped)\n", err)
+		env.CSIClient = nil
 	}
 
 	// Try to create Argo Rollouts client (optional - may not be installed)

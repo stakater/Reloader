@@ -291,3 +291,12 @@ func TestNewStrategy(t *testing.T) {
 		}
 	})
 }
+
+func TestEnvVarNameSecretProviderClass(t *testing.T) {
+	s := NewEnvVarStrategy()
+	got := s.envVarName("my-vault-spc", ResourceTypeSecretProviderClass)
+	want := "STAKATER_MY_VAULT_SPC_SECRETPROVIDERCLASS"
+	if got != want {
+		t.Fatalf("envVarName = %q, want %q", got, want)
+	}
+}

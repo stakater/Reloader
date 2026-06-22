@@ -32,6 +32,7 @@ type Config struct {
 	ArgoRolloutsEnabled     bool                `json:"argoRolloutsEnabled"`
 	ArgoRolloutStrategy     ArgoRolloutStrategy `json:"argoRolloutStrategy"`
 	DeploymentConfigEnabled bool                `json:"deploymentConfigEnabled"`
+	CSIIntegrationEnabled   bool                `json:"csiIntegrationEnabled"`
 	ReloadOnCreate          bool                `json:"reloadOnCreate"`
 	ReloadOnDelete          bool                `json:"reloadOnDelete"`
 	SyncAfterRestart        bool                `json:"syncAfterRestart"`
@@ -61,21 +62,24 @@ type Config struct {
 
 // AnnotationConfig holds customizable annotation keys.
 type AnnotationConfig struct {
-	Prefix           string `json:"prefix"`
-	Auto             string `json:"auto"`
-	ConfigmapAuto    string `json:"configmapAuto"`
-	SecretAuto       string `json:"secretAuto"`
-	ConfigmapReload  string `json:"configmapReload"`
-	SecretReload     string `json:"secretReload"`
-	ConfigmapExclude string `json:"configmapExclude"`
-	SecretExclude    string `json:"secretExclude"`
-	Ignore           string `json:"ignore"`
-	Search           string `json:"search"`
-	Match            string `json:"match"`
-	RolloutStrategy  string `json:"rolloutStrategy"`
-	PausePeriod      string `json:"pausePeriod"`
-	PausedAt         string `json:"pausedAt"`
-	LastReloadedFrom string `json:"lastReloadedFrom"`
+	Prefix                     string `json:"prefix"`
+	Auto                       string `json:"auto"`
+	ConfigmapAuto              string `json:"configmapAuto"`
+	SecretAuto                 string `json:"secretAuto"`
+	ConfigmapReload            string `json:"configmapReload"`
+	SecretReload               string `json:"secretReload"`
+	ConfigmapExclude           string `json:"configmapExclude"`
+	SecretExclude              string `json:"secretExclude"`
+	SecretProviderClassAuto    string `json:"secretProviderClassAuto"`
+	SecretProviderClassReload  string `json:"secretProviderClassReload"`
+	SecretProviderClassExclude string `json:"secretProviderClassExclude"`
+	Ignore                     string `json:"ignore"`
+	Search                     string `json:"search"`
+	Match                      string `json:"match"`
+	RolloutStrategy            string `json:"rolloutStrategy"`
+	PausePeriod                string `json:"pausePeriod"`
+	PausedAt                   string `json:"pausedAt"`
+	LastReloadedFrom           string `json:"lastReloadedFrom"`
 }
 
 // AlertingConfig holds configuration for alerting integrations.
@@ -108,6 +112,7 @@ func NewDefault() *Config {
 		ArgoRolloutsEnabled:     false,
 		ArgoRolloutStrategy:     ArgoRolloutStrategyRollout,
 		DeploymentConfigEnabled: false,
+		CSIIntegrationEnabled:   false,
 		ReloadOnCreate:          false,
 		ReloadOnDelete:          false,
 		SyncAfterRestart:        false,
@@ -140,21 +145,24 @@ func NewDefault() *Config {
 // DefaultAnnotations returns the default annotation configuration.
 func DefaultAnnotations() AnnotationConfig {
 	return AnnotationConfig{
-		Prefix:           "reloader.stakater.com",
-		Auto:             "reloader.stakater.com/auto",
-		ConfigmapAuto:    "configmap.reloader.stakater.com/auto",
-		SecretAuto:       "secret.reloader.stakater.com/auto",
-		ConfigmapReload:  "configmap.reloader.stakater.com/reload",
-		SecretReload:     "secret.reloader.stakater.com/reload",
-		ConfigmapExclude: "configmaps.exclude.reloader.stakater.com/reload",
-		SecretExclude:    "secrets.exclude.reloader.stakater.com/reload",
-		Ignore:           "reloader.stakater.com/ignore",
-		Search:           "reloader.stakater.com/search",
-		Match:            "reloader.stakater.com/match",
-		RolloutStrategy:  "reloader.stakater.com/rollout-strategy",
-		PausePeriod:      "deployment.reloader.stakater.com/pause-period",
-		PausedAt:         "deployment.reloader.stakater.com/paused-at",
-		LastReloadedFrom: "reloader.stakater.com/last-reloaded-from",
+		Prefix:                     "reloader.stakater.com",
+		Auto:                       "reloader.stakater.com/auto",
+		ConfigmapAuto:              "configmap.reloader.stakater.com/auto",
+		SecretAuto:                 "secret.reloader.stakater.com/auto",
+		ConfigmapReload:            "configmap.reloader.stakater.com/reload",
+		SecretReload:               "secret.reloader.stakater.com/reload",
+		ConfigmapExclude:           "configmaps.exclude.reloader.stakater.com/reload",
+		SecretExclude:              "secrets.exclude.reloader.stakater.com/reload",
+		SecretProviderClassAuto:    "secretproviderclass.reloader.stakater.com/auto",
+		SecretProviderClassReload:  "secretproviderclass.reloader.stakater.com/reload",
+		SecretProviderClassExclude: "secretproviderclasses.exclude.reloader.stakater.com/reload",
+		Ignore:                     "reloader.stakater.com/ignore",
+		Search:                     "reloader.stakater.com/search",
+		Match:                      "reloader.stakater.com/match",
+		RolloutStrategy:            "reloader.stakater.com/rollout-strategy",
+		PausePeriod:                "deployment.reloader.stakater.com/pause-period",
+		PausedAt:                   "deployment.reloader.stakater.com/paused-at",
+		LastReloadedFrom:           "reloader.stakater.com/last-reloaded-from",
 	}
 }
 
