@@ -74,8 +74,8 @@ func resolveSecretProviderClassChange(
 }
 
 // secretProviderClassFilter omits the label selector (driver-owned SPCPS can't
-// carry user labels) and the namespace cache (checked in Reconcile to avoid a
-// startup race). See docs/manual-testing-csi.md.
+// carry user labels, so applying it would silently disable CSI reloads) and the
+// namespace cache (checked in Reconcile to avoid a startup race).
 func secretProviderClassFilter(cfg *config.Config, hasher *reload.Hasher) predicate.Predicate {
 	return reload.CombinedPredicates(
 		reload.NamespaceFilterPredicateWithCache(cfg, nil),
