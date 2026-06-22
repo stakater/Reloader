@@ -968,4 +968,19 @@ func TestSecretProviderClassPodStatusPredicates(t *testing.T) {
 	if p.Update(event.UpdateEvent{ObjectOld: oldObj, ObjectNew: newObjSame}) {
 		t.Fatal("UpdateFunc should return false on unchanged status")
 	}
+
+	// A metadata/label-only change (same Status) must NOT trigger a reload,
+	// since the predicate hashes only the status. (Master tested this via
+	// UpdateSecretProviderClassPodStatusLabels.)
+	labelOnly := oldObj.DeepCopy()
+	labelOnly.Labels = map[string]string{"unrelated": "changed"}
+	labelOnly.Annotations = map[string]string{"note": "touched"}
+	if p.Update(event.UpdateEvent{ObjectOld: oldObj, ObjectNew: labelOnly}) {
+		t.Fatal("UpdateFunc should return false on a label/metadata-only change")
+	}
+
+	// Type-assertion failure (wrong object type) must be rejected, not panic.
+	if p.Update(event.UpdateEvent{ObjectOld: &corev1.ConfigMap{}, ObjectNew: &corev1.ConfigMap{}}) {
+		t.Fatal("UpdateFunc should return false when objects are not SPCPS")
+	}
 }

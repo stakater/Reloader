@@ -268,6 +268,11 @@ func (s *Service) findVolumeUsingResource(volumes []corev1.Volume, resourceName 
 					}
 				}
 			}
+		case ResourceTypeSecretProviderClass:
+			// Match the CSI volume that references this SPC.
+			if vol.CSI != nil && vol.CSI.VolumeAttributes["secretProviderClass"] == resourceName {
+				return vol.Name
+			}
 		}
 	}
 	return ""

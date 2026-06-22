@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/go-logr/logr/testr"
+	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	csiv1 "sigs.k8s.io/secrets-store-csi-driver/apis/v1"
@@ -1383,5 +1384,90 @@ func TestService_ProcessCreateEventDisabled(t *testing.T) {
 	decisions := svc.Process(change, workloads)
 	if decisions != nil {
 		t.Errorf("Expected nil decisions when create events disabled, got %v", decisions)
+	}
+}
+
+func TestService_ApplyReload_SPC_TargetsMountingContainer(t *testing.T) {
+	cfg := config.NewDefault()
+	cfg.ReloadStrategy = config.ReloadStrategyEnvVars
+	svc := NewService(cfg, testr.New(t))
+
+	// Two containers; only the second mounts the CSI volume that references the SPC.
+	dep := &appsv1.Deployment{
+		ObjectMeta: metav1.ObjectMeta{Name: "multi", Namespace: "default"},
+		Spec: appsv1.DeploymentSpec{
+			Template: corev1.PodTemplateSpec{
+				Spec: corev1.PodSpec{
+					Containers: []corev1.Container{
+						{Name: "c0"},
+						{Name: "c1", VolumeMounts: []corev1.VolumeMount{{Name: "spc-vol", MountPath: "/mnt/secrets-store"}}},
+					},
+					Volumes: []corev1.Volume{
+						{
+							Name: "spc-vol",
+							VolumeSource: corev1.VolumeSource{
+								CSI: &corev1.CSIVolumeSource{
+									Driver:           "secrets-store.csi.k8s.io",
+									VolumeAttributes: map[string]string{"secretProviderClass": "my-spc"},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+	accessor := workload.NewDeploymentWorkload(dep)
+
+	// autoReload=true exercises volume-based container targeting.
+	updated, err := svc.ApplyReload(context.Background(), accessor, "my-spc", ResourceTypeSecretProviderClass, "default", "spchash", true)
+	if err != nil {
+		t.Fatalf("ApplyReload failed: %v", err)
+	}
+	if !updated {
+		t.Fatal("expected updated=true")
+	}
+
+	containers := accessor.GetContainers()
+	const envName = "STAKATER_MY_SPC_SECRETPROVIDERCLASS"
+	hasEnv := func(c corev1.Container) bool {
+		for _, e := range c.Env {
+			if e.Name == envName {
+				return true
+			}
+		}
+		return false
+	}
+	if hasEnv(containers[0]) {
+		t.Error("env var must NOT land on container[0] (it does not mount the SPC volume)")
+	}
+	if !hasEnv(containers[1]) {
+		t.Error("env var must land on container[1], which mounts the SPC CSI volume")
+	}
+}
+
+func TestService_ProcessSecretProviderClass_GenericAuto(t *testing.T) {
+	cfg := config.NewDefault()
+	svc := NewService(cfg, testr.New(t))
+
+	// Generic auto annotation (not the typed SPC one) must also trigger an SPC reload.
+	deploy := testutil.NewDeployment("test-deploy", "default", map[string]string{
+		"reloader.stakater.com/auto": "true",
+	})
+	workloads := []workload.Workload{workload.NewDeploymentWorkload(deploy)}
+
+	change := SecretProviderClassChange{
+		Name:      "my-spc",
+		Namespace: "default",
+		Status: csiv1.SecretProviderClassPodStatusStatus{
+			SecretProviderClassName: "my-spc",
+			Objects:                 []csiv1.SecretProviderClassObject{{ID: "a", Version: "1"}},
+		},
+		EventType: EventTypeUpdate,
+	}
+
+	decisions := svc.Process(change, workloads)
+	if len(decisions) != 1 || !decisions[0].ShouldReload {
+		t.Fatalf("expected generic-auto SPC reload, got %+v", decisions)
 	}
 }

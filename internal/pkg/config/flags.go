@@ -183,12 +183,36 @@ func BindFlags(fs *pflag.FlagSet, cfg *Config) {
 		"Annotation to detect changes in secrets, specified by name",
 	)
 	fs.String(
+		"configmap-exclude-annotation", cfg.Annotations.ConfigmapExclude,
+		"Annotation to exclude named configmaps from triggering reloads",
+	)
+	fs.String(
+		"secret-exclude-annotation", cfg.Annotations.SecretExclude,
+		"Annotation to exclude named secrets from triggering reloads",
+	)
+	fs.String(
+		"secretproviderclass-auto-annotation", cfg.Annotations.SecretProviderClassAuto,
+		"Annotation to detect changes in secret provider classes (CSI)",
+	)
+	fs.String(
+		"secretproviderclass-annotation", cfg.Annotations.SecretProviderClassReload,
+		"Annotation to detect changes in secret provider classes (CSI), specified by name",
+	)
+	fs.String(
+		"secretproviderclass-exclude-annotation", cfg.Annotations.SecretProviderClassExclude,
+		"Annotation to exclude named secret provider classes (CSI) from triggering reloads",
+	)
+	fs.String(
 		"auto-search-annotation", cfg.Annotations.Search,
 		"Annotation to detect changes in configmaps or secrets tagged with special match annotation",
 	)
 	fs.String(
 		"search-match-annotation", cfg.Annotations.Match,
 		"Annotation to mark secrets or configmaps to match the search",
+	)
+	fs.String(
+		"ignore-annotation", cfg.Annotations.Ignore,
+		"Annotation to ignore changes on watched resources",
 	)
 	fs.String(
 		"pause-deployment-annotation", cfg.Annotations.PausePeriod,
@@ -289,22 +313,16 @@ func ApplyFlags(cfg *Config) error {
 	cfg.Annotations.SecretAuto = v.GetString("secret-auto-annotation")
 	cfg.Annotations.ConfigmapReload = v.GetString("configmap-annotation")
 	cfg.Annotations.SecretReload = v.GetString("secret-annotation")
+	cfg.Annotations.ConfigmapExclude = v.GetString("configmap-exclude-annotation")
+	cfg.Annotations.SecretExclude = v.GetString("secret-exclude-annotation")
+	cfg.Annotations.SecretProviderClassAuto = v.GetString("secretproviderclass-auto-annotation")
+	cfg.Annotations.SecretProviderClassReload = v.GetString("secretproviderclass-annotation")
+	cfg.Annotations.SecretProviderClassExclude = v.GetString("secretproviderclass-exclude-annotation")
 	cfg.Annotations.Search = v.GetString("auto-search-annotation")
 	cfg.Annotations.Match = v.GetString("search-match-annotation")
+	cfg.Annotations.Ignore = v.GetString("ignore-annotation")
 	cfg.Annotations.PausePeriod = v.GetString("pause-deployment-annotation")
 	cfg.Annotations.PausedAt = v.GetString("pause-deployment-time-annotation")
-
-	// SecretProviderClass annotations have no dedicated CLI flag (parity with
-	// master); keep the configured defaults.
-	if cfg.Annotations.SecretProviderClassAuto == "" {
-		cfg.Annotations.SecretProviderClassAuto = DefaultAnnotations().SecretProviderClassAuto
-	}
-	if cfg.Annotations.SecretProviderClassReload == "" {
-		cfg.Annotations.SecretProviderClassReload = DefaultAnnotations().SecretProviderClassReload
-	}
-	if cfg.Annotations.SecretProviderClassExclude == "" {
-		cfg.Annotations.SecretProviderClassExclude = DefaultAnnotations().SecretProviderClassExclude
-	}
 
 	// Alerting
 	cfg.Alerting.Enabled = v.GetBool("alert-on-reload")

@@ -246,7 +246,7 @@ func SetupReconcilers(mgr ctrl.Manager, cfg *config.Config, log logr.Logger, col
 			},
 			mgr.GetAPIReader(),
 		)
-		if err := spcReconciler.SetupWithManager(mgr); err != nil {
+		if err := SetupSecretProviderClassReconciler(mgr, spcReconciler); err != nil {
 			return fmt.Errorf("setting up secretproviderclass reconciler: %w", err)
 		}
 		log.Info("CSI SecretProviderClass reconciler enabled")

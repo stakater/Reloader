@@ -255,6 +255,50 @@ func TestAnnotationStrategy_Apply(t *testing.T) {
 		}
 	})
 
+	t.Run("idempotent for same resource and hash (ignores timestamp)", func(t *testing.T) {
+		annotations := make(map[string]string)
+		input := StrategyInput{
+			ResourceName:   "my-config",
+			ResourceType:   ResourceTypeConfigMap,
+			Namespace:      "default",
+			Hash:           "abc123",
+			Container:      &corev1.Container{Name: "c"},
+			PodAnnotations: annotations,
+		}
+
+		changed, err := strategy.Apply(input)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if !changed {
+			t.Fatal("expected changed=true on first apply")
+		}
+		firstValue := annotations[cfg.Annotations.LastReloadedFrom]
+
+		// Re-applying the identical change must NOT report a change, even though
+		// a fresh ReloadedAt timestamp would make the serialized value differ.
+		changed, err = strategy.Apply(input)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if changed {
+			t.Error("expected changed=false when re-applying the same resource+hash")
+		}
+		if annotations[cfg.Annotations.LastReloadedFrom] != firstValue {
+			t.Error("annotation value must not change on an idempotent re-apply")
+		}
+
+		// A different hash (real content change) must trigger an update.
+		input.Hash = "def456"
+		changed, err = strategy.Apply(input)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if !changed {
+			t.Error("expected changed=true when the hash changes")
+		}
+	})
+
 	t.Run("error when annotations map is nil", func(t *testing.T) {
 		input := StrategyInput{
 			ResourceName:   "my-config",

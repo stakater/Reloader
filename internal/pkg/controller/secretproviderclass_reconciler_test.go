@@ -169,3 +169,31 @@ func TestSecretProviderClassReconciler_SPCNotFound(t *testing.T) {
 			expectedEnvVar, updated.Spec.Template.Spec.Containers[0].Env)
 	}
 }
+
+func TestSecretProviderClassReconciler_EmptySPCName(t *testing.T) {
+	cfg := config.NewDefault()
+	// SPCPS whose Status carries no SecretProviderClassName must be skipped cleanly.
+	spcps := &csiv1.SecretProviderClassPodStatus{
+		ObjectMeta: metav1.ObjectMeta{Name: "orphan-spcps", Namespace: "default"},
+		Status:     csiv1.SecretProviderClassPodStatusStatus{},
+	}
+	deployment := testutil.NewDeployment("test-deployment", "default", map[string]string{
+		cfg.Annotations.SecretProviderClassAuto: "true",
+	})
+	reconciler, cl := newSecretProviderClassReconcilerWithClient(t, cfg, deployment, spcps)
+
+	if _, err := reconciler.Reconcile(context.Background(), reconcileRequest("orphan-spcps", "default")); err != nil {
+		t.Fatalf("Reconcile error: %v", err)
+	}
+
+	// No reload should have happened (no SPC name to match against).
+	updated := &appsv1.Deployment{}
+	if err := cl.Get(context.Background(), types.NamespacedName{Namespace: "default", Name: "test-deployment"}, updated); err != nil {
+		t.Fatal(err)
+	}
+	for _, c := range updated.Spec.Template.Spec.Containers {
+		if len(c.Env) != 0 {
+			t.Errorf("expected no env vars injected for empty SPC name, got %+v", c.Env)
+		}
+	}
+}
