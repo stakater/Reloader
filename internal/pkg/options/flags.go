@@ -76,6 +76,9 @@ var (
 	ResourcesToIgnore = []string{}
 	// WorkloadTypesToIgnore is a list of workload types to ignore when watching for changes
 	WorkloadTypesToIgnore = []string{}
+	// Namespaces is an explicit list of namespaces to watch (scoped mode). When non-empty,
+	// Reloader watches exactly these namespaces and requires no ClusterRole.
+	Namespaces = []string{}
 	// NamespacesToIgnore is a list of namespace names to ignore when watching for changes
 	NamespacesToIgnore = []string{}
 	// NamespaceSelectors is a list of namespace selectors to watch for changes

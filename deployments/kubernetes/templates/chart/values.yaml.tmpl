@@ -18,6 +18,13 @@ reloader:
   ignoreNamespaces: "" # Comma separated list of namespaces to ignore
   logFormat: "" #json
   watchGlobally: true
+  # Scoped mode: explicit list of namespaces to watch. When non-empty (and watchGlobally
+  # is false), Reloader watches exactly these namespaces and the chart creates a namespace
+  # scoped Role + RoleBinding in each one — no ClusterRole is created. The release namespace
+  # is always included automatically.
+  # Accepts either a YAML list (e.g. ["team-a", "team-b"]) or a comma-separated string
+  # (e.g. "team-a,team-b")
+  namespaces: []
   # Set to true if you have a pod security policy that enforces readOnlyRootFilesystem
   readOnlyRootFileSystem: false
   legacy:

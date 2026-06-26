@@ -102,6 +102,21 @@ func getHAEnvs() (string, string) {
 	return podName, podNamespace
 }
 
+// resolveWatchNamespaces determines the set of namespaces to watch and whether
+// Reloader runs in global (all-namespaces) mode. Precedence:
+//  1. an explicit --namespaces list (scoped mode) — watch exactly those namespaces;
+//  2. the KUBERNETES_NAMESPACE env var (single-namespace mode);
+//  3. otherwise watch all namespaces (global mode).
+func resolveWatchNamespaces(namespaces []string, kubernetesNamespace string) ([]string, bool) {
+	if len(namespaces) > 0 {
+		return namespaces, false
+	}
+	if len(kubernetesNamespace) > 0 {
+		return []string{kubernetesNamespace}, false
+	}
+	return []string{v1.NamespaceAll}, true
+}
+
 func startReloader(cmd *cobra.Command, args []string) {
 	common.GetCommandLineOptions()
 	err := configureLogging(options.LogFormat, options.LogLevel)
@@ -110,12 +125,11 @@ func startReloader(cmd *cobra.Command, args []string) {
 	}
 
 	logrus.Info("Starting Reloader")
-	isGlobal := false
-	currentNamespace := os.Getenv("KUBERNETES_NAMESPACE")
-	if len(currentNamespace) == 0 {
-		currentNamespace = v1.NamespaceAll
-		isGlobal = true
+	watchNamespaces, isGlobal := resolveWatchNamespaces(options.Namespaces, os.Getenv("KUBERNETES_NAMESPACE"))
+	if isGlobal {
 		logrus.Warnf("KUBERNETES_NAMESPACE is unset, will detect changes in all namespaces.")
+	} else if len(options.Namespaces) > 0 {
+		logrus.Infof("Watching scoped namespaces: %s", strings.Join(watchNamespaces, ", "))
 	}
 
 	// create the clientset
@@ -129,14 +143,20 @@ func startReloader(cmd *cobra.Command, args []string) {
 		logrus.Fatal(err)
 	}
 
-	ignoredNamespacesList := options.NamespacesToIgnore
+	// namespaces-to-ignore and namespace-selector only make sense when watching all
+	// namespaces. In single-namespace and scoped modes the watched set is already
+	// explicit, so both are intentionally left empty.
+	ignoredNamespacesList := []string{}
 	namespaceLabelSelector := ""
 
 	if isGlobal {
+		ignoredNamespacesList = options.NamespacesToIgnore
 		namespaceLabelSelector, err = common.GetNamespaceLabelSelector(options.NamespaceSelectors)
 		if err != nil {
 			logrus.Fatal(err)
 		}
+	} else if len(options.NamespacesToIgnore) > 0 {
+		logrus.Warnf("namespaces-to-ignore is set but is only honored in global mode (watchGlobally=true); ignoring it.")
 	}
 
 	resourceLabelSelector, err := common.GetResourceLabelSelector(options.ResourceSelectors)
@@ -159,31 +179,33 @@ func startReloader(cmd *cobra.Command, args []string) {
 	collectors := metrics.SetupPrometheusEndpoint()
 
 	var controllers []*controller.Controller
-	for k := range kube.ResourceMap {
-		if k == constants.SecretProviderClassController && !shouldRunCSIController() {
-			continue
-		}
+	for _, currentNamespace := range watchNamespaces {
+		for k := range kube.ResourceMap {
+			if k == constants.SecretProviderClassController && !shouldRunCSIController() {
+				continue
+			}
 
-		if ignoredResourcesList.Contains(k) || (len(namespaceLabelSelector) == 0 && k == "namespaces") {
-			continue
-		}
+			if ignoredResourcesList.Contains(k) || (len(namespaceLabelSelector) == 0 && k == "namespaces") {
+				continue
+			}
 
-		c, err := controller.NewController(clientset, k, currentNamespace, ignoredNamespacesList, namespaceLabelSelector, resourceLabelSelector, collectors)
-		if err != nil {
-			logrus.Fatalf("%s", err)
-		}
+			c, err := controller.NewController(clientset, k, currentNamespace, ignoredNamespacesList, namespaceLabelSelector, resourceLabelSelector, collectors)
+			if err != nil {
+				logrus.Fatalf("%s", err)
+			}
 
-		controllers = append(controllers, c)
+			controllers = append(controllers, c)
 
-		// If HA is enabled we only run the controller when
-		if options.EnableHA {
-			continue
+			// If HA is enabled we only run the controller when
+			if options.EnableHA {
+				continue
+			}
+			// Now let's start the controller
+			stop := make(chan struct{})
+			defer close(stop)
+			logrus.Infof("Starting Controller to watch resource type: %s in namespace: %s", k, currentNamespace)
+			go c.Run(1, stop)
 		}
-		// Now let's start the controller
-		stop := make(chan struct{})
-		defer close(stop)
-		logrus.Infof("Starting Controller to watch resource type: %s", k)
-		go c.Run(1, stop)
 	}
 
 	// Run leadership election

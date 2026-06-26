@@ -108,6 +108,119 @@ var _ = Describe("Watch Globally Flag Tests", Serial, func() {
 		})
 	})
 
+	Context("with scoped namespaces list (watchGlobally=false + reloader.namespaces)", func() {
+		var scopedNS string
+
+		BeforeEach(func() {
+			scopedNS = "scoped-" + utils.RandName("ns")
+			Expect(utils.CreateNamespace(ctx, kubeClient, scopedNS)).To(Succeed())
+			Expect(utils.CreateNamespace(ctx, kubeClient, otherNS)).To(Succeed())
+
+			// Watch only scopedNS explicitly; the release namespace (testNamespace)
+			// is auto-included by the chart. otherNS is intentionally left out.
+			err := deployReloaderWithFlags(map[string]string{
+				"reloader.watchGlobally": "false",
+				"reloader.namespaces":    "{" + scopedNS + "}",
+			})
+			Expect(err).NotTo(HaveOccurred())
+
+			Expect(waitForReloaderReady()).To(Succeed())
+		})
+
+		AfterEach(func() {
+			_ = utils.DeleteDeployment(ctx, kubeClient, scopedNS, deploymentName)
+			_ = utils.DeleteConfigMap(ctx, kubeClient, scopedNS, configMapName)
+			_ = undeployReloader()
+			_ = utils.DeleteNamespace(ctx, kubeClient, scopedNS)
+			_ = utils.DeleteNamespace(ctx, kubeClient, otherNS)
+		})
+
+		It("should reload workloads in a listed namespace", func() {
+			By("Creating a ConfigMap in the listed namespace")
+			_, err := utils.CreateConfigMap(ctx, kubeClient, scopedNS, configMapName,
+				map[string]string{"key": "initial"}, nil)
+			Expect(err).NotTo(HaveOccurred())
+
+			By("Creating a Deployment in the listed namespace with auto annotation")
+			_, err = utils.CreateDeployment(ctx, kubeClient, scopedNS, deploymentName,
+				utils.WithConfigMapEnvFrom(configMapName),
+				utils.WithAnnotations(utils.BuildAutoTrueAnnotation()),
+			)
+			Expect(err).NotTo(HaveOccurred())
+
+			By("Waiting for Deployment to be ready")
+			err = adapter.WaitReady(ctx, scopedNS, deploymentName, utils.WorkloadReadyTimeout)
+			Expect(err).NotTo(HaveOccurred())
+
+			By("Updating the ConfigMap")
+			err = utils.UpdateConfigMap(ctx, kubeClient, scopedNS, configMapName, map[string]string{"key": "updated"})
+			Expect(err).NotTo(HaveOccurred())
+
+			By("Waiting for Deployment to be reloaded")
+			reloaded, err := adapter.WaitReloaded(ctx, scopedNS, deploymentName,
+				utils.AnnotationLastReloadedFrom, utils.ReloadTimeout)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(reloaded).To(BeTrue(), "Deployment in a listed namespace should reload")
+		})
+
+		It("should reload workloads in Reloader's auto-included release namespace", func() {
+			By("Creating a ConfigMap in Reloader's namespace")
+			_, err := utils.CreateConfigMap(ctx, kubeClient, testNamespace, configMapName,
+				map[string]string{"key": "initial"}, nil)
+			Expect(err).NotTo(HaveOccurred())
+
+			By("Creating a Deployment in Reloader's namespace with auto annotation")
+			_, err = utils.CreateDeployment(ctx, kubeClient, testNamespace, deploymentName,
+				utils.WithConfigMapEnvFrom(configMapName),
+				utils.WithAnnotations(utils.BuildAutoTrueAnnotation()),
+			)
+			Expect(err).NotTo(HaveOccurred())
+
+			By("Waiting for Deployment to be ready")
+			err = adapter.WaitReady(ctx, testNamespace, deploymentName, utils.WorkloadReadyTimeout)
+			Expect(err).NotTo(HaveOccurred())
+
+			By("Updating the ConfigMap")
+			err = utils.UpdateConfigMap(ctx, kubeClient, testNamespace, configMapName, map[string]string{"key": "updated"})
+			Expect(err).NotTo(HaveOccurred())
+
+			By("Waiting for Deployment to be reloaded (release namespace is auto-included)")
+			reloaded, err := adapter.WaitReloaded(ctx, testNamespace, deploymentName,
+				utils.AnnotationLastReloadedFrom, utils.ReloadTimeout)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(reloaded).To(BeTrue(), "Deployment in Reloader's auto-included namespace should reload")
+		})
+
+		It("should NOT reload workloads in an unlisted namespace", func() {
+			By("Creating a ConfigMap in an unlisted namespace")
+			_, err := utils.CreateConfigMap(ctx, kubeClient, otherNS, configMapName,
+				map[string]string{"key": "initial"}, nil)
+			Expect(err).NotTo(HaveOccurred())
+
+			By("Creating a Deployment in an unlisted namespace with auto annotation")
+			_, err = utils.CreateDeployment(ctx, kubeClient, otherNS, deploymentName,
+				utils.WithConfigMapEnvFrom(configMapName),
+				utils.WithAnnotations(utils.BuildAutoTrueAnnotation()),
+			)
+			Expect(err).NotTo(HaveOccurred())
+
+			By("Waiting for Deployment to be ready")
+			err = adapter.WaitReady(ctx, otherNS, deploymentName, utils.WorkloadReadyTimeout)
+			Expect(err).NotTo(HaveOccurred())
+
+			By("Updating the ConfigMap in the unlisted namespace")
+			err = utils.UpdateConfigMap(ctx, kubeClient, otherNS, configMapName, map[string]string{"key": "updated"})
+			Expect(err).NotTo(HaveOccurred())
+
+			By("Verifying Deployment was NOT reloaded (namespace not in the list)")
+			time.Sleep(utils.NegativeTestWait)
+			reloaded, err := adapter.WaitReloaded(ctx, otherNS, deploymentName,
+				utils.AnnotationLastReloadedFrom, utils.ShortTimeout)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(reloaded).To(BeFalse(), "Deployment in an unlisted namespace should NOT reload")
+		})
+	})
+
 	Context("with watchGlobally=true flag (default)", func() {
 		var globalNS string
 
