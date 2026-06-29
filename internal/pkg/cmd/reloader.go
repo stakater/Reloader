@@ -102,6 +102,20 @@ func getHAEnvs() (string, string) {
 	return podName, podNamespace
 }
 
+// namespaceWatchScopeMessage returns the startup log message describing the
+// namespace scope Reloader will watch when KUBERNETES_NAMESPACE is unset
+// (global mode). It reflects --namespaces-to-ignore so the log is not
+// misleading when namespace filtering is configured.
+func namespaceWatchScopeMessage(ignoredNamespaces []string) string {
+	if len(ignoredNamespaces) > 0 {
+		return fmt.Sprintf(
+			"KUBERNETES_NAMESPACE is unset, will detect changes in all namespaces except: %s.",
+			strings.Join(ignoredNamespaces, ", "),
+		)
+	}
+	return "KUBERNETES_NAMESPACE is unset, will detect changes in all namespaces."
+}
+
 func startReloader(cmd *cobra.Command, args []string) {
 	common.GetCommandLineOptions()
 	err := configureLogging(options.LogFormat, options.LogLevel)
@@ -115,7 +129,6 @@ func startReloader(cmd *cobra.Command, args []string) {
 	if len(currentNamespace) == 0 {
 		currentNamespace = v1.NamespaceAll
 		isGlobal = true
-		logrus.Warnf("KUBERNETES_NAMESPACE is unset, will detect changes in all namespaces.")
 	}
 
 	// create the clientset
@@ -130,6 +143,9 @@ func startReloader(cmd *cobra.Command, args []string) {
 	}
 
 	ignoredNamespacesList := options.NamespacesToIgnore
+	if isGlobal {
+		logrus.Warn(namespaceWatchScopeMessage(ignoredNamespacesList))
+	}
 	namespaceLabelSelector := ""
 
 	if isGlobal {
