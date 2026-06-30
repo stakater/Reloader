@@ -21,7 +21,9 @@ import (
 
 // ResourceReconcilerDeps holds shared dependencies for resource reconcilers.
 type ResourceReconcilerDeps struct {
-	Client         client.Client
+	Client client.Client
+	// APIReader is an optional non-cached reader for ResolveChange lookups.
+	APIReader      client.Reader
 	Log            logr.Logger
 	Config         *config.Config
 	ReloadService  *reload.Service
@@ -47,6 +49,16 @@ type ResourceConfig[T client.Object] struct {
 
 	// CreatePredicates creates the predicates for this resource type.
 	CreatePredicates func(cfg *config.Config, hasher *reload.Hasher) predicate.Predicate
+
+	// ResolveChange derives the change from a second object instead of CreateChange;
+	// ok=false skips the event (CSI: change comes from the parent SecretProviderClass).
+	ResolveChange func(ctx context.Context, reader client.Reader, log logr.Logger, resource T) (reload.ResourceChange, bool)
+
+	// SkipOnNotFound treats a missing object as a no-op (CSI deletes SPCPS as pods roll).
+	SkipOnNotFound bool
+
+	// BuildFilter overrides the default BuildEventFilter for the watch.
+	BuildFilter func(cfg *config.Config, hasher *reload.Hasher) predicate.Predicate
 }
 
 // ResourceReconciler is a generic reconciler for ConfigMaps and Secrets.
@@ -102,15 +114,30 @@ func (r *ResourceReconciler[T]) Reconcile(ctx context.Context, req ctrl.Request)
 		return ctrl.Result{}, nil
 	}
 
+	change, ok := r.buildChange(ctx, log, resource)
+	if !ok {
+		r.Collectors.RecordSkipped("resolve_skipped")
+		r.Collectors.RecordReconcile("success", time.Since(startTime))
+		return ctrl.Result{}, nil
+	}
+
 	result, err := r.reloadHandler().Process(
-		ctx, req.Namespace, req.Name, r.ResourceType,
+		ctx, change.GetNamespace(), change.GetName(), r.ResourceType,
 		func(workloads []workload.Workload) []reload.ReloadDecision {
-			return r.ReloadService.Process(r.CreateChange(resource, reload.EventTypeUpdate), workloads)
+			return r.ReloadService.Process(change, workloads)
 		}, log,
 	)
 
 	r.recordReconcile(startTime, err)
 	return result, err
+}
+
+// buildChange returns the change via ResolveChange when set, else CreateChange.
+func (r *ResourceReconciler[T]) buildChange(ctx context.Context, log logr.Logger, resource T) (reload.ResourceChange, bool) {
+	if r.ResolveChange != nil {
+		return r.ResolveChange(ctx, r.APIReader, log, resource)
+	}
+	return r.CreateChange(resource, reload.EventTypeUpdate), true
 }
 
 func (r *ResourceReconciler[T]) handleNotFound(
@@ -119,6 +146,11 @@ func (r *ResourceReconciler[T]) handleNotFound(
 	log logr.Logger,
 	startTime time.Time,
 ) (ctrl.Result, error) {
+	if r.SkipOnNotFound {
+		r.Collectors.RecordSkipped("not_found")
+		r.Collectors.RecordReconcile("success", time.Since(startTime))
+		return ctrl.Result{}, nil
+	}
 	if r.Config.ReloadOnDelete {
 		r.Collectors.RecordEventReceived("delete", string(r.ResourceType))
 		result, err := r.handleDelete(ctx, req, log)
@@ -176,19 +208,19 @@ func (r *ResourceReconciler[T]) reloadHandler() *ReloadHandler {
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *ResourceReconciler[T]) SetupWithManager(mgr ctrl.Manager, forObject T) error {
-	// Capture the moment the controller is wired up (before the manager starts
-	// watching). Resources that already exist are replayed during the initial
-	// cache sync with an older creation timestamp; the create predicate uses
-	// this to ignore those replays while still honoring genuine creates that
-	// arrive afterwards.
-	startTime := time.Now()
+	var filter predicate.Predicate
+	if r.BuildFilter != nil {
+		filter = r.BuildFilter(r.Config, r.ReloadService.Hasher())
+	} else {
+		// time.Now() lets the create predicate ignore initial-sync replays of
+		// pre-existing resources (older creation timestamps) while honoring later creates.
+		filter = BuildEventFilter(
+			r.CreatePredicates(r.Config, r.ReloadService.Hasher()),
+			r.Config, time.Now(),
+		)
+	}
 	return ctrl.NewControllerManagedBy(mgr).
 		For(forObject).
-		WithEventFilter(
-			BuildEventFilter(
-				r.CreatePredicates(r.Config, r.ReloadService.Hasher()),
-				r.Config, startTime,
-			),
-		).
+		WithEventFilter(filter).
 		Complete(r)
 }

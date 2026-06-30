@@ -5,6 +5,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
+	csiv1 "sigs.k8s.io/secrets-store-csi-driver/apis/v1"
 
 	"github.com/stakater/Reloader/internal/pkg/config"
 )
@@ -156,4 +157,23 @@ func IgnoreAnnotationPredicate(cfg *config.Config) predicate.Predicate {
 // CombinedPredicates combines multiple predicates with AND logic.
 func CombinedPredicates(predicates ...predicate.Predicate) predicate.Predicate {
 	return predicate.And(predicates...)
+}
+
+// SecretProviderClassPodStatusPredicates filters SecretProviderClassPodStatus events.
+// Create and Delete are ignored (matching master); Update passes only when the
+// hashed status (object IDs/versions + SPC name) changes.
+func SecretProviderClassPodStatusPredicates(cfg *config.Config, hasher *Hasher) predicate.Predicate {
+	return predicate.Funcs{
+		CreateFunc:  func(e event.CreateEvent) bool { return false },
+		DeleteFunc:  func(e event.DeleteEvent) bool { return false },
+		GenericFunc: func(e event.GenericEvent) bool { return false },
+		UpdateFunc: func(e event.UpdateEvent) bool {
+			oldObj, okOld := e.ObjectOld.(*csiv1.SecretProviderClassPodStatus)
+			newObj, okNew := e.ObjectNew.(*csiv1.SecretProviderClassPodStatus)
+			if !okOld || !okNew {
+				return false
+			}
+			return hasher.HashSecretProviderClass(oldObj.Status) != hasher.HashSecretProviderClass(newObj.Status)
+		},
+	}
 }

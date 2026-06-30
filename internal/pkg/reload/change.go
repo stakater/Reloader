@@ -2,6 +2,7 @@ package reload
 
 import (
 	corev1 "k8s.io/api/core/v1"
+	csiv1 "sigs.k8s.io/secrets-store-csi-driver/apis/v1"
 )
 
 // EventType represents the type of change event.
@@ -54,3 +55,28 @@ func (c SecretChange) GetNamespace() string              { return c.Secret.Names
 func (c SecretChange) GetAnnotations() map[string]string { return c.Secret.Annotations }
 func (c SecretChange) GetResourceType() ResourceType     { return ResourceTypeSecret }
 func (c SecretChange) ComputeHash(h *Hasher) string      { return h.HashSecret(c.Secret) }
+
+// SecretProviderClassChange represents a change event derived from a
+// SecretProviderClassPodStatus update. Name/Annotations refer to the resolved
+// SecretProviderClass; Status carries the SPCPS status used for hashing.
+type SecretProviderClassChange struct {
+	Name        string
+	Namespace   string
+	Annotations map[string]string
+	Status      csiv1.SecretProviderClassPodStatusStatus
+	EventType   EventType
+}
+
+func (c SecretProviderClassChange) IsNil() bool             { return c.Name == "" }
+func (c SecretProviderClassChange) GetEventType() EventType { return c.EventType }
+func (c SecretProviderClassChange) GetName() string         { return c.Name }
+func (c SecretProviderClassChange) GetNamespace() string    { return c.Namespace }
+func (c SecretProviderClassChange) GetAnnotations() map[string]string {
+	return c.Annotations
+}
+func (c SecretProviderClassChange) GetResourceType() ResourceType {
+	return ResourceTypeSecretProviderClass
+}
+func (c SecretProviderClassChange) ComputeHash(h *Hasher) string {
+	return h.HashSecretProviderClass(c.Status)
+}

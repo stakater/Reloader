@@ -7,6 +7,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"sigs.k8s.io/controller-runtime/pkg/event"
+	csiv1 "sigs.k8s.io/secrets-store-csi-driver/apis/v1"
 
 	"github.com/stakater/Reloader/internal/pkg/config"
 )
@@ -932,5 +933,54 @@ func TestLabelsSet(t *testing.T) {
 	}
 	if ls.Get("nonexistent") != "" {
 		t.Errorf("Get(nonexistent) = %v, want empty string", ls.Get("nonexistent"))
+	}
+}
+
+func TestSecretProviderClassPodStatusPredicates(t *testing.T) {
+	cfg := config.NewDefault()
+	p := SecretProviderClassPodStatusPredicates(cfg, NewHasher())
+
+	oldObj := &csiv1.SecretProviderClassPodStatus{
+		Status: csiv1.SecretProviderClassPodStatusStatus{
+			SecretProviderClassName: "spc",
+			Objects:                 []csiv1.SecretProviderClassObject{{ID: "a", Version: "1"}},
+		},
+	}
+	newObjChanged := &csiv1.SecretProviderClassPodStatus{
+		Status: csiv1.SecretProviderClassPodStatusStatus{
+			SecretProviderClassName: "spc",
+			Objects:                 []csiv1.SecretProviderClassObject{{ID: "a", Version: "2"}},
+		},
+	}
+	newObjSame := oldObj.DeepCopy()
+
+	// Create and Delete are always ignored for SPCPS.
+	if p.Create(event.CreateEvent{Object: oldObj}) {
+		t.Fatal("CreateFunc should return false")
+	}
+	if p.Delete(event.DeleteEvent{Object: oldObj}) {
+		t.Fatal("DeleteFunc should return false")
+	}
+	// Update only when the status hash changes.
+	if !p.Update(event.UpdateEvent{ObjectOld: oldObj, ObjectNew: newObjChanged}) {
+		t.Fatal("UpdateFunc should return true on changed status")
+	}
+	if p.Update(event.UpdateEvent{ObjectOld: oldObj, ObjectNew: newObjSame}) {
+		t.Fatal("UpdateFunc should return false on unchanged status")
+	}
+
+	// A metadata/label-only change (same Status) must NOT trigger a reload,
+	// since the predicate hashes only the status. (Master tested this via
+	// UpdateSecretProviderClassPodStatusLabels.)
+	labelOnly := oldObj.DeepCopy()
+	labelOnly.Labels = map[string]string{"unrelated": "changed"}
+	labelOnly.Annotations = map[string]string{"note": "touched"}
+	if p.Update(event.UpdateEvent{ObjectOld: oldObj, ObjectNew: labelOnly}) {
+		t.Fatal("UpdateFunc should return false on a label/metadata-only change")
+	}
+
+	// Type-assertion failure (wrong object type) must be rejected, not panic.
+	if p.Update(event.UpdateEvent{ObjectOld: &corev1.ConfigMap{}, ObjectNew: &corev1.ConfigMap{}}) {
+		t.Fatal("UpdateFunc should return false when objects are not SPCPS")
 	}
 }

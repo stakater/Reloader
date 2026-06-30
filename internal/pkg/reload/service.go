@@ -83,6 +83,10 @@ func (s *Service) processResource(
 			usesResource = wl.UsesConfigMap(resourceName)
 		case ResourceTypeSecret:
 			usesResource = wl.UsesSecret(resourceName)
+		case ResourceTypeSecretProviderClass:
+			// Annotation-only matching (parity with master): the workload's
+			// annotations alone decide the reload; no volume-uses scan.
+			usesResource = true
 		}
 
 		input := MatchInput{
@@ -263,6 +267,11 @@ func (s *Service) findVolumeUsingResource(volumes []corev1.Volume, resourceName 
 						return vol.Name
 					}
 				}
+			}
+		case ResourceTypeSecretProviderClass:
+			// Match the CSI volume that references this SPC.
+			if vol.CSI != nil && vol.CSI.VolumeAttributes["secretProviderClass"] == resourceName {
+				return vol.Name
 			}
 		}
 	}

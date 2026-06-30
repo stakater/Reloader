@@ -215,7 +215,7 @@ spec:
           {{- . | toYaml | nindent 10 }}
           {{- end }}
       {{- end }}
-      {{- if or (.Values.reloader.logFormat) (.Values.reloader.logLevel) (.Values.reloader.ignoreSecrets) (.Values.reloader.ignoreNamespaces) (include "reloader-namespaceSelector" .) (.Values.reloader.resourceLabelSelector) (.Values.reloader.ignoreConfigMaps) (.Values.reloader.custom_annotations) (eq .Values.reloader.isArgoRollouts true) (eq .Values.reloader.reloadOnCreate true) (eq .Values.reloader.reloadOnDelete true) (ne .Values.reloader.reloadStrategy "default") (.Values.reloader.enableHA) (.Values.reloader.autoReloadAll) (.Values.reloader.ignoreJobs) (.Values.reloader.ignoreCronJobs)}}
+      {{- if or (.Values.reloader.logFormat) (.Values.reloader.logLevel) (.Values.reloader.ignoreSecrets) (.Values.reloader.ignoreNamespaces) (include "reloader-namespaceSelector" .) (.Values.reloader.resourceLabelSelector) (.Values.reloader.ignoreConfigMaps) (.Values.reloader.custom_annotations) (eq .Values.reloader.isArgoRollouts true) (eq .Values.reloader.reloadOnCreate true) (eq .Values.reloader.reloadOnDelete true) (ne .Values.reloader.reloadStrategy "default") (.Values.reloader.enableHA) (.Values.reloader.autoReloadAll) (.Values.reloader.ignoreJobs) (.Values.reloader.ignoreCronJobs) (.Values.reloader.enableCSIIntegration)}}
         args:
           {{- if .Values.reloader.logFormat }}
           - "--log-format={{ .Values.reloader.logFormat }}"
@@ -251,6 +251,9 @@ spec:
           - "--pprof-addr={{ .Values.reloader.pprofAddr }}"
           {{- end }}
           {{- end }}
+          {{- if .Values.reloader.enableCSIIntegration }}
+          - "--enable-csi-integration"
+          {{- end }}
           {{- if .Values.reloader.custom_annotations }}
             {{- if .Values.reloader.custom_annotations.configmap }}
           - "--configmap-annotation"
@@ -271,6 +274,26 @@ spec:
             {{- if .Values.reloader.custom_annotations.configmap_auto }}
           - "--configmap-auto-annotation"
           - "{{ .Values.reloader.custom_annotations.configmap_auto }}"
+            {{- end }}
+            {{- if .Values.reloader.custom_annotations.configmap_exclude }}
+          - "--configmap-exclude-annotation"
+          - "{{ .Values.reloader.custom_annotations.configmap_exclude }}"
+            {{- end }}
+            {{- if .Values.reloader.custom_annotations.secret_exclude }}
+          - "--secret-exclude-annotation"
+          - "{{ .Values.reloader.custom_annotations.secret_exclude }}"
+            {{- end }}
+            {{- if .Values.reloader.custom_annotations.secretproviderclass }}
+          - "--secretproviderclass-annotation"
+          - "{{ .Values.reloader.custom_annotations.secretproviderclass }}"
+            {{- end }}
+            {{- if .Values.reloader.custom_annotations.secretproviderclass_auto }}
+          - "--secretproviderclass-auto-annotation"
+          - "{{ .Values.reloader.custom_annotations.secretproviderclass_auto }}"
+            {{- end }}
+            {{- if .Values.reloader.custom_annotations.secretproviderclass_exclude }}
+          - "--secretproviderclass-exclude-annotation"
+          - "{{ .Values.reloader.custom_annotations.secretproviderclass_exclude }}"
             {{- end }}
             {{- if .Values.reloader.custom_annotations.search }}
           - "--auto-search-annotation"

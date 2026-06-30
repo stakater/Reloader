@@ -19,6 +19,8 @@ const (
 	ConfigmapEnvVarPostfix = "CONFIGMAP"
 	// SecretEnvVarPostfix is the postfix for Secret environment variables.
 	SecretEnvVarPostfix = "SECRET"
+	// SecretProviderClassEnvVarPostfix is the postfix for SecretProviderClass environment variables.
+	SecretProviderClassEnvVarPostfix = "SECRETPROVIDERCLASS"
 )
 
 // Strategy defines how workload restarts are triggered.
@@ -108,6 +110,8 @@ func (s *EnvVarStrategy) envVarName(resourceName string, resourceType ResourceTy
 		postfix = ConfigmapEnvVarPostfix
 	case ResourceTypeSecret:
 		postfix = SecretEnvVarPostfix
+	case ResourceTypeSecretProviderClass:
+		postfix = SecretProviderClassEnvVarPostfix
 	}
 	return EnvVarPrefix + convertToEnvVarName(resourceName) + "_" + postfix
 }
@@ -175,8 +179,15 @@ func (s *AnnotationStrategy) Apply(input StrategyInput) (bool, error) {
 	annotationKey := s.cfg.Annotations.LastReloadedFrom
 	existingValue := input.PodAnnotations[annotationKey]
 
-	if existingValue == string(sourceJSON) {
-		return false, nil
+	// Idempotent on kind+name+hash, ignoring ReloadedAt: a timestamped compare
+	// would force a rollout every reconcile (one CSI rotation fans out to N
+	// SecretProviderClassPodStatus updates → N rollouts).
+	if existingValue != "" {
+		var prev ReloadSource
+		if err := json.Unmarshal([]byte(existingValue), &prev); err == nil &&
+			prev.Kind == source.Kind && prev.Name == source.Name && prev.Hash == source.Hash {
+			return false, nil
+		}
 	}
 
 	input.PodAnnotations[annotationKey] = string(sourceJSON)

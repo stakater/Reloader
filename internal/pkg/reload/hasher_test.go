@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	corev1 "k8s.io/api/core/v1"
+	csiv1 "sigs.k8s.io/secrets-store-csi-driver/apis/v1"
 )
 
 func TestHasher_HashConfigMap(t *testing.T) {
@@ -232,5 +233,47 @@ func TestHasher_NilInput(t *testing.T) {
 	secretHash := hasher.HashSecret(nil)
 	if secretHash == "" {
 		t.Error("nil Secret should return a valid hash")
+	}
+}
+
+func TestHashSecretProviderClass(t *testing.T) {
+	h := NewHasher()
+	status := csiv1.SecretProviderClassPodStatusStatus{
+		SecretProviderClassName: "my-spc",
+		Objects: []csiv1.SecretProviderClassObject{
+			{ID: "secret/data/b", Version: "2"},
+			{ID: "secret/data/a", Version: "1"},
+		},
+	}
+
+	// Expected = SHA1 hex of the sorted, ';'-joined string, matching master.
+	expectedInput := "SecretProviderClassName=my-spc;secret/data/a=1;secret/data/b=2"
+	expected := h.computeSHA(expectedInput)
+
+	got := h.HashSecretProviderClass(status)
+	if got != expected {
+		t.Fatalf("HashSecretProviderClass = %q, want %q", got, expected)
+	}
+
+	// Order independence: shuffling objects must not change the hash.
+	statusReordered := csiv1.SecretProviderClassPodStatusStatus{
+		SecretProviderClassName: "my-spc",
+		Objects: []csiv1.SecretProviderClassObject{
+			{ID: "secret/data/a", Version: "1"},
+			{ID: "secret/data/b", Version: "2"},
+		},
+	}
+	if h.HashSecretProviderClass(statusReordered) != got {
+		t.Fatalf("hash not order-independent")
+	}
+}
+
+func TestHashSecretProviderClassEmpty(t *testing.T) {
+	h := NewHasher()
+	status := csiv1.SecretProviderClassPodStatusStatus{SecretProviderClassName: "empty"}
+	got := h.HashSecretProviderClass(status)
+	want := h.computeSHA("SecretProviderClassName=empty")
+	if got != want {
+		t.Fatalf("HashSecretProviderClass(empty) = %q, want %q", got, want)
 	}
 }

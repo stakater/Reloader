@@ -26,6 +26,8 @@ func TestBindFlags(t *testing.T) {
 		"auto-reload-all",
 		"reload-strategy",
 		"is-Argo-Rollouts",
+		"is-openshift",
+		"enable-csi-integration",
 		"reload-on-create",
 		"reload-on-delete",
 		"sync-after-restart",
@@ -53,8 +55,14 @@ func TestBindFlags(t *testing.T) {
 		"secret-auto-annotation",
 		"configmap-annotation",
 		"secret-annotation",
+		"configmap-exclude-annotation",
+		"secret-exclude-annotation",
+		"secretproviderclass-auto-annotation",
+		"secretproviderclass-annotation",
+		"secretproviderclass-exclude-annotation",
 		"auto-search-annotation",
 		"search-match-annotation",
+		"ignore-annotation",
 		"pause-deployment-annotation",
 		"pause-deployment-time-annotation",
 		"watch-namespace",
@@ -148,6 +156,131 @@ func TestBindFlags_CustomValues(t *testing.T) {
 
 	if !cfg.EnablePProf {
 		t.Error("EnablePProf should be true")
+	}
+}
+
+func TestApplyFlags_SecretProviderClassAnnotations(t *testing.T) {
+	// Defaults are preserved when the flags are not provided.
+	resetViper()
+	cfg := NewDefault()
+	fs := pflag.NewFlagSet("test", pflag.ContinueOnError)
+	BindFlags(fs, cfg)
+	if err := fs.Parse(nil); err != nil {
+		t.Fatalf("Parse() error = %v", err)
+	}
+	if err := ApplyFlags(cfg); err != nil {
+		t.Fatalf("ApplyFlags() error = %v", err)
+	}
+	defaults := DefaultAnnotations()
+	if cfg.Annotations.SecretProviderClassAuto != defaults.SecretProviderClassAuto {
+		t.Errorf("SecretProviderClassAuto = %q, want default %q", cfg.Annotations.SecretProviderClassAuto, defaults.SecretProviderClassAuto)
+	}
+	if cfg.Annotations.SecretProviderClassReload != defaults.SecretProviderClassReload {
+		t.Errorf("SecretProviderClassReload = %q, want default %q", cfg.Annotations.SecretProviderClassReload, defaults.SecretProviderClassReload)
+	}
+	if cfg.Annotations.SecretProviderClassExclude != defaults.SecretProviderClassExclude {
+		t.Errorf("SecretProviderClassExclude = %q, want default %q", cfg.Annotations.SecretProviderClassExclude, defaults.SecretProviderClassExclude)
+	}
+
+	// Custom values are applied from the flags.
+	resetViper()
+	cfg = NewDefault()
+	fs = pflag.NewFlagSet("test", pflag.ContinueOnError)
+	BindFlags(fs, cfg)
+	args := []string{
+		"--secretproviderclass-auto-annotation=spc.example.com/auto",
+		"--secretproviderclass-annotation=spc.example.com/reload",
+		"--secretproviderclass-exclude-annotation=spc.example.com/exclude",
+	}
+	if err := fs.Parse(args); err != nil {
+		t.Fatalf("Parse() error = %v", err)
+	}
+	if err := ApplyFlags(cfg); err != nil {
+		t.Fatalf("ApplyFlags() error = %v", err)
+	}
+	if cfg.Annotations.SecretProviderClassAuto != "spc.example.com/auto" {
+		t.Errorf("SecretProviderClassAuto = %q, want %q", cfg.Annotations.SecretProviderClassAuto, "spc.example.com/auto")
+	}
+	if cfg.Annotations.SecretProviderClassReload != "spc.example.com/reload" {
+		t.Errorf("SecretProviderClassReload = %q, want %q", cfg.Annotations.SecretProviderClassReload, "spc.example.com/reload")
+	}
+	if cfg.Annotations.SecretProviderClassExclude != "spc.example.com/exclude" {
+		t.Errorf("SecretProviderClassExclude = %q, want %q", cfg.Annotations.SecretProviderClassExclude, "spc.example.com/exclude")
+	}
+}
+
+func TestApplyFlags_ExcludeAnnotations(t *testing.T) {
+	// Defaults are preserved when the flags are not provided.
+	resetViper()
+	cfg := NewDefault()
+	fs := pflag.NewFlagSet("test", pflag.ContinueOnError)
+	BindFlags(fs, cfg)
+	if err := fs.Parse(nil); err != nil {
+		t.Fatalf("Parse() error = %v", err)
+	}
+	if err := ApplyFlags(cfg); err != nil {
+		t.Fatalf("ApplyFlags() error = %v", err)
+	}
+	defaults := DefaultAnnotations()
+	if cfg.Annotations.ConfigmapExclude != defaults.ConfigmapExclude {
+		t.Errorf("ConfigmapExclude = %q, want default %q", cfg.Annotations.ConfigmapExclude, defaults.ConfigmapExclude)
+	}
+	if cfg.Annotations.SecretExclude != defaults.SecretExclude {
+		t.Errorf("SecretExclude = %q, want default %q", cfg.Annotations.SecretExclude, defaults.SecretExclude)
+	}
+
+	// Custom values are applied from the flags.
+	resetViper()
+	cfg = NewDefault()
+	fs = pflag.NewFlagSet("test", pflag.ContinueOnError)
+	BindFlags(fs, cfg)
+	args := []string{
+		"--configmap-exclude-annotation=cm.example.com/exclude",
+		"--secret-exclude-annotation=sec.example.com/exclude",
+	}
+	if err := fs.Parse(args); err != nil {
+		t.Fatalf("Parse() error = %v", err)
+	}
+	if err := ApplyFlags(cfg); err != nil {
+		t.Fatalf("ApplyFlags() error = %v", err)
+	}
+	if cfg.Annotations.ConfigmapExclude != "cm.example.com/exclude" {
+		t.Errorf("ConfigmapExclude = %q, want %q", cfg.Annotations.ConfigmapExclude, "cm.example.com/exclude")
+	}
+	if cfg.Annotations.SecretExclude != "sec.example.com/exclude" {
+		t.Errorf("SecretExclude = %q, want %q", cfg.Annotations.SecretExclude, "sec.example.com/exclude")
+	}
+}
+
+func TestApplyFlags_IgnoreAnnotation(t *testing.T) {
+	// Default is preserved when the flag is not provided.
+	resetViper()
+	cfg := NewDefault()
+	fs := pflag.NewFlagSet("test", pflag.ContinueOnError)
+	BindFlags(fs, cfg)
+	if err := fs.Parse(nil); err != nil {
+		t.Fatalf("Parse() error = %v", err)
+	}
+	if err := ApplyFlags(cfg); err != nil {
+		t.Fatalf("ApplyFlags() error = %v", err)
+	}
+	if cfg.Annotations.Ignore != DefaultAnnotations().Ignore {
+		t.Errorf("Ignore = %q, want default %q", cfg.Annotations.Ignore, DefaultAnnotations().Ignore)
+	}
+
+	// Custom value is applied from the flag.
+	resetViper()
+	cfg = NewDefault()
+	fs = pflag.NewFlagSet("test", pflag.ContinueOnError)
+	BindFlags(fs, cfg)
+	if err := fs.Parse([]string{"--ignore-annotation=my.company.com/reloader-ignore"}); err != nil {
+		t.Fatalf("Parse() error = %v", err)
+	}
+	if err := ApplyFlags(cfg); err != nil {
+		t.Fatalf("ApplyFlags() error = %v", err)
+	}
+	if cfg.Annotations.Ignore != "my.company.com/reloader-ignore" {
+		t.Errorf("Ignore = %q, want %q", cfg.Annotations.Ignore, "my.company.com/reloader-ignore")
 	}
 }
 
@@ -367,6 +500,22 @@ func TestApplyFlags_LegacyProxyEnvVar(t *testing.T) {
 
 	if cfg.Alerting.Proxy != "http://legacy-proxy:8080" {
 		t.Errorf("Alerting.Proxy = %q, want %q", cfg.Alerting.Proxy, "http://legacy-proxy:8080")
+	}
+}
+
+func TestApplyFlagsCSIIntegration(t *testing.T) {
+	resetViper()
+	cfg := NewDefault()
+	fs := pflag.NewFlagSet("test", pflag.ContinueOnError)
+	BindFlags(fs, cfg)
+	if err := fs.Parse([]string{"--enable-csi-integration=true"}); err != nil {
+		t.Fatal(err)
+	}
+	if err := ApplyFlags(cfg); err != nil {
+		t.Fatal(err)
+	}
+	if !cfg.CSIIntegrationEnabled {
+		t.Fatal("expected CSIIntegrationEnabled=true")
 	}
 }
 

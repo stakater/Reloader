@@ -304,6 +304,7 @@ Reloader reacts to CSI status changes, not direct updates to external secret sto
 Secret rotation must be enabled in the CSI driver for updates to be detected
 CSI limitations (such as `subPath` mounts) still apply and may require pod restarts
 If secrets are synced to Kubernetes Secret objects, standard Reloader behavior applies and CSI support may not be required
+`--resource-label-selector` is not applied to CSI watches: it scopes ConfigMaps/Secrets only, since `SecretProviderClassPodStatus` objects are managed by the CSI driver and cannot carry user labels. CSI reloads continue to work when a label selector is configured
 
 ## 🚀 Installation
 

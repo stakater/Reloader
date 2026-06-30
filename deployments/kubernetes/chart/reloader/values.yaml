@@ -49,6 +49,8 @@ reloader:
   enableHA: false
   # Set to true to enable pprof for profiling
   enablePProf: false
+  # Set to true to enable CSI / SecretProviderClass integration
+  enableCSIIntegration: false
   # Address to start pprof server on. Default is ":6060"
   pprofAddr: ":6060"
   # Set to true if you have a pod security policy that enforces readOnlyRootFilesystem
@@ -214,6 +216,11 @@ reloader:
   #   custom_annotations:
   #     configmap: "my.company.com/configmap"
   #     secret: "my.company.com/secret"
+  #     configmap_exclude: "my.company.com/configmap-exclude"
+  #     secret_exclude: "my.company.com/secret-exclude"
+  #     secretproviderclass: "my.company.com/secretproviderclass"
+  #     secretproviderclass_auto: "my.company.com/secretproviderclass-auto"
+  #     secretproviderclass_exclude: "my.company.com/secretproviderclass-exclude"
   #     ignore: "my.company.com/reloader-ignore"
   custom_annotations: {}
 

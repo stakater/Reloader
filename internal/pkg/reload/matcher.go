@@ -144,6 +144,8 @@ func (m *Matcher) isResourceExcluded(resourceName string, resourceType ResourceT
 		excludeAnn = m.cfg.Annotations.ConfigmapExclude
 	case ResourceTypeSecret:
 		excludeAnn = m.cfg.Annotations.SecretExclude
+	case ResourceTypeSecretProviderClass:
+		excludeAnn = m.cfg.Annotations.SecretProviderClassExclude
 	}
 
 	excludeList, ok := annotations[excludeAnn]
@@ -242,6 +244,8 @@ func (m *Matcher) getExplicitAnnotation(resourceType ResourceType) string {
 		return m.cfg.Annotations.ConfigmapReload
 	case ResourceTypeSecret:
 		return m.cfg.Annotations.SecretReload
+	case ResourceTypeSecretProviderClass:
+		return m.cfg.Annotations.SecretProviderClassReload
 	default:
 		return ""
 	}
@@ -253,6 +257,8 @@ func (m *Matcher) getTypedAutoAnnotation(resourceType ResourceType) string {
 		return m.cfg.Annotations.ConfigmapAuto
 	case ResourceTypeSecret:
 		return m.cfg.Annotations.SecretAuto
+	case ResourceTypeSecretProviderClass:
+		return m.cfg.Annotations.SecretProviderClassAuto
 	default:
 		return ""
 	}
