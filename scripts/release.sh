@@ -204,9 +204,10 @@ CHART_FILE="deployments/kubernetes/chart/reloader/Chart.yaml"
 sed -i "s/^version:.*/version: ${CHART_VERSION}/" "$CHART_FILE"
 sed -i "s/^appVersion:.*/appVersion: v${APP_VERSION}/" "$CHART_FILE"
 
-# Bump values.yaml: image.tag
+# Bump values.yaml: image.tag and the deployment version label
 VALUES_FILE="deployments/kubernetes/chart/reloader/values.yaml"
 sed -i "s/^\(  tag:\).*/\1 v${APP_VERSION}/" "$VALUES_FILE"
+sed -i "s/^\(      version:\).*/\1 v${APP_VERSION}/" "$VALUES_FILE"
 
 # Show changes for review
 info "Changes:"
