@@ -6,6 +6,7 @@
   "labels": [
     "dependencies"
   ],
+  "baseBranches": ["master", "v2"],
   "rebaseWhen": "never",
   "vulnerabilityAlerts": {
     "enabled": true,
