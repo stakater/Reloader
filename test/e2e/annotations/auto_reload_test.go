@@ -243,6 +243,11 @@ var _ = Describe("Auto Reload Annotation Tests", func() {
 			Expect(err).NotTo(HaveOccurred())
 			GinkgoWriter.Printf("Initial SPCPS version: %s\n", initialVersion)
 
+			// Capture the reload-annotation baseline before the trigger: Reloader reacts to the
+			// same SPCPS update the test waits on below, so it may reload before WaitReloaded runs.
+			priorReload, err := adapter.GetPodTemplateAnnotation(ctx, testNamespace, deploymentName, utils.AnnotationLastReloadedFrom)
+			Expect(err).NotTo(HaveOccurred())
+
 			By("Updating the Vault secret")
 			err = utils.UpdateVaultSecret(ctx, kubeClient, restConfig, vaultSecretPath, map[string]string{"api_key": "updated-value-v2"})
 			Expect(err).NotTo(HaveOccurred())
@@ -253,8 +258,8 @@ var _ = Describe("Auto Reload Annotation Tests", func() {
 			GinkgoWriter.Println("CSI driver synced new secret version")
 
 			By("Waiting for Deployment to be reloaded")
-			reloaded, err := adapter.WaitReloaded(ctx, testNamespace, deploymentName,
-				utils.AnnotationLastReloadedFrom, utils.ReloadTimeout)
+			reloaded, err := adapter.WaitReloadedFrom(ctx, testNamespace, deploymentName,
+				utils.AnnotationLastReloadedFrom, priorReload, utils.ReloadTimeout)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(reloaded).To(BeTrue(), "Deployment should have been reloaded for Vault secret change")
 		})
@@ -305,6 +310,11 @@ var _ = Describe("Auto Reload Annotation Tests", func() {
 			initialVersion, err := utils.GetSPCPSVersion(ctx, csiClient, testNamespace, spcpsName)
 			Expect(err).NotTo(HaveOccurred())
 
+			// Capture the baseline before the trigger to avoid racing Reloader's own reaction
+			// to the SPCPS update below.
+			priorReload, err := adapter.GetPodTemplateAnnotation(ctx, testNamespace, deploymentName, utils.AnnotationLastReloadedFrom)
+			Expect(err).NotTo(HaveOccurred())
+
 			By("Updating the Vault secret (should trigger reload)")
 			err = utils.UpdateVaultSecret(ctx, kubeClient, restConfig, vaultSecretPath, map[string]string{"api_key": "updated-value-v2"})
 			Expect(err).NotTo(HaveOccurred())
@@ -314,8 +324,8 @@ var _ = Describe("Auto Reload Annotation Tests", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Waiting for Deployment to be reloaded for SPC change")
-			reloaded, err = adapter.WaitReloaded(ctx, testNamespace, deploymentName,
-				utils.AnnotationLastReloadedFrom, utils.ReloadTimeout)
+			reloaded, err = adapter.WaitReloadedFrom(ctx, testNamespace, deploymentName,
+				utils.AnnotationLastReloadedFrom, priorReload, utils.ReloadTimeout)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(reloaded).To(BeTrue(), "Deployment should have been reloaded for Vault secret change")
 		})
@@ -349,6 +359,11 @@ var _ = Describe("Auto Reload Annotation Tests", func() {
 			initialVersion, err := utils.GetSPCPSVersion(ctx, csiClient, testNamespace, spcpsName)
 			Expect(err).NotTo(HaveOccurred())
 
+			// Capture the baseline before the trigger to avoid racing Reloader's own reaction
+			// to the SPCPS update below.
+			priorReload, err := adapter.GetPodTemplateAnnotation(ctx, testNamespace, deploymentName, utils.AnnotationLastReloadedFrom)
+			Expect(err).NotTo(HaveOccurred())
+
 			By("Updating the Vault secret")
 			err = utils.UpdateVaultSecret(ctx, kubeClient, restConfig, vaultSecretPath, map[string]string{"api_key": "updated-value-v2"})
 			Expect(err).NotTo(HaveOccurred())
@@ -358,8 +373,8 @@ var _ = Describe("Auto Reload Annotation Tests", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Waiting for Deployment to be reloaded")
-			reloaded, err := adapter.WaitReloaded(ctx, testNamespace, deploymentName,
-				utils.AnnotationLastReloadedFrom, utils.ReloadTimeout)
+			reloaded, err := adapter.WaitReloadedFrom(ctx, testNamespace, deploymentName,
+				utils.AnnotationLastReloadedFrom, priorReload, utils.ReloadTimeout)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(reloaded).To(BeTrue(), "Deployment with auto=true should have been reloaded for Vault secret change")
 		})

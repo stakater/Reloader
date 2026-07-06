@@ -54,8 +54,19 @@ func (a *JobAdapter) WaitReloaded(ctx context.Context, namespace, name, annotati
 	return false, ErrUnsupportedOperation
 }
 
+// WaitReloadedFrom returns an error because Jobs are recreated, not updated.
+// Use the Recreatable interface (GetOriginalUID + WaitRecreated) instead.
+func (a *JobAdapter) WaitReloadedFrom(ctx context.Context, namespace, name, annotationKey, priorValue string, timeout time.Duration) (bool, error) {
+	return false, ErrUnsupportedOperation
+}
+
 // WaitEnvVar returns an error because Jobs don't support env var reload strategy.
 func (a *JobAdapter) WaitEnvVar(ctx context.Context, namespace, name, prefix string, timeout time.Duration) (bool, error) {
+	return false, ErrUnsupportedOperation
+}
+
+// WaitEnvVarFrom returns an error because Jobs don't support env var reload strategy.
+func (a *JobAdapter) WaitEnvVarFrom(ctx context.Context, namespace, name, prefix, priorValue string, timeout time.Duration) (bool, error) {
 	return false, ErrUnsupportedOperation
 }
 

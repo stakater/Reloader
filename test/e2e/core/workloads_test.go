@@ -178,6 +178,11 @@ var _ = Describe("Workload Reload Tests", Serial, func() {
 			Expect(err).NotTo(HaveOccurred())
 			GinkgoWriter.Printf("Initial SPCPS version: %s\n", initialVersion)
 
+			// Capture the reload-annotation baseline before the trigger: Reloader reacts to the
+			// same SPCPS update the test waits on below, so it may reload before WaitReloaded runs.
+			priorReload, err := adapter.GetPodTemplateAnnotation(ctx, testNamespace, workloadName, utils.AnnotationLastReloadedFrom)
+			Expect(err).NotTo(HaveOccurred())
+
 			By("Updating the Vault secret")
 			err = utils.UpdateVaultSecret(ctx, kubeClient, restConfig, vaultSecretPath, map[string]string{"api_key": "updated-value-v2"})
 			Expect(err).NotTo(HaveOccurred())
@@ -189,8 +194,8 @@ var _ = Describe("Workload Reload Tests", Serial, func() {
 			GinkgoWriter.Println("CSI driver synced new secret version")
 
 			By("Waiting for workload to be reloaded")
-			reloaded, err := adapter.WaitReloaded(ctx, testNamespace, workloadName, utils.AnnotationLastReloadedFrom,
-				utils.ReloadTimeout)
+			reloaded, err := adapter.WaitReloadedFrom(ctx, testNamespace, workloadName, utils.AnnotationLastReloadedFrom,
+				priorReload, utils.ReloadTimeout)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(reloaded).To(BeTrue(), "%s should have been reloaded when Vault secret changed", workloadType)
 		}, Entry("Deployment", Label("csi"), utils.WorkloadDeployment),
@@ -1041,6 +1046,11 @@ var _ = Describe("Workload Reload Tests", Serial, func() {
 					initialVersion, err := utils.GetSPCPSVersion(ctx, csiClient, testNamespace, spcpsName)
 					Expect(err).NotTo(HaveOccurred())
 
+					// Capture the baseline before the trigger to avoid racing Reloader's own
+					// reaction to the SPCPS update below.
+					priorReload, err := adapter.GetPodTemplateAnnotation(ctx, testNamespace, workloadName, utils.AnnotationLastReloadedFrom)
+					Expect(err).NotTo(HaveOccurred())
+
 					By("Updating the Vault secret")
 					err = utils.UpdateVaultSecret(ctx, kubeClient, restConfig, vaultSecretPath, map[string]string{"api_key": "updated-value-v2"})
 					Expect(err).NotTo(HaveOccurred())
@@ -1051,8 +1061,8 @@ var _ = Describe("Workload Reload Tests", Serial, func() {
 					Expect(err).NotTo(HaveOccurred())
 
 					By("Waiting for workload to be reloaded")
-					reloaded, err := adapter.WaitReloaded(ctx, testNamespace, workloadName,
-						utils.AnnotationLastReloadedFrom, utils.ReloadTimeout)
+					reloaded, err := adapter.WaitReloadedFrom(ctx, testNamespace, workloadName,
+						utils.AnnotationLastReloadedFrom, priorReload, utils.ReloadTimeout)
 					Expect(err).NotTo(HaveOccurred())
 					Expect(reloaded).To(BeTrue(), "%s should reload with SPC annotation on pod template", workloadType)
 				},
@@ -1108,6 +1118,11 @@ var _ = Describe("Workload Reload Tests", Serial, func() {
 					initialVersion, err := utils.GetSPCPSVersion(ctx, csiClient, testNamespace, spcpsName)
 					Expect(err).NotTo(HaveOccurred())
 
+					// Capture the baseline before the trigger to avoid racing Reloader's own
+					// reaction to the SPCPS update below.
+					priorReload, err := adapter.GetPodTemplateAnnotation(ctx, testNamespace, workloadName, utils.AnnotationLastReloadedFrom)
+					Expect(err).NotTo(HaveOccurred())
+
 					By("Updating the Vault secret")
 					err = utils.UpdateVaultSecret(ctx, kubeClient, restConfig, vaultSecretPath, map[string]string{"api_key": "updated-value-v2"})
 					Expect(err).NotTo(HaveOccurred())
@@ -1118,8 +1133,8 @@ var _ = Describe("Workload Reload Tests", Serial, func() {
 					Expect(err).NotTo(HaveOccurred())
 
 					By("Waiting for workload to be reloaded")
-					reloaded, err := adapter.WaitReloaded(ctx, testNamespace, workloadName,
-						utils.AnnotationLastReloadedFrom, utils.ReloadTimeout)
+					reloaded, err := adapter.WaitReloadedFrom(ctx, testNamespace, workloadName,
+						utils.AnnotationLastReloadedFrom, priorReload, utils.ReloadTimeout)
 					Expect(err).NotTo(HaveOccurred())
 					Expect(reloaded).To(BeTrue(), "%s should reload with SPC auto on pod template", workloadType)
 				},
@@ -1411,8 +1426,11 @@ var _ = Describe("Workload Reload Tests", Serial, func() {
 				Expect(err).NotTo(HaveOccurred())
 
 				By("Waiting for workload to have STAKATER_ env var")
-				found, err := adapter.WaitEnvVar(ctx, testNamespace, workloadName, utils.StakaterEnvVarPrefix,
-					utils.ReloadTimeout)
+				// Baseline "" (workload is fresh, no STAKATER_ env var yet): Reloader may have
+				// reloaded already while we waited for the CSI sync above, so the wait must not
+				// capture its own baseline now.
+				found, err := adapter.WaitEnvVarFrom(ctx, testNamespace, workloadName, utils.StakaterEnvVarPrefix,
+					"", utils.ReloadTimeout)
 				Expect(err).NotTo(HaveOccurred())
 				Expect(found).To(BeTrue(), "%s should have STAKATER_ env var after Vault secret change", workloadType)
 			}, Entry("Deployment", Label("csi"), utils.WorkloadDeployment),
@@ -1630,8 +1648,9 @@ var _ = Describe("Workload Reload Tests", Serial, func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Waiting for Deployment to have STAKATER_ env var")
-			found, err := adapter.WaitEnvVar(ctx, testNamespace, workloadName, utils.StakaterEnvVarPrefix,
-				utils.ReloadTimeout)
+			// Baseline "" (fresh Deployment): avoids racing Reloader's reaction to the SPCPS update.
+			found, err := adapter.WaitEnvVarFrom(ctx, testNamespace, workloadName, utils.StakaterEnvVarPrefix,
+				"", utils.ReloadTimeout)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(found).To(BeTrue(), "Deployment with SPC auto annotation should have STAKATER_ env var")
 		})
@@ -1691,8 +1710,10 @@ var _ = Describe("Workload Reload Tests", Serial, func() {
 
 			By("Verifying Deployment does NOT have STAKATER_ env var")
 			time.Sleep(utils.NegativeTestWait)
-			found, err := adapter.WaitEnvVar(ctx, testNamespace, workloadName, utils.StakaterEnvVarPrefix,
-				utils.ShortTimeout)
+			// Baseline "" (fresh Deployment): an erroneous reload that already happened during the
+			// CSI sync wait above must still be detected as a failure.
+			found, err := adapter.WaitEnvVarFrom(ctx, testNamespace, workloadName, utils.StakaterEnvVarPrefix,
+				"", utils.ShortTimeout)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(found).To(BeFalse(), "Deployment should NOT have STAKATER_ env var for excluded SPCPS change")
 		})
@@ -1747,8 +1768,9 @@ var _ = Describe("Workload Reload Tests", Serial, func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Waiting for Deployment to have STAKATER_ env var")
-			found, err := adapter.WaitEnvVar(ctx, testNamespace, workloadName,
-				utils.StakaterEnvVarPrefix, utils.ReloadTimeout)
+			// Baseline "" (fresh Deployment): avoids racing Reloader's reaction to the SPCPS update.
+			found, err := adapter.WaitEnvVarFrom(ctx, testNamespace, workloadName,
+				utils.StakaterEnvVarPrefix, "", utils.ReloadTimeout)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(found).To(BeTrue(), "Deployment with init container CSI should have STAKATER_ env var")
 		})
