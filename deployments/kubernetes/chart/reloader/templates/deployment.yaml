@@ -74,6 +74,12 @@ spec:
       {{- if .Values.reloader.deployment.priorityClassName }}
       priorityClassName: {{ .Values.reloader.deployment.priorityClassName }}
       {{- end }}
+      {{- if .Values.reloader.deployment.runtimeClassName }}
+      runtimeClassName: {{ .Values.reloader.deployment.runtimeClassName }}
+      {{- end }}
+      {{- if .Values.reloader.deployment.schedulerName }}
+      schedulerName: {{ .Values.reloader.deployment.schedulerName }}
+      {{- end }}
       {{- with .Values.reloader.deployment.dnsConfig }}
       dnsConfig:
       {{- toYaml . | nindent 8 }}
