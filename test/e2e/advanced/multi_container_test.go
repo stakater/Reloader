@@ -152,6 +152,11 @@ var _ = Describe("Multi-Container Tests", Serial, func() {
 			initialVersion, err := utils.GetSPCPSVersion(ctx, csiClient, testNamespace, spcpsName)
 			Expect(err).NotTo(HaveOccurred())
 
+			// Capture the reload-annotation baseline before the trigger: Reloader reacts to the
+			// same SPCPS update the test waits on below, so it may reload before WaitReloaded runs.
+			priorReload, err := adapter.GetPodTemplateAnnotation(ctx, testNamespace, deploymentName, utils.AnnotationLastReloadedFrom)
+			Expect(err).NotTo(HaveOccurred())
+
 			By("Updating the Vault secret")
 			err = utils.UpdateVaultSecret(ctx, kubeClient, restConfig, vaultSecretPath, map[string]string{
 				"api_key": "updated-init-value",
@@ -163,8 +168,8 @@ var _ = Describe("Multi-Container Tests", Serial, func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Waiting for Deployment to be reloaded")
-			reloaded, err := adapter.WaitReloaded(ctx, testNamespace, deploymentName,
-				utils.AnnotationLastReloadedFrom, utils.ReloadTimeout)
+			reloaded, err := adapter.WaitReloadedFrom(ctx, testNamespace, deploymentName,
+				utils.AnnotationLastReloadedFrom, priorReload, utils.ReloadTimeout)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(reloaded).To(BeTrue(), "Deployment with init container using CSI volume should be reloaded")
 		})
@@ -199,6 +204,10 @@ var _ = Describe("Multi-Container Tests", Serial, func() {
 			initialVersion, err := utils.GetSPCPSVersion(ctx, csiClient, testNamespace, spcpsName)
 			Expect(err).NotTo(HaveOccurred())
 
+			// Capture the baseline before the trigger — see the sibling test above.
+			priorReload, err := adapter.GetPodTemplateAnnotation(ctx, testNamespace, deploymentName, utils.AnnotationLastReloadedFrom)
+			Expect(err).NotTo(HaveOccurred())
+
 			By("Updating the Vault secret")
 			err = utils.UpdateVaultSecret(ctx, kubeClient, restConfig, vaultSecretPath, map[string]string{
 				"api_key": "updated-init-auto-value",
@@ -210,8 +219,8 @@ var _ = Describe("Multi-Container Tests", Serial, func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Waiting for Deployment to be reloaded")
-			reloaded, err := adapter.WaitReloaded(ctx, testNamespace, deploymentName,
-				utils.AnnotationLastReloadedFrom, utils.ReloadTimeout)
+			reloaded, err := adapter.WaitReloadedFrom(ctx, testNamespace, deploymentName,
+				utils.AnnotationLastReloadedFrom, priorReload, utils.ReloadTimeout)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(reloaded).To(BeTrue(), "Deployment with init container CSI volume and auto=true should be reloaded")
 		})

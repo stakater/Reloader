@@ -144,7 +144,7 @@ spec:
               fieldPath: {{ $value | quote}}
       {{- end }}
       {{- end }}
-      {{- if eq .Values.reloader.watchGlobally false }}
+      {{- if and (eq .Values.reloader.watchGlobally false) (not .Values.reloader.namespaces) }}
         - name: KUBERNETES_NAMESPACE
           valueFrom:
             fieldRef:
@@ -213,7 +213,7 @@ spec:
           {{- . | toYaml | nindent 10 }}
           {{- end }}
       {{- end }}
-      {{- if or (.Values.reloader.logFormat) (.Values.reloader.logLevel) (.Values.reloader.ignoreSecrets) (.Values.reloader.ignoreNamespaces) (include "reloader-namespaceSelector" .) (.Values.reloader.resourceLabelSelector) (.Values.reloader.ignoreConfigMaps) (.Values.reloader.custom_annotations) (eq .Values.reloader.isArgoRollouts true) (eq .Values.reloader.reloadOnCreate true) (eq .Values.reloader.reloadOnDelete true) (ne .Values.reloader.reloadStrategy "default") (.Values.reloader.enableHA) (.Values.reloader.autoReloadAll) (.Values.reloader.ignoreJobs) (.Values.reloader.ignoreCronJobs) (.Values.reloader.enableCSIIntegration)}}
+      {{- if or (.Values.reloader.logFormat) (.Values.reloader.logLevel) (.Values.reloader.ignoreSecrets) (and .Values.reloader.ignoreNamespaces .Values.reloader.watchGlobally) (.Values.reloader.namespaces) (include "reloader-namespaceSelector" .) (.Values.reloader.resourceLabelSelector) (.Values.reloader.ignoreConfigMaps) (.Values.reloader.custom_annotations) (eq .Values.reloader.isArgoRollouts true) (eq .Values.reloader.reloadOnCreate true) (eq .Values.reloader.reloadOnDelete true) (ne .Values.reloader.reloadStrategy "default") (.Values.reloader.enableHA) (.Values.reloader.autoReloadAll) (.Values.reloader.ignoreJobs) (.Values.reloader.ignoreCronJobs) (.Values.reloader.enableCSIIntegration)}}
         args:
           {{- if .Values.reloader.logFormat }}
           - "--log-format={{ .Values.reloader.logFormat }}"
@@ -234,7 +234,10 @@ spec:
           {{- else if .Values.reloader.ignoreCronJobs }}
           - "--ignored-workload-types=cronjobs"
           {{- end }}
-          {{- if .Values.reloader.ignoreNamespaces }}
+          {{- if .Values.reloader.namespaces }}
+          - "--namespaces={{ include "reloader-watchNamespaces-csv" . }}"
+          {{- end }}
+          {{- if and .Values.reloader.ignoreNamespaces .Values.reloader.watchGlobally }}
           - "--namespaces-to-ignore={{ .Values.reloader.ignoreNamespaces }}"
           {{- end }}
           {{- if (include "reloader-namespaceSelector" .) }}
