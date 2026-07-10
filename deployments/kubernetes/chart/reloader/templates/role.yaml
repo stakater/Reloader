@@ -77,4 +77,21 @@ rules:
       - watch
       - create
       - update
+{{- if .Values.reloader.enableHA }}
+  - apiGroups:
+      - "coordination.k8s.io"
+    resources:
+      - leases
+    verbs:
+      - create
+  - apiGroups:
+      - "coordination.k8s.io"
+    resourceNames:
+      - stakater-reloader-lock
+    resources:
+      - leases
+    verbs:
+      - get
+      - update
+{{- end}}
 {{- end }}
