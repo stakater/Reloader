@@ -4,6 +4,13 @@ templates:
   - deployment.yaml
 
 tests:
+  - it: sets nodeSelector to linux only
+    set:
+    asserts:
+      - equal:
+          path: spec.template.spec.nodeSelector."kubernetes.io/os"
+          value: linux
+
   - it: sets readOnlyRootFilesystem in container securityContext when reloader.readOnlyRootFileSystem is true
     set:
       reloader:
