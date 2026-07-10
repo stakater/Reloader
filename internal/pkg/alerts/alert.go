@@ -40,16 +40,23 @@ func SendWebhookAlert(msg string) {
 		msg = fmt.Sprintf("%s : %s", alert_additional_info, msg)
 	}
 
+	var errs []error
 	switch AlertSink(alert_sink) {
 	case AlertSinkSlack:
-		sendSlackAlert(webhook_url, webhook_proxy, msg)
+		errs = sendSlackAlert(webhook_url, webhook_proxy, msg)
 	case AlertSinkTeams:
-		sendTeamsAlert(webhook_url, webhook_proxy, msg)
+		errs = sendTeamsAlert(webhook_url, webhook_proxy, msg)
 	case AlertSinkGoogleChat:
-		sendGoogleChatAlert(webhook_url, webhook_proxy, msg)
+		errs = sendGoogleChatAlert(webhook_url, webhook_proxy, msg)
 	default:
 		msg = strings.ReplaceAll(msg, "*", "")
-		sendRawWebhookAlert(webhook_url, webhook_proxy, msg)
+		errs = sendRawWebhookAlert(webhook_url, webhook_proxy, msg)
+	}
+
+	// Previously the errors returned by the send functions were discarded, so a
+	// failing webhook (e.g. Teams) produced no output at all. Surface them. (#949)
+	for _, err := range errs {
+		logrus.Errorf("Error sending alert: %s", err.Error())
 	}
 }
 
