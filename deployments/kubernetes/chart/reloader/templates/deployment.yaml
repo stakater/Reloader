@@ -241,7 +241,7 @@ spec:
           - "--namespaces-to-ignore={{ .Values.reloader.ignoreNamespaces }}"
           {{- end }}
           {{- if (include "reloader-namespaceSelector" .) }}
-          - "--namespace-selector=\"{{ include "reloader-namespaceSelector" . }}\""
+          - "--namespace-selector={{ include "reloader-namespaceSelector" . }}"
           {{- end }}
           {{- if .Values.reloader.resourceLabelSelector }}
           - "--resource-label-selector={{ .Values.reloader.resourceLabelSelector }}"
@@ -275,6 +275,26 @@ spec:
             {{- if .Values.reloader.custom_annotations.configmap_auto }}
           - "--configmap-auto-annotation"
           - "{{ .Values.reloader.custom_annotations.configmap_auto }}"
+            {{- end }}
+            {{- if .Values.reloader.custom_annotations.configmap_exclude }}
+          - "--configmap-exclude-annotation"
+          - "{{ .Values.reloader.custom_annotations.configmap_exclude }}"
+            {{- end }}
+            {{- if .Values.reloader.custom_annotations.secret_exclude }}
+          - "--secret-exclude-annotation"
+          - "{{ .Values.reloader.custom_annotations.secret_exclude }}"
+            {{- end }}
+            {{- if .Values.reloader.custom_annotations.secretproviderclass }}
+          - "--secretproviderclass-annotation"
+          - "{{ .Values.reloader.custom_annotations.secretproviderclass }}"
+            {{- end }}
+            {{- if .Values.reloader.custom_annotations.secretproviderclass_auto }}
+          - "--secretproviderclass-auto-annotation"
+          - "{{ .Values.reloader.custom_annotations.secretproviderclass_auto }}"
+            {{- end }}
+            {{- if .Values.reloader.custom_annotations.secretproviderclass_exclude }}
+          - "--secretproviderclass-exclude-annotation"
+          - "{{ .Values.reloader.custom_annotations.secretproviderclass_exclude }}"
             {{- end }}
             {{- if .Values.reloader.custom_annotations.search }}
           - "--auto-search-annotation"

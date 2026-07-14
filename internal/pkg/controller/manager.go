@@ -66,9 +66,18 @@ type ManagerOptions struct {
 	Collectors *metrics.Collectors
 }
 
-// NewManager creates a new controller-runtime manager with the given options.
-// This follows controller-runtime and operator-sdk conventions for leader election.
+// NewManager creates a new controller-runtime manager using the ambient cluster
+// configuration (in-cluster or kubeconfig). It follows controller-runtime and
+// operator-sdk conventions for leader election.
 func NewManager(opts ManagerOptions) (ctrl.Manager, error) {
+	return NewManagerWithRestConfig(opts, ctrl.GetConfigOrDie())
+}
+
+// NewManagerWithRestConfig creates a new controller-runtime manager with the
+// given rest.Config. NewManager delegates here; tests can call it directly with
+// a pre-existing cluster configuration (set cfg.MetricsAddr/HealthAddr to "0" to
+// disable those servers and avoid port conflicts).
+func NewManagerWithRestConfig(opts ManagerOptions, restConfig *rest.Config) (ctrl.Manager, error) {
 	cfg := opts.Config
 	le := cfg.LeaderElection
 
@@ -100,7 +109,7 @@ func NewManager(opts ManagerOptions) (ctrl.Manager, error) {
 		opts.Log.Info("namespace filtering enabled", "namespaces", cfg.WatchedNamespaces)
 	}
 
-	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), mgrOpts)
+	mgr, err := ctrl.NewManager(restConfig, mgrOpts)
 	if err != nil {
 		return nil, fmt.Errorf("creating manager: %w", err)
 	}
@@ -114,43 +123,6 @@ func NewManager(opts ManagerOptions) (ctrl.Manager, error) {
 	}
 	if err := mgr.AddReadyzCheck("readyz", healthz.Ping); err != nil {
 		return nil, fmt.Errorf("setting up ready check: %w", err)
-	}
-
-	return mgr, nil
-}
-
-// NewManagerWithRestConfig creates a new controller-runtime manager with the given rest.Config.
-// This is useful for testing where you have a pre-existing cluster configuration.
-func NewManagerWithRestConfig(opts ManagerOptions, restConfig *rest.Config) (ctrl.Manager, error) {
-	cfg := opts.Config
-	le := cfg.LeaderElection
-
-	mgrOpts := ctrl.Options{
-		Scheme: runtimeScheme,
-		Metrics: ctrlmetrics.Options{
-			BindAddress: "0", // Disable metrics server in tests
-		},
-		HealthProbeBindAddress: "0", // Disable health probes in tests
-
-		// Leader election configuration
-		LeaderElection:                cfg.EnableHA,
-		LeaderElectionID:              le.LockName,
-		LeaderElectionNamespace:       le.Namespace,
-		LeaderElectionReleaseOnCancel: le.ReleaseOnCancel,
-		LeaseDuration:                 &le.LeaseDuration,
-		RenewDeadline:                 &le.RenewDeadline,
-		RetryPeriod:                   &le.RetryPeriod,
-	}
-
-	if nsScope := buildDefaultNamespaces(cfg.WatchedNamespaces); nsScope != nil {
-		mgrOpts.Cache = cache.Options{
-			DefaultNamespaces: nsScope,
-		}
-	}
-
-	mgr, err := ctrl.NewManager(restConfig, mgrOpts)
-	if err != nil {
-		return nil, fmt.Errorf("creating manager: %w", err)
 	}
 
 	return mgr, nil

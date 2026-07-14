@@ -56,7 +56,6 @@ rules:
 {{- if and (.Capabilities.APIVersions.Has "argoproj.io/v1alpha1") (.Values.reloader.isArgoRollouts) }}
   - apiGroups:
       - "argoproj.io"
-      - ""
     resources:
       - rollouts
     verbs:

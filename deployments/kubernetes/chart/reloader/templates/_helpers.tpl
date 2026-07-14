@@ -89,13 +89,12 @@ Create the namespace selector if it does not watch globally
 {{- end -}}
 
 {{/*
-Effective set of namespaces to watch in scoped mode: the release namespace
-(always included so the meta-info ConfigMap, HA leases and events keep working)
-plus the user-supplied reloader.namespaces, deduped and sorted.
+Namespaces to watch in scoped mode: exactly the user-supplied reloader.namespaces,
+trimmed, de-duped and sorted. The release namespace is intentionally NOT added here
+— Reloader watches only what the user asked for (an empty result means global mode).
 Returns a JSON-encoded list; consumers use mustFromJson to iterate.
 */}}
 {{- define "reloader-watchNamespaces" -}}
-{{- $relNs := .Values.namespace | default .Release.Namespace -}}
 {{- $ns := .Values.reloader.namespaces | default list -}}
 {{- if kindIs "string" $ns -}}
 {{- $ns = splitList "," $ns -}}
@@ -107,8 +106,7 @@ Returns a JSON-encoded list; consumers use mustFromJson to iterate.
 {{- $clean = append $clean $t -}}
 {{- end -}}
 {{- end -}}
-{{- $all := concat (list $relNs) $clean | uniq | sortAlpha -}}
-{{- $all | toJson -}}
+{{- $clean | uniq | sortAlpha | toJson -}}
 {{- end -}}
 
 {{/*
@@ -116,6 +114,18 @@ Comma-joined form of reloader-watchNamespaces, for the --namespaces CLI flag.
 */}}
 {{- define "reloader-watchNamespaces-csv" -}}
 {{- include "reloader-watchNamespaces" . | mustFromJson | join "," -}}
+{{- end -}}
+
+{{/*
+Namespaces that need namespaced RBAC in scoped mode: the watched namespaces plus
+the release namespace, so leader-election leases, the meta-info ConfigMap and
+events keep working there even though it is not watched for reloads.
+Returns a JSON-encoded list; consumers use mustFromJson to iterate.
+*/}}
+{{- define "reloader-rbacNamespaces" -}}
+{{- $relNs := .Values.namespace | default .Release.Namespace -}}
+{{- $watch := include "reloader-watchNamespaces" . | mustFromJson -}}
+{{- concat (list $relNs) $watch | uniq | sortAlpha | toJson -}}
 {{- end -}}
 
 {{/*

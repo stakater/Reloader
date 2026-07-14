@@ -264,9 +264,11 @@ func BindFlags(fs *pflag.FlagSet, cfg *Config) {
 	_ = v.BindEnv("alert-proxy", "ALERT_PROXY", "ALERT_WEBHOOK_PROXY")
 }
 
-// ApplyFlags applies flag values from viper to the config struct.
-// Call this after parsing flags.
-func ApplyFlags(cfg *Config) error {
+// ApplyFlags applies flag values from viper to the config struct. Call this
+// after parsing flags. It returns any human-readable warnings produced while
+// finalizing namespace scope (see ApplyNamespaceScope) so the caller can log
+// them once a logger is available.
+func ApplyFlags(cfg *Config) ([]string, error) {
 	// Boolean flags
 	cfg.AutoReloadAll = v.GetBool("auto-reload-all")
 	cfg.SyncAfterRestart = v.GetBool("sync-after-restart")
@@ -365,7 +367,7 @@ func ApplyFlags(cfg *Config) error {
 		joinedNS := strings.Join(nsSelectors, ",")
 		selector, err := labels.Parse(joinedNS)
 		if err != nil {
-			return fmt.Errorf("invalid selector %q: %w", joinedNS, err)
+			return nil, fmt.Errorf("invalid selector %q: %w", joinedNS, err)
 		}
 		cfg.NamespaceSelectors = []labels.Selector{selector}
 	}
@@ -373,7 +375,7 @@ func ApplyFlags(cfg *Config) error {
 		joinedRes := strings.Join(resSelectors, ",")
 		selector, err := labels.Parse(joinedRes)
 		if err != nil {
-			return fmt.Errorf("invalid selector %q: %w", joinedRes, err)
+			return nil, fmt.Errorf("invalid selector %q: %w", joinedRes, err)
 		}
 		cfg.ResourceSelectors = []labels.Selector{selector}
 	}
@@ -389,7 +391,11 @@ func ApplyFlags(cfg *Config) error {
 		cfg.LeaderElection.RetryPeriod = 2 * time.Second
 	}
 
-	return nil
+	// Enforce namespace-scope semantics here so the finalized config is
+	// self-consistent for every caller: selector/ignore lists are only honored
+	// in global mode. Warnings are returned for the caller to log once logging
+	// is set up.
+	return cfg.ApplyNamespaceScope(), nil
 }
 
 // parseBoolString parses a string as a boolean, defaulting to false.

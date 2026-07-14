@@ -54,7 +54,8 @@ func newReloaderCommand() *cobra.Command {
 }
 
 func run(cmd *cobra.Command, args []string) error {
-	if err := config.ApplyFlags(cfg); err != nil {
+	scopeWarnings, err := config.ApplyFlags(cfg)
+	if err != nil {
 		return fmt.Errorf("applying flags: %w", err)
 	}
 
@@ -81,9 +82,9 @@ func run(cmd *cobra.Command, args []string) error {
 
 	log.Info("Starting Reloader")
 
-	// Enforce master-parity scope semantics before reconcilers/manager read the
-	// config: selector and ignore lists are only honored in global mode.
-	for _, w := range cfg.ApplyNamespaceScope() {
+	// Namespace-scope semantics are enforced in ApplyFlags; surface any warnings
+	// it produced now that logging is configured.
+	for _, w := range scopeWarnings {
 		log.Info(w)
 	}
 

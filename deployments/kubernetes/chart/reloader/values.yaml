@@ -223,6 +223,11 @@ reloader:
   #   custom_annotations:
   #     configmap: "my.company.com/configmap"
   #     secret: "my.company.com/secret"
+  #     configmap_exclude: "my.company.com/configmap-exclude"
+  #     secret_exclude: "my.company.com/secret-exclude"
+  #     secretproviderclass: "my.company.com/secretproviderclass"
+  #     secretproviderclass_auto: "my.company.com/secretproviderclass-auto"
+  #     secretproviderclass_exclude: "my.company.com/secretproviderclass-exclude"
   #     ignore: "my.company.com/reloader-ignore"
   custom_annotations: {}
 
