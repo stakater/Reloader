@@ -89,6 +89,136 @@ Create the namespace selector if it does not watch globally
 {{- end -}}
 
 {{/*
+Effective set of namespaces to watch in scoped mode: the release namespace
+(always included so the meta-info ConfigMap, HA leases and events keep working)
+plus the user-supplied reloader.namespaces, deduped and sorted.
+Returns a JSON-encoded list; consumers use mustFromJson to iterate.
+*/}}
+{{- define "reloader-watchNamespaces" -}}
+{{- $relNs := .Values.namespace | default .Release.Namespace -}}
+{{- $ns := .Values.reloader.namespaces | default list -}}
+{{- if kindIs "string" $ns -}}
+{{- $ns = splitList "," $ns -}}
+{{- end -}}
+{{- $clean := list -}}
+{{- range $ns -}}
+{{- $t := . | toString | trim -}}
+{{- if $t -}}
+{{- $clean = append $clean $t -}}
+{{- end -}}
+{{- end -}}
+{{- $all := concat (list $relNs) $clean | uniq | sortAlpha -}}
+{{- $all | toJson -}}
+{{- end -}}
+
+{{/*
+Comma-joined form of reloader-watchNamespaces, for the --namespaces CLI flag.
+*/}}
+{{- define "reloader-watchNamespaces-csv" -}}
+{{- include "reloader-watchNamespaces" . | mustFromJson | join "," -}}
+{{- end -}}
+
+{{/*
+The namespaced RBAC rules granted to Reloader in every watched namespace.
+Shared between the single-namespace Role and the per-namespace scoped Roles so
+the rule set is defined once. Expects the root context ($) as its argument.
+*/}}
+{{- define "reloader-namespaced-rules" }}
+  - apiGroups:
+      - ""
+    resources:
+{{- if .Values.reloader.ignoreSecrets }}{{- else }}
+      - secrets
+{{- end }}
+{{- if .Values.reloader.ignoreConfigMaps }}{{- else }}
+      - configmaps
+{{- end }}
+    verbs:
+      - list
+      - get
+      - watch
+{{- if and (.Capabilities.APIVersions.Has "apps.openshift.io/v1") (.Values.reloader.isOpenshift) }}
+  - apiGroups:
+      - "apps.openshift.io"
+      - ""
+    resources:
+      - deploymentconfigs
+    verbs:
+      - list
+      - get
+      - update
+      - patch
+{{- end }}
+{{- if and (.Capabilities.APIVersions.Has "argoproj.io/v1alpha1") (.Values.reloader.isArgoRollouts) }}
+  - apiGroups:
+      - "argoproj.io"
+      - ""
+    resources:
+      - rollouts
+    verbs:
+      - list
+      - get
+      - update
+      - patch
+{{- end }}
+  - apiGroups:
+      - "apps"
+    resources:
+      - deployments
+      - daemonsets
+      - statefulsets
+    verbs:
+      - list
+      - get
+      - update
+      - patch
+  - apiGroups:
+      - "batch"
+    resources:
+      - cronjobs
+    verbs:
+      - list
+      - get
+  - apiGroups:
+      - "batch"
+    resources:
+      - jobs
+    verbs:
+      - create
+      - delete
+      - list
+      - get
+{{- if .Values.reloader.enableHA }}
+  - apiGroups:
+      - "coordination.k8s.io"
+    resources:
+      - leases
+    verbs:
+      - create
+      - get
+      - update
+{{- end}}
+{{- if .Values.reloader.enableCSIIntegration }}
+  - apiGroups:
+      - "secrets-store.csi.x-k8s.io"
+    resources:
+      - secretproviderclasspodstatuses
+      - secretproviderclasses
+    verbs:
+      - list
+      - get
+      - watch
+{{- end}}
+  - apiGroups:
+      - ""
+    resources:
+      - events
+    verbs:
+      - create
+      - patch
+{{- end -}}
+
+{{/*
 Normalizes global.imagePullSecrets to a list of objects with name fields.
 Supports both of these in values.yaml:
   # - name: my-pull-secret

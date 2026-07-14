@@ -19,7 +19,7 @@ fullnameOverride: ""
 image:
   name: stakater/reloader
   repository: ghcr.io/stakater/reloader
-  tag: v1.4.17
+  tag: v1.4.19
   # digest: sha256:1234567
   pullPolicy: IfNotPresent
 
@@ -45,11 +45,18 @@ reloader:
   logFormat: "" # json
   logLevel: info # Log level to use (trace, debug, info, warning, error, fatal and panic)
   watchGlobally: true
+  # Scoped mode: explicit list of namespaces to watch. When non-empty (and watchGlobally
+  # is false), Reloader watches exactly these namespaces and the chart creates a namespace
+  # scoped Role + RoleBinding in each one — no ClusterRole is created. The release namespace
+  # is always included automatically. Leave empty ([]) for the default single-namespace or
+  # global behavior controlled by watchGlobally.
+  # Accepts either a YAML list (e.g. ["team-a", "team-b"]) or a comma-separated string
+  # (e.g. "team-a,team-b")
+  namespaces: []
   # Set to true to enable leadership election allowing you to run multiple replicas
   enableHA: false
   # Set to true to enable pprof for profiling
   enablePProf: false
-  # Set to true to enable CSI / SecretProviderClass integration
   enableCSIIntegration: false
   # Address to start pprof server on. Default is ":6060"
   pprofAddr: ":6060"
@@ -136,7 +143,7 @@ reloader:
     labels:
       provider: stakater
       group: com.stakater.platform
-      version: v1.4.14
+      version: v1.4.19
     # Support for extra environment variables.
     env:
       # Open supports Key value pair as environment variables.
@@ -216,11 +223,6 @@ reloader:
   #   custom_annotations:
   #     configmap: "my.company.com/configmap"
   #     secret: "my.company.com/secret"
-  #     configmap_exclude: "my.company.com/configmap-exclude"
-  #     secret_exclude: "my.company.com/secret-exclude"
-  #     secretproviderclass: "my.company.com/secretproviderclass"
-  #     secretproviderclass_auto: "my.company.com/secretproviderclass-auto"
-  #     secretproviderclass_exclude: "my.company.com/secretproviderclass-exclude"
   #     ignore: "my.company.com/reloader-ignore"
   custom_annotations: {}
 
