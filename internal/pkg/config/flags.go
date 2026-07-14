@@ -223,10 +223,11 @@ func BindFlags(fs *pflag.FlagSet, cfg *Config) {
 		"Annotation to indicate when a deployment was paused by Reloader",
 	)
 
-	// Watched namespace (for single-namespace mode)
-	fs.String(
-		"watch-namespace", cfg.WatchedNamespace,
-		"Namespace to watch (empty for all namespaces)",
+	// Watched namespaces (scoped mode). Empty means watch all namespaces;
+	// KUBERNETES_NAMESPACE (env) is used as a single-namespace fallback.
+	fs.StringSlice(
+		"namespaces", nil,
+		"explicit list of namespaces to watch (scoped mode; creates no ClusterRole)",
 	)
 
 	// Alerting
@@ -294,9 +295,16 @@ func ApplyFlags(cfg *Config) error {
 	cfg.MetricsAddr = v.GetString("metrics-addr")
 	cfg.HealthAddr = v.GetString("health-addr")
 	cfg.PProfAddr = v.GetString("pprof-addr")
-	cfg.WatchedNamespace = v.GetString("watch-namespace")
-	if cfg.WatchedNamespace == "" {
-		cfg.WatchedNamespace = v.GetString("KUBERNETES_NAMESPACE")
+	// Namespace scope: an explicit --namespaces list takes precedence (scoped
+	// mode); otherwise fall back to KUBERNETES_NAMESPACE for single-namespace
+	// mode; an empty result means global (all-namespaces) mode.
+	// Trim and drop empty entries from the slice to prevent empty strings from
+	// being treated as "watch all namespaces" by controller-runtime.
+	cfg.WatchedNamespaces = trimAndDropEmptyStrings(v.GetStringSlice("namespaces"))
+	if len(cfg.WatchedNamespaces) == 0 {
+		if ns := v.GetString("KUBERNETES_NAMESPACE"); ns != "" {
+			cfg.WatchedNamespaces = []string{ns}
+		}
 	}
 
 	// Leader election
@@ -409,6 +417,24 @@ func splitAndTrim(s string) []string {
 		if p != "" {
 			result = append(result, p)
 		}
+	}
+	return result
+}
+
+// trimAndDropEmptyStrings trims whitespace from each string in a slice and drops empty entries.
+func trimAndDropEmptyStrings(ss []string) []string {
+	if len(ss) == 0 {
+		return nil
+	}
+	result := make([]string, 0, len(ss))
+	for _, s := range ss {
+		s = strings.TrimSpace(s)
+		if s != "" {
+			result = append(result, s)
+		}
+	}
+	if len(result) == 0 {
+		return nil
 	}
 	return result
 }

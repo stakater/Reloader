@@ -81,10 +81,16 @@ func run(cmd *cobra.Command, args []string) error {
 
 	log.Info("Starting Reloader")
 
-	if cfg.WatchedNamespace != "" {
-		log.Info("watching single namespace", "namespace", cfg.WatchedNamespace)
-	} else {
+	// Enforce master-parity scope semantics before reconcilers/manager read the
+	// config: selector and ignore lists are only honored in global mode.
+	for _, w := range cfg.ApplyNamespaceScope() {
+		log.Info(w)
+	}
+
+	if cfg.IsGlobalMode() {
 		log.Info("watching all namespaces")
+	} else {
+		log.Info("watching scoped namespaces", "namespaces", cfg.WatchedNamespaces)
 	}
 
 	if len(cfg.NamespaceSelectors) > 0 {

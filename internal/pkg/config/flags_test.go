@@ -65,7 +65,7 @@ func TestBindFlags(t *testing.T) {
 		"ignore-annotation",
 		"pause-deployment-annotation",
 		"pause-deployment-time-annotation",
-		"watch-namespace",
+		"namespaces",
 		"alert-on-reload",
 		"alert-webhook-url",
 		"alert-sink",
@@ -580,5 +580,116 @@ func TestSplitAndTrim(t *testing.T) {
 				}
 			},
 		)
+	}
+}
+
+func TestApplyFlags_NamespacesScoped(t *testing.T) {
+	resetViper()
+	cfg := NewDefault()
+	fs := pflag.NewFlagSet("test", pflag.ContinueOnError)
+	BindFlags(fs, cfg)
+
+	if err := fs.Parse([]string{"--namespaces=team-a,team-b"}); err != nil {
+		t.Fatalf("Parse() error = %v", err)
+	}
+	if err := ApplyFlags(cfg); err != nil {
+		t.Fatalf("ApplyFlags() error = %v", err)
+	}
+
+	if len(cfg.WatchedNamespaces) != 2 {
+		t.Fatalf("WatchedNamespaces length = %d, want 2", len(cfg.WatchedNamespaces))
+	}
+	if cfg.WatchedNamespaces[0] != "team-a" || cfg.WatchedNamespaces[1] != "team-b" {
+		t.Errorf("WatchedNamespaces = %v", cfg.WatchedNamespaces)
+	}
+	if cfg.IsGlobalMode() {
+		t.Errorf("explicit namespaces should not be global mode")
+	}
+}
+
+func TestApplyFlags_NamespacesFromEnv(t *testing.T) {
+	resetViper()
+	t.Setenv("KUBERNETES_NAMESPACE", "single-ns")
+	cfg := NewDefault()
+	fs := pflag.NewFlagSet("test", pflag.ContinueOnError)
+	BindFlags(fs, cfg)
+
+	if err := fs.Parse([]string{}); err != nil {
+		t.Fatalf("Parse() error = %v", err)
+	}
+	if err := ApplyFlags(cfg); err != nil {
+		t.Fatalf("ApplyFlags() error = %v", err)
+	}
+
+	if len(cfg.WatchedNamespaces) != 1 || cfg.WatchedNamespaces[0] != "single-ns" {
+		t.Errorf("WatchedNamespaces = %v, want [single-ns]", cfg.WatchedNamespaces)
+	}
+}
+
+func TestApplyFlags_NamespacesGlobal(t *testing.T) {
+	resetViper()
+	t.Setenv("KUBERNETES_NAMESPACE", "")
+	cfg := NewDefault()
+	fs := pflag.NewFlagSet("test", pflag.ContinueOnError)
+	BindFlags(fs, cfg)
+
+	if err := fs.Parse([]string{}); err != nil {
+		t.Fatalf("Parse() error = %v", err)
+	}
+	if err := ApplyFlags(cfg); err != nil {
+		t.Fatalf("ApplyFlags() error = %v", err)
+	}
+
+	if len(cfg.WatchedNamespaces) != 0 {
+		t.Errorf("WatchedNamespaces = %v, want empty (global)", cfg.WatchedNamespaces)
+	}
+	if !cfg.IsGlobalMode() {
+		t.Errorf("no namespaces and no env should be global mode")
+	}
+}
+
+func TestApplyFlags_NamespacesTrimsEmptyEntries(t *testing.T) {
+	resetViper()
+	cfg := NewDefault()
+	fs := pflag.NewFlagSet("test", pflag.ContinueOnError)
+	BindFlags(fs, cfg)
+
+	if err := fs.Parse([]string{"--namespaces=team-a, ,team-b,"}); err != nil {
+		t.Fatalf("Parse() error = %v", err)
+	}
+	if err := ApplyFlags(cfg); err != nil {
+		t.Fatalf("ApplyFlags() error = %v", err)
+	}
+
+	if len(cfg.WatchedNamespaces) != 2 {
+		t.Fatalf("WatchedNamespaces length = %d, want 2", len(cfg.WatchedNamespaces))
+	}
+	if cfg.WatchedNamespaces[0] != "team-a" || cfg.WatchedNamespaces[1] != "team-b" {
+		t.Errorf("WatchedNamespaces = %v, want [team-a team-b]", cfg.WatchedNamespaces)
+	}
+	if cfg.IsGlobalMode() {
+		t.Errorf("trimmed namespaces should not be global mode")
+	}
+}
+
+func TestApplyFlags_NamespacesAllEmptyIsGlobal(t *testing.T) {
+	resetViper()
+	t.Setenv("KUBERNETES_NAMESPACE", "")
+	cfg := NewDefault()
+	fs := pflag.NewFlagSet("test", pflag.ContinueOnError)
+	BindFlags(fs, cfg)
+
+	if err := fs.Parse([]string{"--namespaces=, ,"}); err != nil {
+		t.Fatalf("Parse() error = %v", err)
+	}
+	if err := ApplyFlags(cfg); err != nil {
+		t.Fatalf("ApplyFlags() error = %v", err)
+	}
+
+	if len(cfg.WatchedNamespaces) != 0 {
+		t.Errorf("WatchedNamespaces = %v, want empty (global)", cfg.WatchedNamespaces)
+	}
+	if !cfg.IsGlobalMode() {
+		t.Errorf("all-empty namespaces should be global mode")
 	}
 }

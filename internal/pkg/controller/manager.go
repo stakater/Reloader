@@ -45,6 +45,20 @@ func AddOptionalSchemes(argoRolloutsEnabled, deploymentConfigEnabled, csiEnabled
 	}
 }
 
+// buildDefaultNamespaces returns the controller-runtime cache namespace scoping
+// for the given watched namespaces. An empty input yields nil, meaning the cache
+// watches all namespaces.
+func buildDefaultNamespaces(namespaces []string) map[string]cache.Config {
+	if len(namespaces) == 0 {
+		return nil
+	}
+	out := make(map[string]cache.Config, len(namespaces))
+	for _, ns := range namespaces {
+		out[ns] = cache.Config{}
+	}
+	return out
+}
+
 // ManagerOptions contains options for creating a new Manager.
 type ManagerOptions struct {
 	Config     *config.Config
@@ -79,13 +93,11 @@ func NewManager(opts ManagerOptions) (ctrl.Manager, error) {
 		RetryPeriod:                   &le.RetryPeriod,
 	}
 
-	if cfg.WatchedNamespace != "" {
+	if nsScope := buildDefaultNamespaces(cfg.WatchedNamespaces); nsScope != nil {
 		mgrOpts.Cache = cache.Options{
-			DefaultNamespaces: map[string]cache.Config{
-				cfg.WatchedNamespace: {},
-			},
+			DefaultNamespaces: nsScope,
 		}
-		opts.Log.Info("namespace filtering enabled", "namespace", cfg.WatchedNamespace)
+		opts.Log.Info("namespace filtering enabled", "namespaces", cfg.WatchedNamespaces)
 	}
 
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), mgrOpts)
@@ -130,11 +142,9 @@ func NewManagerWithRestConfig(opts ManagerOptions, restConfig *rest.Config) (ctr
 		RetryPeriod:                   &le.RetryPeriod,
 	}
 
-	if cfg.WatchedNamespace != "" {
+	if nsScope := buildDefaultNamespaces(cfg.WatchedNamespaces); nsScope != nil {
 		mgrOpts.Cache = cache.Options{
-			DefaultNamespaces: map[string]cache.Config{
-				cfg.WatchedNamespace: {},
-			},
+			DefaultNamespaces: nsScope,
 		}
 	}
 
