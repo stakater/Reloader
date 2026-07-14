@@ -226,11 +226,13 @@ the rule set is defined once. Expects the root context ($) as its argument.
 {{- end}}
   - apiGroups:
       - ""
+      - "events.k8s.io"
     resources:
       - events
     verbs:
       - create
       - patch
+      - update
 {{- end -}}
 
 {{/*
