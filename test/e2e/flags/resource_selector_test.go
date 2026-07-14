@@ -70,12 +70,16 @@ var _ = Describe("Resource Label Selector Flag Tests", Serial, func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Updating the labeled ConfigMap")
+			// Capture the reload-annotation baseline before the trigger to avoid the
+			// TOCTOU race where Reloader reloads before WaitReloaded records its baseline.
+			priorReload, err := adapter.GetPodTemplateAnnotation(ctx, resourceNS, deploymentName, utils.AnnotationLastReloadedFrom)
+			Expect(err).NotTo(HaveOccurred())
 			err = utils.UpdateConfigMap(ctx, kubeClient, resourceNS, matchingCM, map[string]string{"key": "updated"})
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Waiting for Deployment to be reloaded")
-			reloaded, err := adapter.WaitReloaded(ctx, resourceNS, deploymentName,
-				utils.AnnotationLastReloadedFrom, utils.ReloadTimeout)
+			reloaded, err := adapter.WaitReloadedFrom(ctx, resourceNS, deploymentName,
+				utils.AnnotationLastReloadedFrom, priorReload, utils.ReloadTimeout)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(reloaded).To(BeTrue(), "Deployment should be reloaded when labeled ConfigMap changes")
 		})
@@ -98,13 +102,17 @@ var _ = Describe("Resource Label Selector Flag Tests", Serial, func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Updating the unlabeled ConfigMap")
+			// Capture the reload-annotation baseline before the trigger to avoid the
+			// TOCTOU race where Reloader reloads before WaitReloaded records its baseline.
+			priorReload, err := adapter.GetPodTemplateAnnotation(ctx, resourceNS, deploymentName, utils.AnnotationLastReloadedFrom)
+			Expect(err).NotTo(HaveOccurred())
 			err = utils.UpdateConfigMap(ctx, kubeClient, resourceNS, nonMatchingCM, map[string]string{"key": "updated"})
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Verifying Deployment was NOT reloaded (unlabeled ConfigMap)")
 			time.Sleep(utils.NegativeTestWait)
-			reloaded, err := adapter.WaitReloaded(ctx, resourceNS, deploymentName,
-				utils.AnnotationLastReloadedFrom, utils.ShortTimeout)
+			reloaded, err := adapter.WaitReloadedFrom(ctx, resourceNS, deploymentName,
+				utils.AnnotationLastReloadedFrom, priorReload, utils.ShortTimeout)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(reloaded).To(BeFalse(), "Deployment should NOT reload when unlabeled ConfigMap changes")
 		})

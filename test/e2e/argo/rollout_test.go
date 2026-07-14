@@ -47,13 +47,18 @@ var _ = Describe("Argo Rollout Strategy Tests", func() {
 			err = adapter.WaitReady(ctx, testNamespace, rolloutName, utils.WorkloadReadyTimeout)
 			Expect(err).NotTo(HaveOccurred())
 
+			// Capture the reload-annotation baseline before the trigger to avoid the
+			// TOCTOU race where Reloader reloads before WaitReloaded records its baseline.
+			priorReload, err := adapter.GetPodTemplateAnnotation(ctx, testNamespace, rolloutName, utils.AnnotationLastReloadedFrom)
+			Expect(err).NotTo(HaveOccurred())
+
 			By("Updating the ConfigMap")
 			err = utils.UpdateConfigMap(ctx, kubeClient, testNamespace, configMapName, map[string]string{"key": "updated"})
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Waiting for Rollout to be reloaded with annotation")
-			reloaded, err := adapter.WaitReloaded(ctx, testNamespace, rolloutName,
-				utils.AnnotationLastReloadedFrom, utils.ReloadTimeout)
+			reloaded, err := adapter.WaitReloadedFrom(ctx, testNamespace, rolloutName,
+				utils.AnnotationLastReloadedFrom, priorReload, utils.ReloadTimeout)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(reloaded).To(BeTrue(), "Argo Rollout should be reloaded with default rollout strategy")
 		})

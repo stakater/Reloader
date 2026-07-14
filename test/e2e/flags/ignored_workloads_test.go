@@ -64,13 +64,17 @@ var _ = Describe("Ignored Workloads Flag Tests", Serial, func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Updating the ConfigMap")
+			// Capture the reload-annotation baseline before the trigger to avoid the
+			// TOCTOU race where Reloader reloads before WaitReloaded records its baseline.
+			priorReload, err := cronJobAdapter.GetPodTemplateAnnotation(ctx, ignoreNS, cronJobName, utils.AnnotationLastReloadedFrom)
+			Expect(err).NotTo(HaveOccurred())
 			err = utils.UpdateConfigMap(ctx, kubeClient, ignoreNS, configMapName, map[string]string{"key": "updated"})
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Verifying CronJob was NOT reloaded (ignoreCronJobs=true)")
 			time.Sleep(utils.NegativeTestWait)
-			reloaded, err := cronJobAdapter.WaitReloaded(ctx, ignoreNS, cronJobName,
-				utils.AnnotationLastReloadedFrom, utils.ShortTimeout)
+			reloaded, err := cronJobAdapter.WaitReloadedFrom(ctx, ignoreNS, cronJobName,
+				utils.AnnotationLastReloadedFrom, priorReload, utils.ShortTimeout)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(reloaded).To(BeFalse(), "CronJob should NOT reload when ignoreCronJobs=true")
 		})
@@ -98,12 +102,16 @@ var _ = Describe("Ignored Workloads Flag Tests", Serial, func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Updating the ConfigMap")
+			// Capture the reload-annotation baseline before the trigger to avoid the
+			// TOCTOU race where Reloader reloads before WaitReloaded records its baseline.
+			priorReload, err := deploymentAdapter.GetPodTemplateAnnotation(ctx, ignoreNS, deploymentName, utils.AnnotationLastReloadedFrom)
+			Expect(err).NotTo(HaveOccurred())
 			err = utils.UpdateConfigMap(ctx, kubeClient, ignoreNS, configMapName, map[string]string{"key": "updated-deploy"})
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Waiting for Deployment to be reloaded (Deployment should still work)")
-			reloaded, err := deploymentAdapter.WaitReloaded(ctx, ignoreNS, deploymentName,
-				utils.AnnotationLastReloadedFrom, utils.ReloadTimeout)
+			reloaded, err := deploymentAdapter.WaitReloadedFrom(ctx, ignoreNS, deploymentName,
+				utils.AnnotationLastReloadedFrom, priorReload, utils.ReloadTimeout)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(reloaded).To(BeTrue(), "Deployment should still reload with ignoreCronJobs=true")
 		})
@@ -143,13 +151,17 @@ var _ = Describe("Ignored Workloads Flag Tests", Serial, func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Updating the ConfigMap")
+			// Capture the reload-annotation baseline before the trigger to avoid the
+			// TOCTOU race where Reloader reloads before WaitReloaded records its baseline.
+			priorReload, err := cronJobAdapter.GetPodTemplateAnnotation(ctx, ignoreNS, cronJobName, utils.AnnotationLastReloadedFrom)
+			Expect(err).NotTo(HaveOccurred())
 			err = utils.UpdateConfigMap(ctx, kubeClient, ignoreNS, configMapName, map[string]string{"key": "updated"})
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Verifying CronJob was NOT reloaded")
 			time.Sleep(utils.NegativeTestWait)
-			reloaded, err := cronJobAdapter.WaitReloaded(ctx, ignoreNS, cronJobName,
-				utils.AnnotationLastReloadedFrom, utils.ShortTimeout)
+			reloaded, err := cronJobAdapter.WaitReloadedFrom(ctx, ignoreNS, cronJobName,
+				utils.AnnotationLastReloadedFrom, priorReload, utils.ShortTimeout)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(reloaded).To(BeFalse(), "CronJob should NOT reload when ignoreCronJobs=true and ignoreJobs=true")
 		})
