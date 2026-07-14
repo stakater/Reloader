@@ -61,6 +61,7 @@ rules:
     verbs:
       - list
       - get
+      - watch
       - update
       - patch
 {{- end }}
@@ -73,6 +74,7 @@ rules:
     verbs:
       - list
       - get
+      - watch
       - update
       - patch
 {{- if .Values.reloader.ignoreCronJobs }}{{- else }}
@@ -83,6 +85,9 @@ rules:
     verbs:
       - list
       - get
+      - watch
+      - update
+      - patch
 {{- end }}
 {{- if .Values.reloader.ignoreJobs }}{{- else }}
   - apiGroups:
@@ -94,6 +99,7 @@ rules:
       - delete
       - list
       - get
+      - watch
 {{- end}}
 {{- if .Values.reloader.enableHA }}
   - apiGroups:

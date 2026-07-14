@@ -162,12 +162,12 @@ the rule set is defined once. Expects the root context ($) as its argument.
 {{- if and (.Capabilities.APIVersions.Has "argoproj.io/v1alpha1") (.Values.reloader.isArgoRollouts) }}
   - apiGroups:
       - "argoproj.io"
-      - ""
     resources:
       - rollouts
     verbs:
       - list
       - get
+      - watch
       - update
       - patch
 {{- end }}
@@ -180,6 +180,7 @@ the rule set is defined once. Expects the root context ($) as its argument.
     verbs:
       - list
       - get
+      - watch
       - update
       - patch
   - apiGroups:
@@ -189,6 +190,9 @@ the rule set is defined once. Expects the root context ($) as its argument.
     verbs:
       - list
       - get
+      - watch
+      - update
+      - patch
   - apiGroups:
       - "batch"
     resources:
@@ -198,6 +202,7 @@ the rule set is defined once. Expects the root context ($) as its argument.
       - delete
       - list
       - get
+      - watch
 {{- if .Values.reloader.enableHA }}
   - apiGroups:
       - "coordination.k8s.io"
