@@ -35,10 +35,25 @@ enterprise:
   enabled: false
   console:
     enabled: true
+    # deployment:
+    #   image:
+    #     tag: ""
+    # OpenShift: router auto-creates a Route from the Ingress; this annotation
+    # sets edge TLS termination on that Route.
+    # ingress:
+    #   annotations:
+    #     route.openshift.io/termination: edge
   gateway:
     enabled: true
     dragonfly:
       enabled: true
+    # deployment:
+    #   image:
+        # Gateway images are published v-prefixed (WITH_V: true); latest is v0.0.23.
+    #     tag: ""
+    # ingress:
+    #   annotations:
+    #     route.openshift.io/termination: edge
   dragonfly:
     fullnameOverride: reloader-enterprise-dragonfly
 
