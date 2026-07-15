@@ -3,8 +3,6 @@ package config
 import (
 	"testing"
 	"time"
-
-	"k8s.io/apimachinery/pkg/labels"
 )
 
 func TestNewDefault(t *testing.T) {
@@ -229,36 +227,5 @@ func TestIsGlobalMode(t *testing.T) {
 	c.WatchedNamespaces = []string{"team-a"}
 	if c.IsGlobalMode() {
 		t.Errorf("non-empty WatchedNamespaces should not be global mode")
-	}
-}
-
-func TestApplyNamespaceScope_GlobalKeepsSettings(t *testing.T) {
-	c := &Config{
-		WatchedNamespaces:  nil,
-		IgnoredNamespaces:  []string{"kube-system"},
-		NamespaceSelectors: []labels.Selector{labels.Everything()},
-	}
-	warnings := c.ApplyNamespaceScope()
-	if len(warnings) != 0 {
-		t.Errorf("global mode should produce no warnings, got %v", warnings)
-	}
-	if len(c.IgnoredNamespaces) != 1 || len(c.NamespaceSelectors) != 1 {
-		t.Errorf("global mode should keep selectors and ignored namespaces")
-	}
-}
-
-func TestApplyNamespaceScope_ScopedClearsSettings(t *testing.T) {
-	c := &Config{
-		WatchedNamespaces:        []string{"team-a"},
-		IgnoredNamespaces:        []string{"kube-system"},
-		NamespaceSelectors:       []labels.Selector{labels.Everything()},
-		NamespaceSelectorStrings: []string{"env=prod"},
-	}
-	warnings := c.ApplyNamespaceScope()
-	if len(warnings) != 2 {
-		t.Errorf("scoped mode should warn about both dropped settings, got %v", warnings)
-	}
-	if len(c.IgnoredNamespaces) != 0 || len(c.NamespaceSelectors) != 0 || len(c.NamespaceSelectorStrings) != 0 {
-		t.Errorf("scoped mode should clear selectors and ignored namespaces")
 	}
 }

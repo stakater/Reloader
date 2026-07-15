@@ -117,15 +117,56 @@ Comma-joined form of reloader-watchNamespaces, for the --namespaces CLI flag.
 {{- end -}}
 
 {{/*
-Namespaces that need namespaced RBAC in scoped mode: the watched namespaces plus
-the release namespace, so leader-election leases, the meta-info ConfigMap and
-events keep working there even though it is not watched for reloads.
-Returns a JSON-encoded list; consumers use mustFromJson to iterate.
+Fails the render on an inconsistent namespace configuration: reloader.namespaces
+(scoped mode) requires reloader.watchGlobally=false. Included from deployment.yaml
+so it is validated once regardless of which templates render.
 */}}
-{{- define "reloader-rbacNamespaces" -}}
-{{- $relNs := .Values.namespace | default .Release.Namespace -}}
-{{- $watch := include "reloader-watchNamespaces" . | mustFromJson -}}
-{{- concat (list $relNs) $watch | uniq | sortAlpha | toJson -}}
+{{- define "reloader-validate-namespaces" -}}
+{{- if and .Values.reloader.watchGlobally .Values.reloader.namespaces -}}
+{{- fail "reloader.namespaces is set but reloader.watchGlobally is true; set reloader.watchGlobally=false to use scoped namespace mode." -}}
+{{- end -}}
+{{- end -}}
+
+{{/*
+RBAC rules Reloader needs in its own (release) namespace, independent of the
+watched namespaces. Reloader publishes an internal meta-info ConfigMap there in
+every mode, so configmap write access is always granted. In scoped mode the
+release namespace is not covered by the watch RBAC, so leader-election events
+(and leases under HA) are granted here too; in global/single mode those are
+already covered by the ClusterRole or the single-namespace Role.
+Expects the root context ($) as its argument.
+*/}}
+{{- define "reloader-release-rules" }}
+  - apiGroups:
+      - ""
+    resources:
+      - configmaps
+    verbs:
+      - get
+      - create
+      - update
+      - patch
+{{- if .Values.reloader.namespaces }}
+  - apiGroups:
+      - ""
+      - "events.k8s.io"
+    resources:
+      - events
+    verbs:
+      - create
+      - patch
+      - update
+{{- if .Values.reloader.enableHA }}
+  - apiGroups:
+      - "coordination.k8s.io"
+    resources:
+      - leases
+    verbs:
+      - create
+      - get
+      - update
+{{- end }}
+{{- end }}
 {{- end -}}
 
 {{/*
@@ -183,6 +224,7 @@ the rule set is defined once. Expects the root context ($) as its argument.
       - watch
       - update
       - patch
+{{- if .Values.reloader.ignoreCronJobs }}{{- else }}
   - apiGroups:
       - "batch"
     resources:
@@ -193,6 +235,8 @@ the rule set is defined once. Expects the root context ($) as its argument.
       - watch
       - update
       - patch
+{{- end }}
+{{- if .Values.reloader.ignoreJobs }}{{- else }}
   - apiGroups:
       - "batch"
     resources:
@@ -203,6 +247,7 @@ the rule set is defined once. Expects the root context ($) as its argument.
       - list
       - get
       - watch
+{{- end }}
 {{- if .Values.reloader.enableHA }}
   - apiGroups:
       - "coordination.k8s.io"

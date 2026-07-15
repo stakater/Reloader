@@ -201,25 +201,3 @@ func (c *Config) IsNamespaceIgnored(namespace string) bool {
 func (c *Config) IsGlobalMode() bool {
 	return len(c.WatchedNamespaces) == 0
 }
-
-// ApplyNamespaceScope enforces master-parity semantics: namespace-selector and
-// namespaces-to-ignore are only honored in global (all-namespaces) mode. In
-// scoped or single-namespace mode the watched set is already explicit, so both
-// are cleared. It returns human-readable warnings for any setting it dropped so
-// the caller can log them.
-func (c *Config) ApplyNamespaceScope() []string {
-	if c.IsGlobalMode() {
-		return nil
-	}
-	var warnings []string
-	if len(c.NamespaceSelectors) > 0 {
-		warnings = append(warnings, "namespace-selector is set but is only honored in global mode; ignoring it")
-		c.NamespaceSelectors = nil
-		c.NamespaceSelectorStrings = nil
-	}
-	if len(c.IgnoredNamespaces) > 0 {
-		warnings = append(warnings, "namespaces-to-ignore is set but is only honored in global mode; ignoring it")
-		c.IgnoredNamespaces = nil
-	}
-	return warnings
-}

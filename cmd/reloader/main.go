@@ -54,8 +54,15 @@ func newReloaderCommand() *cobra.Command {
 }
 
 func run(cmd *cobra.Command, args []string) error {
-	scopeWarnings, err := config.ApplyFlags(cfg)
+	// Configure logging first so ApplyFlags can surface namespace-scope warnings
+	// through a ready logger instead of returning them to the caller.
+	log, err := configureLogging(config.LoggingFlags())
 	if err != nil {
+		return fmt.Errorf("configuring logging: %w", err)
+	}
+	controllerruntime.SetLogger(log)
+
+	if err := config.ApplyFlags(cfg, log); err != nil {
 		return fmt.Errorf("applying flags: %w", err)
 	}
 
@@ -73,20 +80,7 @@ func run(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	log, err := configureLogging(cfg.LogFormat, cfg.LogLevel)
-	if err != nil {
-		return fmt.Errorf("configuring logging: %w", err)
-	}
-
-	controllerruntime.SetLogger(log)
-
 	log.Info("Starting Reloader")
-
-	// Namespace-scope semantics are enforced in ApplyFlags; surface any warnings
-	// it produced now that logging is configured.
-	for _, w := range scopeWarnings {
-		log.Info(w)
-	}
 
 	if cfg.IsGlobalMode() {
 		log.Info("watching all namespaces")
@@ -156,14 +150,13 @@ func run(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("setting up reconcilers: %w", err)
 	}
 
-	// Skip metadata publisher when ConfigMaps are ignored (no RBAC permissions)
-	if !cfg.IsResourceIgnored("configmaps") {
-		if err := mgr.Add(metadata.Runnable(mgr.GetClient(), cfg, log)); err != nil {
-			log.Error(err, "Failed to add metadata publisher")
-			// Non-fatal, continue starting
-		}
-	} else {
-		log.Info("skipping metadata publisher (configmaps ignored)")
+	// Meta-info is internal instance metadata and is always published. The
+	// publisher builds its own uncached client (see metadata.Runnable) because
+	// the ConfigMap lives in Reloader's own namespace, which the manager cache
+	// does not cover in scoped mode.
+	if err := mgr.Add(metadata.Runnable(mgr.GetConfig(), mgr.GetScheme(), cfg, log)); err != nil {
+		log.Error(err, "Failed to add metadata publisher")
+		// Non-fatal, continue starting
 	}
 
 	if cfg.EnablePProf {

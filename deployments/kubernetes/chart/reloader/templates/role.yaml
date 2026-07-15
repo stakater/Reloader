@@ -1,13 +1,10 @@
-{{- if and .Values.reloader.watchGlobally .Values.reloader.namespaces }}
-{{- fail "reloader.namespaces is set but reloader.watchGlobally is true; set reloader.watchGlobally=false to use scoped namespace mode." }}
-{{- end }}
 {{- if and (not (.Values.reloader.watchGlobally)) (.Values.reloader.rbac.enabled) }}
 {{- $apiVersion := "rbac.authorization.k8s.io/v1" }}
 {{- if not (.Capabilities.APIVersions.Has "rbac.authorization.k8s.io/v1") }}
 {{- $apiVersion = "rbac.authorization.k8s.io/v1beta1" }}
 {{- end }}
 {{- if .Values.reloader.namespaces }}
-{{- range $ns := (include "reloader-rbacNamespaces" . | mustFromJson) }}
+{{- range $ns := (include "reloader-watchNamespaces" . | mustFromJson) }}
 apiVersion: {{ $apiVersion }}
 kind: Role
 metadata:
@@ -67,14 +64,5 @@ metadata:
   name: {{ template "reloader-fullname" . }}-metadata-role
   namespace: {{ .Values.namespace | default .Release.Namespace }}
 rules:
-  - apiGroups:
-      - ""
-    resources:
-      - configmaps
-    verbs:
-      - list
-      - get
-      - watch
-      - create
-      - update
+{{- include "reloader-release-rules" . }}
 {{- end }}

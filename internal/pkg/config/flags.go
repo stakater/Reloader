@@ -5,6 +5,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/go-logr/logr"
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
 	"k8s.io/apimachinery/pkg/labels"
@@ -264,11 +265,17 @@ func BindFlags(fs *pflag.FlagSet, cfg *Config) {
 	_ = v.BindEnv("alert-proxy", "ALERT_PROXY", "ALERT_WEBHOOK_PROXY")
 }
 
+// LoggingFlags returns the log format and level from parsed flags/env. The
+// caller uses these to configure logging before ApplyFlags runs, so ApplyFlags
+// can log warnings through a ready logger.
+func LoggingFlags() (format, level string) {
+	return v.GetString("log-format"), v.GetString("log-level")
+}
+
 // ApplyFlags applies flag values from viper to the config struct. Call this
-// after parsing flags. It returns any human-readable warnings produced while
-// finalizing namespace scope (see ApplyNamespaceScope) so the caller can log
-// them once a logger is available.
-func ApplyFlags(cfg *Config) ([]string, error) {
+// after parsing flags. It finalizes namespace scope and logs any warnings it
+// produces through the given logger.
+func ApplyFlags(cfg *Config, log logr.Logger) error {
 	// Boolean flags
 	cfg.AutoReloadAll = v.GetBool("auto-reload-all")
 	cfg.SyncAfterRestart = v.GetBool("sync-after-restart")
@@ -367,7 +374,7 @@ func ApplyFlags(cfg *Config) ([]string, error) {
 		joinedNS := strings.Join(nsSelectors, ",")
 		selector, err := labels.Parse(joinedNS)
 		if err != nil {
-			return nil, fmt.Errorf("invalid selector %q: %w", joinedNS, err)
+			return fmt.Errorf("invalid selector %q: %w", joinedNS, err)
 		}
 		cfg.NamespaceSelectors = []labels.Selector{selector}
 	}
@@ -375,7 +382,7 @@ func ApplyFlags(cfg *Config) ([]string, error) {
 		joinedRes := strings.Join(resSelectors, ",")
 		selector, err := labels.Parse(joinedRes)
 		if err != nil {
-			return nil, fmt.Errorf("invalid selector %q: %w", joinedRes, err)
+			return fmt.Errorf("invalid selector %q: %w", joinedRes, err)
 		}
 		cfg.ResourceSelectors = []labels.Selector{selector}
 	}
@@ -391,11 +398,21 @@ func ApplyFlags(cfg *Config) ([]string, error) {
 		cfg.LeaderElection.RetryPeriod = 2 * time.Second
 	}
 
-	// Enforce namespace-scope semantics here so the finalized config is
-	// self-consistent for every caller: selector/ignore lists are only honored
-	// in global mode. Warnings are returned for the caller to log once logging
-	// is set up.
-	return cfg.ApplyNamespaceScope(), nil
+	// Namespace-selector and namespaces-to-ignore are only honored in global
+	// mode; in scoped or single-namespace mode the watched set is already
+	// explicit, so drop them and log where it happens.
+	if !cfg.IsGlobalMode() {
+		if len(cfg.NamespaceSelectors) > 0 {
+			log.Info("namespace-selector is set but is only honored in global mode; ignoring it")
+			cfg.NamespaceSelectors = nil
+			cfg.NamespaceSelectorStrings = nil
+		}
+		if len(cfg.IgnoredNamespaces) > 0 {
+			log.Info("namespaces-to-ignore is set but is only honored in global mode; ignoring it")
+			cfg.IgnoredNamespaces = nil
+		}
+	}
+	return nil
 }
 
 // parseBoolString parses a string as a boolean, defaulting to false.
