@@ -170,6 +170,55 @@ helm uninstall {{RELEASE_NAME}} -n {{NAMESPACE}}
 ### Deprecation Notice
 - `serviceMonitor` will be removed in future releases in favor of `PodMonitor`
 
+## Enterprise mode
+
+Reloader Enterprise adds a console, gateway, and cache (dragonfly) alongside the
+operator. It ships as an optional subchart gated by `enterprise.enabled`.
+
+Enabling it requires **four** changes, because the operator image is swapped manually:
+
+1. Turn on the subchart and set the component hostnames:
+
+   ```yaml
+   enterprise:
+     enabled: true
+   global:
+     consoleHost: reloader-enterprise-console.apps.example.com
+     gatewayHost: reloader-enterprise-gateway.apps.example.com
+   ```
+
+2. Swap the operator image to the enterprise image:
+
+   ```yaml
+   image:
+     repository: ghcr.io/stakater/reloader-enterprise
+     tag: v0.1.0
+   ```
+
+3. Provide an image pull secret — the enterprise operator, console, and gateway
+   images are in **private GHCR**:
+
+   ```bash
+   kubectl create secret docker-registry saap-dockerconfigjson \
+     --docker-server=ghcr.io \
+     --docker-username=<user> --docker-password=<token> \
+     -n <release-namespace>
+   ```
+
+   ```yaml
+   global:
+     imagePullSecrets:
+       - name: saap-dockerconfigjson
+   ```
+
+4. Deeper enterprise component settings pass through under `enterprise.console.*`,
+   `enterprise.gateway.*`, and `enterprise.dragonfly.*` (see the reloader-enterprise
+   chart values for the full list). Values you do not override fall back to the
+   subchart defaults.
+
+When `enterprise.enabled=false` (the default) none of the enterprise components are
+rendered and the operator uses the community image.
+
 ## Release Process
 
 _Helm chart versioning_: The Reloader Helm chart is maintained in this repository. The Helm chart has its own semantic versioning. Helm charts and code releases are separate artifacts and separately versioned. Manifest making strategy relies on Kustomize. The Reloader Helm chart manages the two artifacts with these two fields:

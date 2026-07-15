@@ -1,0 +1,20 @@
+suite: Enterprise image swap
+templates:
+  - deployment.yaml
+tests:
+  - it: uses the community image by default
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].image
+          value: ghcr.io/stakater/reloader:v2.0.0
+  - it: uses the enterprise image when the image block is overridden
+    set:
+      enterprise:
+        enabled: true
+      image:
+        repository: ghcr.io/stakater/reloader-enterprise
+        tag: v2.0.0
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].image
+          value: ghcr.io/stakater/reloader-enterprise:v2.0.0

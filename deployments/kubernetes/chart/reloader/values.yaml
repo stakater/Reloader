@@ -10,6 +10,11 @@ global:
   #imagePullSecrets:
   #  - my-pull-secret
 
+  ## Required when enterprise.enabled=true (shared with the enterprise subchart)
+  consoleHost: ""
+  gatewayHost: ""
+  gatewayScheme: https
+
 kubernetes:
   host: https://kubernetes.default
 
@@ -19,9 +24,23 @@ fullnameOverride: ""
 image:
   name: stakater/reloader
   repository: ghcr.io/stakater/reloader
-  tag: v1.4.19
+  tag: v2.0.0
   # digest: sha256:1234567
   pullPolicy: IfNotPresent
+
+# Reloader Enterprise components (console + gateway + dragonfly cache).
+# When enabled, ALSO set image.repository/image.tag to the enterprise operator
+# image and provide global.imagePullSecrets — see the chart README "Enterprise mode".
+enterprise:
+  enabled: false
+  console:
+    enabled: true
+  gateway:
+    enabled: true
+    dragonfly:
+      enabled: true
+  dragonfly:
+    fullnameOverride: reloader-enterprise-dragonfly
 
 reloader:
   autoReloadAll: false

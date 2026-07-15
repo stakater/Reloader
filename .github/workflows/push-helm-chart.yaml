@@ -54,7 +54,7 @@ jobs:
       - name: Get version for chart from helm repo
         id: chart_eval
         run: |
-          current_chart_version=$(helm search repo stakater/reloader | tail -n 1 | awk '{print $2}')
+          current_chart_version=$(helm search repo stakater/reloader-v2 | tail -n 1 | awk '{print $2}')
           echo "CURRENT_CHART_VERSION=$(echo ${current_chart_version})" >> $GITHUB_OUTPUT
 
       - name: Get Updated Chart version from Chart.yaml
@@ -63,7 +63,10 @@ jobs:
         with:
           cmd: yq e '.version' deployments/kubernetes/chart/reloader/Chart.yaml
 
+      # Skip the version-increase gate on first publish, when no reloader-v2
+      # chart exists yet in the repo (CURRENT_CHART_VERSION is empty).
       - name: Check Version
+        if: steps.chart_eval.outputs.CURRENT_CHART_VERSION != ''
         uses: aleoyakas/check-semver-increased-action@415c9c60054c2442c03478b6dd96a195deac6695 # v1
         id: check-version
         with:
@@ -71,7 +74,7 @@ jobs:
           previous-version: ${{ steps.chart_eval.outputs.CURRENT_CHART_VERSION }}
 
       - name: Fail if Helm Chart version isnt updated
-        if: steps.check-version.outputs.is-version-increased != 'true'
+        if: steps.chart_eval.outputs.CURRENT_CHART_VERSION != '' && steps.check-version.outputs.is-version-increased != 'true'
         run: |
           echo "Helm Chart Version wasnt updated"
           exit 1
@@ -88,12 +91,15 @@ jobs:
 
       - name: Publish Helm chart to ghcr.io
         run: |
+          # Pull the enterprise subchart from private GHCR (uses the login above);
+          # the vendored charts/*.tgz is gitignored, so it isn't present on the runner.
+          helm dependency build ./deployments/kubernetes/chart/reloader
           helm package ./deployments/kubernetes/chart/reloader --destination ./packaged-chart
           helm push ./packaged-chart/*.tgz oci://ghcr.io/stakater/charts
           rm -rf ./packaged-chart
 
       - name: Sign artifacts with Cosign
-        run: cosign sign --yes ghcr.io/stakater/charts/reloader:${{ steps.new_chart_version.outputs.result }}
+        run: cosign sign --yes ghcr.io/stakater/charts/reloader-v2:${{ steps.new_chart_version.outputs.result }}
 
       - name: Publish Helm chart to gh-pages
         uses: stefanprodan/helm-gh-pages@0ad2bb377311d61ac04ad9eb6f252fb68e207260 # v1.7.0
@@ -114,7 +120,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.PUBLISH_TOKEN }}
           WITH_V: false
-          CUSTOM_TAG: chart-v${{ steps.new_chart_version.outputs.result }}
+          CUSTOM_TAG: reloader-v2-chart-v${{ steps.new_chart_version.outputs.result }}
 
       - name: Notify Slack
         uses: 8398a7/action-slack@77eaa4f1c608a7d68b38af4e3f739dcd8cba273e # v3
