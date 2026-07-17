@@ -3,7 +3,7 @@
 {{- if not (.Capabilities.APIVersions.Has "rbac.authorization.k8s.io/v1") }}
 {{- $apiVersion = "rbac.authorization.k8s.io/v1beta1" }}
 {{- end }}
-{{- if .Values.reloader.namespaces }}
+{{- if (include "reloader-isScoped" .) }}
 {{- range $ns := (include "reloader-watchNamespaces" . | mustFromJson) }}
 apiVersion: {{ $apiVersion }}
 kind: Role

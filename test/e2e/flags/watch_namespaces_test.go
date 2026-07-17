@@ -113,3 +113,93 @@ var _ = Describe("Watch Namespaces (scoped mode) Flag Tests", Serial, func() {
 		Expect(reloaded).To(BeFalse(), "Deployment in an unwatched namespace should NOT reload")
 	})
 })
+
+var _ = Describe("Watch Multiple Namespaces (scoped mode) Flag Tests", Serial, func() {
+	var (
+		deploymentName string
+		configMapName  string
+		watchedA       string
+		watchedB       string
+		unwatchedNS    string
+		adapter        *utils.DeploymentAdapter
+	)
+
+	BeforeEach(func() {
+		deploymentName = utils.RandName("deploy")
+		configMapName = utils.RandName("cm")
+		watchedA = "watched-a-" + utils.RandName("ns")
+		watchedB = "watched-b-" + utils.RandName("ns")
+		unwatchedNS = "unwatched-" + utils.RandName("ns")
+		adapter = utils.NewDeploymentAdapter(kubeClient)
+
+		// Both watched namespaces must exist before install: in scoped mode the
+		// chart creates a Role/RoleBinding in each.
+		Expect(utils.CreateNamespace(ctx, kubeClient, watchedA)).To(Succeed())
+		Expect(utils.CreateNamespace(ctx, kubeClient, watchedB)).To(Succeed())
+		Expect(utils.CreateNamespace(ctx, kubeClient, unwatchedNS)).To(Succeed())
+
+		err := deployReloaderWithFlags(map[string]string{
+			"reloader.watchGlobally": "false",
+			"reloader.namespaces":    fmt.Sprintf("{%s,%s}", watchedA, watchedB),
+		})
+		Expect(err).NotTo(HaveOccurred())
+
+		Expect(waitForReloaderReady()).To(Succeed())
+	})
+
+	AfterEach(func() {
+		for _, ns := range []string{watchedA, watchedB, unwatchedNS} {
+			_ = utils.DeleteDeployment(ctx, kubeClient, ns, deploymentName)
+			_ = utils.DeleteConfigMap(ctx, kubeClient, ns, configMapName)
+		}
+		_ = undeployReloader()
+		for _, ns := range []string{watchedA, watchedB, unwatchedNS} {
+			_ = utils.DeleteNamespace(ctx, kubeClient, ns)
+		}
+	})
+
+	It("should reload workloads across all watched namespaces but not an unwatched one", func() {
+		// Set up an annotated Deployment + ConfigMap in every namespace (both
+		// watched ones and the unwatched control).
+		allNS := []string{watchedA, watchedB, unwatchedNS}
+		for _, ns := range allNS {
+			By("Creating a ConfigMap and Deployment in " + ns)
+			_, err := utils.CreateConfigMap(ctx, kubeClient, ns, configMapName,
+				map[string]string{"key": "initial"}, nil)
+			Expect(err).NotTo(HaveOccurred())
+			_, err = utils.CreateDeployment(ctx, kubeClient, ns, deploymentName,
+				utils.WithConfigMapEnvFrom(configMapName),
+				utils.WithAnnotations(utils.BuildAutoTrueAnnotation()),
+			)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(adapter.WaitReady(ctx, ns, deploymentName, utils.WorkloadReadyTimeout)).To(Succeed())
+		}
+
+		// Capture reload baselines before triggering, then update every ConfigMap.
+		priorReload := map[string]string{}
+		for _, ns := range allNS {
+			pv, err := adapter.GetPodTemplateAnnotation(ctx, ns, deploymentName, utils.AnnotationLastReloadedFrom)
+			Expect(err).NotTo(HaveOccurred())
+			priorReload[ns] = pv
+		}
+		for _, ns := range allNS {
+			By("Updating the ConfigMap in " + ns)
+			Expect(utils.UpdateConfigMap(ctx, kubeClient, ns, configMapName,
+				map[string]string{"key": "updated"})).To(Succeed())
+		}
+
+		By("Verifying workloads in BOTH watched namespaces reloaded")
+		for _, ns := range []string{watchedA, watchedB} {
+			reloaded, err := adapter.WaitReloadedFrom(ctx, ns, deploymentName,
+				utils.AnnotationLastReloadedFrom, priorReload[ns], utils.ReloadTimeout)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(reloaded).To(BeTrue(), "Deployment in watched namespace %s should reload", ns)
+		}
+
+		By("Verifying the workload in the unwatched namespace did NOT reload")
+		reloaded, err := adapter.WaitReloadedFrom(ctx, unwatchedNS, deploymentName,
+			utils.AnnotationLastReloadedFrom, priorReload[unwatchedNS], utils.ShortTimeout)
+		Expect(err).NotTo(HaveOccurred())
+		Expect(reloaded).To(BeFalse(), "Deployment in unwatched namespace %s should NOT reload", unwatchedNS)
+	})
+})

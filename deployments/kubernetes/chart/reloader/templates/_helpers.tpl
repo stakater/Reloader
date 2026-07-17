@@ -91,7 +91,10 @@ Create the namespace selector if it does not watch globally
 {{/*
 Namespaces to watch in scoped mode: exactly the user-supplied reloader.namespaces,
 trimmed, de-duped and sorted. The release namespace is intentionally NOT added here
-— Reloader watches only what the user asked for (an empty result means global mode).
+— Reloader watches only what the user asked for. An empty result is not necessarily
+global mode: with watchGlobally=false it becomes single-namespace mode (the release
+namespace, injected via --namespaces by reloader-effectiveNamespaces-csv); only with
+watchGlobally=true does empty mean watch-all.
 Returns a JSON-encoded list; consumers use mustFromJson to iterate.
 */}}
 {{- define "reloader-watchNamespaces" -}}
@@ -117,12 +120,44 @@ Comma-joined form of reloader-watchNamespaces, for the --namespaces CLI flag.
 {{- end -}}
 
 {{/*
+The effective watched namespaces for the --namespaces CLI flag — the single
+chart-side source of truth for watch scope, so the binary never has to fall back
+to the KUBERNETES_NAMESPACE env:
+  - scoped mode           -> the cleaned reloader.namespaces list
+  - single-namespace mode -> the release namespace (watchGlobally=false, no list)
+  - global mode           -> empty (no --namespaces flag; watch all)
+Returns a comma-joined string ("" in global mode).
+*/}}
+{{- define "reloader-effectiveNamespaces-csv" -}}
+{{- $watch := include "reloader-watchNamespaces" . | mustFromJson -}}
+{{- if $watch -}}
+{{- $watch | join "," -}}
+{{- else if not .Values.reloader.watchGlobally -}}
+{{- .Values.namespace | default .Release.Namespace -}}
+{{- end -}}
+{{- end -}}
+
+{{/*
+Whether Reloader runs in scoped mode. This is the single source of truth for the
+scoped-vs-global decision: it is true only when the cleaned watch list
+(reloader-watchNamespaces) is non-empty. Gate on this rather than the raw
+.Values.reloader.namespaces, which is truthy even for values like " , " that trim
+to an empty list (those must fall through to global/single-namespace mode).
+Returns "true" (truthy) or "" (falsy).
+*/}}
+{{- define "reloader-isScoped" -}}
+{{- if include "reloader-watchNamespaces" . | mustFromJson -}}
+true
+{{- end -}}
+{{- end -}}
+
+{{/*
 Fails the render on an inconsistent namespace configuration: reloader.namespaces
 (scoped mode) requires reloader.watchGlobally=false. Included from deployment.yaml
 so it is validated once regardless of which templates render.
 */}}
 {{- define "reloader-validate-namespaces" -}}
-{{- if and .Values.reloader.watchGlobally .Values.reloader.namespaces -}}
+{{- if and .Values.reloader.watchGlobally (include "reloader-isScoped" .) -}}
 {{- fail "reloader.namespaces is set but reloader.watchGlobally is true; set reloader.watchGlobally=false to use scoped namespace mode." -}}
 {{- end -}}
 {{- end -}}
@@ -131,9 +166,9 @@ so it is validated once regardless of which templates render.
 RBAC rules Reloader needs in its own (release) namespace, independent of the
 watched namespaces. Reloader publishes an internal meta-info ConfigMap there in
 every mode, so configmap write access is always granted. In scoped mode the
-release namespace is not covered by the watch RBAC, so leader-election events
-(and leases under HA) are granted here too; in global/single mode those are
-already covered by the ClusterRole or the single-namespace Role.
+release namespace is not covered by the watch RBAC, so under HA the leader-election
+leases and the events it emits are granted here too; in global/single mode those
+are already covered by the ClusterRole or the single-namespace Role.
 Expects the root context ($) as its argument.
 */}}
 {{- define "reloader-release-rules" }}
@@ -146,7 +181,15 @@ Expects the root context ($) as its argument.
       - create
       - update
       - patch
-{{- if .Values.reloader.namespaces }}
+{{- if and (include "reloader-isScoped" .) .Values.reloader.enableHA }}
+  - apiGroups:
+      - "coordination.k8s.io"
+    resources:
+      - leases
+    verbs:
+      - create
+      - get
+      - update
   - apiGroups:
       - ""
       - "events.k8s.io"
@@ -156,16 +199,6 @@ Expects the root context ($) as its argument.
       - create
       - patch
       - update
-{{- if .Values.reloader.enableHA }}
-  - apiGroups:
-      - "coordination.k8s.io"
-    resources:
-      - leases
-    verbs:
-      - create
-      - get
-      - update
-{{- end }}
 {{- end }}
 {{- end -}}
 
