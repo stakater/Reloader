@@ -1,0 +1,234 @@
+suite: Namespace-scoped RBAC
+templates:
+  - role.yaml
+  - rolebinding.yaml
+  - clusterrole.yaml
+release:
+  name: reloader
+  namespace: reloader-ns
+tests:
+  # ---------------------------------------------------------------- scoped mode
+  - it: scoped mode renders a Role + RoleBinding per watched namespace plus the metadata role, and no ClusterRole
+    set:
+      reloader:
+        watchGlobally: false
+        namespaces:
+          - team-a
+          - team-b
+    asserts:
+      # 2 watched Roles + 1 metadata Role
+      - hasDocuments:
+          count: 3
+        template: role.yaml
+      - hasDocuments:
+          count: 3
+        template: rolebinding.yaml
+      - hasDocuments:
+          count: 0
+        template: clusterrole.yaml
+
+  - it: scoped mode grants the namespaced workload rules in a watched namespace
+    set:
+      reloader:
+        watchGlobally: false
+        namespaces:
+          - team-a
+          - team-b
+    template: role.yaml
+    documentSelector:
+      path: metadata.namespace
+      value: team-a
+    asserts:
+      - isKind:
+          of: Role
+      - equal:
+          path: rules[0].apiGroups[0]
+          value: ""
+      - contains:
+          path: rules[0].resources
+          content: secrets
+      - contains:
+          path: rules[0].resources
+          content: configmaps
+      - contains:
+          path: rules
+          content:
+            apiGroups:
+              - "apps"
+            resources:
+              - deployments
+              - daemonsets
+              - statefulsets
+            verbs:
+              - list
+              - get
+              - watch
+              - update
+              - patch
+
+  - it: scoped RoleBinding in a watched namespace binds the release ServiceAccount to the namespaced Role
+    set:
+      reloader:
+        watchGlobally: false
+        namespaces:
+          - team-a
+          - team-b
+    template: rolebinding.yaml
+    documentSelector:
+      path: metadata.namespace
+      value: team-b
+    asserts:
+      - isKind:
+          of: RoleBinding
+      - equal:
+          path: roleRef.name
+          value: reloader-reloader-role
+      - equal:
+          path: subjects[0].namespace
+          value: reloader-ns
+
+  # ------------------------------------------------------------- metadata role
+  - it: metadata role is created in the release namespace with configmap write in scoped mode
+    set:
+      reloader:
+        watchGlobally: false
+        namespaces:
+          - team-a
+    template: role.yaml
+    documentSelector:
+      path: metadata.name
+      value: reloader-reloader-metadata-role
+    asserts:
+      - equal:
+          path: metadata.namespace
+          value: reloader-ns
+      - contains:
+          path: rules[0].resources
+          content: configmaps
+      - contains:
+          path: rules[0].verbs
+          content: create
+
+  - it: metadata role also grants leases and events in the release namespace under HA + scoped mode
+    set:
+      reloader:
+        watchGlobally: false
+        enableHA: true
+        namespaces:
+          - team-a
+    template: role.yaml
+    documentSelector:
+      path: metadata.name
+      value: reloader-reloader-metadata-role
+    asserts:
+      - contains:
+          path: rules
+          content:
+            apiGroups:
+              - "coordination.k8s.io"
+            resources:
+              - leases
+            verbs:
+              - create
+              - get
+              - update
+
+  - it: metadata role does NOT grant leases when HA is disabled in scoped mode
+    set:
+      reloader:
+        watchGlobally: false
+        enableHA: false
+        namespaces:
+          - team-a
+    template: role.yaml
+    documentSelector:
+      path: metadata.name
+      value: reloader-reloader-metadata-role
+    asserts:
+      - notContains:
+          path: rules
+          content:
+            apiGroups:
+              - "coordination.k8s.io"
+            resources:
+              - leases
+            verbs:
+              - create
+              - get
+              - update
+
+  # ----------------------------------------------------------- single-ns mode
+  - it: single-namespace mode (watchGlobally=false, no list) renders one Role in the release namespace and no ClusterRole
+    set:
+      reloader:
+        watchGlobally: false
+    asserts:
+      # 1 single Role + 1 metadata Role
+      - hasDocuments:
+          count: 2
+        template: role.yaml
+      - hasDocuments:
+          count: 0
+        template: clusterrole.yaml
+      - equal:
+          path: metadata.namespace
+          value: reloader-ns
+        template: role.yaml
+        documentIndex: 0
+
+  # ---------------------------------------------------------------- global mode
+  - it: global mode renders a ClusterRole and only the metadata Role (no watched Roles)
+    set:
+      reloader:
+        watchGlobally: true
+    asserts:
+      - hasDocuments:
+          count: 1
+        template: clusterrole.yaml
+      - isKind:
+          of: ClusterRole
+        template: clusterrole.yaml
+      # only the metadata role remains from role.yaml
+      - hasDocuments:
+          count: 1
+        template: role.yaml
+      - equal:
+          path: metadata.name
+          value: reloader-reloader-metadata-role
+        template: role.yaml
+        documentIndex: 0
+
+  # -------------------------------------------------------- input normalization
+  - it: whitespace-only namespaces fall through to single-namespace mode (no watched Roles)
+    set:
+      reloader:
+        watchGlobally: false
+        namespaces:
+          - "  "
+          - " "
+    asserts:
+      # cleaned list is empty -> single Role + metadata Role, both in release ns
+      - hasDocuments:
+          count: 2
+        template: role.yaml
+      - equal:
+          path: metadata.namespace
+          value: reloader-ns
+        template: role.yaml
+        documentIndex: 0
+
+  - it: rbac disabled renders no Roles, RoleBindings, or ClusterRole
+    set:
+      reloader:
+        watchGlobally: false
+        rbac:
+          enabled: false
+        namespaces:
+          - team-a
+    asserts:
+      - hasDocuments:
+          count: 0
+        template: role.yaml
+      - hasDocuments:
+          count: 0
+        template: rolebinding.yaml

@@ -194,6 +194,40 @@ func TestConfig_Validate_InvalidIgnoredWorkload(t *testing.T) {
 	}
 }
 
+func TestConfig_Validate_WatchedNamespaces(t *testing.T) {
+	tests := []struct {
+		name       string
+		namespaces []string
+		wantErr    bool
+	}{
+		{"nil is valid (global mode)", nil, false},
+		{"empty is valid (global mode)", []string{}, false},
+		{"single valid label", []string{"team-a"}, false},
+		{"multiple valid labels", []string{"team-a", "team-b", "kube-system"}, false},
+		{"uppercase is invalid", []string{"Team-A"}, true},
+		{"underscore is invalid", []string{"team_a"}, true},
+		{"trailing dash is invalid", []string{"team-"}, true},
+		{"one invalid among valid", []string{"team-a", "Bad_NS!"}, true},
+	}
+
+	for _, tt := range tests {
+		t.Run(
+			tt.name, func(t *testing.T) {
+				cfg := NewDefault()
+				cfg.WatchedNamespaces = tt.namespaces
+
+				err := cfg.Validate()
+				if (err != nil) != tt.wantErr {
+					t.Fatalf("Validate() error = %v, wantErr %v", err, tt.wantErr)
+				}
+				if tt.wantErr && !strings.Contains(err.Error(), "WatchedNamespaces") {
+					t.Errorf("error should mention WatchedNamespaces, got: %v", err)
+				}
+			},
+		)
+	}
+}
+
 func TestConfig_Validate_MultipleErrors(t *testing.T) {
 	cfg := NewDefault()
 	cfg.ReloadStrategy = "invalid"

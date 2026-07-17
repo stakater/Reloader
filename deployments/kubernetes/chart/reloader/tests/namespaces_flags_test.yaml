@@ -1,0 +1,134 @@
+suite: Namespace watch flags & validation
+templates:
+  - deployment.yaml
+release:
+  name: reloader
+  namespace: reloader-ns
+tests:
+  # ---------------------------------------------------------------- scoped mode
+  - it: scoped mode passes the watched namespaces via --namespaces
+    set:
+      reloader:
+        watchGlobally: false
+        namespaces:
+          - team-a
+          - team-b
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].args
+          content: "--namespaces=team-a,team-b"
+
+  - it: namespaces are de-duplicated and sorted for the --namespaces flag
+    set:
+      reloader:
+        watchGlobally: false
+        namespaces:
+          - team-b
+          - team-a
+          - team-a
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].args
+          content: "--namespaces=team-a,team-b"
+
+  - it: a comma-separated string value is accepted for reloader.namespaces
+    set:
+      reloader:
+        watchGlobally: false
+        namespaces: "team-a,team-b"
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].args
+          content: "--namespaces=team-a,team-b"
+
+  # ----------------------------------------------------------- single-ns mode
+  - it: single-namespace mode passes the release namespace via --namespaces
+    set:
+      reloader:
+        watchGlobally: false
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].args
+          content: "--namespaces=reloader-ns"
+
+  - it: whitespace-only namespaces fall through to single-namespace mode
+    set:
+      reloader:
+        watchGlobally: false
+        namespaces:
+          - "  "
+          - " "
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].args
+          content: "--namespaces=reloader-ns"
+
+  - it: KUBERNETES_NAMESPACE env is no longer injected in single-namespace mode
+    set:
+      reloader:
+        watchGlobally: false
+    asserts:
+      - notContains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: KUBERNETES_NAMESPACE
+          any: true
+
+  # ---------------------------------------------------------------- global mode
+  - it: global mode does not pass a --namespaces flag
+    set:
+      reloader:
+        watchGlobally: true
+        logLevel: info
+    asserts:
+      - notContains:
+          path: spec.template.spec.containers[0].args
+          content: "--namespaces=reloader-ns"
+      - notContains:
+          path: spec.template.spec.containers[0].args
+          content: "--namespaces=team-a"
+
+  - it: namespaces-to-ignore is only emitted in global mode
+    set:
+      reloader:
+        watchGlobally: true
+        ignoreNamespaces: "kube-system"
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].args
+          content: "--namespaces-to-ignore=kube-system"
+
+  - it: namespaces-to-ignore is dropped in single-namespace mode
+    set:
+      reloader:
+        watchGlobally: false
+        ignoreNamespaces: "kube-system"
+    asserts:
+      - notContains:
+          path: spec.template.spec.containers[0].args
+          content: "--namespaces-to-ignore=kube-system"
+
+  # ------------------------------------------------------------- validation
+  - it: fails to render when reloader.namespaces is set but watchGlobally is true
+    set:
+      reloader:
+        watchGlobally: true
+        namespaces:
+          - team-a
+    asserts:
+      - failedTemplate:
+          errorMessage: "reloader.namespaces is set but reloader.watchGlobally is true; set reloader.watchGlobally=false to use scoped namespace mode."
+
+  - it: does not fail validation for whitespace-only namespaces with watchGlobally true
+    set:
+      reloader:
+        watchGlobally: true
+        namespaces:
+          - " "
+    asserts:
+      # whitespace trims to an empty watch list, so this is global mode, not scoped -> renders fine
+      - hasDocuments:
+          count: 1
+      - notContains:
+          path: spec.template.spec.containers[0].args
+          content: "--namespaces=reloader-ns"
