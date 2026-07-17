@@ -7,14 +7,22 @@ tests:
       - equal:
           path: spec.template.spec.containers[0].image
           value: ghcr.io/stakater/reloader:v2.0.0
-  - it: uses the enterprise image when the image block is overridden
+  # The operator image is swapped manually via image.*; enterprise.enabled only
+  # toggles the subchart and must NOT change the operator image on its own.
+  - it: enterprise.enabled alone does not change the operator image
     set:
       enterprise:
         enabled: true
-      image:
-        repository: ghcr.io/stakater/reloader-enterprise
-        tag: v2.0.0
     asserts:
       - equal:
           path: spec.template.spec.containers[0].image
-          value: ghcr.io/stakater/reloader-enterprise:v2.0.0
+          value: ghcr.io/stakater/reloader:v2.0.0
+  - it: uses the enterprise image when the image block is overridden
+    set:
+      image:
+        repository: ghcr.io/stakater/reloader-enterprise
+        tag: test-tag
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].image
+          value: ghcr.io/stakater/reloader-enterprise:test-tag

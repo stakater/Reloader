@@ -73,7 +73,7 @@ jobs:
     - name: Get version for chart from helm repo
       id: chart_eval
       run: |
-        current_chart_version=$(helm search repo stakater/reloader | tail -n 1 | awk '{print $2}')
+        current_chart_version=$(helm search repo stakater/reloader-v2 | tail -n 1 | awk '{print $2}')
         echo "CURRENT_CHART_VERSION=$(echo ${current_chart_version})" >> $GITHUB_OUTPUT
 
     - name: Get Updated Chart version from Chart.yaml
@@ -82,7 +82,10 @@ jobs:
       with:
         cmd: yq e '.version' deployments/kubernetes/chart/reloader/Chart.yaml
 
+    # Skip the version-increase gate on first publish, when no reloader-v2
+    # chart exists yet in the repo (CURRENT_CHART_VERSION is empty).
     - name: Check Version
+      if: steps.chart_eval.outputs.CURRENT_CHART_VERSION != ''
       uses: aleoyakas/check-semver-increased-action@415c9c60054c2442c03478b6dd96a195deac6695 # v1
       id: check-version
       with:
@@ -90,7 +93,7 @@ jobs:
         previous-version: ${{ steps.chart_eval.outputs.CURRENT_CHART_VERSION }}
 
     - name: Fail if Helm Chart version isnt updated
-      if: steps.check-version.outputs.is-version-increased != 'true'
+      if: steps.chart_eval.outputs.CURRENT_CHART_VERSION != '' && steps.check-version.outputs.is-version-increased != 'true'
       run: |
         echo "Helm Chart Version wasnt updated"
         exit 1

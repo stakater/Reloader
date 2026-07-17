@@ -29,8 +29,11 @@ image:
   pullPolicy: IfNotPresent
 
 # Reloader Enterprise components (console + gateway + dragonfly cache).
-# When enabled, ALSO set image.repository/image.tag to the enterprise operator
-# image and provide global.imagePullSecrets — see the chart README "Enterprise mode".
+# When enabled, ALSO swap the operator image to the enterprise image and provide
+# global.imagePullSecrets — see the chart README "Enterprise mode".
+# NOTE: if global.imageRegistry is set, the operator image resolves from
+# global.imageRegistry + image.name (image.repository is ignored); in that mode
+# override image.name, not image.repository.
 enterprise:
   enabled: false
   console:
