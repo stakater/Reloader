@@ -147,7 +147,8 @@ jobs:
         run: |
           echo GHCR_IMAGE_REPOSITORY=${{env.REGISTRY}}/$(echo ${{ github.repository }} | tr '[:upper:]' '[:lower:]') >> $GITHUB_ENV
 
-      # tag this image as latest as it will be used in plain manifests
+      # v2 branch: publish a floating `v2` tag instead of `latest` so v2
+      # releases never overwrite the v1 `latest` tag used by plain manifests.
       - name: Build and Push Docker Image to ghcr registry
         uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
         with:
@@ -157,7 +158,7 @@ jobs:
           push: true
           platforms: linux/amd64,linux/arm,linux/arm64
           tags: |
-            ${{ env.GHCR_IMAGE_REPOSITORY }}:${{ steps.generate_tag.outputs.RELEASE_VERSION }},${{ env.GHCR_IMAGE_REPOSITORY }}:latest
+            ${{ env.GHCR_IMAGE_REPOSITORY }}:${{ steps.generate_tag.outputs.RELEASE_VERSION }},${{ env.GHCR_IMAGE_REPOSITORY }}:v2
           build-args: |
             VERSION=${{ steps.generate_tag.outputs.RELEASE_VERSION }}
             COMMIT=${{ github.sha }}

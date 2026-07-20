@@ -10,13 +10,13 @@ helm repo add stakater https://stakater.github.io/stakater-charts
 
 helm repo update
 
-helm install stakater/reloader # For helm3 add --generate-name flag or set the release name
+helm install stakater/reloader-v2 # For helm3 add --generate-name flag or set the release name
 
-helm install {{RELEASE_NAME}} stakater/reloader -n {{NAMESPACE}} --set reloader.watchGlobally=false # By default, Reloader watches in all namespaces. To watch in single namespace, set watchGlobally=false
+helm install {{RELEASE_NAME}} stakater/reloader-v2 -n {{NAMESPACE}} --set reloader.watchGlobally=false # By default, Reloader watches in all namespaces. To watch in single namespace, set watchGlobally=false
 
-helm install stakater/reloader --set reloader.watchGlobally=false --namespace test --generate-name # Install Reloader in `test` namespace which will only watch `Deployments`, `Daemonsets` `Statefulsets` and `Rollouts` in `test` namespace.
+helm install stakater/reloader-v2 --set reloader.watchGlobally=false --namespace test --generate-name # Install Reloader in `test` namespace which will only watch `Deployments`, `Daemonsets` `Statefulsets` and `Rollouts` in `test` namespace.
 
-helm install stakater/reloader --set reloader.ignoreJobs=true --set reloader.ignoreCronJobs=true --generate-name # Install Reloader ignoring Jobs and CronJobs from reload monitoring
+helm install stakater/reloader-v2 --set reloader.ignoreJobs=true --set reloader.ignoreCronJobs=true --generate-name # Install Reloader ignoring Jobs and CronJobs from reload monitoring
 ```
 
 ## Uninstalling
@@ -169,6 +169,62 @@ helm uninstall {{RELEASE_NAME}} -n {{NAMESPACE}}
 
 ### Deprecation Notice
 - `serviceMonitor` will be removed in future releases in favor of `PodMonitor`
+
+## Enterprise mode
+
+Reloader Enterprise adds a console, gateway, and cache (dragonfly) alongside the
+operator. It ships as an optional subchart gated by `enterprise.enabled`.
+
+Enabling it requires **four** changes, because the operator image is swapped manually:
+
+1. Turn on the subchart and set the component hostnames:
+
+   ```yaml
+   enterprise:
+     enabled: true
+   global:
+     consoleHost: reloader-enterprise-console.apps.example.com
+     gatewayHost: reloader-enterprise-gateway.apps.example.com
+   ```
+
+2. Swap the operator image to the enterprise image:
+
+   ```yaml
+   image:
+     repository: ghcr.io/stakater/reloader-enterprise
+     tag: v0.0.43   # enterprise operator image tag (v-prefixed); use the latest release
+   ```
+
+   > **Version note:** three different numbers are in play here, don't mix them up:
+   > - `image.tag` above is the **enterprise operator image** tag (e.g. `v0.0.43`).
+   > - the `reloader-enterprise` **subchart** version (`0.1.0`, in `Chart.yaml`
+   >   dependencies) is the Helm chart version, not an image tag.
+   > - the console and gateway images have their own tags again, set under
+   >   `enterprise.console.*` / `enterprise.gateway.*`.
+
+3. Provide an image pull secret — the enterprise operator, console, and gateway
+   images are in **private GHCR**:
+
+   ```bash
+   kubectl create secret docker-registry saap-dockerconfigjson \
+     --docker-server=ghcr.io \
+     --docker-username=<user> --docker-password=<token> \
+     -n <release-namespace>
+   ```
+
+   ```yaml
+   global:
+     imagePullSecrets:
+       - name: saap-dockerconfigjson
+   ```
+
+4. Deeper enterprise component settings pass through under `enterprise.console.*`,
+   `enterprise.gateway.*`, and `enterprise.dragonfly.*` (see the reloader-enterprise
+   chart values for the full list). Values you do not override fall back to the
+   subchart defaults.
+
+When `enterprise.enabled=false` (the default) none of the enterprise components are
+rendered and the operator uses the community image.
 
 ## Release Process
 
