@@ -58,13 +58,17 @@ var _ = Describe("Reference Method Tests", func() {
 				err = adapter.WaitReady(ctx, testNamespace, workloadName, utils.WorkloadReadyTimeout)
 				Expect(err).NotTo(HaveOccurred())
 
+				// Capture the reload-annotation baseline before the trigger to avoid the
+				// TOCTOU race where Reloader reloads before WaitReloaded records its baseline.
+				priorReload, err := adapter.GetPodTemplateAnnotation(ctx, testNamespace, workloadName, utils.AnnotationLastReloadedFrom)
+				Expect(err).NotTo(HaveOccurred())
+
 				By("Updating the ConfigMap")
 				err = utils.UpdateConfigMap(ctx, kubeClient, testNamespace, configMapName, map[string]string{"config_key": "updated_value"})
 				Expect(err).NotTo(HaveOccurred())
 
 				By("Waiting for workload to be reloaded")
-				reloaded, err := adapter.WaitReloaded(ctx, testNamespace, workloadName,
-					utils.AnnotationLastReloadedFrom, utils.ReloadTimeout)
+				reloaded, err := adapter.WaitReloadedFrom(ctx, testNamespace, workloadName, utils.AnnotationLastReloadedFrom, priorReload, utils.ReloadTimeout)
 				Expect(err).NotTo(HaveOccurred())
 				Expect(reloaded).To(BeTrue(), "%s with valueFrom.configMapKeyRef should reload", workloadType)
 			},
@@ -107,13 +111,17 @@ var _ = Describe("Reference Method Tests", func() {
 				err = adapter.WaitReady(ctx, testNamespace, workloadName, utils.WorkloadReadyTimeout)
 				Expect(err).NotTo(HaveOccurred())
 
+				// Capture the reload-annotation baseline before the trigger to avoid the
+				// TOCTOU race where Reloader reloads before WaitReloaded records its baseline.
+				priorReload, err := adapter.GetPodTemplateAnnotation(ctx, testNamespace, workloadName, utils.AnnotationLastReloadedFrom)
+				Expect(err).NotTo(HaveOccurred())
+
 				By("Updating the Secret")
 				err = utils.UpdateSecretFromStrings(ctx, kubeClient, testNamespace, secretName, map[string]string{"secret_key": "updated_secret"})
 				Expect(err).NotTo(HaveOccurred())
 
 				By("Waiting for workload to be reloaded")
-				reloaded, err := adapter.WaitReloaded(ctx, testNamespace, workloadName,
-					utils.AnnotationLastReloadedFrom, utils.ReloadTimeout)
+				reloaded, err := adapter.WaitReloadedFrom(ctx, testNamespace, workloadName, utils.AnnotationLastReloadedFrom, priorReload, utils.ReloadTimeout)
 				Expect(err).NotTo(HaveOccurred())
 				Expect(reloaded).To(BeTrue(), "%s with valueFrom.secretKeyRef should reload", workloadType)
 			},
@@ -154,13 +162,17 @@ var _ = Describe("Reference Method Tests", func() {
 				err = adapter.WaitReady(ctx, testNamespace, workloadName, utils.WorkloadReadyTimeout)
 				Expect(err).NotTo(HaveOccurred())
 
+				// Capture the reload-annotation baseline before the trigger to avoid the
+				// TOCTOU race where Reloader reloads before WaitReloaded records its baseline.
+				priorReload, err := adapter.GetPodTemplateAnnotation(ctx, testNamespace, workloadName, utils.AnnotationLastReloadedFrom)
+				Expect(err).NotTo(HaveOccurred())
+
 				By("Updating the ConfigMap")
 				err = utils.UpdateConfigMap(ctx, kubeClient, testNamespace, configMapName, map[string]string{"config.yaml": "updated"})
 				Expect(err).NotTo(HaveOccurred())
 
 				By("Waiting for workload to be reloaded")
-				reloaded, err := adapter.WaitReloaded(ctx, testNamespace, workloadName,
-					utils.AnnotationLastReloadedFrom, utils.ReloadTimeout)
+				reloaded, err := adapter.WaitReloadedFrom(ctx, testNamespace, workloadName, utils.AnnotationLastReloadedFrom, priorReload, utils.ReloadTimeout)
 				Expect(err).NotTo(HaveOccurred())
 				Expect(reloaded).To(BeTrue(), "%s with projected ConfigMap volume should reload", workloadType)
 			},
@@ -196,13 +208,17 @@ var _ = Describe("Reference Method Tests", func() {
 				err = adapter.WaitReady(ctx, testNamespace, workloadName, utils.WorkloadReadyTimeout)
 				Expect(err).NotTo(HaveOccurred())
 
+				// Capture the reload-annotation baseline before the trigger to avoid the
+				// TOCTOU race where Reloader reloads before WaitReloaded records its baseline.
+				priorReload, err := adapter.GetPodTemplateAnnotation(ctx, testNamespace, workloadName, utils.AnnotationLastReloadedFrom)
+				Expect(err).NotTo(HaveOccurred())
+
 				By("Updating the Secret")
 				err = utils.UpdateSecretFromStrings(ctx, kubeClient, testNamespace, secretName, map[string]string{"credentials": "updated"})
 				Expect(err).NotTo(HaveOccurred())
 
 				By("Waiting for workload to be reloaded")
-				reloaded, err := adapter.WaitReloaded(ctx, testNamespace, workloadName,
-					utils.AnnotationLastReloadedFrom, utils.ReloadTimeout)
+				reloaded, err := adapter.WaitReloadedFrom(ctx, testNamespace, workloadName, utils.AnnotationLastReloadedFrom, priorReload, utils.ReloadTimeout)
 				Expect(err).NotTo(HaveOccurred())
 				Expect(reloaded).To(BeTrue(), "%s with projected Secret volume should reload", workloadType)
 			},
@@ -246,13 +262,17 @@ var _ = Describe("Reference Method Tests", func() {
 				err = adapter.WaitReady(ctx, testNamespace, workloadName, utils.WorkloadReadyTimeout)
 				Expect(err).NotTo(HaveOccurred())
 
+				// Capture the reload-annotation baseline before the trigger to avoid the
+				// TOCTOU race where Reloader reloads before WaitReloaded records its baseline.
+				priorReload, err := adapter.GetPodTemplateAnnotation(ctx, testNamespace, workloadName, utils.AnnotationLastReloadedFrom)
+				Expect(err).NotTo(HaveOccurred())
+
 				By("Updating the ConfigMap")
 				err = utils.UpdateConfigMap(ctx, kubeClient, testNamespace, configMapName, map[string]string{"config.yaml": "updated"})
 				Expect(err).NotTo(HaveOccurred())
 
 				By("Waiting for workload to be reloaded")
-				reloaded, err := adapter.WaitReloaded(ctx, testNamespace, workloadName,
-					utils.AnnotationLastReloadedFrom, utils.ReloadTimeout)
+				reloaded, err := adapter.WaitReloadedFrom(ctx, testNamespace, workloadName, utils.AnnotationLastReloadedFrom, priorReload, utils.ReloadTimeout)
 				Expect(err).NotTo(HaveOccurred())
 				Expect(reloaded).To(BeTrue(), "%s should reload when ConfigMap in mixed projected volume changes", workloadType)
 			},
@@ -296,13 +316,17 @@ var _ = Describe("Reference Method Tests", func() {
 				err = adapter.WaitReady(ctx, testNamespace, workloadName, utils.WorkloadReadyTimeout)
 				Expect(err).NotTo(HaveOccurred())
 
+				// Capture the reload-annotation baseline before the trigger to avoid the
+				// TOCTOU race where Reloader reloads before WaitReloaded records its baseline.
+				priorReload, err := adapter.GetPodTemplateAnnotation(ctx, testNamespace, workloadName, utils.AnnotationLastReloadedFrom)
+				Expect(err).NotTo(HaveOccurred())
+
 				By("Updating the Secret")
 				err = utils.UpdateSecretFromStrings(ctx, kubeClient, testNamespace, secretName, map[string]string{"credentials": "updated"})
 				Expect(err).NotTo(HaveOccurred())
 
 				By("Waiting for workload to be reloaded")
-				reloaded, err := adapter.WaitReloaded(ctx, testNamespace, workloadName,
-					utils.AnnotationLastReloadedFrom, utils.ReloadTimeout)
+				reloaded, err := adapter.WaitReloadedFrom(ctx, testNamespace, workloadName, utils.AnnotationLastReloadedFrom, priorReload, utils.ReloadTimeout)
 				Expect(err).NotTo(HaveOccurred())
 				Expect(reloaded).To(BeTrue(), "%s should reload when Secret in mixed projected volume changes", workloadType)
 			},
@@ -343,13 +367,17 @@ var _ = Describe("Reference Method Tests", func() {
 				err = adapter.WaitReady(ctx, testNamespace, workloadName, utils.WorkloadReadyTimeout)
 				Expect(err).NotTo(HaveOccurred())
 
+				// Capture the reload-annotation baseline before the trigger to avoid the
+				// TOCTOU race where Reloader reloads before WaitReloaded records its baseline.
+				priorReload, err := adapter.GetPodTemplateAnnotation(ctx, testNamespace, workloadName, utils.AnnotationLastReloadedFrom)
+				Expect(err).NotTo(HaveOccurred())
+
 				By("Updating the ConfigMap")
 				err = utils.UpdateConfigMap(ctx, kubeClient, testNamespace, configMapName, map[string]string{"INIT_VAR": "updated"})
 				Expect(err).NotTo(HaveOccurred())
 
 				By("Waiting for workload to be reloaded")
-				reloaded, err := adapter.WaitReloaded(ctx, testNamespace, workloadName,
-					utils.AnnotationLastReloadedFrom, utils.ReloadTimeout)
+				reloaded, err := adapter.WaitReloadedFrom(ctx, testNamespace, workloadName, utils.AnnotationLastReloadedFrom, priorReload, utils.ReloadTimeout)
 				Expect(err).NotTo(HaveOccurred())
 				Expect(reloaded).To(BeTrue(), "%s with init container ConfigMap should reload", workloadType)
 			},
@@ -385,13 +413,17 @@ var _ = Describe("Reference Method Tests", func() {
 				err = adapter.WaitReady(ctx, testNamespace, workloadName, utils.WorkloadReadyTimeout)
 				Expect(err).NotTo(HaveOccurred())
 
+				// Capture the reload-annotation baseline before the trigger to avoid the
+				// TOCTOU race where Reloader reloads before WaitReloaded records its baseline.
+				priorReload, err := adapter.GetPodTemplateAnnotation(ctx, testNamespace, workloadName, utils.AnnotationLastReloadedFrom)
+				Expect(err).NotTo(HaveOccurred())
+
 				By("Updating the Secret")
 				err = utils.UpdateSecretFromStrings(ctx, kubeClient, testNamespace, secretName, map[string]string{"INIT_SECRET": "updated"})
 				Expect(err).NotTo(HaveOccurred())
 
 				By("Waiting for workload to be reloaded")
-				reloaded, err := adapter.WaitReloaded(ctx, testNamespace, workloadName,
-					utils.AnnotationLastReloadedFrom, utils.ReloadTimeout)
+				reloaded, err := adapter.WaitReloadedFrom(ctx, testNamespace, workloadName, utils.AnnotationLastReloadedFrom, priorReload, utils.ReloadTimeout)
 				Expect(err).NotTo(HaveOccurred())
 				Expect(reloaded).To(BeTrue(), "%s with init container Secret should reload", workloadType)
 			},
@@ -429,13 +461,17 @@ var _ = Describe("Reference Method Tests", func() {
 				err = adapter.WaitReady(ctx, testNamespace, workloadName, utils.WorkloadReadyTimeout)
 				Expect(err).NotTo(HaveOccurred())
 
+				// Capture the reload-annotation baseline before the trigger to avoid the
+				// TOCTOU race where Reloader reloads before WaitReloaded records its baseline.
+				priorReload, err := adapter.GetPodTemplateAnnotation(ctx, testNamespace, workloadName, utils.AnnotationLastReloadedFrom)
+				Expect(err).NotTo(HaveOccurred())
+
 				By("Updating the ConfigMap")
 				err = utils.UpdateConfigMap(ctx, kubeClient, testNamespace, configMapName, map[string]string{"config.yaml": "updated"})
 				Expect(err).NotTo(HaveOccurred())
 
 				By("Waiting for workload to be reloaded")
-				reloaded, err := adapter.WaitReloaded(ctx, testNamespace, workloadName,
-					utils.AnnotationLastReloadedFrom, utils.ReloadTimeout)
+				reloaded, err := adapter.WaitReloadedFrom(ctx, testNamespace, workloadName, utils.AnnotationLastReloadedFrom, priorReload, utils.ReloadTimeout)
 				Expect(err).NotTo(HaveOccurred())
 				Expect(reloaded).To(BeTrue(), "%s with init container ConfigMap volume should reload", workloadType)
 			},
@@ -471,13 +507,17 @@ var _ = Describe("Reference Method Tests", func() {
 				err = adapter.WaitReady(ctx, testNamespace, workloadName, utils.WorkloadReadyTimeout)
 				Expect(err).NotTo(HaveOccurred())
 
+				// Capture the reload-annotation baseline before the trigger to avoid the
+				// TOCTOU race where Reloader reloads before WaitReloaded records its baseline.
+				priorReload, err := adapter.GetPodTemplateAnnotation(ctx, testNamespace, workloadName, utils.AnnotationLastReloadedFrom)
+				Expect(err).NotTo(HaveOccurred())
+
 				By("Updating the Secret")
 				err = utils.UpdateSecretFromStrings(ctx, kubeClient, testNamespace, secretName, map[string]string{"credentials": "updated"})
 				Expect(err).NotTo(HaveOccurred())
 
 				By("Waiting for workload to be reloaded")
-				reloaded, err := adapter.WaitReloaded(ctx, testNamespace, workloadName,
-					utils.AnnotationLastReloadedFrom, utils.ReloadTimeout)
+				reloaded, err := adapter.WaitReloadedFrom(ctx, testNamespace, workloadName, utils.AnnotationLastReloadedFrom, priorReload, utils.ReloadTimeout)
 				Expect(err).NotTo(HaveOccurred())
 				Expect(reloaded).To(BeTrue(), "%s with init container Secret volume should reload", workloadType)
 			},
@@ -520,13 +560,17 @@ var _ = Describe("Reference Method Tests", func() {
 				err = adapter.WaitReady(ctx, testNamespace, workloadName, utils.WorkloadReadyTimeout)
 				Expect(err).NotTo(HaveOccurred())
 
+				// Capture the reload-annotation baseline before the trigger to avoid the
+				// TOCTOU race where Reloader reloads before WaitReloaded records its baseline.
+				priorReload, err := adapter.GetPodTemplateAnnotation(ctx, testNamespace, workloadName, utils.AnnotationLastReloadedFrom)
+				Expect(err).NotTo(HaveOccurred())
+
 				By("Updating the ConfigMap")
 				err = utils.UpdateConfigMap(ctx, kubeClient, testNamespace, configMapName, map[string]string{"auto_config_key": "updated"})
 				Expect(err).NotTo(HaveOccurred())
 
 				By("Waiting for workload to be reloaded")
-				reloaded, err := adapter.WaitReloaded(ctx, testNamespace, workloadName,
-					utils.AnnotationLastReloadedFrom, utils.ReloadTimeout)
+				reloaded, err := adapter.WaitReloadedFrom(ctx, testNamespace, workloadName, utils.AnnotationLastReloadedFrom, priorReload, utils.ReloadTimeout)
 				Expect(err).NotTo(HaveOccurred())
 				Expect(reloaded).To(BeTrue(), "%s with auto=true and valueFrom should reload", workloadType)
 			},

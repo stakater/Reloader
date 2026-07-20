@@ -60,13 +60,17 @@ var _ = Describe("Reload On Create Flag Tests", Serial, func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Creating the ConfigMap that the Deployment references")
+			// Capture the reload-annotation baseline before the trigger to avoid the
+			// TOCTOU race where Reloader reloads before WaitReloaded records its baseline.
+			priorReload, err := adapter.GetPodTemplateAnnotation(ctx, createNamespace, deploymentName, utils.AnnotationLastReloadedFrom)
+			Expect(err).NotTo(HaveOccurred())
 			_, err = utils.CreateConfigMap(ctx, kubeClient, createNamespace, configMapName,
 				map[string]string{"key": "value"}, nil)
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Waiting for Deployment to be reloaded (reloadOnCreate=true)")
-			reloaded, err := adapter.WaitReloaded(ctx, createNamespace, deploymentName,
-				utils.AnnotationLastReloadedFrom, utils.ReloadTimeout)
+			reloaded, err := adapter.WaitReloadedFrom(ctx, createNamespace, deploymentName,
+				utils.AnnotationLastReloadedFrom, priorReload, utils.ReloadTimeout)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(reloaded).To(BeTrue(), "Deployment should reload when referenced ConfigMap is created")
 		})
@@ -86,13 +90,17 @@ var _ = Describe("Reload On Create Flag Tests", Serial, func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Creating the Secret that the Deployment references")
+			// Capture the reload-annotation baseline before the trigger to avoid the
+			// TOCTOU race where Reloader reloads before WaitReloaded records its baseline.
+			priorReload, err := adapter.GetPodTemplateAnnotation(ctx, createNamespace, deploymentName, utils.AnnotationLastReloadedFrom)
+			Expect(err).NotTo(HaveOccurred())
 			_, err = utils.CreateSecretFromStrings(ctx, kubeClient, createNamespace, secretName,
 				map[string]string{"password": "secret"}, nil)
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Waiting for Deployment to be reloaded (reloadOnCreate=true)")
-			reloaded, err := adapter.WaitReloaded(ctx, createNamespace, deploymentName,
-				utils.AnnotationLastReloadedFrom, utils.ReloadTimeout)
+			reloaded, err := adapter.WaitReloadedFrom(ctx, createNamespace, deploymentName,
+				utils.AnnotationLastReloadedFrom, priorReload, utils.ReloadTimeout)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(reloaded).To(BeTrue(), "Deployment should reload when referenced Secret is created")
 		})
@@ -127,14 +135,18 @@ var _ = Describe("Reload On Create Flag Tests", Serial, func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Creating the ConfigMap that the Deployment references")
+			// Capture the reload-annotation baseline before the trigger to avoid the
+			// TOCTOU race where Reloader reloads before WaitReloaded records its baseline.
+			priorReload, err := adapter.GetPodTemplateAnnotation(ctx, createNamespace, deploymentName, utils.AnnotationLastReloadedFrom)
+			Expect(err).NotTo(HaveOccurred())
 			_, err = utils.CreateConfigMap(ctx, kubeClient, createNamespace, configMapName,
 				map[string]string{"key": "value"}, nil)
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Verifying Deployment was NOT reloaded (reloadOnCreate=false)")
 			time.Sleep(utils.NegativeTestWait)
-			reloaded, err := adapter.WaitReloaded(ctx, createNamespace, deploymentName,
-				utils.AnnotationLastReloadedFrom, utils.ShortTimeout)
+			reloaded, err := adapter.WaitReloadedFrom(ctx, createNamespace, deploymentName,
+				utils.AnnotationLastReloadedFrom, priorReload, utils.ShortTimeout)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(reloaded).To(BeFalse(), "Deployment should NOT reload on create when reloadOnCreate=false")
 		})

@@ -72,6 +72,11 @@ var _ = Describe("CSI SecretProviderClass Tests", Label("csi"), Serial, func() {
 			Expect(err).NotTo(HaveOccurred())
 			GinkgoWriter.Printf("Initial SPCPS version: %s\n", initialVersion)
 
+			// Capture the reload-annotation baseline before the trigger: Reloader reacts to the
+			// same SPCPS update the test waits on below, so it may reload before WaitReloaded runs.
+			priorReload, err := adapter.GetPodTemplateAnnotation(ctx, testNamespace, deploymentName, utils.AnnotationLastReloadedFrom)
+			Expect(err).NotTo(HaveOccurred())
+
 			By("Updating the Vault secret")
 			err = utils.UpdateVaultSecret(
 				ctx, kubeClient, restConfig, vaultSecretPath, map[string]string{"api_key": "updated-value-v2"})
@@ -83,9 +88,9 @@ var _ = Describe("CSI SecretProviderClass Tests", Label("csi"), Serial, func() {
 			GinkgoWriter.Println("CSI driver synced new secret version")
 
 			By("Waiting for Deployment to be reloaded by Reloader")
-			reloaded, err := adapter.WaitReloaded(
+			reloaded, err := adapter.WaitReloadedFrom(
 				ctx, testNamespace, deploymentName,
-				utils.AnnotationLastReloadedFrom, utils.ReloadTimeout,
+				utils.AnnotationLastReloadedFrom, priorReload, utils.ReloadTimeout,
 			)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(reloaded).To(BeTrue(), "Deployment should have been reloaded after Vault secret change")
@@ -124,6 +129,10 @@ var _ = Describe("CSI SecretProviderClass Tests", Label("csi"), Serial, func() {
 
 			By("First update to Vault secret")
 			initialVersion, _ := utils.GetSPCPSVersion(ctx, csiClient, testNamespace, spcpsName)
+			// Capture the baseline before the trigger to avoid racing Reloader's own reaction
+			// to the SPCPS update below.
+			priorReload, err := adapter.GetPodTemplateAnnotation(ctx, testNamespace, deploymentName, utils.AnnotationLastReloadedFrom)
+			Expect(err).NotTo(HaveOccurred())
 			err = utils.UpdateVaultSecret(
 				ctx, kubeClient, restConfig, vaultSecretPath, map[string]string{"password": "pass-v2"})
 			Expect(err).NotTo(HaveOccurred())
@@ -133,9 +142,9 @@ var _ = Describe("CSI SecretProviderClass Tests", Label("csi"), Serial, func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Waiting for first reload")
-			reloaded, err := adapter.WaitReloaded(
+			reloaded, err := adapter.WaitReloadedFrom(
 				ctx, testNamespace, deploymentName,
-				utils.AnnotationLastReloadedFrom, utils.ReloadTimeout,
+				utils.AnnotationLastReloadedFrom, priorReload, utils.ReloadTimeout,
 			)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(reloaded).To(BeTrue())
@@ -207,6 +216,11 @@ var _ = Describe("CSI SecretProviderClass Tests", Label("csi"), Serial, func() {
 			err = adapter.WaitReady(ctx, testNamespace, deploymentName, utils.WorkloadReadyTimeout)
 			Expect(err).NotTo(HaveOccurred())
 
+			// Capture the reload-annotation baseline before the trigger to avoid the
+			// TOCTOU race where Reloader reloads before WaitReloaded records its baseline.
+			priorReload, err := adapter.GetPodTemplateAnnotation(ctx, testNamespace, deploymentName, utils.AnnotationLastReloadedFrom)
+			Expect(err).NotTo(HaveOccurred())
+
 			By("Updating the ConfigMap (should NOT trigger reload)")
 			err = utils.UpdateConfigMap(
 				ctx, kubeClient, testNamespace, configMapName, map[string]string{"key": "updated"})
@@ -214,9 +228,9 @@ var _ = Describe("CSI SecretProviderClass Tests", Label("csi"), Serial, func() {
 
 			By("Verifying Deployment was NOT reloaded for ConfigMap change")
 			time.Sleep(utils.NegativeTestWait)
-			reloaded, err := adapter.WaitReloaded(
+			reloaded, err := adapter.WaitReloadedFrom(
 				ctx, testNamespace, deploymentName,
-				utils.AnnotationLastReloadedFrom, utils.ShortTimeout,
+				utils.AnnotationLastReloadedFrom, priorReload, utils.ShortTimeout,
 			)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(reloaded).To(BeFalse(), "SPC auto annotation should not trigger reload for ConfigMap changes")
@@ -230,6 +244,11 @@ var _ = Describe("CSI SecretProviderClass Tests", Label("csi"), Serial, func() {
 			By("Getting SPCPS version before Vault update")
 			initialVersion, _ := utils.GetSPCPSVersion(ctx, csiClient, testNamespace, spcpsName)
 
+			// Capture the baseline before the trigger to avoid racing Reloader's own reaction
+			// to the SPCPS update below.
+			priorReload, err = adapter.GetPodTemplateAnnotation(ctx, testNamespace, deploymentName, utils.AnnotationLastReloadedFrom)
+			Expect(err).NotTo(HaveOccurred())
+
 			By("Updating the Vault secret (should trigger reload)")
 			err = utils.UpdateVaultSecret(
 				ctx, kubeClient, restConfig, vaultSecretPath, map[string]string{"token": "token-v2"})
@@ -240,9 +259,9 @@ var _ = Describe("CSI SecretProviderClass Tests", Label("csi"), Serial, func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Verifying Deployment WAS reloaded for Vault secret change")
-			reloaded, err = adapter.WaitReloaded(
+			reloaded, err = adapter.WaitReloadedFrom(
 				ctx, testNamespace, deploymentName,
-				utils.AnnotationLastReloadedFrom, utils.ReloadTimeout,
+				utils.AnnotationLastReloadedFrom, priorReload, utils.ReloadTimeout,
 			)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(reloaded).To(BeTrue(), "SPC auto annotation should trigger reload for Vault secret changes")
@@ -281,15 +300,20 @@ var _ = Describe("CSI SecretProviderClass Tests", Label("csi"), Serial, func() {
 			err = adapter.WaitReady(ctx, testNamespace, deploymentName, utils.WorkloadReadyTimeout)
 			Expect(err).NotTo(HaveOccurred())
 
+			// Capture the reload-annotation baseline before the trigger to avoid the
+			// TOCTOU race where Reloader reloads before WaitReloaded records its baseline.
+			priorReload, err := adapter.GetPodTemplateAnnotation(ctx, testNamespace, deploymentName, utils.AnnotationLastReloadedFrom)
+			Expect(err).NotTo(HaveOccurred())
+
 			By("Updating the ConfigMap (should trigger reload with auto=true)")
 			err = utils.UpdateConfigMap(
 				ctx, kubeClient, testNamespace, configMapName, map[string]string{"key": "updated"})
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Verifying Deployment WAS reloaded for ConfigMap change")
-			reloaded, err := adapter.WaitReloaded(
+			reloaded, err := adapter.WaitReloadedFrom(
 				ctx, testNamespace, deploymentName,
-				utils.AnnotationLastReloadedFrom, utils.ReloadTimeout,
+				utils.AnnotationLastReloadedFrom, priorReload, utils.ReloadTimeout,
 			)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(reloaded).To(BeTrue(), "Combined auto=true should trigger reload for ConfigMap changes")

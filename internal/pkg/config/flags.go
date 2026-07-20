@@ -5,6 +5,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/go-logr/logr"
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
 	"k8s.io/apimachinery/pkg/labels"
@@ -223,10 +224,11 @@ func BindFlags(fs *pflag.FlagSet, cfg *Config) {
 		"Annotation to indicate when a deployment was paused by Reloader",
 	)
 
-	// Watched namespace (for single-namespace mode)
-	fs.String(
-		"watch-namespace", cfg.WatchedNamespace,
-		"Namespace to watch (empty for all namespaces)",
+	// Watched namespaces (scoped mode). Empty means watch all namespaces;
+	// KUBERNETES_NAMESPACE (env) is used as a single-namespace fallback.
+	fs.StringSlice(
+		"namespaces", nil,
+		"explicit list of namespaces to watch (scoped mode; creates no ClusterRole)",
 	)
 
 	// Alerting
@@ -263,9 +265,17 @@ func BindFlags(fs *pflag.FlagSet, cfg *Config) {
 	_ = v.BindEnv("alert-proxy", "ALERT_PROXY", "ALERT_WEBHOOK_PROXY")
 }
 
-// ApplyFlags applies flag values from viper to the config struct.
-// Call this after parsing flags.
-func ApplyFlags(cfg *Config) error {
+// LoggingFlags returns the log format and level from parsed flags/env. The
+// caller uses these to configure logging before ApplyFlags runs, so ApplyFlags
+// can log warnings through a ready logger.
+func LoggingFlags() (format, level string) {
+	return v.GetString("log-format"), v.GetString("log-level")
+}
+
+// ApplyFlags applies flag values from viper to the config struct. Call this
+// after parsing flags. It finalizes namespace scope and logs any warnings it
+// produces through the given logger.
+func ApplyFlags(cfg *Config, log logr.Logger) error {
 	// Boolean flags
 	cfg.AutoReloadAll = v.GetBool("auto-reload-all")
 	cfg.SyncAfterRestart = v.GetBool("sync-after-restart")
@@ -294,9 +304,16 @@ func ApplyFlags(cfg *Config) error {
 	cfg.MetricsAddr = v.GetString("metrics-addr")
 	cfg.HealthAddr = v.GetString("health-addr")
 	cfg.PProfAddr = v.GetString("pprof-addr")
-	cfg.WatchedNamespace = v.GetString("watch-namespace")
-	if cfg.WatchedNamespace == "" {
-		cfg.WatchedNamespace = v.GetString("KUBERNETES_NAMESPACE")
+	// Namespace scope: an explicit --namespaces list takes precedence (scoped
+	// mode); otherwise fall back to KUBERNETES_NAMESPACE for single-namespace
+	// mode; an empty result means global (all-namespaces) mode.
+	// Trim and drop empty entries from the slice to prevent empty strings from
+	// being treated as "watch all namespaces" by controller-runtime.
+	cfg.WatchedNamespaces = trimAndDropEmptyStrings(v.GetStringSlice("namespaces"))
+	if len(cfg.WatchedNamespaces) == 0 {
+		if ns := v.GetString("KUBERNETES_NAMESPACE"); ns != "" {
+			cfg.WatchedNamespaces = []string{ns}
+		}
 	}
 
 	// Leader election
@@ -381,6 +398,20 @@ func ApplyFlags(cfg *Config) error {
 		cfg.LeaderElection.RetryPeriod = 2 * time.Second
 	}
 
+	// Namespace-selector and namespaces-to-ignore are only honored in global
+	// mode; in scoped or single-namespace mode the watched set is already
+	// explicit, so drop them and log where it happens.
+	if !cfg.IsGlobalMode() {
+		if len(cfg.NamespaceSelectors) > 0 {
+			log.Info("namespace-selector is set but is only honored in global mode; ignoring it")
+			cfg.NamespaceSelectors = nil
+			cfg.NamespaceSelectorStrings = nil
+		}
+		if len(cfg.IgnoredNamespaces) > 0 {
+			log.Info("namespaces-to-ignore is set but is only honored in global mode; ignoring it")
+			cfg.IgnoredNamespaces = nil
+		}
+	}
 	return nil
 }
 
@@ -409,6 +440,24 @@ func splitAndTrim(s string) []string {
 		if p != "" {
 			result = append(result, p)
 		}
+	}
+	return result
+}
+
+// trimAndDropEmptyStrings trims whitespace from each string in a slice and drops empty entries.
+func trimAndDropEmptyStrings(ss []string) []string {
+	if len(ss) == 0 {
+		return nil
+	}
+	result := make([]string, 0, len(ss))
+	for _, s := range ss {
+		s = strings.TrimSpace(s)
+		if s != "" {
+			result = append(result, s)
+		}
+	}
+	if len(result) == 0 {
+		return nil
 	}
 	return result
 }
