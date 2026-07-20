@@ -82,7 +82,7 @@ tests:
           of: RoleBinding
       - equal:
           path: roleRef.name
-          value: reloader-reloader-role
+          value: reloader-reloader-v2-role
       - equal:
           path: subjects[0].namespace
           value: reloader-ns
@@ -97,7 +97,7 @@ tests:
     template: role.yaml
     documentSelector:
       path: metadata.name
-      value: reloader-reloader-metadata-role
+      value: reloader-reloader-v2-metadata-role
     asserts:
       - equal:
           path: metadata.namespace
@@ -119,7 +119,7 @@ tests:
     template: role.yaml
     documentSelector:
       path: metadata.name
-      value: reloader-reloader-metadata-role
+      value: reloader-reloader-v2-metadata-role
     asserts:
       - contains:
           path: rules
@@ -143,7 +143,7 @@ tests:
     template: role.yaml
     documentSelector:
       path: metadata.name
-      value: reloader-reloader-metadata-role
+      value: reloader-reloader-v2-metadata-role
     asserts:
       - notContains:
           path: rules
@@ -194,7 +194,7 @@ tests:
         template: role.yaml
       - equal:
           path: metadata.name
-          value: reloader-reloader-metadata-role
+          value: reloader-reloader-v2-metadata-role
         template: role.yaml
         documentIndex: 0
 
