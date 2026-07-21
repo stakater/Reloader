@@ -11,9 +11,6 @@ import (
 )
 
 // PauseHandler handles pause deployment logic.
-//
-// NOTE: not part of the public API — its methods reference internal/pkg/workload
-// and are therefore not usable from outside this module.
 type PauseHandler struct {
 	cfg *config.Config
 }

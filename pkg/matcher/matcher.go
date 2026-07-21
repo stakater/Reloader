@@ -1,4 +1,8 @@
-package reload
+// Package matcher provides the annotation-based reload decision API. Given a
+// changed resource and a workload's annotations, Matcher reports whether the
+// workload should be reloaded. It is workload-type agnostic and safe to import
+// from outside this module.
+package matcher
 
 import (
 	"regexp"

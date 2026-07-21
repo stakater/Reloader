@@ -12,8 +12,9 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	csiv1 "sigs.k8s.io/secrets-store-csi-driver/apis/v1"
 
+	"github.com/stakater/Reloader/internal/pkg/reload"
 	"github.com/stakater/Reloader/pkg/config"
-	"github.com/stakater/Reloader/pkg/reload"
+	"github.com/stakater/Reloader/pkg/matcher"
 )
 
 // SecretProviderClassReconciler watches SecretProviderClassPodStatus (the per-pod
@@ -28,7 +29,7 @@ func NewSecretProviderClassReconciler(deps ResourceReconcilerDeps, apiReader cli
 	return NewResourceReconciler(
 		deps,
 		ResourceConfig[*csiv1.SecretProviderClassPodStatus]{
-			ResourceType:   reload.ResourceTypeSecretProviderClass,
+			ResourceType:   matcher.ResourceTypeSecretProviderClass,
 			NewResource:    func() *csiv1.SecretProviderClassPodStatus { return &csiv1.SecretProviderClassPodStatus{} },
 			ResolveChange:  resolveSecretProviderClassChange,
 			SkipOnNotFound: true,

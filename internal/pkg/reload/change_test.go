@@ -4,6 +4,8 @@ import (
 	"testing"
 
 	csiv1 "sigs.k8s.io/secrets-store-csi-driver/apis/v1"
+
+	"github.com/stakater/Reloader/pkg/matcher"
 )
 
 func TestSecretProviderClassChange(t *testing.T) {
@@ -28,7 +30,7 @@ func TestSecretProviderClassChange(t *testing.T) {
 	if c.GetNamespace() != "ns1" {
 		t.Fatalf("GetNamespace() = %q", c.GetNamespace())
 	}
-	if c.GetResourceType() != ResourceTypeSecretProviderClass {
+	if c.GetResourceType() != matcher.ResourceTypeSecretProviderClass {
 		t.Fatalf("GetResourceType() = %q", c.GetResourceType())
 	}
 	if c.GetEventType() != EventTypeUpdate {

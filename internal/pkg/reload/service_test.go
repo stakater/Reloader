@@ -13,6 +13,7 @@ import (
 	"github.com/stakater/Reloader/internal/pkg/testutil"
 	"github.com/stakater/Reloader/internal/pkg/workload"
 	"github.com/stakater/Reloader/pkg/config"
+	"github.com/stakater/Reloader/pkg/matcher"
 )
 
 func TestService_ProcessConfigMap_AutoReload(t *testing.T) {
@@ -319,7 +320,7 @@ func TestService_ApplyReload_EnvVarStrategy(t *testing.T) {
 	accessor := workload.NewDeploymentWorkload(deploy)
 
 	ctx := context.Background()
-	updated, err := svc.ApplyReload(ctx, accessor, "test-cm", ResourceTypeConfigMap, "default", "abc123hash", false)
+	updated, err := svc.ApplyReload(ctx, accessor, "test-cm", matcher.ResourceTypeConfigMap, "default", "abc123hash", false)
 
 	if err != nil {
 		t.Fatalf("ApplyReload failed: %v", err)
@@ -363,7 +364,7 @@ func TestService_ApplyReload_AnnotationStrategy(t *testing.T) {
 	accessor := workload.NewDeploymentWorkload(deploy)
 
 	ctx := context.Background()
-	updated, err := svc.ApplyReload(ctx, accessor, "test-cm", ResourceTypeConfigMap, "default", "abc123hash", false)
+	updated, err := svc.ApplyReload(ctx, accessor, "test-cm", matcher.ResourceTypeConfigMap, "default", "abc123hash", false)
 
 	if err != nil {
 		t.Fatalf("ApplyReload failed: %v", err)
@@ -395,7 +396,7 @@ func TestService_ApplyReload_EnvVarDeletion(t *testing.T) {
 
 	ctx := context.Background()
 	// Empty hash signals deletion
-	updated, err := svc.ApplyReload(ctx, accessor, "test-cm", ResourceTypeConfigMap, "default", "", false)
+	updated, err := svc.ApplyReload(ctx, accessor, "test-cm", matcher.ResourceTypeConfigMap, "default", "", false)
 
 	if err != nil {
 		t.Fatalf("ApplyReload failed: %v", err)
@@ -439,7 +440,7 @@ func TestService_ApplyReload_NoChangeIfSameHash(t *testing.T) {
 	accessor := workload.NewDeploymentWorkload(deploy)
 
 	ctx := context.Background()
-	updated, err := svc.ApplyReload(ctx, accessor, "test-cm", ResourceTypeConfigMap, "default", "abc123hash", false)
+	updated, err := svc.ApplyReload(ctx, accessor, "test-cm", matcher.ResourceTypeConfigMap, "default", "abc123hash", false)
 
 	if err != nil {
 		t.Fatalf("ApplyReload failed: %v", err)
@@ -673,7 +674,7 @@ func TestService_findVolumeUsingResource_ConfigMap(t *testing.T) {
 		name         string
 		volumes      []corev1.Volume
 		resourceName string
-		resourceType ResourceType
+		resourceType matcher.ResourceType
 		wantVolume   string
 	}{
 		{
@@ -689,7 +690,7 @@ func TestService_findVolumeUsingResource_ConfigMap(t *testing.T) {
 				},
 			},
 			resourceName: "my-cm",
-			resourceType: ResourceTypeConfigMap,
+			resourceType: matcher.ResourceTypeConfigMap,
 			wantVolume:   "config-vol",
 		},
 		{
@@ -711,7 +712,7 @@ func TestService_findVolumeUsingResource_ConfigMap(t *testing.T) {
 				},
 			},
 			resourceName: "projected-cm",
-			resourceType: ResourceTypeConfigMap,
+			resourceType: matcher.ResourceTypeConfigMap,
 			wantVolume:   "projected-vol",
 		},
 		{
@@ -727,14 +728,14 @@ func TestService_findVolumeUsingResource_ConfigMap(t *testing.T) {
 				},
 			},
 			resourceName: "my-cm",
-			resourceType: ResourceTypeConfigMap,
+			resourceType: matcher.ResourceTypeConfigMap,
 			wantVolume:   "",
 		},
 		{
 			name:         "empty volumes",
 			volumes:      []corev1.Volume{},
 			resourceName: "my-cm",
-			resourceType: ResourceTypeConfigMap,
+			resourceType: matcher.ResourceTypeConfigMap,
 			wantVolume:   "",
 		},
 	}
@@ -817,7 +818,7 @@ func TestService_findVolumeUsingResource_Secret(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(
 			tt.name, func(t *testing.T) {
-				got := svc.findVolumeUsingResource(tt.volumes, tt.resourceName, ResourceTypeSecret)
+				got := svc.findVolumeUsingResource(tt.volumes, tt.resourceName, matcher.ResourceTypeSecret)
 				if got != tt.wantVolume {
 					t.Errorf("findVolumeUsingResource() = %q, want %q", got, tt.wantVolume)
 				}
@@ -995,7 +996,7 @@ func TestService_findContainerWithEnvRef_ConfigMap(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(
 			tt.name, func(t *testing.T) {
-				got := svc.findContainerWithEnvRef(tt.containers, tt.resourceName, ResourceTypeConfigMap)
+				got := svc.findContainerWithEnvRef(tt.containers, tt.resourceName, matcher.ResourceTypeConfigMap)
 				if tt.shouldMatch {
 					if got == nil {
 						t.Error("Expected to find a container, got nil")
@@ -1084,7 +1085,7 @@ func TestService_findContainerWithEnvRef_Secret(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(
 			tt.name, func(t *testing.T) {
-				got := svc.findContainerWithEnvRef(tt.containers, tt.resourceName, ResourceTypeSecret)
+				got := svc.findContainerWithEnvRef(tt.containers, tt.resourceName, matcher.ResourceTypeSecret)
 				if tt.shouldMatch {
 					if got == nil {
 						t.Error("Expected to find a container, got nil")
@@ -1128,7 +1129,7 @@ func TestService_findTargetContainer_AutoReload(t *testing.T) {
 	}
 	accessor := workload.NewDeploymentWorkload(deploy)
 
-	container := svc.findTargetContainer(accessor, "my-cm", ResourceTypeConfigMap, true)
+	container := svc.findTargetContainer(accessor, "my-cm", matcher.ResourceTypeConfigMap, true)
 	if container == nil {
 		t.Fatal("Expected to find a container")
 	}
@@ -1166,7 +1167,7 @@ func TestService_findTargetContainer_AutoReload_EnvRef(t *testing.T) {
 	}
 	accessor := workload.NewDeploymentWorkload(deploy)
 
-	container := svc.findTargetContainer(accessor, "my-cm", ResourceTypeConfigMap, true)
+	container := svc.findTargetContainer(accessor, "my-cm", matcher.ResourceTypeConfigMap, true)
 	if container == nil {
 		t.Fatal("Expected to find a container")
 	}
@@ -1208,7 +1209,7 @@ func TestService_findTargetContainer_AutoReload_InitContainer(t *testing.T) {
 	}
 	accessor := workload.NewDeploymentWorkload(deploy)
 
-	container := svc.findTargetContainer(accessor, "my-cm", ResourceTypeConfigMap, true)
+	container := svc.findTargetContainer(accessor, "my-cm", matcher.ResourceTypeConfigMap, true)
 	if container == nil {
 		t.Fatal("Expected to find a container")
 	}
@@ -1249,7 +1250,7 @@ func TestService_findTargetContainer_AutoReload_InitContainerEnvRef(t *testing.T
 	}
 	accessor := workload.NewDeploymentWorkload(deploy)
 
-	container := svc.findTargetContainer(accessor, "my-cm", ResourceTypeConfigMap, true)
+	container := svc.findTargetContainer(accessor, "my-cm", matcher.ResourceTypeConfigMap, true)
 	if container == nil {
 		t.Fatal("Expected to find a container")
 	}
@@ -1267,7 +1268,7 @@ func TestService_findTargetContainer_NoContainers(t *testing.T) {
 	deploy.Spec.Template.Spec.Containers = []corev1.Container{}
 	accessor := workload.NewDeploymentWorkload(deploy)
 
-	container := svc.findTargetContainer(accessor, "my-cm", ResourceTypeConfigMap, false)
+	container := svc.findTargetContainer(accessor, "my-cm", matcher.ResourceTypeConfigMap, false)
 	if container != nil {
 		t.Error("Expected nil container for empty container list")
 	}
@@ -1285,7 +1286,7 @@ func TestService_findTargetContainer_NonAutoReload(t *testing.T) {
 	accessor := workload.NewDeploymentWorkload(deploy)
 
 	// Without autoReload, should return first container
-	container := svc.findTargetContainer(accessor, "my-cm", ResourceTypeConfigMap, false)
+	container := svc.findTargetContainer(accessor, "my-cm", matcher.ResourceTypeConfigMap, false)
 	if container == nil {
 		t.Fatal("Expected to find a container")
 	}
@@ -1306,7 +1307,7 @@ func TestService_findTargetContainer_AutoReload_FallbackToFirst(t *testing.T) {
 	}
 	accessor := workload.NewDeploymentWorkload(deploy)
 
-	container := svc.findTargetContainer(accessor, "non-existent", ResourceTypeConfigMap, true)
+	container := svc.findTargetContainer(accessor, "non-existent", matcher.ResourceTypeConfigMap, true)
 	if container == nil {
 		t.Fatal("Expected to find a container")
 	}
@@ -1420,7 +1421,7 @@ func TestService_ApplyReload_SPC_TargetsMountingContainer(t *testing.T) {
 	accessor := workload.NewDeploymentWorkload(dep)
 
 	// autoReload=true exercises volume-based container targeting.
-	updated, err := svc.ApplyReload(context.Background(), accessor, "my-spc", ResourceTypeSecretProviderClass, "default", "spchash", true)
+	updated, err := svc.ApplyReload(context.Background(), accessor, "my-spc", matcher.ResourceTypeSecretProviderClass, "default", "spchash", true)
 	if err != nil {
 		t.Fatalf("ApplyReload failed: %v", err)
 	}

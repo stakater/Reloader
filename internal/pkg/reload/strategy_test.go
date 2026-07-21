@@ -7,6 +7,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 
 	"github.com/stakater/Reloader/pkg/config"
+	"github.com/stakater/Reloader/pkg/matcher"
 )
 
 func TestEnvVarStrategy_Apply(t *testing.T) {
@@ -20,7 +21,7 @@ func TestEnvVarStrategy_Apply(t *testing.T) {
 
 		input := StrategyInput{
 			ResourceName: "my-config",
-			ResourceType: ResourceTypeConfigMap,
+			ResourceType: matcher.ResourceTypeConfigMap,
 			Namespace:    "default",
 			Hash:         "abc123",
 			Container:    container,
@@ -57,7 +58,7 @@ func TestEnvVarStrategy_Apply(t *testing.T) {
 
 		input := StrategyInput{
 			ResourceName: "my-config",
-			ResourceType: ResourceTypeConfigMap,
+			ResourceType: matcher.ResourceTypeConfigMap,
 			Namespace:    "default",
 			Hash:         "new-hash",
 			Container:    container,
@@ -87,7 +88,7 @@ func TestEnvVarStrategy_Apply(t *testing.T) {
 
 		input := StrategyInput{
 			ResourceName: "my-config",
-			ResourceType: ResourceTypeConfigMap,
+			ResourceType: matcher.ResourceTypeConfigMap,
 			Namespace:    "default",
 			Hash:         "same-hash",
 			Container:    container,
@@ -105,7 +106,7 @@ func TestEnvVarStrategy_Apply(t *testing.T) {
 	t.Run("error when container is nil", func(t *testing.T) {
 		input := StrategyInput{
 			ResourceName: "my-config",
-			ResourceType: ResourceTypeConfigMap,
+			ResourceType: matcher.ResourceTypeConfigMap,
 			Namespace:    "default",
 			Hash:         "abc123",
 			Container:    nil,
@@ -125,7 +126,7 @@ func TestEnvVarStrategy_Apply(t *testing.T) {
 
 		input := StrategyInput{
 			ResourceName: "my-secret",
-			ResourceType: ResourceTypeSecret,
+			ResourceType: matcher.ResourceTypeSecret,
 			Namespace:    "default",
 			Hash:         "abc123",
 			Container:    container,
@@ -158,15 +159,15 @@ func TestEnvVarStrategy_EnvVarName(t *testing.T) {
 
 	tests := []struct {
 		resourceName string
-		resourceType ResourceType
+		resourceType matcher.ResourceType
 		expected     string
 	}{
-		{"my-config", ResourceTypeConfigMap, "STAKATER_MY_CONFIG_CONFIGMAP"},
-		{"my-secret", ResourceTypeSecret, "STAKATER_MY_SECRET_SECRET"},
-		{"app-config-v2", ResourceTypeConfigMap, "STAKATER_APP_CONFIG_V2_CONFIGMAP"},
-		{"my.dotted.config", ResourceTypeConfigMap, "STAKATER_MY_DOTTED_CONFIG_CONFIGMAP"},
-		{"MyMixedCase", ResourceTypeConfigMap, "STAKATER_MYMIXEDCASE_CONFIGMAP"},
-		{"config-with-123-numbers", ResourceTypeConfigMap, "STAKATER_CONFIG_WITH_123_NUMBERS_CONFIGMAP"},
+		{"my-config", matcher.ResourceTypeConfigMap, "STAKATER_MY_CONFIG_CONFIGMAP"},
+		{"my-secret", matcher.ResourceTypeSecret, "STAKATER_MY_SECRET_SECRET"},
+		{"app-config-v2", matcher.ResourceTypeConfigMap, "STAKATER_APP_CONFIG_V2_CONFIGMAP"},
+		{"my.dotted.config", matcher.ResourceTypeConfigMap, "STAKATER_MY_DOTTED_CONFIG_CONFIGMAP"},
+		{"MyMixedCase", matcher.ResourceTypeConfigMap, "STAKATER_MYMIXEDCASE_CONFIGMAP"},
+		{"config-with-123-numbers", matcher.ResourceTypeConfigMap, "STAKATER_CONFIG_WITH_123_NUMBERS_CONFIGMAP"},
 	}
 
 	for _, tt := range tests {
@@ -218,7 +219,7 @@ func TestAnnotationStrategy_Apply(t *testing.T) {
 
 		input := StrategyInput{
 			ResourceName:   "my-config",
-			ResourceType:   ResourceTypeConfigMap,
+			ResourceType:   matcher.ResourceTypeConfigMap,
 			Namespace:      "default",
 			Hash:           "abc123",
 			Container:      container,
@@ -244,8 +245,8 @@ func TestAnnotationStrategy_Apply(t *testing.T) {
 		if err := json.Unmarshal([]byte(annotationValue), &source); err != nil {
 			t.Fatalf("failed to unmarshal annotation: %v", err)
 		}
-		if source.Kind != string(ResourceTypeConfigMap) {
-			t.Errorf("expected kind=%s, got %s", ResourceTypeConfigMap, source.Kind)
+		if source.Kind != string(matcher.ResourceTypeConfigMap) {
+			t.Errorf("expected kind=%s, got %s", matcher.ResourceTypeConfigMap, source.Kind)
 		}
 		if source.Name != "my-config" {
 			t.Errorf("expected name=my-config, got %s", source.Name)
@@ -259,7 +260,7 @@ func TestAnnotationStrategy_Apply(t *testing.T) {
 		annotations := make(map[string]string)
 		input := StrategyInput{
 			ResourceName:   "my-config",
-			ResourceType:   ResourceTypeConfigMap,
+			ResourceType:   matcher.ResourceTypeConfigMap,
 			Namespace:      "default",
 			Hash:           "abc123",
 			Container:      &corev1.Container{Name: "c"},
@@ -302,7 +303,7 @@ func TestAnnotationStrategy_Apply(t *testing.T) {
 	t.Run("error when annotations map is nil", func(t *testing.T) {
 		input := StrategyInput{
 			ResourceName:   "my-config",
-			ResourceType:   ResourceTypeConfigMap,
+			ResourceType:   matcher.ResourceTypeConfigMap,
 			Namespace:      "default",
 			Hash:           "abc123",
 			PodAnnotations: nil,
@@ -338,7 +339,7 @@ func TestNewStrategy(t *testing.T) {
 
 func TestEnvVarNameSecretProviderClass(t *testing.T) {
 	s := NewEnvVarStrategy()
-	got := s.envVarName("my-vault-spc", ResourceTypeSecretProviderClass)
+	got := s.envVarName("my-vault-spc", matcher.ResourceTypeSecretProviderClass)
 	want := "STAKATER_MY_VAULT_SPC_SECRETPROVIDERCLASS"
 	if got != want {
 		t.Fatalf("envVarName = %q, want %q", got, want)

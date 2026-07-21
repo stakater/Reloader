@@ -9,12 +9,13 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	"github.com/stakater/Reloader/internal/pkg/alerting"
-	"github.com/stakater/Reloader/pkg/config"
 	"github.com/stakater/Reloader/internal/pkg/events"
 	"github.com/stakater/Reloader/internal/pkg/metrics"
-	"github.com/stakater/Reloader/pkg/reload"
+	"github.com/stakater/Reloader/internal/pkg/reload"
 	"github.com/stakater/Reloader/internal/pkg/webhook"
 	"github.com/stakater/Reloader/internal/pkg/workload"
+	"github.com/stakater/Reloader/pkg/config"
+	"github.com/stakater/Reloader/pkg/matcher"
 )
 
 // SecretReconciler watches Secrets and triggers workload reloads.
@@ -49,7 +50,7 @@ func NewSecretReconciler(
 			NamespaceCache: nsCache,
 		},
 		ResourceConfig[*corev1.Secret]{
-			ResourceType: reload.ResourceTypeSecret,
+			ResourceType: matcher.ResourceTypeSecret,
 			NewResource:  func() *corev1.Secret { return &corev1.Secret{} },
 			CreateChange: func(s *corev1.Secret, eventType reload.EventType) reload.ResourceChange {
 				return reload.SecretChange{Secret: s, EventType: eventType}

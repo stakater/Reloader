@@ -13,14 +13,14 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
 	"github.com/stakater/Reloader/internal/pkg/alerting"
-	"github.com/stakater/Reloader/pkg/config"
 	"github.com/stakater/Reloader/internal/pkg/controller"
 	"github.com/stakater/Reloader/internal/pkg/events"
 	"github.com/stakater/Reloader/internal/pkg/metrics"
-	"github.com/stakater/Reloader/pkg/reload"
+	"github.com/stakater/Reloader/internal/pkg/reload"
 	"github.com/stakater/Reloader/internal/pkg/testutil"
 	"github.com/stakater/Reloader/internal/pkg/webhook"
 	"github.com/stakater/Reloader/internal/pkg/workload"
+	"github.com/stakater/Reloader/pkg/config"
 )
 
 // testDeps holds shared test dependencies.

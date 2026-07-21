@@ -7,8 +7,9 @@ import (
 	"k8s.io/client-go/util/retry"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	"github.com/stakater/Reloader/pkg/reload"
+	"github.com/stakater/Reloader/internal/pkg/reload"
 	"github.com/stakater/Reloader/internal/pkg/workload"
+	"github.com/stakater/Reloader/pkg/matcher"
 )
 
 // UpdateObjectWithRetry updates a Kubernetes object with retry on conflict.
@@ -58,7 +59,7 @@ func UpdateWorkloadWithRetry(
 	pauseHandler *reload.PauseHandler,
 	wl workload.Workload,
 	resourceName string,
-	resourceType reload.ResourceType,
+	resourceType matcher.ResourceType,
 	namespace string,
 	hash string,
 	autoReload bool,
@@ -83,7 +84,7 @@ func retryWithReload(
 	reloadService *reload.Service,
 	wl workload.Workload,
 	resourceName string,
-	resourceType reload.ResourceType,
+	resourceType matcher.ResourceType,
 	namespace string,
 	hash string,
 	autoReload bool,
@@ -131,7 +132,7 @@ func updateStandardWorkload(
 	reloadService *reload.Service,
 	wl workload.Workload,
 	resourceName string,
-	resourceType reload.ResourceType,
+	resourceType matcher.ResourceType,
 	namespace string,
 	hash string,
 	autoReload bool,
@@ -152,7 +153,7 @@ func updateDeploymentWithPause(
 	pauseHandler *reload.PauseHandler,
 	wl workload.Workload,
 	resourceName string,
-	resourceType reload.ResourceType,
+	resourceType matcher.ResourceType,
 	namespace string,
 	hash string,
 	autoReload bool,
@@ -180,7 +181,7 @@ func updateWithSpecialStrategy(
 	reloadService *reload.Service,
 	wl workload.Workload,
 	resourceName string,
-	resourceType reload.ResourceType,
+	resourceType matcher.ResourceType,
 	namespace string,
 	hash string,
 	autoReload bool,
