@@ -588,7 +588,7 @@ func TestSplitAndTrim(t *testing.T) {
 
 func TestApplyFlags_NamespacesScoped(t *testing.T) {
 	resetViper()
-	cfg := NewDefault()
+	cfg := config.NewDefault()
 	fs := pflag.NewFlagSet("test", pflag.ContinueOnError)
 	BindFlags(fs, cfg)
 
@@ -613,7 +613,7 @@ func TestApplyFlags_NamespacesScoped(t *testing.T) {
 func TestApplyFlags_NamespacesFromEnv(t *testing.T) {
 	resetViper()
 	t.Setenv("KUBERNETES_NAMESPACE", "single-ns")
-	cfg := NewDefault()
+	cfg := config.NewDefault()
 	fs := pflag.NewFlagSet("test", pflag.ContinueOnError)
 	BindFlags(fs, cfg)
 
@@ -632,7 +632,7 @@ func TestApplyFlags_NamespacesFromEnv(t *testing.T) {
 func TestApplyFlags_NamespacesGlobal(t *testing.T) {
 	resetViper()
 	t.Setenv("KUBERNETES_NAMESPACE", "")
-	cfg := NewDefault()
+	cfg := config.NewDefault()
 	fs := pflag.NewFlagSet("test", pflag.ContinueOnError)
 	BindFlags(fs, cfg)
 
@@ -653,7 +653,7 @@ func TestApplyFlags_NamespacesGlobal(t *testing.T) {
 
 func TestApplyFlags_NamespacesTrimsEmptyEntries(t *testing.T) {
 	resetViper()
-	cfg := NewDefault()
+	cfg := config.NewDefault()
 	fs := pflag.NewFlagSet("test", pflag.ContinueOnError)
 	BindFlags(fs, cfg)
 
@@ -678,7 +678,7 @@ func TestApplyFlags_NamespacesTrimsEmptyEntries(t *testing.T) {
 func TestApplyFlags_NamespacesAllEmptyIsGlobal(t *testing.T) {
 	resetViper()
 	t.Setenv("KUBERNETES_NAMESPACE", "")
-	cfg := NewDefault()
+	cfg := config.NewDefault()
 	fs := pflag.NewFlagSet("test", pflag.ContinueOnError)
 	BindFlags(fs, cfg)
 
@@ -702,7 +702,7 @@ func TestApplyFlags_NamespacesAllEmptyIsGlobal(t *testing.T) {
 // for each dropped setting.
 func TestApplyFlags_ScopedClearsSelectorsAndIgnores(t *testing.T) {
 	resetViper()
-	cfg := NewDefault()
+	cfg := config.NewDefault()
 	fs := pflag.NewFlagSet("test", pflag.ContinueOnError)
 	BindFlags(fs, cfg)
 
@@ -728,7 +728,7 @@ func TestApplyFlags_ScopedClearsSelectorsAndIgnores(t *testing.T) {
 func TestApplyFlags_GlobalKeepsSelectorsNoWarnings(t *testing.T) {
 	resetViper()
 	t.Setenv("KUBERNETES_NAMESPACE", "")
-	cfg := NewDefault()
+	cfg := config.NewDefault()
 	fs := pflag.NewFlagSet("test", pflag.ContinueOnError)
 	BindFlags(fs, cfg)
 
