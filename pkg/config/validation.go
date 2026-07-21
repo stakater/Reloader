@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"k8s.io/apimachinery/pkg/labels"
+	apivalidation "k8s.io/apimachinery/pkg/util/validation"
 
 	"github.com/stakater/Reloader/internal/pkg/workload"
 )
@@ -95,6 +96,19 @@ func (c *Config) Validate() error {
 				Message: fmt.Sprintf("invalid log format %q, must be \"json\" or empty", c.LogFormat),
 			},
 		)
+	}
+
+	// Watched namespaces must be valid DNS-1123 labels; an invalid entry would
+	// otherwise fail deep inside the controller-runtime cache with an opaque error.
+	for _, ns := range c.WatchedNamespaces {
+		if msgs := apivalidation.IsDNS1123Label(ns); len(msgs) > 0 {
+			errs = append(
+				errs, ValidationError{
+					Field:   "WatchedNamespaces",
+					Message: fmt.Sprintf("invalid namespace %q: %s", ns, strings.Join(msgs, "; ")),
+				},
+			)
+		}
 	}
 
 	c.IgnoredResources = normalizeToLower(c.IgnoredResources)

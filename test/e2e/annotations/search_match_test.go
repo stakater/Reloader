@@ -50,12 +50,16 @@ var _ = Describe("Search and Match Annotation Tests", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Updating the ConfigMap data")
+			// Capture the reload-annotation baseline before the trigger to avoid the
+			// TOCTOU race where Reloader reloads before WaitReloaded records its baseline.
+			priorReload, err := adapter.GetPodTemplateAnnotation(ctx, testNamespace, deploymentName, utils.AnnotationLastReloadedFrom)
+			Expect(err).NotTo(HaveOccurred())
 			err = utils.UpdateConfigMap(ctx, kubeClient, testNamespace, configMapName, map[string]string{"key": "updated"})
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Waiting for Deployment to be reloaded")
-			reloaded, err := adapter.WaitReloaded(ctx, testNamespace, deploymentName,
-				utils.AnnotationLastReloadedFrom, utils.ReloadTimeout)
+			reloaded, err := adapter.WaitReloadedFrom(ctx, testNamespace, deploymentName,
+				utils.AnnotationLastReloadedFrom, priorReload, utils.ReloadTimeout)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(reloaded).To(BeTrue(), "Deployment with search annotation should reload when ConfigMap has match annotation")
 		})
@@ -78,13 +82,17 @@ var _ = Describe("Search and Match Annotation Tests", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Updating the ConfigMap data")
+			// Capture the reload-annotation baseline before the trigger to avoid the
+			// TOCTOU race where Reloader reloads before WaitReloaded records its baseline.
+			priorReload, err := adapter.GetPodTemplateAnnotation(ctx, testNamespace, deploymentName, utils.AnnotationLastReloadedFrom)
+			Expect(err).NotTo(HaveOccurred())
 			err = utils.UpdateConfigMap(ctx, kubeClient, testNamespace, configMapName, map[string]string{"key": "updated"})
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Verifying Deployment was NOT reloaded (negative test)")
 			time.Sleep(utils.NegativeTestWait)
-			reloaded, err := adapter.WaitReloaded(ctx, testNamespace, deploymentName,
-				utils.AnnotationLastReloadedFrom, utils.ShortTimeout)
+			reloaded, err := adapter.WaitReloadedFrom(ctx, testNamespace, deploymentName,
+				utils.AnnotationLastReloadedFrom, priorReload, utils.ShortTimeout)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(reloaded).To(BeFalse(), "Deployment should NOT reload when ConfigMap lacks match annotation")
 		})
@@ -106,13 +114,17 @@ var _ = Describe("Search and Match Annotation Tests", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Updating the ConfigMap data")
+			// Capture the reload-annotation baseline before the trigger to avoid the
+			// TOCTOU race where Reloader reloads before WaitReloaded records its baseline.
+			priorReload, err := adapter.GetPodTemplateAnnotation(ctx, testNamespace, deploymentName, utils.AnnotationLastReloadedFrom)
+			Expect(err).NotTo(HaveOccurred())
 			err = utils.UpdateConfigMap(ctx, kubeClient, testNamespace, configMapName, map[string]string{"key": "updated"})
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Verifying Deployment was NOT reloaded (negative test)")
 			time.Sleep(utils.NegativeTestWait)
-			reloaded, err := adapter.WaitReloaded(ctx, testNamespace, deploymentName,
-				utils.AnnotationLastReloadedFrom, utils.ShortTimeout)
+			reloaded, err := adapter.WaitReloadedFrom(ctx, testNamespace, deploymentName,
+				utils.AnnotationLastReloadedFrom, priorReload, utils.ShortTimeout)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(reloaded).To(BeFalse(), "Deployment without search annotation should NOT reload even when ConfigMap has match")
 		})
@@ -149,18 +161,24 @@ var _ = Describe("Search and Match Annotation Tests", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Updating the ConfigMap data")
+			// Capture the reload-annotation baselines before the trigger to avoid the
+			// TOCTOU race where Reloader reloads before WaitReloaded records its baseline.
+			priorReload1, err := adapter.GetPodTemplateAnnotation(ctx, testNamespace, deploymentName, utils.AnnotationLastReloadedFrom)
+			Expect(err).NotTo(HaveOccurred())
+			priorReload2, err := adapter.GetPodTemplateAnnotation(ctx, testNamespace, deploymentName2, utils.AnnotationLastReloadedFrom)
+			Expect(err).NotTo(HaveOccurred())
 			err = utils.UpdateConfigMap(ctx, kubeClient, testNamespace, configMapName, map[string]string{"key": "updated"})
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Waiting for first Deployment to be reloaded")
-			reloaded, err := adapter.WaitReloaded(ctx, testNamespace, deploymentName,
-				utils.AnnotationLastReloadedFrom, utils.ReloadTimeout)
+			reloaded, err := adapter.WaitReloadedFrom(ctx, testNamespace, deploymentName,
+				utils.AnnotationLastReloadedFrom, priorReload1, utils.ReloadTimeout)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(reloaded).To(BeTrue(), "Deployment with search annotation should reload")
 
 			By("Verifying second Deployment was NOT reloaded")
-			reloaded2, err := adapter.WaitReloaded(ctx, testNamespace, deploymentName2,
-				utils.AnnotationLastReloadedFrom, utils.ShortTimeout)
+			reloaded2, err := adapter.WaitReloadedFrom(ctx, testNamespace, deploymentName2,
+				utils.AnnotationLastReloadedFrom, priorReload2, utils.ShortTimeout)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(reloaded2).To(BeFalse(), "Deployment without search annotation should NOT reload")
 		})
@@ -196,12 +214,16 @@ var _ = Describe("Search and Match Annotation Tests", func() {
 				Expect(err).NotTo(HaveOccurred())
 
 				By("Updating the ConfigMap")
+				// Capture the reload-annotation baseline before the trigger to avoid the
+				// TOCTOU race where Reloader reloads before WaitReloaded records its baseline.
+				priorReload, err := adapter.GetPodTemplateAnnotation(ctx, testNamespace, workloadName, utils.AnnotationLastReloadedFrom)
+				Expect(err).NotTo(HaveOccurred())
 				err = utils.UpdateConfigMap(ctx, kubeClient, testNamespace, configMapName, map[string]string{"key": "updated"})
 				Expect(err).NotTo(HaveOccurred())
 
 				By("Waiting for workload to be reloaded")
-				reloaded, err := adapter.WaitReloaded(ctx, testNamespace, workloadName,
-					utils.AnnotationLastReloadedFrom, utils.ReloadTimeout)
+				reloaded, err := adapter.WaitReloadedFrom(ctx, testNamespace, workloadName,
+					utils.AnnotationLastReloadedFrom, priorReload, utils.ReloadTimeout)
 				Expect(err).NotTo(HaveOccurred())
 				Expect(reloaded).To(BeTrue(), "%s should reload with search annotation on pod template", workloadType)
 			},

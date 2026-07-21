@@ -3,7 +3,7 @@ name: Release Helm chart
 on:
   push:
     tags:
-      - "chart-v*"
+      - "reloader-v2-chart-v*"
 
 permissions:
   contents: write
@@ -26,7 +26,7 @@ jobs:
         run: |
           gh release create "$tag" \
               --repo="$GITHUB_REPOSITORY" \
-              --title="Helm chart ${tag#chart-}" \
+              --title="Helm chart reloader-v2 ${tag#reloader-v2-chart-v}" \
               --generate-notes
 
       - name: Notify Slack

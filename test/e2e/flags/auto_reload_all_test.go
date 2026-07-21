@@ -65,12 +65,16 @@ var _ = Describe("Auto Reload All Flag Tests", Serial, func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Updating the ConfigMap")
+			// Capture the reload-annotation baseline before the trigger to avoid the
+			// TOCTOU race where Reloader reloads before WaitReloaded records its baseline.
+			priorReload, err := adapter.GetPodTemplateAnnotation(ctx, autoNamespace, deploymentName, utils.AnnotationLastReloadedFrom)
+			Expect(err).NotTo(HaveOccurred())
 			err = utils.UpdateConfigMap(ctx, kubeClient, autoNamespace, configMapName, map[string]string{"key": "updated"})
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Waiting for Deployment to be reloaded (autoReloadAll=true)")
-			reloaded, err := adapter.WaitReloaded(ctx, autoNamespace, deploymentName,
-				utils.AnnotationLastReloadedFrom, utils.ReloadTimeout)
+			reloaded, err := adapter.WaitReloadedFrom(ctx, autoNamespace, deploymentName,
+				utils.AnnotationLastReloadedFrom, priorReload, utils.ReloadTimeout)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(reloaded).To(BeTrue(), "Deployment without annotations should reload when autoReloadAll=true")
 		})
@@ -93,13 +97,17 @@ var _ = Describe("Auto Reload All Flag Tests", Serial, func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Updating the ConfigMap")
+			// Capture the reload-annotation baseline before the trigger to avoid the
+			// TOCTOU race where Reloader reloads before WaitReloaded records its baseline.
+			priorReload, err := adapter.GetPodTemplateAnnotation(ctx, autoNamespace, deploymentName, utils.AnnotationLastReloadedFrom)
+			Expect(err).NotTo(HaveOccurred())
 			err = utils.UpdateConfigMap(ctx, kubeClient, autoNamespace, configMapName, map[string]string{"key": "updated"})
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Verifying Deployment was NOT reloaded (auto=false overrides autoReloadAll)")
 			time.Sleep(utils.NegativeTestWait)
-			reloaded, err := adapter.WaitReloaded(ctx, autoNamespace, deploymentName,
-				utils.AnnotationLastReloadedFrom, utils.ShortTimeout)
+			reloaded, err := adapter.WaitReloadedFrom(ctx, autoNamespace, deploymentName,
+				utils.AnnotationLastReloadedFrom, priorReload, utils.ShortTimeout)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(reloaded).To(BeFalse(), "Deployment with auto=false should NOT reload even with autoReloadAll=true")
 		})

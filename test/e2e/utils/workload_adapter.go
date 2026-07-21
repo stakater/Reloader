@@ -66,11 +66,26 @@ type WorkloadAdapter interface {
 
 	// WaitReloaded waits for the workload to have the reload annotation.
 	// Returns true if the annotation was found, false if timeout occurred.
+	// It captures the baseline annotation value at call time, which races with Reloader
+	// if the reload trigger happened earlier — prefer WaitReloadedFrom in that case.
 	WaitReloaded(ctx context.Context, namespace, name, annotationKey string, timeout time.Duration) (bool, error)
+
+	// WaitReloadedFrom waits for the reload annotation to be present with a value different
+	// from priorValue. Capture priorValue (via GetPodTemplateAnnotation) BEFORE performing
+	// the change that triggers the reload; capturing it afterwards can observe the already
+	// reloaded value and then wait for a further change that never comes.
+	WaitReloadedFrom(ctx context.Context, namespace, name, annotationKey, priorValue string, timeout time.Duration) (bool, error)
 
 	// WaitEnvVar waits for the workload to have a STAKATER_ env var (for envvars strategy).
 	// Returns true if the env var was found, false if timeout occurred.
+	// It captures the baseline env var value at call time, which races with Reloader
+	// if the reload trigger happened earlier — prefer WaitEnvVarFrom in that case.
 	WaitEnvVar(ctx context.Context, namespace, name, prefix string, timeout time.Duration) (bool, error)
+
+	// WaitEnvVarFrom waits for a STAKATER_ env var whose value differs from priorValue.
+	// Capture priorValue BEFORE performing the change that triggers the reload
+	// (an empty priorValue means the env var is expected to appear).
+	WaitEnvVarFrom(ctx context.Context, namespace, name, prefix, priorValue string, timeout time.Duration) (bool, error)
 
 	// SupportsEnvVarStrategy returns true if the workload supports env var reload strategy.
 	// CronJob does not support this as it uses job creation instead.

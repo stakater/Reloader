@@ -55,7 +55,15 @@ func newReloaderCommand() *cobra.Command {
 }
 
 func run(cmd *cobra.Command, args []string) error {
-	if err := flags.ApplyFlags(cfg); err != nil {
+	// Configure logging first so ApplyFlags can surface namespace-scope warnings
+	// through a ready logger instead of returning them to the caller.
+	log, err := configureLogging(flags.LoggingFlags())
+	if err != nil {
+		return fmt.Errorf("configuring logging: %w", err)
+	}
+	controllerruntime.SetLogger(log)
+
+	if err := flags.ApplyFlags(cfg, log); err != nil {
 		return fmt.Errorf("applying flags: %w", err)
 	}
 
@@ -73,19 +81,12 @@ func run(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	log, err := configureLogging(cfg.LogFormat, cfg.LogLevel)
-	if err != nil {
-		return fmt.Errorf("configuring logging: %w", err)
-	}
-
-	controllerruntime.SetLogger(log)
-
 	log.Info("Starting Reloader")
 
-	if cfg.WatchedNamespace != "" {
-		log.Info("watching single namespace", "namespace", cfg.WatchedNamespace)
-	} else {
+	if cfg.IsGlobalMode() {
 		log.Info("watching all namespaces")
+	} else {
+		log.Info("watching scoped namespaces", "namespaces", cfg.WatchedNamespaces)
 	}
 
 	if len(cfg.NamespaceSelectors) > 0 {
@@ -150,14 +151,13 @@ func run(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("setting up reconcilers: %w", err)
 	}
 
-	// Skip metadata publisher when ConfigMaps are ignored (no RBAC permissions)
-	if !cfg.IsResourceIgnored("configmaps") {
-		if err := mgr.Add(metadata.Runnable(mgr.GetClient(), cfg, log)); err != nil {
-			log.Error(err, "Failed to add metadata publisher")
-			// Non-fatal, continue starting
-		}
-	} else {
-		log.Info("skipping metadata publisher (configmaps ignored)")
+	// Meta-info is internal instance metadata and is always published. The
+	// publisher builds its own uncached client (see metadata.Runnable) because
+	// the ConfigMap lives in Reloader's own namespace, which the manager cache
+	// does not cover in scoped mode.
+	if err := mgr.Add(metadata.Runnable(mgr.GetConfig(), mgr.GetScheme(), cfg, log)); err != nil {
+		log.Error(err, "Failed to add metadata publisher")
+		// Non-fatal, continue starting
 	}
 
 	if cfg.EnablePProf {

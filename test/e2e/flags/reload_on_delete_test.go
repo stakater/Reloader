@@ -65,12 +65,16 @@ var _ = Describe("Reload On Delete Flag Tests", Serial, func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Deleting the ConfigMap")
+			// Capture the reload-annotation baseline before the trigger to avoid the
+			// TOCTOU race where Reloader reloads before WaitReloaded records its baseline.
+			priorReload, err := adapter.GetPodTemplateAnnotation(ctx, deleteNamespace, deploymentName, utils.AnnotationLastReloadedFrom)
+			Expect(err).NotTo(HaveOccurred())
 			err = utils.DeleteConfigMap(ctx, kubeClient, deleteNamespace, configMapName)
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Waiting for Deployment to be reloaded (reloadOnDelete=true)")
-			reloaded, err := adapter.WaitReloaded(ctx, deleteNamespace, deploymentName,
-				utils.AnnotationLastReloadedFrom, utils.ReloadTimeout)
+			reloaded, err := adapter.WaitReloadedFrom(ctx, deleteNamespace, deploymentName,
+				utils.AnnotationLastReloadedFrom, priorReload, utils.ReloadTimeout)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(reloaded).To(BeTrue(), "Deployment should reload when referenced ConfigMap is deleted")
 		})
@@ -94,12 +98,16 @@ var _ = Describe("Reload On Delete Flag Tests", Serial, func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Deleting the Secret")
+			// Capture the reload-annotation baseline before the trigger to avoid the
+			// TOCTOU race where Reloader reloads before WaitReloaded records its baseline.
+			priorReload, err := adapter.GetPodTemplateAnnotation(ctx, deleteNamespace, deploymentName, utils.AnnotationLastReloadedFrom)
+			Expect(err).NotTo(HaveOccurred())
 			err = utils.DeleteSecret(ctx, kubeClient, deleteNamespace, secretName)
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Waiting for Deployment to be reloaded (reloadOnDelete=true)")
-			reloaded, err := adapter.WaitReloaded(ctx, deleteNamespace, deploymentName,
-				utils.AnnotationLastReloadedFrom, utils.ReloadTimeout)
+			reloaded, err := adapter.WaitReloadedFrom(ctx, deleteNamespace, deploymentName,
+				utils.AnnotationLastReloadedFrom, priorReload, utils.ReloadTimeout)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(reloaded).To(BeTrue(), "Deployment should reload when referenced Secret is deleted")
 		})
@@ -139,13 +147,17 @@ var _ = Describe("Reload On Delete Flag Tests", Serial, func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Deleting the ConfigMap")
+			// Capture the reload-annotation baseline before the trigger to avoid the
+			// TOCTOU race where Reloader reloads before WaitReloaded records its baseline.
+			priorReload, err := adapter.GetPodTemplateAnnotation(ctx, deleteNamespace, deploymentName, utils.AnnotationLastReloadedFrom)
+			Expect(err).NotTo(HaveOccurred())
 			err = utils.DeleteConfigMap(ctx, kubeClient, deleteNamespace, configMapName)
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Verifying Deployment was NOT reloaded (reloadOnDelete=false)")
 			time.Sleep(utils.NegativeTestWait)
-			reloaded, err := adapter.WaitReloaded(ctx, deleteNamespace, deploymentName,
-				utils.AnnotationLastReloadedFrom, utils.ShortTimeout)
+			reloaded, err := adapter.WaitReloadedFrom(ctx, deleteNamespace, deploymentName,
+				utils.AnnotationLastReloadedFrom, priorReload, utils.ShortTimeout)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(reloaded).To(BeFalse(), "Deployment should NOT reload on delete when reloadOnDelete=false")
 		})

@@ -218,3 +218,14 @@ func TestConfig_IsNamespaceIgnored(t *testing.T) {
 		)
 	}
 }
+
+func TestIsGlobalMode(t *testing.T) {
+	c := &Config{WatchedNamespaces: nil}
+	if !c.IsGlobalMode() {
+		t.Errorf("empty WatchedNamespaces should be global mode")
+	}
+	c.WatchedNamespaces = []string{"team-a"}
+	if c.IsGlobalMode() {
+		t.Errorf("non-empty WatchedNamespaces should not be global mode")
+	}
+}

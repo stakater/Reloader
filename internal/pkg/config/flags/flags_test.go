@@ -4,6 +4,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/go-logr/logr"
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
 
@@ -67,7 +68,7 @@ func TestBindFlags(t *testing.T) {
 		"ignore-annotation",
 		"pause-deployment-annotation",
 		"pause-deployment-time-annotation",
-		"watch-namespace",
+		"namespaces",
 		"alert-on-reload",
 		"alert-webhook-url",
 		"alert-sink",
@@ -94,7 +95,7 @@ func TestBindFlags_DefaultValues(t *testing.T) {
 		t.Fatalf("Parse() error = %v", err)
 	}
 
-	if err := ApplyFlags(cfg); err != nil {
+	if err := ApplyFlags(cfg, logr.Discard()); err != nil {
 		t.Fatalf("ApplyFlags() error = %v", err)
 	}
 
@@ -128,7 +129,7 @@ func TestBindFlags_CustomValues(t *testing.T) {
 		t.Fatalf("Parse() error = %v", err)
 	}
 
-	if err := ApplyFlags(cfg); err != nil {
+	if err := ApplyFlags(cfg, logr.Discard()); err != nil {
 		t.Fatalf("ApplyFlags() error = %v", err)
 	}
 
@@ -170,7 +171,7 @@ func TestApplyFlags_SecretProviderClassAnnotations(t *testing.T) {
 	if err := fs.Parse(nil); err != nil {
 		t.Fatalf("Parse() error = %v", err)
 	}
-	if err := ApplyFlags(cfg); err != nil {
+	if err := ApplyFlags(cfg, logr.Discard()); err != nil {
 		t.Fatalf("ApplyFlags() error = %v", err)
 	}
 	defaults := config.DefaultAnnotations()
@@ -197,7 +198,7 @@ func TestApplyFlags_SecretProviderClassAnnotations(t *testing.T) {
 	if err := fs.Parse(args); err != nil {
 		t.Fatalf("Parse() error = %v", err)
 	}
-	if err := ApplyFlags(cfg); err != nil {
+	if err := ApplyFlags(cfg, logr.Discard()); err != nil {
 		t.Fatalf("ApplyFlags() error = %v", err)
 	}
 	if cfg.Annotations.SecretProviderClassAuto != "spc.example.com/auto" {
@@ -220,7 +221,7 @@ func TestApplyFlags_ExcludeAnnotations(t *testing.T) {
 	if err := fs.Parse(nil); err != nil {
 		t.Fatalf("Parse() error = %v", err)
 	}
-	if err := ApplyFlags(cfg); err != nil {
+	if err := ApplyFlags(cfg, logr.Discard()); err != nil {
 		t.Fatalf("ApplyFlags() error = %v", err)
 	}
 	defaults := config.DefaultAnnotations()
@@ -243,7 +244,7 @@ func TestApplyFlags_ExcludeAnnotations(t *testing.T) {
 	if err := fs.Parse(args); err != nil {
 		t.Fatalf("Parse() error = %v", err)
 	}
-	if err := ApplyFlags(cfg); err != nil {
+	if err := ApplyFlags(cfg, logr.Discard()); err != nil {
 		t.Fatalf("ApplyFlags() error = %v", err)
 	}
 	if cfg.Annotations.ConfigmapExclude != "cm.example.com/exclude" {
@@ -263,7 +264,7 @@ func TestApplyFlags_IgnoreAnnotation(t *testing.T) {
 	if err := fs.Parse(nil); err != nil {
 		t.Fatalf("Parse() error = %v", err)
 	}
-	if err := ApplyFlags(cfg); err != nil {
+	if err := ApplyFlags(cfg, logr.Discard()); err != nil {
 		t.Fatalf("ApplyFlags() error = %v", err)
 	}
 	if cfg.Annotations.Ignore != config.DefaultAnnotations().Ignore {
@@ -278,7 +279,7 @@ func TestApplyFlags_IgnoreAnnotation(t *testing.T) {
 	if err := fs.Parse([]string{"--ignore-annotation=my.company.com/reloader-ignore"}); err != nil {
 		t.Fatalf("Parse() error = %v", err)
 	}
-	if err := ApplyFlags(cfg); err != nil {
+	if err := ApplyFlags(cfg, logr.Discard()); err != nil {
 		t.Fatalf("ApplyFlags() error = %v", err)
 	}
 	if cfg.Annotations.Ignore != "my.company.com/reloader-ignore" {
@@ -315,7 +316,7 @@ func TestApplyFlags_BooleanStrings(t *testing.T) {
 					t.Fatalf("Parse() error = %v", err)
 				}
 
-				err := ApplyFlags(cfg)
+				err := ApplyFlags(cfg, logr.Discard())
 				if (err != nil) != tt.wantErr {
 					t.Errorf("ApplyFlags() error = %v, wantErr %v", err, tt.wantErr)
 					return
@@ -345,7 +346,7 @@ func TestApplyFlags_CommaSeparatedLists(t *testing.T) {
 		t.Fatalf("Parse() error = %v", err)
 	}
 
-	if err := ApplyFlags(cfg); err != nil {
+	if err := ApplyFlags(cfg, logr.Discard()); err != nil {
 		t.Fatalf("ApplyFlags() error = %v", err)
 	}
 
@@ -380,7 +381,7 @@ func TestApplyFlags_Selectors(t *testing.T) {
 		t.Fatalf("Parse() error = %v", err)
 	}
 
-	if err := ApplyFlags(cfg); err != nil {
+	if err := ApplyFlags(cfg, logr.Discard()); err != nil {
 		t.Fatalf("ApplyFlags() error = %v", err)
 	}
 
@@ -411,7 +412,7 @@ func TestApplyFlags_InvalidSelector(t *testing.T) {
 		t.Fatalf("Parse() error = %v", err)
 	}
 
-	err := ApplyFlags(cfg)
+	err := ApplyFlags(cfg, logr.Discard())
 	if err == nil {
 		t.Error("ApplyFlags() should return error for invalid selector")
 	}
@@ -463,7 +464,7 @@ func TestApplyFlags_AlertingEnvVars(t *testing.T) {
 					t.Fatalf("Parse() error = %v", err)
 				}
 
-				if err := ApplyFlags(cfg); err != nil {
+				if err := ApplyFlags(cfg, logr.Discard()); err != nil {
 					t.Fatalf("ApplyFlags() error = %v", err)
 				}
 
@@ -496,7 +497,7 @@ func TestApplyFlags_LegacyProxyEnvVar(t *testing.T) {
 		t.Fatalf("Parse() error = %v", err)
 	}
 
-	if err := ApplyFlags(cfg); err != nil {
+	if err := ApplyFlags(cfg, logr.Discard()); err != nil {
 		t.Fatalf("ApplyFlags() error = %v", err)
 	}
 
@@ -513,7 +514,7 @@ func TestApplyFlagsCSIIntegration(t *testing.T) {
 	if err := fs.Parse([]string{"--enable-csi-integration=true"}); err != nil {
 		t.Fatal(err)
 	}
-	if err := ApplyFlags(cfg); err != nil {
+	if err := ApplyFlags(cfg, logr.Discard()); err != nil {
 		t.Fatal(err)
 	}
 	if !cfg.CSIIntegrationEnabled {
@@ -582,5 +583,169 @@ func TestSplitAndTrim(t *testing.T) {
 				}
 			},
 		)
+	}
+}
+
+func TestApplyFlags_NamespacesScoped(t *testing.T) {
+	resetViper()
+	cfg := NewDefault()
+	fs := pflag.NewFlagSet("test", pflag.ContinueOnError)
+	BindFlags(fs, cfg)
+
+	if err := fs.Parse([]string{"--namespaces=team-a,team-b"}); err != nil {
+		t.Fatalf("Parse() error = %v", err)
+	}
+	if err := ApplyFlags(cfg, logr.Discard()); err != nil {
+		t.Fatalf("ApplyFlags() error = %v", err)
+	}
+
+	if len(cfg.WatchedNamespaces) != 2 {
+		t.Fatalf("WatchedNamespaces length = %d, want 2", len(cfg.WatchedNamespaces))
+	}
+	if cfg.WatchedNamespaces[0] != "team-a" || cfg.WatchedNamespaces[1] != "team-b" {
+		t.Errorf("WatchedNamespaces = %v", cfg.WatchedNamespaces)
+	}
+	if cfg.IsGlobalMode() {
+		t.Errorf("explicit namespaces should not be global mode")
+	}
+}
+
+func TestApplyFlags_NamespacesFromEnv(t *testing.T) {
+	resetViper()
+	t.Setenv("KUBERNETES_NAMESPACE", "single-ns")
+	cfg := NewDefault()
+	fs := pflag.NewFlagSet("test", pflag.ContinueOnError)
+	BindFlags(fs, cfg)
+
+	if err := fs.Parse([]string{}); err != nil {
+		t.Fatalf("Parse() error = %v", err)
+	}
+	if err := ApplyFlags(cfg, logr.Discard()); err != nil {
+		t.Fatalf("ApplyFlags() error = %v", err)
+	}
+
+	if len(cfg.WatchedNamespaces) != 1 || cfg.WatchedNamespaces[0] != "single-ns" {
+		t.Errorf("WatchedNamespaces = %v, want [single-ns]", cfg.WatchedNamespaces)
+	}
+}
+
+func TestApplyFlags_NamespacesGlobal(t *testing.T) {
+	resetViper()
+	t.Setenv("KUBERNETES_NAMESPACE", "")
+	cfg := NewDefault()
+	fs := pflag.NewFlagSet("test", pflag.ContinueOnError)
+	BindFlags(fs, cfg)
+
+	if err := fs.Parse([]string{}); err != nil {
+		t.Fatalf("Parse() error = %v", err)
+	}
+	if err := ApplyFlags(cfg, logr.Discard()); err != nil {
+		t.Fatalf("ApplyFlags() error = %v", err)
+	}
+
+	if len(cfg.WatchedNamespaces) != 0 {
+		t.Errorf("WatchedNamespaces = %v, want empty (global)", cfg.WatchedNamespaces)
+	}
+	if !cfg.IsGlobalMode() {
+		t.Errorf("no namespaces and no env should be global mode")
+	}
+}
+
+func TestApplyFlags_NamespacesTrimsEmptyEntries(t *testing.T) {
+	resetViper()
+	cfg := NewDefault()
+	fs := pflag.NewFlagSet("test", pflag.ContinueOnError)
+	BindFlags(fs, cfg)
+
+	if err := fs.Parse([]string{"--namespaces=team-a, ,team-b,"}); err != nil {
+		t.Fatalf("Parse() error = %v", err)
+	}
+	if err := ApplyFlags(cfg, logr.Discard()); err != nil {
+		t.Fatalf("ApplyFlags() error = %v", err)
+	}
+
+	if len(cfg.WatchedNamespaces) != 2 {
+		t.Fatalf("WatchedNamespaces length = %d, want 2", len(cfg.WatchedNamespaces))
+	}
+	if cfg.WatchedNamespaces[0] != "team-a" || cfg.WatchedNamespaces[1] != "team-b" {
+		t.Errorf("WatchedNamespaces = %v, want [team-a team-b]", cfg.WatchedNamespaces)
+	}
+	if cfg.IsGlobalMode() {
+		t.Errorf("trimmed namespaces should not be global mode")
+	}
+}
+
+func TestApplyFlags_NamespacesAllEmptyIsGlobal(t *testing.T) {
+	resetViper()
+	t.Setenv("KUBERNETES_NAMESPACE", "")
+	cfg := NewDefault()
+	fs := pflag.NewFlagSet("test", pflag.ContinueOnError)
+	BindFlags(fs, cfg)
+
+	if err := fs.Parse([]string{"--namespaces=, ,"}); err != nil {
+		t.Fatalf("Parse() error = %v", err)
+	}
+	if err := ApplyFlags(cfg, logr.Discard()); err != nil {
+		t.Fatalf("ApplyFlags() error = %v", err)
+	}
+
+	if len(cfg.WatchedNamespaces) != 0 {
+		t.Errorf("WatchedNamespaces = %v, want empty (global)", cfg.WatchedNamespaces)
+	}
+	if !cfg.IsGlobalMode() {
+		t.Errorf("all-empty namespaces should be global mode")
+	}
+}
+
+// ApplyFlags must finalize a self-consistent config: in scoped mode it enforces
+// namespace-scope semantics (clears selector/ignore lists) and logs a warning
+// for each dropped setting.
+func TestApplyFlags_ScopedClearsSelectorsAndIgnores(t *testing.T) {
+	resetViper()
+	cfg := NewDefault()
+	fs := pflag.NewFlagSet("test", pflag.ContinueOnError)
+	BindFlags(fs, cfg)
+
+	if err := fs.Parse([]string{
+		"--namespaces=team-a",
+		"--namespace-selector=env=prod",
+		"--namespaces-to-ignore=kube-system",
+	}); err != nil {
+		t.Fatalf("Parse() error = %v", err)
+	}
+	if err := ApplyFlags(cfg, logr.Discard()); err != nil {
+		t.Fatalf("ApplyFlags() error = %v", err)
+	}
+
+	if len(cfg.NamespaceSelectors) != 0 || len(cfg.NamespaceSelectorStrings) != 0 {
+		t.Errorf("scoped mode should clear namespace selectors, got %v", cfg.NamespaceSelectorStrings)
+	}
+	if len(cfg.IgnoredNamespaces) != 0 {
+		t.Errorf("scoped mode should clear ignored namespaces, got %v", cfg.IgnoredNamespaces)
+	}
+}
+
+func TestApplyFlags_GlobalKeepsSelectorsNoWarnings(t *testing.T) {
+	resetViper()
+	t.Setenv("KUBERNETES_NAMESPACE", "")
+	cfg := NewDefault()
+	fs := pflag.NewFlagSet("test", pflag.ContinueOnError)
+	BindFlags(fs, cfg)
+
+	if err := fs.Parse([]string{
+		"--namespace-selector=env=prod",
+		"--namespaces-to-ignore=kube-system",
+	}); err != nil {
+		t.Fatalf("Parse() error = %v", err)
+	}
+	if err := ApplyFlags(cfg, logr.Discard()); err != nil {
+		t.Fatalf("ApplyFlags() error = %v", err)
+	}
+
+	if !cfg.IsGlobalMode() {
+		t.Fatalf("no --namespaces should be global mode")
+	}
+	if len(cfg.NamespaceSelectors) != 1 || len(cfg.IgnoredNamespaces) != 1 {
+		t.Errorf("global mode should keep selectors and ignored namespaces")
 	}
 }
