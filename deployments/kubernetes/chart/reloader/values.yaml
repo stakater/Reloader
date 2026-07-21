@@ -205,6 +205,11 @@ reloader:
     # labels: {}
     # annotations: {}
     # port: 9090
+    # For IPv4 and IPv6 dual stack support.
+    # ipFamilyPolicy:  SingleStack | PreferDualStack | RequireDualStack
+    # ipFamilyPolicy: "SingleStack"
+    # ipFamilies: ["IPv4"] | ["IPv6"] | ["IPv4","IPv6"] | ["IPv6","IPv4"]
+    # ipFamilies: ["IPv4"]
 
   rbac:
     enabled: true
