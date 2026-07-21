@@ -106,8 +106,8 @@ func UndeployReloader(namespace, releaseName string) error {
 		kind string
 		name string
 	}{
-		{"clusterrole", releaseName + "-reloader-role"},
-		{"clusterrolebinding", releaseName + "-reloader-role-binding"},
+		{"clusterrole", ReloaderDeploymentName(releaseName) + "-role"},
+		{"clusterrolebinding", ReloaderDeploymentName(releaseName) + "-role-binding"},
 	}
 
 	for _, res := range clusterResources {
@@ -144,8 +144,8 @@ func cleanupClusterResources(releaseName string) {
 		kind string
 		name string
 	}{
-		{"clusterrole", releaseName + "-reloader-role"},
-		{"clusterrolebinding", releaseName + "-reloader-role-binding"},
+		{"clusterrole", ReloaderDeploymentName(releaseName) + "-role"},
+		{"clusterrolebinding", ReloaderDeploymentName(releaseName) + "-role-binding"},
 	}
 
 	for _, res := range clusterResources {
@@ -207,7 +207,10 @@ func ReloaderDeploymentName(releaseName string) string {
 	if releaseName == "" {
 		releaseName = DefaultHelmReleaseName
 	}
-	return releaseName + "-reloader"
+	// The chart is named "reloader-v2", so the fullname template renders
+	// <release>-reloader-v2. Keep this the single source of truth; the
+	// cluster-role and pod-selector helpers derive their names from it.
+	return releaseName + "-reloader-v2"
 }
 
 // ReloaderPodSelector returns the label selector for Reloader pods.
@@ -215,5 +218,5 @@ func ReloaderPodSelector(releaseName string) string {
 	if releaseName == "" {
 		releaseName = DefaultHelmReleaseName
 	}
-	return "app=" + releaseName + "-reloader"
+	return "app=" + ReloaderDeploymentName(releaseName)
 }
