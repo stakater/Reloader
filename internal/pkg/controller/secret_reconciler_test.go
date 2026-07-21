@@ -3,7 +3,7 @@ package controller_test
 import (
 	"testing"
 
-	"github.com/stakater/Reloader/internal/pkg/config"
+	"github.com/stakater/Reloader/pkg/config"
 	"github.com/stakater/Reloader/internal/pkg/testutil"
 )
 

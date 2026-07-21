@@ -9,11 +9,15 @@ import (
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
 
-	"github.com/stakater/Reloader/internal/pkg/config"
 	"github.com/stakater/Reloader/internal/pkg/workload"
+	"github.com/stakater/Reloader/pkg/config"
 )
 
 // Service orchestrates the reload logic for ConfigMaps and Secrets.
+//
+// NOTE: not part of the public API — its methods reference internal/pkg/workload
+// and are therefore not usable from outside this module. External, decision-only
+// consumers should use Matcher instead.
 type Service struct {
 	cfg      *config.Config
 	log      logr.Logger

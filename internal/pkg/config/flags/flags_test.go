@@ -1,4 +1,4 @@
-package config
+package flags
 
 import (
 	"strings"
@@ -6,6 +6,8 @@ import (
 
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
+
+	"github.com/stakater/Reloader/pkg/config"
 )
 
 // resetViper resets the viper instance for testing.
@@ -17,7 +19,7 @@ func resetViper() {
 
 func TestBindFlags(t *testing.T) {
 	resetViper()
-	cfg := NewDefault()
+	cfg := config.NewDefault()
 	fs := pflag.NewFlagSet("test", pflag.ContinueOnError)
 
 	BindFlags(fs, cfg)
@@ -83,7 +85,7 @@ func TestBindFlags(t *testing.T) {
 
 func TestBindFlags_DefaultValues(t *testing.T) {
 	resetViper()
-	cfg := NewDefault()
+	cfg := config.NewDefault()
 	fs := pflag.NewFlagSet("test", pflag.ContinueOnError)
 
 	BindFlags(fs, cfg)
@@ -96,8 +98,8 @@ func TestBindFlags_DefaultValues(t *testing.T) {
 		t.Fatalf("ApplyFlags() error = %v", err)
 	}
 
-	if cfg.ReloadStrategy != ReloadStrategyEnvVars {
-		t.Errorf("ReloadStrategy = %v, want %v", cfg.ReloadStrategy, ReloadStrategyEnvVars)
+	if cfg.ReloadStrategy != config.ReloadStrategyEnvVars {
+		t.Errorf("ReloadStrategy = %v, want %v", cfg.ReloadStrategy, config.ReloadStrategyEnvVars)
 	}
 
 	if cfg.LogLevel != "info" {
@@ -107,7 +109,7 @@ func TestBindFlags_DefaultValues(t *testing.T) {
 
 func TestBindFlags_CustomValues(t *testing.T) {
 	resetViper()
-	cfg := NewDefault()
+	cfg := config.NewDefault()
 	fs := pflag.NewFlagSet("test", pflag.ContinueOnError)
 
 	BindFlags(fs, cfg)
@@ -134,8 +136,8 @@ func TestBindFlags_CustomValues(t *testing.T) {
 		t.Error("AutoReloadAll should be true")
 	}
 
-	if cfg.ReloadStrategy != ReloadStrategyAnnotations {
-		t.Errorf("ReloadStrategy = %v, want %v", cfg.ReloadStrategy, ReloadStrategyAnnotations)
+	if cfg.ReloadStrategy != config.ReloadStrategyAnnotations {
+		t.Errorf("ReloadStrategy = %v, want %v", cfg.ReloadStrategy, config.ReloadStrategyAnnotations)
 	}
 
 	if cfg.LogLevel != "debug" {
@@ -162,7 +164,7 @@ func TestBindFlags_CustomValues(t *testing.T) {
 func TestApplyFlags_SecretProviderClassAnnotations(t *testing.T) {
 	// Defaults are preserved when the flags are not provided.
 	resetViper()
-	cfg := NewDefault()
+	cfg := config.NewDefault()
 	fs := pflag.NewFlagSet("test", pflag.ContinueOnError)
 	BindFlags(fs, cfg)
 	if err := fs.Parse(nil); err != nil {
@@ -171,7 +173,7 @@ func TestApplyFlags_SecretProviderClassAnnotations(t *testing.T) {
 	if err := ApplyFlags(cfg); err != nil {
 		t.Fatalf("ApplyFlags() error = %v", err)
 	}
-	defaults := DefaultAnnotations()
+	defaults := config.DefaultAnnotations()
 	if cfg.Annotations.SecretProviderClassAuto != defaults.SecretProviderClassAuto {
 		t.Errorf("SecretProviderClassAuto = %q, want default %q", cfg.Annotations.SecretProviderClassAuto, defaults.SecretProviderClassAuto)
 	}
@@ -184,7 +186,7 @@ func TestApplyFlags_SecretProviderClassAnnotations(t *testing.T) {
 
 	// Custom values are applied from the flags.
 	resetViper()
-	cfg = NewDefault()
+	cfg = config.NewDefault()
 	fs = pflag.NewFlagSet("test", pflag.ContinueOnError)
 	BindFlags(fs, cfg)
 	args := []string{
@@ -212,7 +214,7 @@ func TestApplyFlags_SecretProviderClassAnnotations(t *testing.T) {
 func TestApplyFlags_ExcludeAnnotations(t *testing.T) {
 	// Defaults are preserved when the flags are not provided.
 	resetViper()
-	cfg := NewDefault()
+	cfg := config.NewDefault()
 	fs := pflag.NewFlagSet("test", pflag.ContinueOnError)
 	BindFlags(fs, cfg)
 	if err := fs.Parse(nil); err != nil {
@@ -221,7 +223,7 @@ func TestApplyFlags_ExcludeAnnotations(t *testing.T) {
 	if err := ApplyFlags(cfg); err != nil {
 		t.Fatalf("ApplyFlags() error = %v", err)
 	}
-	defaults := DefaultAnnotations()
+	defaults := config.DefaultAnnotations()
 	if cfg.Annotations.ConfigmapExclude != defaults.ConfigmapExclude {
 		t.Errorf("ConfigmapExclude = %q, want default %q", cfg.Annotations.ConfigmapExclude, defaults.ConfigmapExclude)
 	}
@@ -231,7 +233,7 @@ func TestApplyFlags_ExcludeAnnotations(t *testing.T) {
 
 	// Custom values are applied from the flags.
 	resetViper()
-	cfg = NewDefault()
+	cfg = config.NewDefault()
 	fs = pflag.NewFlagSet("test", pflag.ContinueOnError)
 	BindFlags(fs, cfg)
 	args := []string{
@@ -255,7 +257,7 @@ func TestApplyFlags_ExcludeAnnotations(t *testing.T) {
 func TestApplyFlags_IgnoreAnnotation(t *testing.T) {
 	// Default is preserved when the flag is not provided.
 	resetViper()
-	cfg := NewDefault()
+	cfg := config.NewDefault()
 	fs := pflag.NewFlagSet("test", pflag.ContinueOnError)
 	BindFlags(fs, cfg)
 	if err := fs.Parse(nil); err != nil {
@@ -264,13 +266,13 @@ func TestApplyFlags_IgnoreAnnotation(t *testing.T) {
 	if err := ApplyFlags(cfg); err != nil {
 		t.Fatalf("ApplyFlags() error = %v", err)
 	}
-	if cfg.Annotations.Ignore != DefaultAnnotations().Ignore {
-		t.Errorf("Ignore = %q, want default %q", cfg.Annotations.Ignore, DefaultAnnotations().Ignore)
+	if cfg.Annotations.Ignore != config.DefaultAnnotations().Ignore {
+		t.Errorf("Ignore = %q, want default %q", cfg.Annotations.Ignore, config.DefaultAnnotations().Ignore)
 	}
 
 	// Custom value is applied from the flag.
 	resetViper()
-	cfg = NewDefault()
+	cfg = config.NewDefault()
 	fs = pflag.NewFlagSet("test", pflag.ContinueOnError)
 	BindFlags(fs, cfg)
 	if err := fs.Parse([]string{"--ignore-annotation=my.company.com/reloader-ignore"}); err != nil {
@@ -305,7 +307,7 @@ func TestApplyFlags_BooleanStrings(t *testing.T) {
 		t.Run(
 			tt.name, func(t *testing.T) {
 				resetViper()
-				cfg := NewDefault()
+				cfg := config.NewDefault()
 				fs := pflag.NewFlagSet("test", pflag.ContinueOnError)
 				BindFlags(fs, cfg)
 
@@ -329,7 +331,7 @@ func TestApplyFlags_BooleanStrings(t *testing.T) {
 
 func TestApplyFlags_CommaSeparatedLists(t *testing.T) {
 	resetViper()
-	cfg := NewDefault()
+	cfg := config.NewDefault()
 	fs := pflag.NewFlagSet("test", pflag.ContinueOnError)
 	BindFlags(fs, cfg)
 
@@ -365,7 +367,7 @@ func TestApplyFlags_CommaSeparatedLists(t *testing.T) {
 
 func TestApplyFlags_Selectors(t *testing.T) {
 	resetViper()
-	cfg := NewDefault()
+	cfg := config.NewDefault()
 	fs := pflag.NewFlagSet("test", pflag.ContinueOnError)
 	BindFlags(fs, cfg)
 
@@ -397,7 +399,7 @@ func TestApplyFlags_Selectors(t *testing.T) {
 
 func TestApplyFlags_InvalidSelector(t *testing.T) {
 	resetViper()
-	cfg := NewDefault()
+	cfg := config.NewDefault()
 	fs := pflag.NewFlagSet("test", pflag.ContinueOnError)
 	BindFlags(fs, cfg)
 
@@ -453,7 +455,7 @@ func TestApplyFlags_AlertingEnvVars(t *testing.T) {
 					t.Setenv(k, val)
 				}
 
-				cfg := NewDefault()
+				cfg := config.NewDefault()
 				fs := pflag.NewFlagSet("test", pflag.ContinueOnError)
 				BindFlags(fs, cfg)
 
@@ -486,7 +488,7 @@ func TestApplyFlags_LegacyProxyEnvVar(t *testing.T) {
 
 	t.Setenv("ALERT_WEBHOOK_PROXY", "http://legacy-proxy:8080")
 
-	cfg := NewDefault()
+	cfg := config.NewDefault()
 	fs := pflag.NewFlagSet("test", pflag.ContinueOnError)
 	BindFlags(fs, cfg)
 
@@ -505,7 +507,7 @@ func TestApplyFlags_LegacyProxyEnvVar(t *testing.T) {
 
 func TestApplyFlagsCSIIntegration(t *testing.T) {
 	resetViper()
-	cfg := NewDefault()
+	cfg := config.NewDefault()
 	fs := pflag.NewFlagSet("test", pflag.ContinueOnError)
 	BindFlags(fs, cfg)
 	if err := fs.Parse([]string{"--enable-csi-integration=true"}); err != nil {

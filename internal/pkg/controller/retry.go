@@ -7,7 +7,7 @@ import (
 	"k8s.io/client-go/util/retry"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	"github.com/stakater/Reloader/internal/pkg/reload"
+	"github.com/stakater/Reloader/pkg/reload"
 	"github.com/stakater/Reloader/internal/pkg/workload"
 )
 

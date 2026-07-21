@@ -12,8 +12,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	csiv1 "sigs.k8s.io/secrets-store-csi-driver/apis/v1"
 
-	"github.com/stakater/Reloader/internal/pkg/config"
-	"github.com/stakater/Reloader/internal/pkg/reload"
+	"github.com/stakater/Reloader/pkg/config"
+	"github.com/stakater/Reloader/pkg/reload"
 )
 
 // SecretProviderClassReconciler watches SecretProviderClassPodStatus (the per-pod

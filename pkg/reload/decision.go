@@ -5,6 +5,9 @@ import (
 )
 
 // ReloadDecision contains the result of evaluating whether to reload a workload.
+//
+// NOTE: not part of the public API — the Workload field is an internal/pkg/workload
+// type and is therefore not usable from outside this module.
 type ReloadDecision struct {
 	// Workload is the workload accessor.
 	Workload workload.Workload

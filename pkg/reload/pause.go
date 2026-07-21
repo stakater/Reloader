@@ -6,11 +6,14 @@ import (
 
 	appsv1 "k8s.io/api/apps/v1"
 
-	"github.com/stakater/Reloader/internal/pkg/config"
 	"github.com/stakater/Reloader/internal/pkg/workload"
+	"github.com/stakater/Reloader/pkg/config"
 )
 
 // PauseHandler handles pause deployment logic.
+//
+// NOTE: not part of the public API — its methods reference internal/pkg/workload
+// and are therefore not usable from outside this module.
 type PauseHandler struct {
 	cfg *config.Config
 }

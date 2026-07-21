@@ -1,4 +1,4 @@
-package config
+package flags
 
 import (
 	"fmt"
@@ -8,6 +8,8 @@ import (
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
 	"k8s.io/apimachinery/pkg/labels"
+
+	"github.com/stakater/Reloader/pkg/config"
 )
 
 // v is the viper instance for configuration.
@@ -22,7 +24,7 @@ func init() {
 
 // BindFlags binds configuration flags to the provided flag set.
 // Call this before parsing flags, then call ApplyFlags after parsing.
-func BindFlags(fs *pflag.FlagSet, cfg *Config) {
+func BindFlags(fs *pflag.FlagSet, cfg *config.Config) {
 	// Auto reload
 	fs.Bool(
 		"auto-reload-all", cfg.AutoReloadAll,
@@ -265,7 +267,7 @@ func BindFlags(fs *pflag.FlagSet, cfg *Config) {
 
 // ApplyFlags applies flag values from viper to the config struct.
 // Call this after parsing flags.
-func ApplyFlags(cfg *Config) error {
+func ApplyFlags(cfg *config.Config) error {
 	// Boolean flags
 	cfg.AutoReloadAll = v.GetBool("auto-reload-all")
 	cfg.SyncAfterRestart = v.GetBool("sync-after-restart")
@@ -287,7 +289,7 @@ func ApplyFlags(cfg *Config) error {
 	}
 
 	// String flags
-	cfg.ReloadStrategy = ReloadStrategy(v.GetString("reload-strategy"))
+	cfg.ReloadStrategy = config.ReloadStrategy(v.GetString("reload-strategy"))
 	cfg.WebhookURL = v.GetString("webhook-url")
 	cfg.LogFormat = v.GetString("log-format")
 	cfg.LogLevel = v.GetString("log-level")

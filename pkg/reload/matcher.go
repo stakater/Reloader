@@ -4,7 +4,7 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/stakater/Reloader/internal/pkg/config"
+	"github.com/stakater/Reloader/pkg/config"
 )
 
 // MatchResult contains the result of checking if a workload should be reloaded.
