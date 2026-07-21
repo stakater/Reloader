@@ -22,6 +22,12 @@ spec:
 {{- if .Values.reloader.matchLabels }}
 {{ tpl (toYaml .Values.reloader.matchLabels) . | indent 4 }}
 {{- end }}
+{{ if .Values.reloader.service.ipFamilyPolicy -}}
+  ipFamilyPolicy: {{ .Values.reloader.service.ipFamilyPolicy }}
+{{ end -}}
+{{ if .Values.reloader.service.ipFamilies -}}
+  ipFamilies: {{ .Values.reloader.service.ipFamilies | toYaml | nindent 4 }}
+{{ end -}}
   ports:
   - port: {{ .Values.reloader.service.port }}
     name: http
