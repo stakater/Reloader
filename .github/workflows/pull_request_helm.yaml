@@ -1,0 +1,42 @@
+name: Pull Request Workflow for Helm Chart changes
+
+on:
+  pull_request:
+    branches:
+      - master
+      - 'v**'
+    paths:
+      - 'deployments/kubernetes/chart/reloader/**'
+
+# Default to no GITHUB_TOKEN permissions; each job opts into the minimum it needs.
+permissions: {}
+
+jobs:
+  helm:
+    permissions:
+      contents: read
+    runs-on: ubuntu-latest
+    name: Helm Lint & Unit Tests
+    steps:
+    - name: Check out code
+      uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
+      with:
+        ref: ${{ github.event.pull_request.head.sha }}
+
+    # Setting up helm binary
+    - name: Set up Helm
+      uses: azure/setup-helm@dda3372f752e03dde6b3237bc9431cdc2f7a02a2 # v5
+      with:
+        version: v3.20.2
+
+    - name: Helm chart unit tests
+      uses: d3adb5/helm-unittest-action@850bc76597579183998069830d5fa8c3ef0ea34a # v2
+      with:
+        charts: deployments/kubernetes/chart/reloader
+        helm-version: v3.20.2
+        github-token: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Helm Lint
+      run: |
+        cd deployments/kubernetes/chart/reloader
+        helm lint
