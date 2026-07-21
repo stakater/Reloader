@@ -17,9 +17,9 @@ maintainers:
     email: rasheed@stakater.com
   - name: faizanahmad055
     email: faizan@stakater.com
-dependencies:
-  - name: reloader-enterprise
-    alias: enterprise
-    version: 0.1.0
-    repository: oci://ghcr.io/stakater/charts
-    condition: enterprise.enabled
+# dependencies:
+#   - name: reloader-enterprise
+#     alias: enterprise
+#     version: 0.1.0
+#     repository: oci://ghcr.io/stakater/charts
+#     condition: enterprise.enabled
