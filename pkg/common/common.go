@@ -276,7 +276,11 @@ func ShouldReload(config Config, resourceType string, annotations Map, podAnnota
 	values := strings.Split(annotationValue, ",")
 	for _, value := range values {
 		value = strings.TrimSpace(value)
-		re := regexp.MustCompile("^" + value + "$")
+		re, err := regexp.Compile("^" + value + "$")
+		if err != nil {
+			logrus.Errorf("Invalid regex %q in reload annotation %q on resource '%s' of type '%s'; skipping this pattern: %v", value, config.Annotation, config.ResourceName, config.Type, err)
+			continue
+		}
 		if re.Match([]byte(config.ResourceName)) {
 			return ReloadCheckResult{
 				ShouldReload: true,
