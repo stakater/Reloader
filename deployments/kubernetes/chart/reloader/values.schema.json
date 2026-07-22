@@ -56,7 +56,8 @@
                         "items": {
                           "type": "string",
                           "enum": [
-                            "IPv4"
+                            "IPv4",
+                            "IPv6"
                           ]
                         }
                       },
@@ -130,6 +131,10 @@
                             "IPv6"
                           ]
                         }
+                      },
+                      {
+                        "minItems": 1,
+                        "maxItems": 2
                       }
                     ]
                   }
