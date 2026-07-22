@@ -222,3 +222,27 @@ func TestShouldReload_IssueRBACPermissionFixed(t *testing.T) {
 		})
 	}
 }
+
+// A malformed regex in a named reload annotation must not panic the operator.
+// Regression test: previously regexp.MustCompile("^"+value+"$") panicked on an
+// invalid pattern, crashing Reloader cluster-wide (no recover on the worker).
+func TestShouldReload_InvalidRegexAnnotation_DoesNotPanic(t *testing.T) {
+	config := Config{
+		ResourceName: "app-config",
+		Annotation:   "secret.reloader.stakater.com/reload",
+	}
+	annotations := Map{
+		// unbalanced bracket => invalid regex
+		"secret.reloader.stakater.com/reload": "app-config[",
+	}
+	opts := &ReloaderOptions{
+		ReloaderAutoAnnotation: "reloader.stakater.com/auto",
+	}
+
+	// Before the fix this panicked inside ShouldReload.
+	result := ShouldReload(config, "Deployment", annotations, Map{}, opts)
+
+	if result.ShouldReload {
+		t.Errorf("Expected ShouldReload=false for an invalid regex pattern, got=%v", result.ShouldReload)
+	}
+}
