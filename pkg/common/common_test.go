@@ -3,6 +3,7 @@ package common
 import (
 	"testing"
 
+	"github.com/stakater/Reloader/internal/pkg/constants"
 	"github.com/stakater/Reloader/internal/pkg/options"
 )
 
@@ -219,6 +220,59 @@ func TestShouldReload_IssueRBACPermissionFixed(t *testing.T) {
 			}
 
 			t.Logf("✓ %s", tt.description)
+		})
+	}
+}
+
+func TestShouldReload_AutoAndNamedReloadWorkTogether(t *testing.T) {
+	config := Config{
+		ResourceName:        "my-config",
+		Type:                constants.ConfigmapEnvVarPostfix,
+		Annotation:          options.ConfigmapUpdateOnChangeAnnotation,
+		TypedAutoAnnotation: options.ConfigmapReloaderAutoAnnotation,
+	}
+
+	opts := &ReloaderOptions{
+		AutoReloadAll:          false,
+		ReloaderAutoAnnotation: options.ReloaderAutoAnnotation,
+	}
+
+	tests := []struct {
+		name           string
+		annotations    Map
+		expectedReload bool
+		expectedAuto   bool
+	}{
+		{
+			name: "named reload wins when both annotations are present",
+			annotations: Map{
+				options.ConfigmapUpdateOnChangeAnnotation: "my-config",
+				options.ReloaderAutoAnnotation:            "true",
+			},
+			expectedReload: true,
+			expectedAuto:   false,
+		},
+		{
+			name: "auto reload still works when named annotation does not match",
+			annotations: Map{
+				options.ConfigmapUpdateOnChangeAnnotation: "other-config",
+				options.ReloaderAutoAnnotation:            "true",
+			},
+			expectedReload: true,
+			expectedAuto:   true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := ShouldReload(config, "Deployment", tt.annotations, Map{}, opts)
+
+			if result.ShouldReload != tt.expectedReload {
+				t.Fatalf("expected ShouldReload=%v, got=%v", tt.expectedReload, result.ShouldReload)
+			}
+			if result.AutoReload != tt.expectedAuto {
+				t.Fatalf("expected AutoReload=%v, got=%v", tt.expectedAuto, result.AutoReload)
+			}
 		})
 	}
 }
