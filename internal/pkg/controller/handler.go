@@ -14,6 +14,7 @@ import (
 	"github.com/stakater/Reloader/internal/pkg/reload"
 	"github.com/stakater/Reloader/internal/pkg/webhook"
 	"github.com/stakater/Reloader/internal/pkg/workload"
+	"github.com/stakater/Reloader/pkg/matcher"
 )
 
 // ReloadHandler handles the common reload workflow.
@@ -32,7 +33,7 @@ type ReloadHandler struct {
 func (h *ReloadHandler) Process(
 	ctx context.Context,
 	namespace, resourceName string,
-	resourceType reload.ResourceType,
+	resourceType matcher.ResourceType,
 	getDecisions func([]workload.Workload) []reload.ReloadDecision,
 	log logr.Logger,
 ) (ctrl.Result, error) {
@@ -76,7 +77,7 @@ func (h *ReloadHandler) Process(
 func (h *ReloadHandler) sendWebhook(
 	ctx context.Context,
 	resourceName, namespace string,
-	resourceType reload.ResourceType,
+	resourceType matcher.ResourceType,
 	decisions []reload.ReloadDecision,
 	log logr.Logger,
 ) (ctrl.Result, error) {
@@ -127,7 +128,7 @@ func (h *ReloadHandler) sendWebhook(
 func (h *ReloadHandler) applyReloads(
 	ctx context.Context,
 	resourceName, resourceNamespace string,
-	resourceType reload.ResourceType,
+	resourceType matcher.ResourceType,
 	decisions []reload.ReloadDecision,
 	log logr.Logger,
 ) {

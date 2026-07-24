@@ -1,10 +1,14 @@
-package reload
+// Package matcher provides the annotation-based reload decision API. Given a
+// changed resource and a workload's annotations, Matcher reports whether the
+// workload should be reloaded. It is workload-type agnostic and safe to import
+// from outside this module.
+package matcher
 
 import (
 	"regexp"
 	"strings"
 
-	"github.com/stakater/Reloader/internal/pkg/config"
+	"github.com/stakater/Reloader/pkg/config"
 )
 
 // MatchResult contains the result of checking if a workload should be reloaded.

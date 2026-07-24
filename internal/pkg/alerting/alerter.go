@@ -4,7 +4,7 @@ import (
 	"context"
 	"time"
 
-	"github.com/stakater/Reloader/internal/pkg/config"
+	"github.com/stakater/Reloader/pkg/config"
 )
 
 // AlertMessage contains the details of a reload event to be sent as an alert.

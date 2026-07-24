@@ -9,12 +9,13 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	"github.com/stakater/Reloader/internal/pkg/alerting"
-	"github.com/stakater/Reloader/internal/pkg/config"
 	"github.com/stakater/Reloader/internal/pkg/events"
 	"github.com/stakater/Reloader/internal/pkg/metrics"
 	"github.com/stakater/Reloader/internal/pkg/reload"
 	"github.com/stakater/Reloader/internal/pkg/webhook"
 	"github.com/stakater/Reloader/internal/pkg/workload"
+	"github.com/stakater/Reloader/pkg/config"
+	"github.com/stakater/Reloader/pkg/matcher"
 )
 
 // ConfigMapReconciler watches ConfigMaps and triggers workload reloads.
@@ -49,7 +50,7 @@ func NewConfigMapReconciler(
 			NamespaceCache: nsCache,
 		},
 		ResourceConfig[*corev1.ConfigMap]{
-			ResourceType: reload.ResourceTypeConfigMap,
+			ResourceType: matcher.ResourceTypeConfigMap,
 			NewResource:  func() *corev1.ConfigMap { return &corev1.ConfigMap{} },
 			CreateChange: func(cm *corev1.ConfigMap, eventType reload.EventType) reload.ResourceChange {
 				return reload.ConfigMapChange{ConfigMap: cm, EventType: eventType}

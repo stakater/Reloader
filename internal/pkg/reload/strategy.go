@@ -9,7 +9,8 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 
-	"github.com/stakater/Reloader/internal/pkg/config"
+	"github.com/stakater/Reloader/pkg/config"
+	"github.com/stakater/Reloader/pkg/matcher"
 )
 
 const (
@@ -32,7 +33,7 @@ type Strategy interface {
 // StrategyInput contains the information needed to apply a reload strategy.
 type StrategyInput struct {
 	ResourceName   string
-	ResourceType   ResourceType
+	ResourceType   matcher.ResourceType
 	Namespace      string
 	Hash           string
 	Container      *corev1.Container
@@ -103,14 +104,14 @@ func (s *EnvVarStrategy) removeEnvVar(container *corev1.Container, name string) 
 	return false
 }
 
-func (s *EnvVarStrategy) envVarName(resourceName string, resourceType ResourceType) string {
+func (s *EnvVarStrategy) envVarName(resourceName string, resourceType matcher.ResourceType) string {
 	var postfix string
 	switch resourceType {
-	case ResourceTypeConfigMap:
+	case matcher.ResourceTypeConfigMap:
 		postfix = ConfigmapEnvVarPostfix
-	case ResourceTypeSecret:
+	case matcher.ResourceTypeSecret:
 		postfix = SecretEnvVarPostfix
-	case ResourceTypeSecretProviderClass:
+	case matcher.ResourceTypeSecretProviderClass:
 		postfix = SecretProviderClassEnvVarPostfix
 	}
 	return EnvVarPrefix + convertToEnvVarName(resourceName) + "_" + postfix

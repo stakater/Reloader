@@ -3,6 +3,8 @@ package reload
 import (
 	corev1 "k8s.io/api/core/v1"
 	csiv1 "sigs.k8s.io/secrets-store-csi-driver/apis/v1"
+
+	"github.com/stakater/Reloader/pkg/matcher"
 )
 
 // EventType represents the type of change event.
@@ -24,7 +26,7 @@ type ResourceChange interface {
 	GetName() string
 	GetNamespace() string
 	GetAnnotations() map[string]string
-	GetResourceType() ResourceType
+	GetResourceType() matcher.ResourceType
 	ComputeHash(hasher *Hasher) string
 }
 
@@ -34,13 +36,13 @@ type ConfigMapChange struct {
 	EventType EventType
 }
 
-func (c ConfigMapChange) IsNil() bool                       { return c.ConfigMap == nil }
-func (c ConfigMapChange) GetEventType() EventType           { return c.EventType }
-func (c ConfigMapChange) GetName() string                   { return c.ConfigMap.Name }
-func (c ConfigMapChange) GetNamespace() string              { return c.ConfigMap.Namespace }
-func (c ConfigMapChange) GetAnnotations() map[string]string { return c.ConfigMap.Annotations }
-func (c ConfigMapChange) GetResourceType() ResourceType     { return ResourceTypeConfigMap }
-func (c ConfigMapChange) ComputeHash(h *Hasher) string      { return h.HashConfigMap(c.ConfigMap) }
+func (c ConfigMapChange) IsNil() bool                           { return c.ConfigMap == nil }
+func (c ConfigMapChange) GetEventType() EventType               { return c.EventType }
+func (c ConfigMapChange) GetName() string                       { return c.ConfigMap.Name }
+func (c ConfigMapChange) GetNamespace() string                  { return c.ConfigMap.Namespace }
+func (c ConfigMapChange) GetAnnotations() map[string]string     { return c.ConfigMap.Annotations }
+func (c ConfigMapChange) GetResourceType() matcher.ResourceType { return matcher.ResourceTypeConfigMap }
+func (c ConfigMapChange) ComputeHash(h *Hasher) string          { return h.HashConfigMap(c.ConfigMap) }
 
 // SecretChange represents a change event for a Secret.
 type SecretChange struct {
@@ -48,13 +50,13 @@ type SecretChange struct {
 	EventType EventType
 }
 
-func (c SecretChange) IsNil() bool                       { return c.Secret == nil }
-func (c SecretChange) GetEventType() EventType           { return c.EventType }
-func (c SecretChange) GetName() string                   { return c.Secret.Name }
-func (c SecretChange) GetNamespace() string              { return c.Secret.Namespace }
-func (c SecretChange) GetAnnotations() map[string]string { return c.Secret.Annotations }
-func (c SecretChange) GetResourceType() ResourceType     { return ResourceTypeSecret }
-func (c SecretChange) ComputeHash(h *Hasher) string      { return h.HashSecret(c.Secret) }
+func (c SecretChange) IsNil() bool                           { return c.Secret == nil }
+func (c SecretChange) GetEventType() EventType               { return c.EventType }
+func (c SecretChange) GetName() string                       { return c.Secret.Name }
+func (c SecretChange) GetNamespace() string                  { return c.Secret.Namespace }
+func (c SecretChange) GetAnnotations() map[string]string     { return c.Secret.Annotations }
+func (c SecretChange) GetResourceType() matcher.ResourceType { return matcher.ResourceTypeSecret }
+func (c SecretChange) ComputeHash(h *Hasher) string          { return h.HashSecret(c.Secret) }
 
 // SecretProviderClassChange represents a change event derived from a
 // SecretProviderClassPodStatus update. Name/Annotations refer to the resolved
@@ -74,8 +76,8 @@ func (c SecretProviderClassChange) GetNamespace() string    { return c.Namespace
 func (c SecretProviderClassChange) GetAnnotations() map[string]string {
 	return c.Annotations
 }
-func (c SecretProviderClassChange) GetResourceType() ResourceType {
-	return ResourceTypeSecretProviderClass
+func (c SecretProviderClassChange) GetResourceType() matcher.ResourceType {
+	return matcher.ResourceTypeSecretProviderClass
 }
 func (c SecretProviderClassChange) ComputeHash(h *Hasher) string {
 	return h.HashSecretProviderClass(c.Status)

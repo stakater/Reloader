@@ -5,9 +5,9 @@ import (
 
 	"k8s.io/apimachinery/pkg/labels"
 
-	"github.com/stakater/Reloader/internal/pkg/config"
 	"github.com/stakater/Reloader/internal/pkg/controller"
 	"github.com/stakater/Reloader/internal/pkg/testutil"
+	"github.com/stakater/Reloader/pkg/config"
 )
 
 func TestNamespaceCache_Basic(t *testing.T) {

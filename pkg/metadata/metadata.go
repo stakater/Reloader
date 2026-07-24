@@ -11,7 +11,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"github.com/stakater/Reloader/internal/pkg/config"
+	"github.com/stakater/Reloader/pkg/config"
 )
 
 const (
@@ -20,7 +20,7 @@ const (
 	// ConfigMapLabelKey is the label key for the metadata ConfigMap.
 	ConfigMapLabelKey = "reloader.stakater.com/meta-info"
 	// ConfigMapLabelValue is the label value for the metadata ConfigMap.
-	ConfigMapLabelValue = "reloader-oss"
+	ConfigMapLabelValue = "reloader"
 
 	// Environment variables for deployment info.
 	EnvReloaderNamespace      = "RELOADER_NAMESPACE"

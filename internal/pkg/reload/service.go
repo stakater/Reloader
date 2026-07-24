@@ -9,16 +9,18 @@ import (
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
 
-	"github.com/stakater/Reloader/internal/pkg/config"
 	"github.com/stakater/Reloader/internal/pkg/workload"
+	"github.com/stakater/Reloader/pkg/config"
+	"github.com/stakater/Reloader/pkg/matcher"
 )
 
 // Service orchestrates the reload logic for ConfigMaps and Secrets.
+// External, decision-only consumers should use the public matcher package instead.
 type Service struct {
 	cfg      *config.Config
 	log      logr.Logger
 	hasher   *Hasher
-	matcher  *Matcher
+	matcher  *matcher.Matcher
 	strategy Strategy
 }
 
@@ -28,7 +30,7 @@ func NewService(cfg *config.Config, log logr.Logger) *Service {
 		cfg:      cfg,
 		log:      log,
 		hasher:   NewHasher(),
-		matcher:  NewMatcher(cfg),
+		matcher:  matcher.NewMatcher(cfg),
 		strategy: NewStrategy(cfg),
 	}
 }
@@ -62,7 +64,7 @@ func (s *Service) processResource(
 	resourceName string,
 	resourceNamespace string,
 	resourceAnnotations map[string]string,
-	resourceType ResourceType,
+	resourceType matcher.ResourceType,
 	hash string,
 	workloads []workload.Workload,
 ) []ReloadDecision {
@@ -79,17 +81,17 @@ func (s *Service) processResource(
 
 		var usesResource bool
 		switch resourceType {
-		case ResourceTypeConfigMap:
+		case matcher.ResourceTypeConfigMap:
 			usesResource = wl.UsesConfigMap(resourceName)
-		case ResourceTypeSecret:
+		case matcher.ResourceTypeSecret:
 			usesResource = wl.UsesSecret(resourceName)
-		case ResourceTypeSecretProviderClass:
+		case matcher.ResourceTypeSecretProviderClass:
 			// Annotation-only matching (parity with master): the workload's
 			// annotations alone decide the reload; no volume-uses scan.
 			usesResource = true
 		}
 
-		input := MatchInput{
+		input := matcher.MatchInput{
 			ResourceName:        resourceName,
 			ResourceNamespace:   resourceNamespace,
 			ResourceType:        resourceType,
@@ -137,7 +139,7 @@ func (s *Service) ApplyReload(
 	ctx context.Context,
 	wl workload.Workload,
 	resourceName string,
-	resourceType ResourceType,
+	resourceType matcher.ResourceType,
 	namespace string,
 	hash string,
 	autoReload bool,
@@ -172,7 +174,7 @@ func (s *Service) ApplyReload(
 func (s *Service) setAttributionAnnotation(
 	wl workload.Workload,
 	resourceName string,
-	resourceType ResourceType,
+	resourceType matcher.ResourceType,
 	namespace string,
 	hash string,
 	container *corev1.Container,
@@ -203,7 +205,7 @@ func (s *Service) setAttributionAnnotation(
 func (s *Service) findTargetContainer(
 	wl workload.Workload,
 	resourceName string,
-	resourceType ResourceType,
+	resourceType matcher.ResourceType,
 	autoReload bool,
 ) *corev1.Container {
 	containers := wl.GetContainers()
@@ -243,10 +245,10 @@ func (s *Service) findTargetContainer(
 	return &containers[0]
 }
 
-func (s *Service) findVolumeUsingResource(volumes []corev1.Volume, resourceName string, resourceType ResourceType) string {
+func (s *Service) findVolumeUsingResource(volumes []corev1.Volume, resourceName string, resourceType matcher.ResourceType) string {
 	for _, vol := range volumes {
 		switch resourceType {
-		case ResourceTypeConfigMap:
+		case matcher.ResourceTypeConfigMap:
 			if vol.ConfigMap != nil && vol.ConfigMap.Name == resourceName {
 				return vol.Name
 			}
@@ -257,7 +259,7 @@ func (s *Service) findVolumeUsingResource(volumes []corev1.Volume, resourceName 
 					}
 				}
 			}
-		case ResourceTypeSecret:
+		case matcher.ResourceTypeSecret:
 			if vol.Secret != nil && vol.Secret.SecretName == resourceName {
 				return vol.Name
 			}
@@ -268,7 +270,7 @@ func (s *Service) findVolumeUsingResource(volumes []corev1.Volume, resourceName 
 					}
 				}
 			}
-		case ResourceTypeSecretProviderClass:
+		case matcher.ResourceTypeSecretProviderClass:
 			// Match the CSI volume that references this SPC.
 			if vol.CSI != nil && vol.CSI.VolumeAttributes["secretProviderClass"] == resourceName {
 				return vol.Name
@@ -289,18 +291,18 @@ func (s *Service) findContainerWithVolumeMount(containers []corev1.Container, vo
 	return nil
 }
 
-func (s *Service) findContainerWithEnvRef(containers []corev1.Container, resourceName string, resourceType ResourceType) *corev1.Container {
+func (s *Service) findContainerWithEnvRef(containers []corev1.Container, resourceName string, resourceType matcher.ResourceType) *corev1.Container {
 	for i := range containers {
 		for _, env := range containers[i].Env {
 			if env.ValueFrom == nil {
 				continue
 			}
 			switch resourceType {
-			case ResourceTypeConfigMap:
+			case matcher.ResourceTypeConfigMap:
 				if env.ValueFrom.ConfigMapKeyRef != nil && env.ValueFrom.ConfigMapKeyRef.Name == resourceName {
 					return &containers[i]
 				}
-			case ResourceTypeSecret:
+			case matcher.ResourceTypeSecret:
 				if env.ValueFrom.SecretKeyRef != nil && env.ValueFrom.SecretKeyRef.Name == resourceName {
 					return &containers[i]
 				}
@@ -309,11 +311,11 @@ func (s *Service) findContainerWithEnvRef(containers []corev1.Container, resourc
 
 		for _, envFrom := range containers[i].EnvFrom {
 			switch resourceType {
-			case ResourceTypeConfigMap:
+			case matcher.ResourceTypeConfigMap:
 				if envFrom.ConfigMapRef != nil && envFrom.ConfigMapRef.Name == resourceName {
 					return &containers[i]
 				}
-			case ResourceTypeSecret:
+			case matcher.ResourceTypeSecret:
 				if envFrom.SecretRef != nil && envFrom.SecretRef.Name == resourceName {
 					return &containers[i]
 				}

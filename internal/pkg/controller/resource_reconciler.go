@@ -11,12 +11,13 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
 	"github.com/stakater/Reloader/internal/pkg/alerting"
-	"github.com/stakater/Reloader/internal/pkg/config"
 	"github.com/stakater/Reloader/internal/pkg/events"
 	"github.com/stakater/Reloader/internal/pkg/metrics"
 	"github.com/stakater/Reloader/internal/pkg/reload"
 	"github.com/stakater/Reloader/internal/pkg/webhook"
 	"github.com/stakater/Reloader/internal/pkg/workload"
+	"github.com/stakater/Reloader/pkg/config"
+	"github.com/stakater/Reloader/pkg/matcher"
 )
 
 // ResourceReconcilerDeps holds shared dependencies for resource reconcilers.
@@ -39,7 +40,7 @@ type ResourceReconcilerDeps struct {
 // ResourceConfig provides type-specific configuration for a resource reconciler.
 type ResourceConfig[T client.Object] struct {
 	// ResourceType identifies the type of resource (configmap or secret).
-	ResourceType reload.ResourceType
+	ResourceType matcher.ResourceType
 
 	// NewResource creates a new instance of the resource type.
 	NewResource func() T

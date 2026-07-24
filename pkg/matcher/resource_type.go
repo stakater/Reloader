@@ -1,4 +1,4 @@
-package reload
+package matcher
 
 // ResourceType represents the type of Kubernetes resource.
 type ResourceType string

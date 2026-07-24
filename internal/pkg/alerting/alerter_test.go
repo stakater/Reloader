@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stakater/Reloader/internal/pkg/config"
+	"github.com/stakater/Reloader/pkg/config"
 )
 
 // testServer creates a test HTTP server that captures the request body.

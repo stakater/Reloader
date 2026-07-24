@@ -9,7 +9,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	csiv1 "sigs.k8s.io/secrets-store-csi-driver/apis/v1"
 
-	"github.com/stakater/Reloader/internal/pkg/config"
+	"github.com/stakater/Reloader/pkg/config"
 )
 
 func TestNamespaceFilterPredicate_Create(t *testing.T) {

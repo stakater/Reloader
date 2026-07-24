@@ -5,6 +5,7 @@ import (
 )
 
 // ReloadDecision contains the result of evaluating whether to reload a workload.
+// External, decision-only consumers should use the public matcher package instead.
 type ReloadDecision struct {
 	// Workload is the workload accessor.
 	Workload workload.Workload

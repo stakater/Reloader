@@ -12,8 +12,8 @@ import (
 	"k8s.io/client-go/rest"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	"github.com/stakater/Reloader/internal/pkg/config"
 	"github.com/stakater/Reloader/internal/pkg/workload"
+	"github.com/stakater/Reloader/pkg/config"
 )
 
 // Publisher handles creating and updating the metadata ConfigMap.

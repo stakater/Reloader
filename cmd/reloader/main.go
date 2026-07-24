@@ -17,12 +17,13 @@ import (
 	"k8s.io/client-go/discovery"
 	controllerruntime "sigs.k8s.io/controller-runtime"
 
-	"github.com/stakater/Reloader/internal/pkg/config"
+	"github.com/stakater/Reloader/internal/pkg/config/flags"
 	"github.com/stakater/Reloader/internal/pkg/controller"
 	"github.com/stakater/Reloader/internal/pkg/csi"
-	"github.com/stakater/Reloader/internal/pkg/metadata"
 	"github.com/stakater/Reloader/internal/pkg/metrics"
 	"github.com/stakater/Reloader/internal/pkg/openshift"
+	"github.com/stakater/Reloader/pkg/config"
+	"github.com/stakater/Reloader/pkg/metadata"
 )
 
 // Environment variable names for pod identity in HA mode.
@@ -49,20 +50,20 @@ func newReloaderCommand() *cobra.Command {
 		RunE:  run,
 	}
 
-	config.BindFlags(cmd.PersistentFlags(), cfg)
+	flags.BindFlags(cmd.PersistentFlags(), cfg)
 	return cmd
 }
 
 func run(cmd *cobra.Command, args []string) error {
 	// Configure logging first so ApplyFlags can surface namespace-scope warnings
 	// through a ready logger instead of returning them to the caller.
-	log, err := configureLogging(config.LoggingFlags())
+	log, err := configureLogging(flags.LoggingFlags())
 	if err != nil {
 		return fmt.Errorf("configuring logging: %w", err)
 	}
 	controllerruntime.SetLogger(log)
 
-	if err := config.ApplyFlags(cfg, log); err != nil {
+	if err := flags.ApplyFlags(cfg, log); err != nil {
 		return fmt.Errorf("applying flags: %w", err)
 	}
 
@@ -116,7 +117,7 @@ func run(cmd *cobra.Command, args []string) error {
 		log.V(1).Info("Failed to create discovery client", "error", discErr)
 	}
 
-	if config.ShouldAutoDetectOpenShift() {
+	if flags.ShouldAutoDetectOpenShift() {
 		if discoveryClient != nil && openshift.HasDeploymentConfigSupport(discoveryClient, log) {
 			cfg.DeploymentConfigEnabled = true
 		}

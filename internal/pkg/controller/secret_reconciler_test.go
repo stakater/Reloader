@@ -3,8 +3,8 @@ package controller_test
 import (
 	"testing"
 
-	"github.com/stakater/Reloader/internal/pkg/config"
 	"github.com/stakater/Reloader/internal/pkg/testutil"
+	"github.com/stakater/Reloader/pkg/config"
 )
 
 func TestSecretReconciler_NotFound(t *testing.T) {

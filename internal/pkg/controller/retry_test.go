@@ -13,11 +13,12 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
-	"github.com/stakater/Reloader/internal/pkg/config"
 	"github.com/stakater/Reloader/internal/pkg/controller"
 	"github.com/stakater/Reloader/internal/pkg/reload"
 	"github.com/stakater/Reloader/internal/pkg/testutil"
 	"github.com/stakater/Reloader/internal/pkg/workload"
+	"github.com/stakater/Reloader/pkg/config"
+	"github.com/stakater/Reloader/pkg/matcher"
 )
 
 func TestUpdateWorkloadWithRetry_WorkloadTypes(t *testing.T) {
@@ -25,7 +26,7 @@ func TestUpdateWorkloadWithRetry_WorkloadTypes(t *testing.T) {
 		name         string
 		object       runtime.Object
 		workload     func(runtime.Object) workload.Workload
-		resourceType reload.ResourceType
+		resourceType matcher.ResourceType
 		verify       func(t *testing.T, c client.Client)
 	}{
 		{
@@ -34,7 +35,7 @@ func TestUpdateWorkloadWithRetry_WorkloadTypes(t *testing.T) {
 			workload: func(o runtime.Object) workload.Workload {
 				return workload.NewDeploymentWorkload(o.(*appsv1.Deployment))
 			},
-			resourceType: reload.ResourceTypeConfigMap,
+			resourceType: matcher.ResourceTypeConfigMap,
 			verify: func(t *testing.T, c client.Client) {
 				var result appsv1.Deployment
 				if err := c.Get(context.Background(), types.NamespacedName{Name: "test-deployment", Namespace: "default"}, &result); err != nil {
@@ -51,7 +52,7 @@ func TestUpdateWorkloadWithRetry_WorkloadTypes(t *testing.T) {
 			workload: func(o runtime.Object) workload.Workload {
 				return workload.NewDaemonSetWorkload(o.(*appsv1.DaemonSet))
 			},
-			resourceType: reload.ResourceTypeSecret,
+			resourceType: matcher.ResourceTypeSecret,
 			verify: func(t *testing.T, c client.Client) {
 				var result appsv1.DaemonSet
 				if err := c.Get(context.Background(), types.NamespacedName{Name: "test-daemonset", Namespace: "default"}, &result); err != nil {
@@ -68,7 +69,7 @@ func TestUpdateWorkloadWithRetry_WorkloadTypes(t *testing.T) {
 			workload: func(o runtime.Object) workload.Workload {
 				return workload.NewStatefulSetWorkload(o.(*appsv1.StatefulSet))
 			},
-			resourceType: reload.ResourceTypeConfigMap,
+			resourceType: matcher.ResourceTypeConfigMap,
 			verify: func(t *testing.T, c client.Client) {
 				var result appsv1.StatefulSet
 				if err := c.Get(context.Background(), types.NamespacedName{Name: "test-statefulset", Namespace: "default"}, &result); err != nil {
@@ -85,7 +86,7 @@ func TestUpdateWorkloadWithRetry_WorkloadTypes(t *testing.T) {
 			workload: func(o runtime.Object) workload.Workload {
 				return workload.NewJobWorkload(o.(*batchv1.Job))
 			},
-			resourceType: reload.ResourceTypeConfigMap,
+			resourceType: matcher.ResourceTypeConfigMap,
 			verify: func(t *testing.T, c client.Client) {
 				var jobs batchv1.JobList
 				if err := c.List(context.Background(), &jobs, client.InNamespace("default")); err != nil {
@@ -102,7 +103,7 @@ func TestUpdateWorkloadWithRetry_WorkloadTypes(t *testing.T) {
 			workload: func(o runtime.Object) workload.Workload {
 				return workload.NewCronJobWorkload(o.(*batchv1.CronJob))
 			},
-			resourceType: reload.ResourceTypeSecret,
+			resourceType: matcher.ResourceTypeSecret,
 			verify: func(t *testing.T, c client.Client) {
 				var jobs batchv1.JobList
 				if err := c.List(context.Background(), &jobs, client.InNamespace("default")); err != nil {
@@ -220,7 +221,7 @@ func TestUpdateWorkloadWithRetry_Strategies(t *testing.T) {
 					nil, // no pause handler for this test
 					wl,
 					"test-cm",
-					reload.ResourceTypeConfigMap,
+					matcher.ResourceTypeConfigMap,
 					"default",
 					"abc123",
 					false,
@@ -272,7 +273,7 @@ func TestUpdateWorkloadWithRetry_NoUpdate(t *testing.T) {
 		nil, // no pause handler
 		wl,
 		"test-cm",
-		reload.ResourceTypeConfigMap,
+		matcher.ResourceTypeConfigMap,
 		"default",
 		"abc123", // Same hash as already set
 		false,
@@ -288,11 +289,11 @@ func TestUpdateWorkloadWithRetry_NoUpdate(t *testing.T) {
 
 func TestResourceTypeKind(t *testing.T) {
 	tests := []struct {
-		resourceType reload.ResourceType
+		resourceType matcher.ResourceType
 		expectedKind string
 	}{
-		{reload.ResourceTypeConfigMap, "ConfigMap"},
-		{reload.ResourceTypeSecret, "Secret"},
+		{matcher.ResourceTypeConfigMap, "ConfigMap"},
+		{matcher.ResourceTypeSecret, "Secret"},
 	}
 
 	for _, tt := range tests {
@@ -332,7 +333,7 @@ func TestUpdateWorkloadWithRetry_PauseDeployment(t *testing.T) {
 		pauseHandler,
 		wl,
 		"test-cm",
-		reload.ResourceTypeConfigMap,
+		matcher.ResourceTypeConfigMap,
 		"default",
 		"abc123",
 		true,
@@ -393,7 +394,7 @@ func TestUpdateWorkloadWithRetry_PauseWithExplicitAnnotation(t *testing.T) {
 		pauseHandler,
 		wl,
 		"test-cm",
-		reload.ResourceTypeConfigMap,
+		matcher.ResourceTypeConfigMap,
 		"default",
 		"abc123",
 		false, // NOT auto reload
@@ -454,7 +455,7 @@ func TestUpdateWorkloadWithRetry_PauseWithSecretReload(t *testing.T) {
 		pauseHandler,
 		wl,
 		"test-secret",
-		reload.ResourceTypeSecret,
+		matcher.ResourceTypeSecret,
 		"default",
 		"abc123",
 		false,
@@ -511,7 +512,7 @@ func TestUpdateWorkloadWithRetry_PauseWithAutoSecret(t *testing.T) {
 		pauseHandler,
 		wl,
 		"test-secret",
-		reload.ResourceTypeSecret,
+		matcher.ResourceTypeSecret,
 		"default",
 		"abc123",
 		true,
@@ -561,7 +562,7 @@ func TestUpdateWorkloadWithRetry_NoPauseWithoutAnnotation(t *testing.T) {
 		pauseHandler,
 		wl,
 		"test-cm",
-		reload.ResourceTypeConfigMap,
+		matcher.ResourceTypeConfigMap,
 		"default",
 		"abc123",
 		true,

@@ -1,9 +1,9 @@
-package reload
+package matcher
 
 import (
 	"testing"
 
-	"github.com/stakater/Reloader/internal/pkg/config"
+	"github.com/stakater/Reloader/pkg/config"
 )
 
 func TestMatcher_ShouldReload(t *testing.T) {
