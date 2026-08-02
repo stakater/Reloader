@@ -310,6 +310,10 @@ func upgradeResource(clients kube.Clients, config common.Config, upgradeFuncs ca
 	podAnnotations := upgradeFuncs.PodAnnotationsFunc(resource)
 	result := common.ShouldReload(config, upgradeFuncs.ResourceType, annotations, podAnnotations, common.GetCommandLineOptions())
 
+	for _, reloadErr := range result.Errors {
+		logrus.Errorf("Skipping invalid reload annotation on %s '%s' in namespace '%s': %v", upgradeFuncs.ResourceType, resourceName, config.Namespace, reloadErr)
+	}
+
 	if !result.ShouldReload {
 		logrus.Debugf("No changes detected in '%s' of type '%s' in namespace '%s'", config.ResourceName, config.Type, config.Namespace)
 		return false, nil

@@ -2,6 +2,7 @@ package common
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"regexp"
 	"strconv"
@@ -22,6 +23,7 @@ type Map map[string]string
 type ReloadCheckResult struct {
 	ShouldReload bool
 	AutoReload   bool
+	Errors       []error
 }
 
 // ReloaderOptions contains all configurable options for the Reloader controller.
@@ -273,18 +275,20 @@ func ShouldReload(config Config, resourceType string, annotations Map, podAnnota
 		}
 	}
 
+	var regexErrors []error
 	values := strings.Split(annotationValue, ",")
 	for _, value := range values {
 		value = strings.TrimSpace(value)
 		re, err := regexp.Compile("^" + value + "$")
 		if err != nil {
-			logrus.Errorf("Invalid regex %q in reload annotation %q on resource '%s' of type '%s'; skipping this pattern: %v", value, config.Annotation, config.ResourceName, config.Type, err)
+			regexErrors = append(regexErrors, fmt.Errorf("invalid regex %q in reload annotation %q: %w", value, config.Annotation, err))
 			continue
 		}
 		if re.Match([]byte(config.ResourceName)) {
 			return ReloadCheckResult{
 				ShouldReload: true,
 				AutoReload:   false,
+				Errors:       regexErrors,
 			}
 		}
 	}
@@ -295,6 +299,7 @@ func ShouldReload(config Config, resourceType string, annotations Map, podAnnota
 			return ReloadCheckResult{
 				ShouldReload: true,
 				AutoReload:   true,
+				Errors:       regexErrors,
 			}
 		}
 	}
@@ -305,11 +310,13 @@ func ShouldReload(config Config, resourceType string, annotations Map, podAnnota
 		return ReloadCheckResult{
 			ShouldReload: true,
 			AutoReload:   true,
+			Errors:       regexErrors,
 		}
 	}
 
 	return ReloadCheckResult{
 		ShouldReload: false,
+		Errors:       regexErrors,
 	}
 }
 

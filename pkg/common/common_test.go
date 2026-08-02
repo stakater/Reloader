@@ -245,4 +245,33 @@ func TestShouldReload_InvalidRegexAnnotation_DoesNotPanic(t *testing.T) {
 	if result.ShouldReload {
 		t.Errorf("Expected ShouldReload=false for an invalid regex pattern, got=%v", result.ShouldReload)
 	}
+	if len(result.Errors) != 1 {
+		t.Errorf("Expected 1 surfaced regex error, got=%d: %v", len(result.Errors), result.Errors)
+	}
+}
+
+// When a named reload annotation holds several comma-separated patterns, a
+// single malformed one is skipped while a valid one still matches, and the
+// skipped pattern's error is surfaced on the result.
+func TestShouldReload_InvalidRegexAnnotation_SkipsMalformedPattern(t *testing.T) {
+	config := Config{
+		ResourceName: "app-config",
+		Annotation:   "secret.reloader.stakater.com/reload",
+	}
+	annotations := Map{
+		// first pattern is invalid (unbalanced bracket), second matches
+		"secret.reloader.stakater.com/reload": "bad[,app-config",
+	}
+	opts := &ReloaderOptions{
+		ReloaderAutoAnnotation: "reloader.stakater.com/auto",
+	}
+
+	result := ShouldReload(config, "Deployment", annotations, Map{}, opts)
+
+	if !result.ShouldReload {
+		t.Errorf("Expected ShouldReload=true from the valid pattern, got=%v", result.ShouldReload)
+	}
+	if len(result.Errors) != 1 {
+		t.Errorf("Expected the malformed pattern to surface 1 error, got=%d: %v", len(result.Errors), result.Errors)
+	}
 }
