@@ -9,6 +9,9 @@ permissions: {}
 
 jobs:
   dispatch:
+    # Skip prereleases (betas) and chart releases; only stable operator
+    # releases should trigger the enterprise build.
+    if: ${{ !github.event.release.prerelease && !startsWith(github.event.release.tag_name, 'chart-v') }}
     runs-on: ubuntu-latest
     steps:
       - name: Trigger target repository workflow
