@@ -52,6 +52,12 @@ flowchart LR
 - `Secrets` and `ConfigMaps` are watched by Reloader.
 - When changes are detected, Reloader automatically triggers a rollout of the associated workloads, ensuring your app always runs with the latest configuration.
 
+## ⭐ Show Your Support
+
+Enjoying the project? Star Reloader on GitHub and stay updated with new releases.
+
+![star](https://github.com/user-attachments/assets/14ff6a8f-7414-4e4a-867e-874f9b0a7885)
+
 ## 🏢 Reloader Enterprise
 
 Reloader OSS is free and production-proven with 24B+ downloads.
@@ -101,6 +107,16 @@ spec:
 ```
 
 This tells Reloader to watch the `ConfigMap` and `Secret` referenced in this deployment. When either is updated, it will trigger a rollout.
+
+## 🏢 Enterprise Version
+
+Stakater offers an enterprise-grade version of Reloader with:
+
+1. SLA-backed support
+1. Certified images
+1. Private Slack support
+
+Contact [`sales@stakater.com`](mailto:sales@stakater.com) for info about Reloader Enterprise.
 
 ## 🧩 Usage
 
