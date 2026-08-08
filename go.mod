@@ -17,7 +17,7 @@ require (
 	k8s.io/apimachinery v0.35.3
 	k8s.io/client-go v0.35.3
 	k8s.io/kubectl v0.35.3
-	k8s.io/utils v0.0.0-20260319190234-28399d86e0b5
+	k8s.io/utils v0.0.0-20260626114624-be93311217bd
 	sigs.k8s.io/secrets-store-csi-driver v1.5.5
 )
 
