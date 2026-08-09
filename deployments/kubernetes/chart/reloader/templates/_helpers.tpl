@@ -80,7 +80,8 @@ meta.helm.sh/release-name: {{ .Release.Name | quote }}
 {{- end -}}
 
 {{/*
-Create the namespace selector if it does not watch globally
+Emit reloader.namespaceSelector when watching globally (label filter on namespaces).
+Only used when reloader.watchGlobally is true; see chart README / values comments.
 */}}
 {{- define "reloader-namespaceSelector" -}}
 {{- if and .Values.reloader.watchGlobally .Values.reloader.namespaceSelector -}}
