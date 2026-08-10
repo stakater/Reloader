@@ -102,3 +102,33 @@ tests:
       - notContains:
           path: spec.template.spec.containers[0].args
           content: "--ignored-workload-types=cronjobs"
+
+  - it: sets runtimeClassName when reloader.deployment.runtimeClassName is set
+    set:
+      reloader:
+        deployment:
+          runtimeClassName: gvisor
+    asserts:
+      - equal:
+          path: spec.template.spec.runtimeClassName
+          value: gvisor
+
+  - it: does not set runtimeClassName by default
+    asserts:
+      - notExists:
+          path: spec.template.spec.runtimeClassName
+
+  - it: sets schedulerName when reloader.deployment.schedulerName is set
+    set:
+      reloader:
+        deployment:
+          schedulerName: my-scheduler
+    asserts:
+      - equal:
+          path: spec.template.spec.schedulerName
+          value: my-scheduler
+
+  - it: does not set schedulerName by default
+    asserts:
+      - notExists:
+          path: spec.template.spec.schedulerName

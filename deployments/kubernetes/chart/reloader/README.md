@@ -91,6 +91,8 @@ helm uninstall {{RELEASE_NAME}} -n {{NAMESPACE}}
 | `reloader.deployment.resources`                 | Set container requests and limits (e.g. CPU or memory)                                                                                                      | map    | `{}`              |
 | `reloader.deployment.pod.annotations`           | Set annotations for pod                                                                                                                                     | map    | `{}`              |
 | `reloader.deployment.priorityClassName`         | Set priority class for pod in cluster                                                                                                                       | string | `""`              |
+| `reloader.deployment.runtimeClassName`          | Set the runtimeClassName for the pod                                                                                                                        | string | `""`              |
+| `reloader.deployment.schedulerName`             | Set the schedulerName for the pod                                                                                                                           | string | `""`              |
 | `reloader.deployment.volumeMounts`              | Mount volume                                                                                                                                                | array  | `[]`              |
 | `reloader.deployment.volumes`                   | Add volume to a pod                                                                                                                                         | array  | `[]`              |
 

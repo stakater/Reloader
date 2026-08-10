@@ -191,6 +191,10 @@ reloader:
     pod:
       annotations: {}
     priorityClassName: ""
+    # Set the runtimeClassName for the pod
+    runtimeClassName: ""
+    # Set the schedulerName for the pod
+    schedulerName: ""
     # imagePullSecrets:
     #   - name: myregistrykey
 
