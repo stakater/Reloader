@@ -50,6 +50,12 @@ func (a *CronJobAdapter) WaitReady(ctx context.Context, namespace, name string, 
 // Captures the current annotation value first to avoid false positives from prior reloads.
 func (a *CronJobAdapter) WaitReloaded(ctx context.Context, namespace, name, annotationKey string, timeout time.Duration) (bool, error) {
 	priorValue, _ := a.GetPodTemplateAnnotation(ctx, namespace, name, annotationKey)
+	return a.WaitReloadedFrom(ctx, namespace, name, annotationKey, priorValue, timeout)
+}
+
+// WaitReloadedFrom waits for the reload annotation to be present with a value different from
+// priorValue, which the caller captured before triggering the reload.
+func (a *CronJobAdapter) WaitReloadedFrom(ctx context.Context, namespace, name, annotationKey, priorValue string, timeout time.Duration) (bool, error) {
 	watchFunc := func(ctx context.Context, opts metav1.ListOptions) (watch.Interface, error) {
 		return a.client.BatchV1().CronJobs(namespace).Watch(ctx, opts)
 	}
@@ -59,6 +65,11 @@ func (a *CronJobAdapter) WaitReloaded(ctx context.Context, namespace, name, anno
 
 // WaitEnvVar returns an error because CronJobs don't support env var reload strategy.
 func (a *CronJobAdapter) WaitEnvVar(ctx context.Context, namespace, name, prefix string, timeout time.Duration) (bool, error) {
+	return false, ErrUnsupportedOperation
+}
+
+// WaitEnvVarFrom returns an error because CronJobs don't support env var reload strategy.
+func (a *CronJobAdapter) WaitEnvVarFrom(ctx context.Context, namespace, name, prefix, priorValue string, timeout time.Duration) (bool, error) {
 	return false, ErrUnsupportedOperation
 }
 

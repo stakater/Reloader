@@ -58,6 +58,12 @@ func (a *ArgoRolloutAdapter) WaitReady(ctx context.Context, namespace, name stri
 // Captures the current annotation value first to avoid false positives from prior reloads.
 func (a *ArgoRolloutAdapter) WaitReloaded(ctx context.Context, namespace, name, annotationKey string, timeout time.Duration) (bool, error) {
 	priorValue, _ := a.GetPodTemplateAnnotation(ctx, namespace, name, annotationKey)
+	return a.WaitReloadedFrom(ctx, namespace, name, annotationKey, priorValue, timeout)
+}
+
+// WaitReloadedFrom waits for the reload annotation to be present with a value different from
+// priorValue, which the caller captured before triggering the reload.
+func (a *ArgoRolloutAdapter) WaitReloadedFrom(ctx context.Context, namespace, name, annotationKey, priorValue string, timeout time.Duration) (bool, error) {
 	watchFunc := func(ctx context.Context, opts metav1.ListOptions) (watch.Interface, error) {
 		return a.rolloutsClient.ArgoprojV1alpha1().Rollouts(namespace).Watch(ctx, opts)
 	}
@@ -72,6 +78,12 @@ func (a *ArgoRolloutAdapter) WaitEnvVar(ctx context.Context, namespace, name, pr
 	if r, err := a.rolloutsClient.ArgoprojV1alpha1().Rollouts(namespace).Get(ctx, name, metav1.GetOptions{}); err == nil {
 		priorValue = GetEnvVarValueByPrefix(r.Spec.Template.Spec.Containers, prefix)
 	}
+	return a.WaitEnvVarFrom(ctx, namespace, name, prefix, priorValue, timeout)
+}
+
+// WaitEnvVarFrom waits for a STAKATER_ env var whose value differs from priorValue, which the
+// caller captured before triggering the reload.
+func (a *ArgoRolloutAdapter) WaitEnvVarFrom(ctx context.Context, namespace, name, prefix, priorValue string, timeout time.Duration) (bool, error) {
 	watchFunc := func(ctx context.Context, opts metav1.ListOptions) (watch.Interface, error) {
 		return a.rolloutsClient.ArgoprojV1alpha1().Rollouts(namespace).Watch(ctx, opts)
 	}

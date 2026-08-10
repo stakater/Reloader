@@ -60,6 +60,12 @@ func (a *DeploymentConfigAdapter) WaitReady(ctx context.Context, namespace, name
 // Captures the current annotation value first to avoid false positives from prior reloads.
 func (a *DeploymentConfigAdapter) WaitReloaded(ctx context.Context, namespace, name, annotationKey string, timeout time.Duration) (bool, error) {
 	priorValue, _ := a.GetPodTemplateAnnotation(ctx, namespace, name, annotationKey)
+	return a.WaitReloadedFrom(ctx, namespace, name, annotationKey, priorValue, timeout)
+}
+
+// WaitReloadedFrom waits for the reload annotation to be present with a value different from
+// priorValue, which the caller captured before triggering the reload.
+func (a *DeploymentConfigAdapter) WaitReloadedFrom(ctx context.Context, namespace, name, annotationKey, priorValue string, timeout time.Duration) (bool, error) {
 	watchFunc := func(ctx context.Context, opts metav1.ListOptions) (watch.Interface, error) {
 		return a.openshiftClient.AppsV1().DeploymentConfigs(namespace).Watch(ctx, opts)
 	}
@@ -74,6 +80,12 @@ func (a *DeploymentConfigAdapter) WaitEnvVar(ctx context.Context, namespace, nam
 	if dc, err := a.openshiftClient.AppsV1().DeploymentConfigs(namespace).Get(ctx, name, metav1.GetOptions{}); err == nil && dc.Spec.Template != nil {
 		priorValue = GetEnvVarValueByPrefix(dc.Spec.Template.Spec.Containers, prefix)
 	}
+	return a.WaitEnvVarFrom(ctx, namespace, name, prefix, priorValue, timeout)
+}
+
+// WaitEnvVarFrom waits for a STAKATER_ env var whose value differs from priorValue, which the
+// caller captured before triggering the reload.
+func (a *DeploymentConfigAdapter) WaitEnvVarFrom(ctx context.Context, namespace, name, prefix, priorValue string, timeout time.Duration) (bool, error) {
 	watchFunc := func(ctx context.Context, opts metav1.ListOptions) (watch.Interface, error) {
 		return a.openshiftClient.AppsV1().DeploymentConfigs(namespace).Watch(ctx, opts)
 	}

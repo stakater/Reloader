@@ -304,6 +304,11 @@ var _ = Describe("Exclude Annotation Tests", func() {
 			initialVersion, err := utils.GetSPCPSVersion(ctx, csiClient, testNamespace, spcpsName)
 			Expect(err).NotTo(HaveOccurred())
 
+			// Capture the baseline before the trigger so an erroneous reload happening while we
+			// wait for the CSI sync below is still detected.
+			priorReload, err := adapter.GetPodTemplateAnnotation(ctx, testNamespace, deploymentName, utils.AnnotationLastReloadedFrom)
+			Expect(err).NotTo(HaveOccurred())
+
 			By("Updating the Vault secret for excluded SPC")
 			err = utils.UpdateVaultSecret(ctx, kubeClient, restConfig, vaultSecretPath, map[string]string{
 				"api_key": "updated-excluded-value",
@@ -316,8 +321,8 @@ var _ = Describe("Exclude Annotation Tests", func() {
 
 			By("Verifying Deployment was NOT reloaded (excluded SPC)")
 			time.Sleep(utils.NegativeTestWait)
-			reloaded, err := adapter.WaitReloaded(ctx, testNamespace, deploymentName,
-				utils.AnnotationLastReloadedFrom, utils.ShortTimeout)
+			reloaded, err := adapter.WaitReloadedFrom(ctx, testNamespace, deploymentName,
+				utils.AnnotationLastReloadedFrom, priorReload, utils.ShortTimeout)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(reloaded).To(BeFalse(), "Deployment should NOT reload when excluded SecretProviderClassPodStatus changes")
 		})
@@ -365,6 +370,11 @@ var _ = Describe("Exclude Annotation Tests", func() {
 			initialVersion, err := utils.GetSPCPSVersion(ctx, csiClient, testNamespace, spcpsName2)
 			Expect(err).NotTo(HaveOccurred())
 
+			// Capture the baseline before the trigger to avoid racing Reloader's own reaction
+			// to the SPCPS update below.
+			priorReload, err := adapter.GetPodTemplateAnnotation(ctx, testNamespace, deploymentName, utils.AnnotationLastReloadedFrom)
+			Expect(err).NotTo(HaveOccurred())
+
 			By("Updating the Vault secret for non-excluded SPC")
 			err = utils.UpdateVaultSecret(ctx, kubeClient, restConfig, vaultSecretPath2, map[string]string{
 				"api_key": "updated-nonexcluded-value",
@@ -376,8 +386,8 @@ var _ = Describe("Exclude Annotation Tests", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Waiting for Deployment to be reloaded")
-			reloaded, err := adapter.WaitReloaded(ctx, testNamespace, deploymentName,
-				utils.AnnotationLastReloadedFrom, utils.ReloadTimeout)
+			reloaded, err := adapter.WaitReloadedFrom(ctx, testNamespace, deploymentName,
+				utils.AnnotationLastReloadedFrom, priorReload, utils.ReloadTimeout)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(reloaded).To(BeTrue(), "Deployment should reload when non-excluded SecretProviderClassPodStatus changes")
 		})

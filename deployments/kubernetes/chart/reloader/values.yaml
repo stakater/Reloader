@@ -19,7 +19,7 @@ fullnameOverride: ""
 image:
   name: stakater/reloader
   repository: ghcr.io/stakater/reloader
-  tag: v1.4.19
+  tag: v1.4.20
   # digest: sha256:1234567
   pullPolicy: IfNotPresent
 
@@ -45,6 +45,14 @@ reloader:
   logFormat: "" # json
   logLevel: info # Log level to use (trace, debug, info, warning, error, fatal and panic)
   watchGlobally: true
+  # Scoped mode: explicit list of namespaces to watch. When non-empty (and watchGlobally
+  # is false), Reloader watches exactly these namespaces and the chart creates a namespace
+  # scoped Role + RoleBinding in each one — no ClusterRole is created. The release namespace
+  # is always included automatically. Leave empty ([]) for the default single-namespace or
+  # global behavior controlled by watchGlobally.
+  # Accepts either a YAML list (e.g. ["team-a", "team-b"]) or a comma-separated string
+  # (e.g. "team-a,team-b")
+  namespaces: []
   # Set to true to enable leadership election allowing you to run multiple replicas
   enableHA: false
   # Set to true to enable pprof for profiling
@@ -135,7 +143,7 @@ reloader:
     labels:
       provider: stakater
       group: com.stakater.platform
-      version: v1.4.19
+      version: v1.4.20
     # Support for extra environment variables.
     env:
       # Open supports Key value pair as environment variables.
@@ -201,6 +209,11 @@ reloader:
     # labels: {}
     # annotations: {}
     # port: 9090
+    # For IPv4 and IPv6 dual stack support.
+    # Specify the IP family policy for the service. Supported values are SingleStack, PreferDualStack, and RequireDualStack.
+    # ipFamilyPolicy: "SingleStack"
+    # Specify the IP protocol family or dual-stack preference for the service. Supported values: ["IPv4"], ["IPv6"], ["IPv4","IPv6"], or ["IPv6","IPv4"].
+    # ipFamilies: ["IPv4"]
 
   rbac:
     enabled: true
