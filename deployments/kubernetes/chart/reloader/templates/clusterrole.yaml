@@ -96,16 +96,6 @@ rules:
       - list
       - get
 {{- end}}
-{{- if .Values.reloader.enableHA }}
-  - apiGroups:
-      - "coordination.k8s.io"
-    resources:
-      - leases
-    verbs:
-      - create
-      - get
-      - update
-{{- end}}
 {{- if .Values.reloader.enableCSIIntegration }}
   - apiGroups:
       - "secrets-store.csi.x-k8s.io"
