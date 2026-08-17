@@ -77,7 +77,15 @@ jobs:
 
       - name: Get Tag from Github Ref
         id: generate_tag
-        run: echo "RELEASE_VERSION=${GITHUB_REF#refs/*/}" >> $GITHUB_OUTPUT
+        run: |
+          RELEASE_VERSION=${GITHUB_REF#refs/*/}
+          echo "RELEASE_VERSION=${RELEASE_VERSION}" >> $GITHUB_OUTPUT
+          # A '-' marks a SemVer prerelease (e.g. v2.0.0-beta.1). Only stable
+          # releases are allowed to move the floating `v2` tag.
+          case "$RELEASE_VERSION" in
+            *-*) echo "IS_PRERELEASE=true" >> $GITHUB_OUTPUT ;;
+            *)   echo "IS_PRERELEASE=false" >> $GITHUB_OUTPUT ;;
+          esac
 
       - name: Create timestamp
         id: prep
@@ -149,6 +157,8 @@ jobs:
 
       # v2 branch: publish a floating `v2` tag instead of `latest` so v2
       # releases never overwrite the v1 `latest` tag used by plain manifests.
+      # Prereleases publish only their exact version, so `v2` always points at
+      # the newest stable v2 build and never at a beta.
       - name: Build and Push Docker Image to ghcr registry
         uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
         with:
@@ -158,7 +168,7 @@ jobs:
           push: true
           platforms: linux/amd64,linux/arm,linux/arm64
           tags: |
-            ${{ env.GHCR_IMAGE_REPOSITORY }}:${{ steps.generate_tag.outputs.RELEASE_VERSION }},${{ env.GHCR_IMAGE_REPOSITORY }}:v2
+            ${{ env.GHCR_IMAGE_REPOSITORY }}:${{ steps.generate_tag.outputs.RELEASE_VERSION }}${{ steps.generate_tag.outputs.IS_PRERELEASE == 'false' && format(',{0}:v2', env.GHCR_IMAGE_REPOSITORY) || '' }}
           build-args: |
             VERSION=${{ steps.generate_tag.outputs.RELEASE_VERSION }}
             COMMIT=${{ github.sha }}

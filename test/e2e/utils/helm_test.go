@@ -124,12 +124,12 @@ func TestReloaderDeploymentName(t *testing.T) {
 		{
 			name:        "default release name",
 			releaseName: "",
-			expected:    "reloader-reloader-v2",
+			expected:    "reloader-reloader",
 		},
 		{
 			name:        "custom release name",
 			releaseName: "my-reloader",
-			expected:    "my-reloader-reloader-v2",
+			expected:    "my-reloader-reloader",
 		},
 	}
 
@@ -152,12 +152,12 @@ func TestReloaderPodSelector(t *testing.T) {
 		{
 			name:        "default release name",
 			releaseName: "",
-			expected:    "app=reloader-reloader-v2",
+			expected:    "app=reloader-reloader",
 		},
 		{
 			name:        "custom release name",
 			releaseName: "my-reloader",
-			expected:    "app=my-reloader-reloader-v2",
+			expected:    "app=my-reloader-reloader",
 		},
 	}
 
