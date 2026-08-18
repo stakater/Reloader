@@ -322,9 +322,20 @@ spec:
           {{- if ne .Values.reloader.reloadStrategy "default" }}
           - "--reload-strategy={{ .Values.reloader.reloadStrategy }}"
           {{- end }}
-          {{- if or (gt (int .Values.reloader.deployment.replicas) 1) (.Values.reloader.enableHA) }}
+          {{- if .Values.reloader.enableHA }}
           - "--enable-ha=true"
-          {{- end}}
+          {{- with .Values.reloader.leaderElection }}
+          {{- with .leaseDuration }}
+          - "--leader-election-lease-duration={{ . }}"
+          {{- end }}
+          {{- with .renewDeadline }}
+          - "--leader-election-renew-deadline={{ . }}"
+          {{- end }}
+          {{- with .retryPeriod }}
+          - "--leader-election-retry-period={{ . }}"
+          {{- end }}
+          {{- end }}
+          {{- end }}
           {{- if eq .Values.reloader.autoReloadAll true }}
           - "--auto-reload-all=true"
           {{- end -}}

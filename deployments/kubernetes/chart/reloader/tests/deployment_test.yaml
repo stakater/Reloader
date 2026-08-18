@@ -132,3 +132,111 @@ tests:
     asserts:
       - notExists:
           path: spec.template.spec.schedulerName
+
+  - it: sets leader election arguments when enableHA is true
+    set:
+      reloader:
+        enableHA: true
+        leaderElection:
+          leaseDuration: 30s
+          renewDeadline: 20s
+          retryPeriod: 4s
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].args
+          content: "--leader-election-lease-duration=30s"
+      - contains:
+          path: spec.template.spec.containers[0].args
+          content: "--leader-election-renew-deadline=20s"
+      - contains:
+          path: spec.template.spec.containers[0].args
+          content: "--leader-election-retry-period=4s"
+
+  - it: only sets the leader election arguments that are configured
+    set:
+      reloader:
+        enableHA: true
+        leaderElection:
+          leaseDuration: 30s
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].args
+          content: "--leader-election-lease-duration=30s"
+      - notContains:
+          path: spec.template.spec.containers[0].args
+          content: "--leader-election-renew-deadline="
+      - notContains:
+          path: spec.template.spec.containers[0].args
+          content: "--leader-election-retry-period="
+
+  - it: does not set leader election arguments when enableHA is false
+    set:
+      reloader:
+        enableHA: false
+        leaderElection:
+          leaseDuration: 30s
+          renewDeadline: 20s
+          retryPeriod: 4s
+    asserts:
+      - notContains:
+          path: spec.template.spec.containers[0].args
+          content: "--leader-election-lease-duration=30s"
+      - notContains:
+          path: spec.template.spec.containers[0].args
+          content: "--leader-election-renew-deadline=20s"
+      - notContains:
+          path: spec.template.spec.containers[0].args
+          content: "--leader-election-retry-period=4s"
+
+  - it: keeps the client-go defaults by not setting leader election arguments when enableHA is true and no timings are configured
+    set:
+      reloader:
+        enableHA: true
+    asserts:
+      - notContains:
+          path: spec.template.spec.containers[0].args
+          content: "--leader-election-lease-duration="
+      - notContains:
+          path: spec.template.spec.containers[0].args
+          content: "--leader-election-renew-deadline="
+      - notContains:
+          path: spec.template.spec.containers[0].args
+          content: "--leader-election-retry-period="
+
+  - it: template is still valid when leaderElection is null
+    set:
+      reloader:
+        enableHA: true
+        leaderElection: null
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].args
+          content: "--enable-ha=true"
+
+  - it: does not enable HA when replicas are raised without enableHA, since replicas are clamped to 1
+    set:
+      reloader:
+        enableHA: false
+        deployment:
+          replicas: 2
+    asserts:
+      - equal:
+          path: spec.replicas
+          value: 1
+      - notContains:
+          path: spec.template.spec.containers[0].args
+          content: "--enable-ha=true"
+
+  - it: enables HA and keeps the requested replicas when enableHA is true
+    set:
+      reloader:
+        enableHA: true
+        deployment:
+          replicas: 3
+    asserts:
+      - equal:
+          path: spec.replicas
+          value: 3
+      - contains:
+          path: spec.template.spec.containers[0].args
+          content: "--enable-ha=true"

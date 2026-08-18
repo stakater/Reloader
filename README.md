@@ -444,7 +444,19 @@ These flags allow you to redefine annotation keys used in your workloads or reso
 | `--pause-deployment-annotation` | Overrides `deployment.reloader.stakater.com/pause-period` |
 | `--pause-deployment-time-annotation` | Overrides `deployment.reloader.stakater.com/paused-at` |
 
-### 5. 🕷️ Debugging
+#### 5. ⚖️ High Availability
+
+When running multiple replicas with `--enable-ha`, leadership is held through a Kubernetes Lease. These flags tune the client-go leader election timings:
+
+| Flag | Description |
+|------|-------------|
+| `--leader-election-lease-duration=15s` | Duration non-leader candidates wait before force acquiring leadership |
+| `--leader-election-renew-deadline=10s` | Duration the acting leader retries refreshing leadership before giving up |
+| `--leader-election-retry-period=2s` | Duration clients wait between attempting acquisition and renewal of leadership |
+
+The lease duration must be a whole number of seconds of at least `1s`, because it is persisted on the Lease as whole seconds and a follower judges expiry from that stored value — a fractional lease is truncated and can expire for followers before the leader reaches its renew deadline, allowing two leaders at once. It must also be greater than the renew deadline, and the renew deadline must be greater than the retry period multiplied by the jitter factor (1.2). Longer values reduce API server traffic and tolerate slower networks; shorter values shorten the failover gap after a leader is lost.
+
+#### 6. 🕷️ Debugging
 
 | Flag | Description |
 |---  |-------------|

@@ -2,7 +2,9 @@ package util
 
 import (
 	"testing"
+	"time"
 
+	"github.com/spf13/cobra"
 	v1 "k8s.io/api/core/v1"
 
 	"github.com/stakater/Reloader/internal/pkg/options"
@@ -274,5 +276,51 @@ func TestListContains(t *testing.T) {
 				t.Errorf("Expected %v, got %v", tt.expected, result)
 			}
 		})
+	}
+}
+
+func TestConfigureReloaderFlagsLeaderElectionTimings(t *testing.T) {
+	origLease, origRenew, origRetry := options.LeaderElectionLeaseDuration, options.LeaderElectionRenewDeadline, options.LeaderElectionRetryPeriod
+	defer func() {
+		options.LeaderElectionLeaseDuration = origLease
+		options.LeaderElectionRenewDeadline = origRenew
+		options.LeaderElectionRetryPeriod = origRetry
+	}()
+
+	cmd := &cobra.Command{Use: "reloader"}
+	ConfigureReloaderFlags(cmd)
+
+	defaults := map[string]time.Duration{
+		"leader-election-lease-duration": 15 * time.Second,
+		"leader-election-renew-deadline": 10 * time.Second,
+		"leader-election-retry-period":   2 * time.Second,
+	}
+	for name, want := range defaults {
+		flag := cmd.PersistentFlags().Lookup(name)
+		if flag == nil {
+			t.Fatalf("flag --%s is not registered", name)
+		}
+		if flag.DefValue != want.String() {
+			t.Errorf("flag --%s default: got %s, want %s", name, flag.DefValue, want)
+		}
+	}
+
+	err := cmd.PersistentFlags().Parse([]string{
+		"--leader-election-lease-duration=60s",
+		"--leader-election-renew-deadline=45s",
+		"--leader-election-retry-period=10s",
+	})
+	if err != nil {
+		t.Fatalf("failed to parse leader election flags: %v", err)
+	}
+
+	if options.LeaderElectionLeaseDuration != 60*time.Second {
+		t.Errorf("lease duration: got %s, want 60s", options.LeaderElectionLeaseDuration)
+	}
+	if options.LeaderElectionRenewDeadline != 45*time.Second {
+		t.Errorf("renew deadline: got %s, want 45s", options.LeaderElectionRenewDeadline)
+	}
+	if options.LeaderElectionRetryPeriod != 10*time.Second {
+		t.Errorf("retry period: got %s, want 10s", options.LeaderElectionRetryPeriod)
 	}
 }

@@ -13,6 +13,20 @@
             "annotations"
           ]
         },
+        "leaderElection": {
+          "type": "object",
+          "properties": {
+            "leaseDuration": {
+              "type": "string"
+            },
+            "renewDeadline": {
+              "type": "string"
+            },
+            "retryPeriod": {
+              "type": "string"
+            }
+          }
+        },
         "service": {
           "type": "object",
           "properties": {

@@ -7,6 +7,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -80,6 +81,12 @@ type ReloaderOptions struct {
 	SyncAfterRestart bool `json:"syncAfterRestart"`
 	// EnableHA indicates whether High Availability mode is enabled with leader election
 	EnableHA bool `json:"enableHA"`
+	// LeaderElectionLeaseDuration is the duration non-leader candidates wait before force acquiring leadership
+	LeaderElectionLeaseDuration time.Duration `json:"leaderElectionLeaseDuration"`
+	// LeaderElectionRenewDeadline is the duration the acting leader retries refreshing leadership before giving up
+	LeaderElectionRenewDeadline time.Duration `json:"leaderElectionRenewDeadline"`
+	// LeaderElectionRetryPeriod is the duration clients wait between attempting acquisition and renewal of leadership
+	LeaderElectionRetryPeriod time.Duration `json:"leaderElectionRetryPeriod"`
 	// EnableCSIIntegration indicates whether CSI integration is enabled to watch SecretProviderClassPodStatus
 	EnableCSIIntegration bool `json:"enableCSIIntegration"`
 	// WebhookUrl is the URL to send webhook notifications to instead of performing reloads
@@ -366,6 +373,9 @@ func GetCommandLineOptions() *ReloaderOptions {
 	CommandLineOptions.ReloadStrategy = options.ReloadStrategy
 	CommandLineOptions.SyncAfterRestart = options.SyncAfterRestart
 	CommandLineOptions.EnableHA = options.EnableHA
+	CommandLineOptions.LeaderElectionLeaseDuration = options.LeaderElectionLeaseDuration
+	CommandLineOptions.LeaderElectionRenewDeadline = options.LeaderElectionRenewDeadline
+	CommandLineOptions.LeaderElectionRetryPeriod = options.LeaderElectionRetryPeriod
 	CommandLineOptions.EnableCSIIntegration = options.EnableCSIIntegration
 	CommandLineOptions.WebhookUrl = options.WebhookUrl
 	CommandLineOptions.ResourcesToIgnore = options.ResourcesToIgnore

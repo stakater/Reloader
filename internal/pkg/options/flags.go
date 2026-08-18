@@ -1,6 +1,10 @@
 package options
 
-import "github.com/stakater/Reloader/internal/pkg/constants"
+import (
+	"time"
+
+	"github.com/stakater/Reloader/internal/pkg/constants"
+)
 
 type ArgoRolloutStrategy int
 
@@ -68,6 +72,15 @@ var (
 	SyncAfterRestart = false
 	// EnableHA adds support for running multiple replicas via leadership election
 	EnableHA = false
+	// LeaderElectionLeaseDuration is the duration non-leader candidates wait before
+	// force acquiring leadership
+	LeaderElectionLeaseDuration = 15 * time.Second
+	// LeaderElectionRenewDeadline is the duration the acting leader retries refreshing
+	// leadership before giving up
+	LeaderElectionRenewDeadline = 10 * time.Second
+	// LeaderElectionRetryPeriod is the duration clients wait between attempting
+	// acquisition and renewal of leadership
+	LeaderElectionRetryPeriod = 2 * time.Second
 	// Url to send a request to instead of triggering a reload
 	WebhookUrl = ""
 	// EnableCSIIntegration Adds support to watch SecretProviderClassPodStatus and restart deployment based on it
