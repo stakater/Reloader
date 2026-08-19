@@ -55,6 +55,14 @@ reloader:
   namespaces: []
   # Set to true to enable leadership election allowing you to run multiple replicas
   enableHA: false
+  # Leader election timings, only applied when enableHA is true. Leave empty to keep the
+  # client-go defaults (leaseDuration 15s, renewDeadline 10s, retryPeriod 2s).
+  # leaseDuration must be a whole number of seconds and greater than renewDeadline, and
+  # renewDeadline must be greater than retryPeriod multiplied by the jitter factor (1.2).
+  leaderElection:
+    leaseDuration: ""
+    renewDeadline: ""
+    retryPeriod: ""
   # Set to true to enable pprof for profiling
   enablePProf: false
   enableCSIIntegration: false

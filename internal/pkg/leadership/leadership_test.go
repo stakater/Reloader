@@ -261,3 +261,39 @@ func TestRunLeaderElectionWithControllers(t *testing.T) {
 	}
 	time.Sleep(testutil.SleepDuration)
 }
+
+// TestRunLeaderElectionUsesConfiguredTimings validates that the leader election
+// timings configured via the command line flags reach client-go, by checking the
+// lease duration recorded on the Lease object.
+func TestRunLeaderElectionUsesConfiguredTimings(t *testing.T) {
+	origLease := options.LeaderElectionLeaseDuration
+	defer func() { options.LeaderElectionLeaseDuration = origLease }()
+	options.LeaderElectionLeaseDuration = 42 * time.Second
+
+	m.Lock()
+	healthy = true
+	m.Unlock()
+
+	lockName := fmt.Sprintf("%s-%d", constants.LockName, 2)
+	lock := GetNewLock(testutil.Clients.KubernetesClient.CoordinationV1(), lockName, testutil.Pod, testutil.Namespace)
+
+	ctx, cancel := context.WithCancel(context.TODO())
+	stopped := RunLeaderElection(lock, ctx, cancel, testutil.Pod, []*controller.Controller{})
+
+	var leaseDurationSeconds int32
+	for i := 0; i < 50; i++ {
+		lease, err := testutil.Clients.KubernetesClient.CoordinationV1().Leases(testutil.Namespace).Get(context.TODO(), lockName, metav1.GetOptions{})
+		if err == nil && lease.Spec.LeaseDurationSeconds != nil {
+			leaseDurationSeconds = *lease.Spec.LeaseDurationSeconds
+			break
+		}
+		time.Sleep(200 * time.Millisecond)
+	}
+
+	cancel()
+	<-stopped
+
+	if leaseDurationSeconds != 42 {
+		t.Fatalf("got lease duration: %d seconds, want: 42 seconds", leaseDurationSeconds)
+	}
+}

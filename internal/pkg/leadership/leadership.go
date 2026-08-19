@@ -4,7 +4,6 @@ import (
 	"context"
 	"net/http"
 	"sync"
-	"time"
 
 	"github.com/sirupsen/logrus"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -12,6 +11,7 @@ import (
 	"k8s.io/client-go/tools/leaderelection/resourcelock"
 
 	"github.com/stakater/Reloader/internal/pkg/controller"
+	"github.com/stakater/Reloader/internal/pkg/options"
 
 	coordinationv1 "k8s.io/client-go/kubernetes/typed/coordination/v1"
 )
@@ -56,9 +56,9 @@ func RunLeaderElection(lock *resourcelock.LeaseLock, ctx context.Context, cancel
 		leaderelection.RunOrDie(ctx, leaderelection.LeaderElectionConfig{
 			Lock:            lock,
 			ReleaseOnCancel: true,
-			LeaseDuration:   15 * time.Second,
-			RenewDeadline:   10 * time.Second,
-			RetryPeriod:     2 * time.Second,
+			LeaseDuration:   options.LeaderElectionLeaseDuration,
+			RenewDeadline:   options.LeaderElectionRenewDeadline,
+			RetryPeriod:     options.LeaderElectionRetryPeriod,
 			Callbacks: leaderelection.LeaderCallbacks{
 				OnStartedLeading: func(c context.Context) {
 					m.Lock()

@@ -4,10 +4,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math"
 	"net/http"
 	_ "net/http/pprof"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/stakater/Reloader/internal/pkg/constants"
 	"github.com/stakater/Reloader/internal/pkg/leadership"
@@ -15,6 +17,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/tools/leaderelection"
 
 	"github.com/stakater/Reloader/internal/pkg/controller"
 	"github.com/stakater/Reloader/internal/pkg/metrics"
@@ -59,6 +62,9 @@ func validateFlags(*cobra.Command, []string) error {
 		if err := validateHAEnvs(); err != nil {
 			return err
 		}
+		if err := validateLeaderElectionTimings(); err != nil {
+			return err
+		}
 	}
 
 	return nil
@@ -91,6 +97,42 @@ func validateHAEnvs() error {
 	}
 	if podNamespace == "" {
 		return fmt.Errorf("%s not set, cannot run in HA mode without %s set", constants.PodNamespaceEnv, constants.PodNamespaceEnv)
+	}
+	return nil
+}
+
+// maxLeaseDuration is the largest lease duration client-go can persist, since it
+// records the duration on the Lease as int32 seconds.
+const maxLeaseDuration = math.MaxInt32 * time.Second
+
+// validateLeaderElectionTimings enforces the constraints of client-go's
+// leaderelection.NewLeaderElector, which panics via RunOrDie when they are violated,
+// plus the whole-second lease duration that leader exclusivity depends on.
+func validateLeaderElectionTimings() error {
+	// client-go persists the lease duration on the Lease as whole seconds, and a follower
+	// judges expiry from that truncated value while the leader renews on the configured
+	// one. A fractional lease therefore lets a follower force acquire the lease before the
+	// incumbent reaches its renew deadline, allowing two leaders at once.
+	if options.LeaderElectionLeaseDuration%time.Second != 0 {
+		return errors.New("--leader-election-lease-duration must be a whole number of seconds")
+	}
+	if options.LeaderElectionLeaseDuration < time.Second {
+		return errors.New("--leader-election-lease-duration must be at least 1s")
+	}
+	if options.LeaderElectionLeaseDuration > maxLeaseDuration {
+		return fmt.Errorf("--leader-election-lease-duration must not exceed %s, the largest value representable on the Lease API", maxLeaseDuration)
+	}
+	if options.LeaderElectionRenewDeadline <= 0 {
+		return errors.New("--leader-election-renew-deadline must be greater than zero")
+	}
+	if options.LeaderElectionRetryPeriod <= 0 {
+		return errors.New("--leader-election-retry-period must be greater than zero")
+	}
+	if options.LeaderElectionLeaseDuration <= options.LeaderElectionRenewDeadline {
+		return errors.New("--leader-election-lease-duration must be greater than --leader-election-renew-deadline")
+	}
+	if options.LeaderElectionRenewDeadline <= time.Duration(leaderelection.JitterFactor*float64(options.LeaderElectionRetryPeriod)) {
+		return fmt.Errorf("--leader-election-renew-deadline must be greater than --leader-election-retry-period multiplied by the jitter factor (%v)", leaderelection.JitterFactor)
 	}
 	return nil
 }
