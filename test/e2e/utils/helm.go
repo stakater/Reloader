@@ -207,10 +207,10 @@ func ReloaderDeploymentName(releaseName string) string {
 	if releaseName == "" {
 		releaseName = DefaultHelmReleaseName
 	}
-	// The chart is named "reloader-v2", so the fullname template renders
-	// <release>-reloader-v2. Keep this the single source of truth; the
+	// The chart is named "reloader", so the fullname template renders
+	// <release>-reloader. Keep this the single source of truth; the
 	// cluster-role and pod-selector helpers derive their names from it.
-	return releaseName + "-reloader-v2"
+	return releaseName + "-reloader"
 }
 
 // ReloaderPodSelector returns the label selector for Reloader pods.

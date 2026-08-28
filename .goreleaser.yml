@@ -27,5 +27,9 @@ checksum:
 changelog:
   # It will be generated manually as part of making a new GitHub release
   disable: true
+release:
+  # Tags with a SemVer prerelease suffix (e.g. v2.0.0-beta.1) are published as
+  # GitHub prereleases so they never become the repo's "Latest" release.
+  prerelease: auto
 env_files:
   github_token: /home/jenkins/.apitoken/hub

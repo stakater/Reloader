@@ -3,7 +3,7 @@ name: Release Helm chart
 on:
   push:
     tags:
-      - "reloader-v2-chart-v*"
+      - "chart-v*"
 
 permissions:
   contents: write
@@ -22,11 +22,16 @@ jobs:
       - name: Create release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          tag: ${{ github.ref }}
+          tag: ${{ github.ref_name }}
         run: |
+          # Mark prerelease chart versions (e.g. chart-v3.0.0-beta.1) so they
+          # don't show up as the repo's latest release.
+          prerelease=""
+          case "${tag#chart-v}" in *-*) prerelease="--prerelease" ;; esac
           gh release create "$tag" \
               --repo="$GITHUB_REPOSITORY" \
-              --title="Helm chart reloader-v2 ${tag#reloader-v2-chart-v}" \
+              --title="Helm chart reloader ${tag#chart-v}" \
+              $prerelease \
               --generate-notes
 
       - name: Notify Slack

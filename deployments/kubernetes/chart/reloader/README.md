@@ -4,19 +4,28 @@ If you have configured helm on your cluster, you can add Reloader to helm from o
 
 ## Installation
 
+> **Reloader v2 is currently a prerelease.** The commands below resolve to the
+> latest *stable* chart, which is still Reloader v1. To install the v2 beta you
+> must opt in explicitly, because Helm skips prerelease versions by default:
+>
+> ```bash
+> # --devel picks up the newest prerelease; add --version to pin a specific beta
+> helm install {{RELEASE_NAME}} stakater/reloader --devel
+> ```
+
 ```bash
 # Add stakater helm repoository
 helm repo add stakater https://stakater.github.io/stakater-charts
 
 helm repo update
 
-helm install stakater/reloader-v2 # For helm3 add --generate-name flag or set the release name
+helm install stakater/reloader # For helm3 add --generate-name flag or set the release name
 
-helm install {{RELEASE_NAME}} stakater/reloader-v2 -n {{NAMESPACE}} --set reloader.watchGlobally=false # By default, Reloader watches in all namespaces. To watch in single namespace, set watchGlobally=false
+helm install {{RELEASE_NAME}} stakater/reloader -n {{NAMESPACE}} --set reloader.watchGlobally=false # By default, Reloader watches in all namespaces. To watch in single namespace, set watchGlobally=false
 
-helm install stakater/reloader-v2 --set reloader.watchGlobally=false --namespace test --generate-name # Install Reloader in `test` namespace which will only watch `Deployments`, `Daemonsets` `Statefulsets` and `Rollouts` in `test` namespace.
+helm install stakater/reloader --set reloader.watchGlobally=false --namespace test --generate-name # Install Reloader in `test` namespace which will only watch `Deployments`, `Daemonsets` `Statefulsets` and `Rollouts` in `test` namespace.
 
-helm install stakater/reloader-v2 --set reloader.ignoreJobs=true --set reloader.ignoreCronJobs=true --generate-name # Install Reloader ignoring Jobs and CronJobs from reload monitoring
+helm install stakater/reloader --set reloader.ignoreJobs=true --set reloader.ignoreCronJobs=true --generate-name # Install Reloader ignoring Jobs and CronJobs from reload monitoring
 ```
 
 ## Uninstalling
@@ -39,7 +48,7 @@ helm uninstall {{RELEASE_NAME}} -n {{NAMESPACE}}
 | ------------------ | ---------------------------------------- | ------ | ----------------- |
 | `nameOverride`     | replace the name of the chart            | string | `""`              |
 | `fullnameOverride` | replace the generated name               | string | `""`              |
-| `image`            | Set container image name, tag and policy | map    | `see values.yaml` |
+| `image`            | Set container image name, tag and policy. `image.tag` defaults to the chart `appVersion` when empty | map    | `see values.yaml` |
 
 ### Core Reloader Parameters
 

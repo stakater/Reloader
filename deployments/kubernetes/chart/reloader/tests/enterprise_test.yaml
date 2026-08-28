@@ -2,21 +2,41 @@ suite: Enterprise image swap
 templates:
   - deployment.yaml
 tests:
+  # Tag is asserted by pattern, not literal, so a release bump does not churn tests.
   - it: uses the community image by default
+    asserts:
+      - matchRegex:
+          path: spec.template.spec.containers[0].image
+          pattern: ^ghcr\.io/stakater/reloader:v[0-9]+\.[0-9]+\.[0-9]+
+  # An empty image.tag must fall back to Chart.yaml appVersion, never render "repo:".
+  - it: falls back to the chart appVersion when image.tag is empty
+    set:
+      image:
+        tag: ""
+    asserts:
+      - matchRegex:
+          path: spec.template.spec.containers[0].image
+          pattern: ^ghcr\.io/stakater/reloader:v[0-9]+\.[0-9]+\.[0-9]+
+  - it: prefers an explicit image.tag over the chart appVersion
+    set:
+      image:
+        tag: pinned-tag
     asserts:
       - equal:
           path: spec.template.spec.containers[0].image
-          value: ghcr.io/stakater/reloader:v2.0.0
+          value: ghcr.io/stakater/reloader:pinned-tag
   # The operator image is swapped manually via image.*; enterprise.enabled only
   # toggles the subchart and must NOT change the operator image on its own.
   - it: enterprise.enabled alone does not change the operator image
     set:
       enterprise:
         enabled: true
+      image:
+        tag: pinned-tag
     asserts:
       - equal:
           path: spec.template.spec.containers[0].image
-          value: ghcr.io/stakater/reloader:v2.0.0
+          value: ghcr.io/stakater/reloader:pinned-tag
   - it: uses the enterprise image when the image block is overridden
     set:
       image:

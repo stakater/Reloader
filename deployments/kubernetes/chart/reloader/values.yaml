@@ -10,10 +10,12 @@ global:
   #imagePullSecrets:
   #  - my-pull-secret
 
-  ## Required when enterprise.enabled=true (shared with the enterprise subchart)
-  consoleHost: ""
-  gatewayHost: ""
-  gatewayScheme: https
+  ## Required when enterprise.enabled=true (shared with the enterprise subchart).
+  ## The console and the gateway share this one hostname and are told apart by
+  ## path: console at /, gateway at gatewayBasePath.
+  host: ""
+  gatewayBasePath: /gateway
+  ingressScheme: https
 
 kubernetes:
   host: https://kubernetes.default
@@ -24,7 +26,8 @@ fullnameOverride: ""
 image:
   name: stakater/reloader
   repository: ghcr.io/stakater/reloader
-  tag: v2.0.0
+  # Defaults to Chart.yaml appVersion, so a release only needs to bump appVersion.
+  tag: ""
   # digest: sha256:1234567
   pullPolicy: IfNotPresent
 
