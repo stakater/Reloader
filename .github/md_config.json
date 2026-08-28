@@ -2,6 +2,9 @@
   "ignorePatterns": [
     {
       "pattern": "^(?!http).+"
+    },
+    {
+      "pattern": "^https?://([a-zA-Z0-9-]+\\.)*slack\\.com"
     }
   ],
   "retryOn429": true
