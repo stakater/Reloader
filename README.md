@@ -21,6 +21,10 @@ Reloader bridges that gap by ensuring your workloads stay in sync with configura
 
 📚 Full documentation is available at [Stakater documentation site](https://docs.stakater.com/reloader/)
 
+## 🎥 Reloader in Action
+
+![demo](https://github.com/user-attachments/assets/ad9e59c7-39cf-45d7-89d6-4c22034104dd)
+
 ## 🚀 Why Reloader?
 
 - ✅ **Zero manual restarts**: No need to manually rollout workloads after config/secret changes.
