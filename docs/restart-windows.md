@@ -121,4 +121,3 @@ update two Secrets outside the window, restart the controller, verify no rollout
 until opening and exactly one combined template change, then check policy edits,
 missing Secrets, leader failover and GitOps reconciliation. Live cluster and
 container-image deployment validation are not implied by local tests.
-
