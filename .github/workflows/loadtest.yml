@@ -46,7 +46,7 @@ jobs:
             console.log(`PR #${context.issue.number}: ${pr.data.head.ref} -> ${pr.data.base.ref}`);
 
       - name: Checkout PR branch
-        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           ref: ${{ steps.pr.outputs.head_sha }}
           fetch-depth: 0  # Full history for building from base ref
