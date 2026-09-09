@@ -263,6 +263,18 @@ func startReloader(cmd *cobra.Command, args []string) {
 		}
 	}
 
+	if options.EnableRestartWindows {
+		for _, currentNamespace := range watchNamespaces {
+			c := controller.NewRestartWindowController(clientset, currentNamespace, ignoredNamespacesList, namespaceLabelSelector, resourceLabelSelector, nil)
+			controllers = append(controllers, c)
+			if !options.EnableHA {
+				stop := make(chan struct{})
+				defer close(stop)
+				go c.Run(1, stop)
+			}
+		}
+	}
+
 	// Run leadership election
 	if options.EnableHA {
 		podName, podNamespace := getHAEnvs()

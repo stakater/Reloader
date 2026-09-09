@@ -29,6 +29,7 @@ type ReloadCheckResult struct {
 // ReloaderOptions contains all configurable options for the Reloader controller.
 // These options control how Reloader behaves when watching for changes in ConfigMaps and Secrets.
 type ReloaderOptions struct {
+	EnableRestartWindows bool `json:"enableRestartWindows"`
 	// AutoReloadAll enables automatic reloading of all resources when their corresponding ConfigMaps/Secrets are updated
 	AutoReloadAll bool `json:"autoReloadAll"`
 	// ConfigmapUpdateOnChangeAnnotation is the annotation key used to detect changes in ConfigMaps specified by name
@@ -342,13 +343,13 @@ func checkIfResourceIsExcluded(resourceName, excludedResources string) bool {
 }
 
 func init() {
-	GetCommandLineOptions()
+	CommandLineOptions = GetCommandLineOptions()
 }
 
 func GetCommandLineOptions() *ReloaderOptions {
-	if CommandLineOptions == nil {
-		CommandLineOptions = &ReloaderOptions{}
-	}
+	// Return an independent snapshot: event workers and the window scheduler run concurrently.
+	CommandLineOptions := &ReloaderOptions{}
+	CommandLineOptions.EnableRestartWindows = options.EnableRestartWindows
 
 	CommandLineOptions.AutoReloadAll = options.AutoReloadAll
 	CommandLineOptions.ConfigmapUpdateOnChangeAnnotation = options.ConfigmapUpdateOnChangeAnnotation

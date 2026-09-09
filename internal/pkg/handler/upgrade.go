@@ -30,6 +30,7 @@ import (
 	"github.com/stakater/Reloader/internal/pkg/constants"
 	"github.com/stakater/Reloader/internal/pkg/metrics"
 	"github.com/stakater/Reloader/internal/pkg/options"
+	"github.com/stakater/Reloader/internal/pkg/restartwindow"
 	"github.com/stakater/Reloader/internal/pkg/util"
 	"github.com/stakater/Reloader/pkg/common"
 	"github.com/stakater/Reloader/pkg/kube"
@@ -317,6 +318,31 @@ func upgradeResource(clients kube.Clients, config common.Config, upgradeFuncs ca
 	if !result.ShouldReload {
 		logrus.Debugf("No changes detected in '%s' of type '%s' in namespace '%s'", config.ResourceName, config.Type, config.Namespace)
 		return false, nil
+	}
+
+	// Never mutate the pod template until its window opens.
+	// Only workload metadata carries policy/state, keeping upstream behavior intact.
+	if restartwindow.HasPolicy(annotations) || restartwindow.HasPolicy(podAnnotations) {
+		if !options.EnableRestartWindows {
+			return true, fmt.Errorf("restart windows require --enable-restart-windows")
+		}
+		if restartwindow.HasPolicy(podAnnotations) {
+			return true, fmt.Errorf("restart-window policy must be on workload metadata, not pod template")
+		}
+		if !restartwindow.Supported(upgradeFuncs.ResourceType) {
+			return true, fmt.Errorf("restart windows do not support %s", upgradeFuncs.ResourceType)
+		}
+		if getContainerUsingResource(upgradeFuncs, resource, config, result.AutoReload) == nil {
+			return false, nil
+		}
+		accessor, _ = meta.Accessor(resource)
+		err = restartwindow.Request(context.TODO(), clients.KubernetesClient,
+			restartwindow.Target{Kind: upgradeFuncs.ResourceType, Namespace: config.Namespace, Name: resourceName}, accessor.GetUID(),
+			restartwindow.Source{Type: config.Type, Name: config.ResourceName, ObservedHash: config.SHAValue})
+		if err == nil {
+			collectors.RecordSkipped("restart_window_queued")
+		}
+		return true, err
 	}
 
 	strategyResult := strategy(upgradeFuncs, resource, config, result.AutoReload)
