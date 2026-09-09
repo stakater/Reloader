@@ -250,6 +250,13 @@ This feature allows you to pause rollouts for a deployment for a specified durat
 1. ✅ Your deployment references multiple ConfigMaps or Secrets that may be updated at the same time.
 1. ✅ You want to minimize unnecessary rollouts and reduce downtime caused by back-to-back configuration changes.
 
+### Optional restart windows
+
+Defer Secret and ConfigMap rollouts to per-workload maintenance windows with
+`--enable-restart-windows` and `reloader.stakater.com/restart-window`.
+See [restart windows](docs/restart-windows.md) for policy examples, supported
+workloads, durable recovery, and GitOps ownership requirements. Disabled by default.
+
 ### 8. 🔐 CSI Secret Provider Support
 
 Reloader supports the [Secrets Store CSI Driver](https://secrets-store-csi-driver.sigs.k8s.io/), which allows mounting secrets from external secret stores (like AWS Secrets Manager, Azure Key Vault, HashiCorp Vault) directly into pods.
