@@ -2,6 +2,7 @@ package handler
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"testing"
 	"time"
@@ -12,6 +13,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	testclient "k8s.io/client-go/kubernetes/fake"
+	clienttesting "k8s.io/client-go/testing"
 
 	"github.com/stakater/Reloader/internal/pkg/options"
 	"github.com/stakater/Reloader/pkg/kube"
@@ -283,6 +285,55 @@ func TestHandleMissingTimerSimple(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestResumeDeploymentRetriesAfterFailedGet(t *testing.T) {
+	deployment := &appsv1.Deployment{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-deployment",
+			Namespace: "default",
+			Annotations: map[string]string{
+				options.PauseDeploymentTimeAnnotation: time.Now().Add(-6 * time.Minute).Format(time.RFC3339),
+				options.PauseDeploymentAnnotation:     "5m",
+			},
+		},
+		Spec: appsv1.DeploymentSpec{
+			Paused: true,
+		},
+	}
+	fakeClient := testclient.NewClientset(deployment)
+	clients := kube.Clients{KubernetesClient: fakeClient}
+
+	timerKey := getTimerKey("default", deployment.Name)
+	activeTimers[timerKey] = time.NewTimer(time.Hour)
+	defer func() {
+		for key, timer := range activeTimers {
+			timer.Stop()
+			delete(activeTimers, key)
+		}
+	}()
+
+	// The API server is unavailable when the resume timer fires.
+	failGet := true
+	fakeClient.PrependReactor("get", "deployments", func(clienttesting.Action) (bool, runtime.Object, error) {
+		if failGet {
+			return true, nil, errors.New("apiserver unavailable")
+		}
+		return false, nil, nil
+	})
+	ResumeDeployment(deployment, "default", clients)
+
+	_, timerExists := activeTimers[timerKey]
+	assert.False(t, timerExists, "Timer should be removed even if the resume fails")
+
+	// The next change to the deployment recovers through HandleMissingTimer.
+	failGet = false
+	_, err := PauseDeployment(deployment, clients, "default", deployment.Annotations[options.PauseDeploymentAnnotation])
+	assert.NoError(t, err)
+
+	updatedDeployment, err := fakeClient.AppsV1().Deployments("default").Get(context.TODO(), deployment.Name, metav1.GetOptions{})
+	assert.NoError(t, err)
+	assert.False(t, updatedDeployment.Spec.Paused, "Deployment should be resumed after the failed attempt")
 }
 
 func TestPauseDeployment(t *testing.T) {
