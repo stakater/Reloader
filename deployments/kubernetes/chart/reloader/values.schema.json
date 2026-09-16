@@ -5,6 +5,7 @@
     "reloader": {
       "type": "object",
       "properties": {
+        "enableRestartWindows": {"type": "boolean", "default": false},
         "reloadStrategy": {
           "type": "string",
           "enum": [

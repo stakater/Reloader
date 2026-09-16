@@ -16,6 +16,8 @@ const (
 )
 
 var (
+	// EnableRestartWindows enables the opt-in restart window scheduler.
+	EnableRestartWindows = false
 	// Auto reload all resources when their corresponding configmaps/secrets are updated
 	AutoReloadAll = false
 	// ConfigmapUpdateOnChangeAnnotation is an annotation to detect changes in
