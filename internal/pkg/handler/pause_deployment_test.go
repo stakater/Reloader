@@ -287,7 +287,7 @@ func TestHandleMissingTimerSimple(t *testing.T) {
 	}
 }
 
-func TestResumeDeploymentRetriesAfterFailedGet(t *testing.T) {
+func TestResumeDeploymentRecoversAfterFailedGet(t *testing.T) {
 	deployment := &appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "test-deployment",
@@ -334,6 +334,54 @@ func TestResumeDeploymentRetriesAfterFailedGet(t *testing.T) {
 	updatedDeployment, err := fakeClient.AppsV1().Deployments("default").Get(context.TODO(), deployment.Name, metav1.GetOptions{})
 	assert.NoError(t, err)
 	assert.False(t, updatedDeployment.Spec.Paused, "Deployment should be resumed after the failed attempt")
+}
+
+func TestResumeDeploymentRecoversAfterManualResume(t *testing.T) {
+	pausedDeployment := &appsv1.Deployment{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-deployment",
+			Namespace: "default",
+			Annotations: map[string]string{
+				options.PauseDeploymentTimeAnnotation: time.Now().Add(-6 * time.Minute).Format(time.RFC3339),
+				options.PauseDeploymentAnnotation:     "5m",
+			},
+		},
+		Spec: appsv1.DeploymentSpec{
+			Paused: true,
+		},
+	}
+	// The deployment was un-paused by hand before the resume timer fired.
+	resumedDeployment := pausedDeployment.DeepCopy()
+	resumedDeployment.Spec.Paused = false
+	fakeClient := testclient.NewClientset(resumedDeployment)
+	clients := kube.Clients{KubernetesClient: fakeClient}
+
+	timerKey := getTimerKey("default", pausedDeployment.Name)
+	staleTimer := time.NewTimer(time.Hour)
+	activeTimers[timerKey] = staleTimer
+	defer func() {
+		for key, timer := range activeTimers {
+			timer.Stop()
+			delete(activeTimers, key)
+		}
+	}()
+
+	ResumeDeployment(pausedDeployment, "default", clients)
+
+	_, timerExists := activeTimers[timerKey]
+	assert.False(t, timerExists, "Timer should be removed even if the deployment is no longer paused by reloader")
+
+	// The next change pauses the deployment again and must get a fresh resume timer.
+	_, err := PauseDeployment(resumedDeployment, clients, "default", resumedDeployment.Annotations[options.PauseDeploymentAnnotation])
+	assert.NoError(t, err)
+
+	updatedDeployment, err := fakeClient.AppsV1().Deployments("default").Get(context.TODO(), resumedDeployment.Name, metav1.GetOptions{})
+	assert.NoError(t, err)
+	assert.True(t, updatedDeployment.Spec.Paused, "Deployment should be paused by the new change")
+
+	timer, timerExists := activeTimers[timerKey]
+	assert.True(t, timerExists, "A resume timer should exist for the new pause")
+	assert.NotSame(t, staleTimer, timer, "The resume timer should not be the stale one")
 }
 
 func TestPauseDeployment(t *testing.T) {
