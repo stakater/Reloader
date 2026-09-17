@@ -72,6 +72,10 @@ helm uninstall {{RELEASE_NAME}} -n {{NAMESPACE}}
 | `reloader.watchGlobally`            | Allow Reloader to watch in all namespaces (`true`) or just in a single namespace (`false`)                                                          | boolean     | `true`    |
 | `reloader.namespaces`               | Explicit namespaces to watch (scoped mode). When non-empty and `reloader.watchGlobally` is `false`, Reloader watches exactly these namespaces and the chart creates a namespace-scoped Role + RoleBinding in each (no ClusterRole). The release namespace is not watched for reloads unless you list it explicitly; the chart only grants it a minimal Role for Reloader's internal meta-info ConfigMap (and leader-election in HA). Accepts either a YAML list (`["team-a","team-b"]`) or a comma-separated string (`"team-a,team-b"`).                                                 | list/string | `[]`      |
 | `reloader.enableHA`                 | Enable leadership election allowing you to run multiple replicas                                                                                    | boolean     | `false`   |
+| `reloader.leaderElection.id` | Name of the Lease Reloader locks on, only applied when `reloader.enableHA` is `true`. The RBAC `get`/`update` grant is pinned to this name. Empty keeps the binary default of `reloader-leader-election` | string | `""` |
+| `reloader.leaderElection.leaseDuration` | Duration non-leader candidates wait before force acquiring leadership, only applied when `reloader.enableHA` is `true`. Empty keeps the client-go default of `15s`. Must be a whole number of seconds | string | `""` |
+| `reloader.leaderElection.renewDeadline` | Duration the acting leader retries refreshing leadership before giving up, only applied when `reloader.enableHA` is `true`. Empty keeps the client-go default of `10s` | string | `""` |
+| `reloader.leaderElection.retryPeriod` | Duration clients wait between attempting acquisition and renewal of leadership, only applied when `reloader.enableHA` is `true`. Empty keeps the client-go default of `2s` | string | `""` |
 | `reloader.enablePProf`              | Enables pprof for profiling | boolean | `false` |
 | `reloader.pprofAddr` | Address to start pprof server on | string | `:6060` |
 | `reloader.readOnlyRootFileSystem`   | Enforce readOnlyRootFilesystem                                                                                                                      | boolean     | `false`   |
@@ -100,6 +104,8 @@ helm uninstall {{RELEASE_NAME}} -n {{NAMESPACE}}
 | `reloader.deployment.resources`                 | Set container requests and limits (e.g. CPU or memory)                                                                                                      | map    | `{}`              |
 | `reloader.deployment.pod.annotations`           | Set annotations for pod                                                                                                                                     | map    | `{}`              |
 | `reloader.deployment.priorityClassName`         | Set priority class for pod in cluster                                                                                                                       | string | `""`              |
+| `reloader.deployment.runtimeClassName`          | Set the runtimeClassName for the pod                                                                                                                        | string | `""`              |
+| `reloader.deployment.schedulerName`             | Set the schedulerName for the pod                                                                                                                           | string | `""`              |
 | `reloader.deployment.volumeMounts`              | Mount volume                                                                                                                                                | array  | `[]`              |
 | `reloader.deployment.volumes`                   | Add volume to a pod                                                                                                                                         | array  | `[]`              |
 
@@ -108,7 +114,7 @@ helm uninstall {{RELEASE_NAME}} -n {{NAMESPACE}}
 
 | Parameter                              | Description                                                     | Type    | Default |
 | -------------------------------------- | --------------------------------------------------------------- | ------- | ------- |
-| `reloader.service`                     |                                                                 | map     | `{}`    |
+| `reloader.service`                     | Service settings. Rendered only when non-empty. Supports `labels`, `annotations`, `port`, and the dual-stack keys `ipFamilyPolicy` (`SingleStack`, `PreferDualStack` or `RequireDualStack`) and `ipFamilies` (up to two of `IPv4`, `IPv6`) | map     | `{}`    |
 | `reloader.rbac.enabled`                | Specifies whether a role based access control should be created | boolean | `true`  |
 | `reloader.serviceAccount.create`       | Specifies whether a ServiceAccount should be created            | boolean | `true`  |
 | `reloader.custom_annotations`          | Add custom annotations                                          | map     | `{}`    |
@@ -169,6 +175,19 @@ helm uninstall {{RELEASE_NAME}} -n {{NAMESPACE}}
 **When false:**
 ❌ Updates during leader downtime are missed
 ⏳ Potential 15s delay window (default `LeaseDuration`)
+
+#### 🗳️ `enableHA` Behavior
+**When true:**
+✅ `--enable-ha=true` and the `POD_NAME`/`POD_NAMESPACE` env vars are rendered
+✅ The `coordination.k8s.io` Lease RBAC is rendered when `reloader.rbac.enabled` is `true`. It always lands in the namespaced `-metadata-role` in the release namespace, never in the ClusterRole and never in the watched namespace Roles, and `get`/`update` are restricted to the lease named by `reloader.leaderElection.id`
+✅ The default pod anti-affinity is rendered unless custom affinity is configured
+✅ `reloader.deployment.replicas` is honored, and any `reloader.leaderElection.*` settings are passed to the binary
+
+**When false:**
+❌ `reloader.deployment.replicas` is clamped to `1`, whatever value is set
+❌ `reloader.leaderElection.*` settings are ignored
+
+> ⚠️ **Behavior change:** earlier chart versions emitted `--enable-ha=true` whenever `reloader.deployment.replicas > 1`, even with `reloader.enableHA: false`. Every other HA component stayed gated on `enableHA` alone, so the pod rendered without `POD_NAME` and the binary exited with `POD_NAME not set, cannot run in HA mode without POD_NAME set`, leaving it in `CrashLoopBackOff`. The flag is now gated on `enableHA` alone. Raising `replicas` by itself therefore leaves HA off, consistent with the existing replica clamp. Setting `reloader.enableHA: true` is unaffected.
 
 #### Default Settings
 ⚠️ All flags default to `false` (must be enabled explicitly):

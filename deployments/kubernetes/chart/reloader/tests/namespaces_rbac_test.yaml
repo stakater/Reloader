@@ -130,6 +130,16 @@ tests:
               - leases
             verbs:
               - create
+      - contains:
+          path: rules
+          content:
+            apiGroups:
+              - "coordination.k8s.io"
+            resourceNames:
+              - reloader-leader-election
+            resources:
+              - leases
+            verbs:
               - get
               - update
 
@@ -145,17 +155,9 @@ tests:
       path: metadata.name
       value: reloader-reloader-metadata-role
     asserts:
-      - notContains:
-          path: rules
-          content:
-            apiGroups:
-              - "coordination.k8s.io"
-            resources:
-              - leases
-            verbs:
-              - create
-              - get
-              - update
+      - exists:
+          path: rules[?(@.apiGroups[0] == "coordination.k8s.io")]
+        not: true
 
   # ----------------------------------------------------------- single-ns mode
   - it: single-namespace mode (watchGlobally=false, no list) renders one Role in the release namespace and no ClusterRole

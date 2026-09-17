@@ -250,6 +250,14 @@ The `reloader.stakater.com/search` annotation on a workload pairs with `reloader
 
 **RBAC**: Reloader requires get/list/watch on secrets and configmaps, and get/list/watch/update/patch on all workload types it manages. Missing RBAC silently causes no reloads (not an error — just empty lists). Check ClusterRole in `deployments/kubernetes/chart/reloader/templates/`.
 
+**HA lease RBAC placement**: The `coordination.k8s.io` lease grant belongs only in the `reloader-release-rules` helper in `_helpers.tpl`, which renders into the `-metadata-role` in the release namespace. It must never be added to `clusterrole.yaml` or to the `reloader-namespaced-rules` helper, which would grant leases cluster wide or in every watched namespace. `create` is a rule of its own; `get`/`update` are pinned to `resourceNames: [<reloader-leaderElectionId>]`, so the pin and the `--leader-election-id` flag both resolve through the `reloader-leaderElectionId` helper and cannot drift apart. `tests/rbac_test.yaml` guards this.
+
+**HA is gated on `enableHA` alone**: `reloader.deployment.replicas > 1` does not imply HA. Raising replicas by itself leaves HA off (and the replica count clamped to 1), because `POD_NAME`, the anti-affinity and the lease RBAC are all gated on `reloader.enableHA`; emitting `--enable-ha=true` without them crash-loops the binary on `POD_NAME not set`.
+
+**Pause period must be positive**: `parsePausePeriod` in `internal/pkg/reload/pause.go` rejects unparseable, zero and negative values. `ShouldPause` returns `(bool, error)`: a non-nil error means the annotation is present but unusable, and the caller in `internal/pkg/controller/retry.go` reloads without pausing and logs the reason. Pausing on a non-positive period would unpause on the next reconcile; pausing on an unparseable one would leave the Deployment paused with no expiry to hit, since `CheckPauseExpired` only errors.
+
+**Invalid regex in reload annotations**: `pkg/matcher/matcher.go` compiles each `.../reload` pattern with `regexp.Compile` (never `MustCompile`, which would panic). An invalid pattern falls back to an exact name comparison and is reported through `MatchResult.Errors`, which `internal/pkg/reload/service.go` logs with workload context. `Errors` is part of the public `pkg/matcher` API: populate it on every `MatchResult` return path rather than dropping it.
+
 **GitOps drift**: If a GitOps tool (Flux, ArgoCD) manages the same Deployments, annotation or env var changes made by Reloader will be detected as drift and reverted. Use `--reload-strategy=annotations` with care in GitOps setups; `env-vars` strategy is generally safer since it modifies the pod template rather than workload-level annotations.
 
 **Annotation precedence edge case**: Annotations are checked first on the workload object, then on the pod template. If both are set to conflicting values, the behavior depends on which path `ShouldReload()` hits first. Verify in `pkg/common/common.go`.

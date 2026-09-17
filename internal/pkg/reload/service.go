@@ -102,6 +102,15 @@ func (s *Service) processResource(
 
 		matchResult := s.matcher.ShouldReload(input)
 
+		for _, err := range matchResult.Errors {
+			s.log.Error(
+				err, "problem evaluating reload annotations",
+				"workload", wl.GetName(), "kind", wl.Kind(),
+				"namespace", resourceNamespace,
+				"resource", resourceName, "resourceKind", resourceType.Kind(),
+			)
+		}
+
 		shouldReload := matchResult.ShouldReload
 		if matchResult.AutoReload && !usesResource {
 			shouldReload = false

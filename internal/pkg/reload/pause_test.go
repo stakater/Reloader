@@ -15,21 +15,26 @@ func TestPauseHandler_ShouldPause(t *testing.T) {
 	cfg := config.NewDefault()
 	handler := NewPauseHandler(cfg)
 
+	deploymentWithPausePeriod := func(period string) workload.Workload {
+		return workload.NewDeploymentWorkload(&appsv1.Deployment{
+			ObjectMeta: metav1.ObjectMeta{
+				Annotations: map[string]string{
+					cfg.Annotations.PausePeriod: period,
+				},
+			},
+		})
+	}
+
 	tests := []struct {
 		name     string
 		workload workload.Workload
 		want     bool
+		wantErr  bool
 	}{
 		{
-			name: "deployment with pause period",
-			workload: workload.NewDeploymentWorkload(&appsv1.Deployment{
-				ObjectMeta: metav1.ObjectMeta{
-					Annotations: map[string]string{
-						cfg.Annotations.PausePeriod: "5m",
-					},
-				},
-			}),
-			want: true,
+			name:     "deployment with pause period",
+			workload: deploymentWithPausePeriod("5m"),
+			want:     true,
 		},
 		{
 			name: "deployment without pause period",
@@ -49,11 +54,32 @@ func TestPauseHandler_ShouldPause(t *testing.T) {
 			}),
 			want: false,
 		},
+		{
+			name:     "zero pause period is rejected",
+			workload: deploymentWithPausePeriod("0s"),
+			want:     false,
+			wantErr:  true,
+		},
+		{
+			name:     "negative pause period is rejected",
+			workload: deploymentWithPausePeriod("-5m"),
+			want:     false,
+			wantErr:  true,
+		},
+		{
+			name:     "unparseable pause period is rejected",
+			workload: deploymentWithPausePeriod("invalid"),
+			want:     false,
+			wantErr:  true,
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := handler.ShouldPause(tt.workload)
+			got, err := handler.ShouldPause(tt.workload)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("ShouldPause() error = %v, wantErr %v", err, tt.wantErr)
+			}
 			if got != tt.want {
 				t.Errorf("ShouldPause() = %v, want %v", got, tt.want)
 			}
@@ -98,6 +124,28 @@ func TestPauseHandler_GetPausePeriod(t *testing.T) {
 			name: "no pause period annotation",
 			workload: workload.NewDeploymentWorkload(&appsv1.Deployment{
 				ObjectMeta: metav1.ObjectMeta{},
+			}),
+			wantErr: true,
+		},
+		{
+			name: "zero pause period",
+			workload: workload.NewDeploymentWorkload(&appsv1.Deployment{
+				ObjectMeta: metav1.ObjectMeta{
+					Annotations: map[string]string{
+						cfg.Annotations.PausePeriod: "0s",
+					},
+				},
+			}),
+			wantErr: true,
+		},
+		{
+			name: "negative pause period",
+			workload: workload.NewDeploymentWorkload(&appsv1.Deployment{
+				ObjectMeta: metav1.ObjectMeta{
+					Annotations: map[string]string{
+						cfg.Annotations.PausePeriod: "-5m",
+					},
+				},
 			}),
 			wantErr: true,
 		},
@@ -207,6 +255,30 @@ func TestPauseHandler_CheckPauseExpired(t *testing.T) {
 				ObjectMeta: metav1.ObjectMeta{
 					Annotations: map[string]string{
 						cfg.Annotations.PausePeriod: "invalid",
+						cfg.Annotations.PausedAt:    time.Now().UTC().Format(time.RFC3339),
+					},
+				},
+			},
+			wantErr: true,
+		},
+		{
+			name: "zero pause period",
+			deploy: &appsv1.Deployment{
+				ObjectMeta: metav1.ObjectMeta{
+					Annotations: map[string]string{
+						cfg.Annotations.PausePeriod: "0s",
+						cfg.Annotations.PausedAt:    time.Now().UTC().Format(time.RFC3339),
+					},
+				},
+			},
+			wantErr: true,
+		},
+		{
+			name: "negative pause period",
+			deploy: &appsv1.Deployment{
+				ObjectMeta: metav1.ObjectMeta{
+					Annotations: map[string]string{
+						cfg.Annotations.PausePeriod: "-5m",
 						cfg.Annotations.PausedAt:    time.Now().UTC().Format(time.RFC3339),
 					},
 				},

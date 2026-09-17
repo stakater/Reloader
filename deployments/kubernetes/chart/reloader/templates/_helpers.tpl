@@ -163,12 +163,22 @@ so it is validated once regardless of which templates render.
 {{- end -}}
 
 {{/*
+Name of the leader-election Lease. Must match the --leader-election-id flag
+passed to the container, since the RBAC rules pin get/update to this name.
+Defaults to the binary's own default when the value is unset.
+*/}}
+{{- define "reloader-leaderElectionId" -}}
+{{- .Values.reloader.leaderElection.id | default "reloader-leader-election" -}}
+{{- end -}}
+
+{{/*
 RBAC rules Reloader needs in its own (release) namespace, independent of the
 watched namespaces. Reloader publishes an internal meta-info ConfigMap there in
-every mode, so configmap write access is always granted. In scoped mode the
-release namespace is not covered by the watch RBAC, so under HA the leader-election
-leases and the events it emits are granted here too; in global/single mode those
-are already covered by the ClusterRole or the single-namespace Role.
+every mode, so configmap write access is always granted. The leader-election lease
+lives in this namespace too, so under HA it is granted here in every mode and never
+in the ClusterRole or the watched-namespace Roles; get/update are pinned to the one
+lease Reloader actually locks on. In scoped mode the release namespace is not covered
+by the watch RBAC, so the events Reloader emits there are granted here as well.
 Expects the root context ($) as its argument.
 */}}
 {{- define "reloader-release-rules" }}
@@ -181,15 +191,24 @@ Expects the root context ($) as its argument.
       - create
       - update
       - patch
-{{- if and (include "reloader-isScoped" .) .Values.reloader.enableHA }}
+{{- if .Values.reloader.enableHA }}
   - apiGroups:
       - "coordination.k8s.io"
     resources:
       - leases
     verbs:
       - create
+  - apiGroups:
+      - "coordination.k8s.io"
+    resourceNames:
+      - {{ include "reloader-leaderElectionId" . }}
+    resources:
+      - leases
+    verbs:
       - get
       - update
+{{- end }}
+{{- if and (include "reloader-isScoped" .) .Values.reloader.enableHA }}
   - apiGroups:
       - ""
       - "events.k8s.io"
@@ -281,16 +300,6 @@ the rule set is defined once. Expects the root context ($) as its argument.
       - get
       - watch
 {{- end }}
-{{- if .Values.reloader.enableHA }}
-  - apiGroups:
-      - "coordination.k8s.io"
-    resources:
-      - leases
-    verbs:
-      - create
-      - get
-      - update
-{{- end}}
 {{- if .Values.reloader.enableCSIIntegration }}
   - apiGroups:
       - "secrets-store.csi.x-k8s.io"

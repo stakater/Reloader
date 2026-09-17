@@ -6,6 +6,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/client-go/util/retry"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	logf "sigs.k8s.io/controller-runtime/pkg/log"
 
 	"github.com/stakater/Reloader/internal/pkg/reload"
 	"github.com/stakater/Reloader/internal/pkg/workload"
@@ -158,7 +159,18 @@ func updateDeploymentWithPause(
 	hash string,
 	autoReload bool,
 ) (bool, error) {
-	shouldPause := pauseHandler != nil && pauseHandler.ShouldPause(wl)
+	shouldPause := false
+	if pauseHandler != nil {
+		var err error
+		shouldPause, err = pauseHandler.ShouldPause(wl)
+		if err != nil {
+			// Reload anyway, but say why the pause was skipped rather than dropping it silently.
+			logf.FromContext(ctx).Error(
+				err, "ignoring pause-period annotation, reloading without pausing",
+				"workload", wl.GetName(), "namespace", namespace,
+			)
+		}
+	}
 
 	return retryWithReload(
 		ctx, c, reloadService, wl, resourceName, resourceType, namespace, hash, autoReload,

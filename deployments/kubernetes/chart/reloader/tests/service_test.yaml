@@ -1,0 +1,450 @@
+suite: Service
+
+templates:
+  - service.yaml
+
+tests:
+  - it: does not render when reloader.service is empty by default
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: does not render when reloader.service is an empty map
+    set:
+      reloader:
+        service: {}
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: does not render when reloader.service is null
+    set:
+      reloader:
+        service: null
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: renders a Service when reloader.service is non-empty
+    set:
+      reloader:
+        service:
+          port: 9090
+    asserts:
+      - hasDocuments:
+          count: 1
+      - isKind:
+          of: Service
+      - isAPIVersion:
+          of: v1
+
+  - it: sets the service port and http targetPort
+    set:
+      reloader:
+        service:
+          port: 8080
+    asserts:
+      - equal:
+          path: spec.ports[0].port
+          value: 8080
+      - equal:
+          path: spec.ports[0].name
+          value: http
+      - equal:
+          path: spec.ports[0].protocol
+          value: TCP
+      - equal:
+          path: spec.ports[0].targetPort
+          value: http
+
+  - it: sets metadata name from the release fullname template
+    release:
+      name: myrel
+    set:
+      reloader:
+        service:
+          port: 9090
+    asserts:
+      - equal:
+          path: metadata.name
+          value: myrel-reloader
+
+  - it: uses fullnameOverride for metadata name
+    set:
+      fullnameOverride: custom-service-name
+      reloader:
+        service:
+          port: 9090
+    asserts:
+      - equal:
+          path: metadata.name
+          value: custom-service-name
+
+  - it: uses namespace from values when set
+    set:
+      namespace: team-a
+      reloader:
+        service:
+          port: 9090
+    asserts:
+      - equal:
+          path: metadata.namespace
+          value: team-a
+
+  - it: uses release namespace when namespace value is not set
+    release:
+      namespace: staging
+    set:
+      reloader:
+        service:
+          port: 9090
+    asserts:
+      - equal:
+          path: metadata.namespace
+          value: staging
+
+  - it: includes helm3 release annotations
+    release:
+      name: rel
+      namespace: ns
+    set:
+      reloader:
+        service:
+          port: 9090
+    asserts:
+      - equal:
+          path: metadata.annotations["meta.helm.sh/release-name"]
+          value: rel
+      - equal:
+          path: metadata.annotations["meta.helm.sh/release-namespace"]
+          value: ns
+
+  - it: merges custom service annotations
+    set:
+      reloader:
+        service:
+          port: 9090
+          annotations:
+            prometheus.io/scrape: "true"
+    asserts:
+      - equal:
+          path: metadata.annotations["prometheus.io/scrape"]
+          value: "true"
+
+  - it: tpl renders in service annotations
+    release:
+      name: tpl-test
+    set:
+      reloader:
+        service:
+          port: 9090
+          annotations:
+            custom/release: "{{ .Release.Name }}"
+    asserts:
+      - equal:
+          path: metadata.annotations["custom/release"]
+          value: tpl-test
+
+  - it: merges custom service labels
+    set:
+      reloader:
+        service:
+          port: 9090
+          labels:
+            monitoring: enabled
+    asserts:
+      - equal:
+          path: metadata.labels.monitoring
+          value: enabled
+
+  - it: tpl renders in service labels
+    release:
+      name: tpl-labels
+    set:
+      reloader:
+        service:
+          port: 9090
+          labels:
+            release-name: "{{ .Release.Name }}"
+    asserts:
+      - equal:
+          path: metadata.labels.release-name
+          value: tpl-labels
+
+  - it: includes chart labels on the service
+    release:
+      name: chart-labels
+    set:
+      reloader:
+        service:
+          port: 9090
+    asserts:
+      - equal:
+          path: metadata.labels["app.kubernetes.io/name"]
+          value: reloader
+      - equal:
+          path: metadata.labels["app.kubernetes.io/instance"]
+          value: chart-labels
+      - equal:
+          path: metadata.labels.app
+          value: chart-labels-reloader
+
+  - it: selector includes deployment labels
+    set:
+      reloader:
+        service:
+          port: 9090
+        deployment:
+          labels:
+            tier: backend
+    asserts:
+      - equal:
+          path: spec.selector.tier
+          value: backend
+
+  - it: selector includes matchLabels
+    set:
+      reloader:
+        service:
+          port: 9090
+        deployment:
+          labels: null
+        matchLabels:
+          environment: production
+    asserts:
+      - equal:
+          path: spec.selector.environment
+          value: production
+
+  - it: selector includes both deployment labels and matchLabels
+    set:
+      reloader:
+        service:
+          port: 9090
+        deployment:
+          labels:
+            tier: backend
+        matchLabels:
+          environment: production
+    asserts:
+      - equal:
+          path: spec.selector.tier
+          value: backend
+      - equal:
+          path: spec.selector.environment
+          value: production
+
+  - it: does not set ipFamilyPolicy when not configured
+    set:
+      reloader:
+        service:
+          port: 9090
+    asserts:
+      - notExists:
+          path: spec.ipFamilyPolicy
+
+  - it: does not set ipFamilies when not configured
+    set:
+      reloader:
+        service:
+          port: 9090
+    asserts:
+      - notExists:
+          path: spec.ipFamilies
+
+  - it: sets ipFamilyPolicy when configured
+    set:
+      reloader:
+        service:
+          port: 9090
+          ipFamilyPolicy: SingleStack
+    asserts:
+      - equal:
+          path: spec.ipFamilyPolicy
+          value: SingleStack
+
+  - it: sets ipFamilies when configured without ipFamilyPolicy
+    set:
+      reloader:
+        service:
+          port: 9090
+          ipFamilies:
+            - IPv4
+    asserts:
+      - equal:
+          path: spec.ipFamilies
+          value:
+            - IPv4
+      - notExists:
+          path: spec.ipFamilyPolicy
+
+  - it: sets SingleStack with IPv4 per values.schema.json
+    set:
+      reloader:
+        service:
+          port: 9090
+          ipFamilyPolicy: SingleStack
+          ipFamilies:
+            - IPv4
+    asserts:
+      - equal:
+          path: spec.ipFamilyPolicy
+          value: SingleStack
+      - equal:
+          path: spec.ipFamilies
+          value:
+            - IPv4
+
+  - it: sets SingleStack with IPv6 per values.schema.json
+    set:
+      reloader:
+        service:
+          port: 9090
+          ipFamilyPolicy: SingleStack
+          ipFamilies:
+            - IPv6
+    asserts:
+      - equal:
+          path: spec.ipFamilyPolicy
+          value: SingleStack
+      - equal:
+          path: spec.ipFamilies
+          value:
+            - IPv6
+
+  - it: sets PreferDualStack with IPv4 only per values.schema.json
+    set:
+      reloader:
+        service:
+          port: 9090
+          ipFamilyPolicy: PreferDualStack
+          ipFamilies:
+            - IPv4
+    asserts:
+      - equal:
+          path: spec.ipFamilyPolicy
+          value: PreferDualStack
+      - equal:
+          path: spec.ipFamilies
+          value:
+            - IPv4
+
+  - it: sets PreferDualStack with IPv6 only per values.schema.json
+    set:
+      reloader:
+        service:
+          port: 9090
+          ipFamilyPolicy: PreferDualStack
+          ipFamilies:
+            - IPv6
+    asserts:
+      - equal:
+          path: spec.ipFamilyPolicy
+          value: PreferDualStack
+      - equal:
+          path: spec.ipFamilies
+          value:
+            - IPv6
+
+  - it: sets PreferDualStack with IPv4 and IPv6 per values.schema.json
+    set:
+      reloader:
+        service:
+          port: 9090
+          ipFamilyPolicy: PreferDualStack
+          ipFamilies:
+            - IPv4
+            - IPv6
+    asserts:
+      - equal:
+          path: spec.ipFamilyPolicy
+          value: PreferDualStack
+      - equal:
+          path: spec.ipFamilies
+          value:
+            - IPv4
+            - IPv6
+
+  - it: sets PreferDualStack with IPv6 and IPv4 per values.schema.json
+    set:
+      reloader:
+        service:
+          port: 9090
+          ipFamilyPolicy: PreferDualStack
+          ipFamilies:
+            - IPv6
+            - IPv4
+    asserts:
+      - equal:
+          path: spec.ipFamilyPolicy
+          value: PreferDualStack
+      - equal:
+          path: spec.ipFamilies
+          value:
+            - IPv6
+            - IPv4
+
+  - it: sets RequireDualStack with IPv4 and IPv6 per values.schema.json
+    set:
+      reloader:
+        service:
+          port: 9090
+          ipFamilyPolicy: RequireDualStack
+          ipFamilies:
+            - IPv4
+            - IPv6
+    asserts:
+      - equal:
+          path: spec.ipFamilyPolicy
+          value: RequireDualStack
+      - equal:
+          path: spec.ipFamilies
+          value:
+            - IPv4
+            - IPv6
+
+  - it: sets RequireDualStack with IPv6 and IPv4 per values.schema.json
+    set:
+      reloader:
+        service:
+          port: 9090
+          ipFamilyPolicy: RequireDualStack
+          ipFamilies:
+            - IPv6
+            - IPv4
+    asserts:
+      - equal:
+          path: spec.ipFamilyPolicy
+          value: RequireDualStack
+      - equal:
+          path: spec.ipFamilies
+          value:
+            - IPv6
+            - IPv4
+
+  - it: renders when only ipFamilyPolicy is configured
+    set:
+      reloader:
+        service:
+          ipFamilyPolicy: PreferDualStack
+    asserts:
+      - hasDocuments:
+          count: 1
+      - equal:
+          path: spec.ipFamilyPolicy
+          value: PreferDualStack
+      - notExists:
+          path: spec.ipFamilies
+
+  - it: renders when only service annotations are configured
+    set:
+      reloader:
+        service:
+          annotations:
+            example.com/enabled: "true"
+    asserts:
+      - hasDocuments:
+          count: 1
+      - equal:
+          path: metadata.annotations["example.com/enabled"]
+          value: "true"

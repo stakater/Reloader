@@ -5,6 +5,7 @@
 package matcher
 
 import (
+	"fmt"
 	"regexp"
 	"strings"
 
@@ -16,6 +17,10 @@ type MatchResult struct {
 	ShouldReload bool
 	AutoReload   bool
 	Reason       string
+	// Errors holds non-fatal problems found while evaluating the annotations, such as
+	// an unparseable regex in a reload annotation. The match still resolves, but the
+	// caller should report these so a typo is not silently ignored.
+	Errors []error
 }
 
 // Matcher determines whether a workload should be reloaded based on annotations.
@@ -56,11 +61,13 @@ func (m *Matcher) ShouldReload(input MatchInput) MatchResult {
 		}
 	}
 
-	if m.matchesExplicitAnnotation(input.ResourceName, input.ResourceType, annotations) {
+	matchesExplicit, regexErrors := m.matchesExplicitAnnotation(input.ResourceName, input.ResourceType, annotations)
+	if matchesExplicit {
 		return MatchResult{
 			ShouldReload: true,
 			AutoReload:   false,
 			Reason:       "matches explicit reload annotation",
+			Errors:       regexErrors,
 		}
 	}
 
@@ -69,6 +76,7 @@ func (m *Matcher) ShouldReload(input MatchInput) MatchResult {
 			ShouldReload: true,
 			AutoReload:   true,
 			Reason:       "matches search/match pattern",
+			Errors:       regexErrors,
 		}
 	}
 
@@ -77,6 +85,7 @@ func (m *Matcher) ShouldReload(input MatchInput) MatchResult {
 			ShouldReload: true,
 			AutoReload:   true,
 			Reason:       "auto annotation enabled",
+			Errors:       regexErrors,
 		}
 	}
 
@@ -85,12 +94,14 @@ func (m *Matcher) ShouldReload(input MatchInput) MatchResult {
 			ShouldReload: true,
 			AutoReload:   true,
 			Reason:       "auto-reload-all enabled",
+			Errors:       regexErrors,
 		}
 	}
 
 	return MatchResult{
 		ShouldReload: false,
 		Reason:       "no matching annotations",
+		Errors:       regexErrors,
 	}
 }
 
@@ -166,17 +177,22 @@ func (m *Matcher) isResourceExcluded(resourceName string, resourceType ResourceT
 	return false
 }
 
-func (m *Matcher) matchesExplicitAnnotation(resourceName string, resourceType ResourceType, annotations map[string]string) bool {
+// matchesExplicitAnnotation reports whether the resource name matches one of the
+// patterns listed in the workload's reload annotation. A pattern that is not a valid
+// regex falls back to an exact name comparison, and is reported through the returned
+// errors so the typo surfaces instead of silently narrowing the match.
+func (m *Matcher) matchesExplicitAnnotation(resourceName string, resourceType ResourceType, annotations map[string]string) (bool, []error) {
 	if annotations == nil {
-		return false
+		return false, nil
 	}
 
 	explicitAnn := m.getExplicitAnnotation(resourceType)
 	annotationValue, ok := annotations[explicitAnn]
 	if !ok || annotationValue == "" {
-		return false
+		return false, nil
 	}
 
+	var regexErrors []error
 	for _, value := range strings.Split(annotationValue, ",") {
 		value = strings.TrimSpace(value)
 		if value == "" {
@@ -184,17 +200,24 @@ func (m *Matcher) matchesExplicitAnnotation(resourceName string, resourceType Re
 		}
 		re, err := regexp.Compile("^" + value + "$")
 		if err != nil {
+			regexErrors = append(
+				regexErrors,
+				fmt.Errorf(
+					"invalid regex %q in reload annotation %q, falling back to an exact name comparison: %w",
+					value, explicitAnn, err,
+				),
+			)
 			if value == resourceName {
-				return true
+				return true, regexErrors
 			}
 			continue
 		}
 		if re.MatchString(resourceName) {
-			return true
+			return true, regexErrors
 		}
 	}
 
-	return false
+	return false, regexErrors
 }
 
 func (m *Matcher) matchesSearchPattern(resourceAnnotations, workloadAnnotations map[string]string) bool {
