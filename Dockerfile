@@ -35,10 +35,10 @@ RUN CGO_ENABLED=0 \
     GOPROXY=${GOPROXY} \
     GOPRIVATE=${GOPRIVATE} \
     GO111MODULE=on \
-    go build -ldflags="-s -w -X github.com/stakater/Reloader/pkg/common.Version=${VERSION} \
-         -X github.com/stakater/Reloader/pkg/common.Commit=${COMMIT} \
-         -X github.com/stakater/Reloader/pkg/common.BuildDate=${BUILD_DATE} \
-         -X github.com/stakater/Reloader/pkg/common.Edition=${EDITION}" \
+    go build -ldflags="-s -w -X github.com/stakater/Reloader/pkg/metadata.Version=${VERSION} \
+         -X github.com/stakater/Reloader/pkg/metadata.Commit=${COMMIT} \
+         -X github.com/stakater/Reloader/pkg/metadata.BuildDate=${BUILD_DATE} \
+         -X github.com/stakater/Reloader/pkg/metadata.Edition=${EDITION}" \
         -installsuffix 'static' -mod=mod -a -o manager ./cmd/reloader
 
 # Use distroless as minimal base image to package the manager binary
