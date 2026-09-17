@@ -247,7 +247,8 @@ func TestPauseHandler_CheckPauseExpired(t *testing.T) {
 					},
 				},
 			},
-			wantErr: true,
+			wantExpired: true,
+			wantErr:     true,
 		},
 		{
 			name: "invalid pause period",
@@ -259,7 +260,8 @@ func TestPauseHandler_CheckPauseExpired(t *testing.T) {
 					},
 				},
 			},
-			wantErr: true,
+			wantExpired: true,
+			wantErr:     true,
 		},
 		{
 			name: "zero pause period",
@@ -271,7 +273,8 @@ func TestPauseHandler_CheckPauseExpired(t *testing.T) {
 					},
 				},
 			},
-			wantErr: true,
+			wantExpired: true,
+			wantErr:     true,
 		},
 		{
 			name: "negative pause period",
@@ -283,7 +286,8 @@ func TestPauseHandler_CheckPauseExpired(t *testing.T) {
 					},
 				},
 			},
-			wantErr: true,
+			wantExpired: true,
+			wantErr:     true,
 		},
 	}
 
@@ -294,7 +298,7 @@ func TestPauseHandler_CheckPauseExpired(t *testing.T) {
 				t.Errorf("CheckPauseExpired() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
-			if !tt.wantErr && expired != tt.wantExpired {
+			if expired != tt.wantExpired {
 				t.Errorf("CheckPauseExpired() expired = %v, want %v", expired, tt.wantExpired)
 			}
 		})

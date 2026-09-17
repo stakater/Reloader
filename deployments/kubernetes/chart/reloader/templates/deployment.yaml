@@ -342,10 +342,8 @@ spec:
           {{- end }}
           {{- if .Values.reloader.enableHA }}
           - "--enable-ha=true"
+          - "--leader-election-id={{ include "reloader-leaderElectionId" . }}"
           {{- with .Values.reloader.leaderElection }}
-          {{- with .id }}
-          - "--leader-election-id={{ . }}"
-          {{- end }}
           {{- with .leaseDuration }}
           - "--leader-election-lease-duration={{ . }}"
           {{- end }}

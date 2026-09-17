@@ -109,7 +109,7 @@ tests:
           path: rules[0].verbs
           content: create
 
-  - it: metadata role also grants leases and events in the release namespace under HA + scoped mode
+  - it: metadata role grants events in the release namespace under HA + scoped mode
     set:
       reloader:
         watchGlobally: false
@@ -125,25 +125,16 @@ tests:
           path: rules
           content:
             apiGroups:
-              - "coordination.k8s.io"
+              - ""
+              - "events.k8s.io"
             resources:
-              - leases
+              - events
             verbs:
               - create
-      - contains:
-          path: rules
-          content:
-            apiGroups:
-              - "coordination.k8s.io"
-            resourceNames:
-              - reloader-leader-election
-            resources:
-              - leases
-            verbs:
-              - get
+              - patch
               - update
 
-  - it: metadata role does NOT grant leases when HA is disabled in scoped mode
+  - it: metadata role does NOT grant events when HA is disabled in scoped mode
     set:
       reloader:
         watchGlobally: false
@@ -156,7 +147,7 @@ tests:
       value: reloader-reloader-metadata-role
     asserts:
       - exists:
-          path: rules[?(@.apiGroups[0] == "coordination.k8s.io")]
+          path: rules[?(@.resources[0] == "events")]
         not: true
 
   # ----------------------------------------------------------- single-ns mode

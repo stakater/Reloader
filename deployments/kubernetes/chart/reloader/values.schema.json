@@ -20,13 +20,16 @@
               "type": "string"
             },
             "leaseDuration": {
-              "type": "string"
+              "type": "string",
+              "pattern": "^$|^([0-9]+(\\.[0-9]+)?(ns|us|µs|ms|s|m|h))+$"
             },
             "renewDeadline": {
-              "type": "string"
+              "type": "string",
+              "pattern": "^$|^([0-9]+(\\.[0-9]+)?(ns|us|µs|ms|s|m|h))+$"
             },
             "retryPeriod": {
-              "type": "string"
+              "type": "string",
+              "pattern": "^$|^([0-9]+(\\.[0-9]+)?(ns|us|µs|ms|s|m|h))+$"
             }
           }
         },
@@ -44,8 +47,13 @@
             "ipFamilies": {
               "type": "array",
               "items": {
-                "type": "string"
+                "type": "string",
+                "enum": [
+                  "IPv4",
+                  "IPv6"
+                ]
               },
+              "minItems": 1,
               "maxItems": 2,
               "uniqueItems": true
             }
@@ -65,24 +73,7 @@
               "then": {
                 "properties": {
                   "ipFamilies": {
-                    "allOf": [
-                      {
-                        "type": "array"
-                      },
-                      {
-                        "items": {
-                          "type": "string",
-                          "enum": [
-                            "IPv4",
-                            "IPv6"
-                          ]
-                        }
-                      },
-                      {
-                        "maxItems": 1,
-                        "minItems": 1
-                      }
-                    ]
+                    "maxItems": 1
                   }
                 }
               }
@@ -101,59 +92,7 @@
               "then": {
                 "properties": {
                   "ipFamilies": {
-                    "allOf": [
-                      {
-                        "type": "array"
-                      },
-                      {
-                        "items": {
-                          "type": "string",
-                          "enum": [
-                            "IPv4",
-                            "IPv6"
-                          ]
-                        }
-                      },
-                      {
-                        "minItems": 2
-                      }
-                    ]
-                  }
-                }
-              }
-            },
-            {
-              "if": {
-                "properties": {
-                  "ipFamilyPolicy": {
-                    "const": "PreferDualStack"
-                  }
-                },
-                "required": [
-                  "ipFamilyPolicy"
-                ]
-              },
-              "then": {
-                "properties": {
-                  "ipFamilies": {
-                    "allOf": [
-                      {
-                        "type": "array"
-                      },
-                      {
-                        "items": {
-                          "type": "string",
-                          "enum": [
-                            "IPv4",
-                            "IPv6"
-                          ]
-                        }
-                      },
-                      {
-                        "minItems": 1,
-                        "maxItems": 2
-                      }
-                    ]
+                    "minItems": 2
                   }
                 }
               }

@@ -163,17 +163,26 @@ tests:
           path: spec.template.spec.containers[0].args
           content: "--leader-election-id=custom-lock"
 
-  - it: does not pass leader election flags when they are unset
+  # The id flag must always be emitted, so it and the RBAC resourceNames pin resolve
+  # through the same helper. notContains is exact element equality, so each timing flag
+  # is asserted at the value the chart would actually render.
+  - it: passes the default leader election id and no timing flags when they are unset
     set:
       reloader:
         enableHA: true
     asserts:
-      - notContains:
+      - contains:
           path: spec.template.spec.containers[0].args
-          content: "--leader-election-id="
+          content: "--leader-election-id=reloader-leader-election"
       - notContains:
           path: spec.template.spec.containers[0].args
           content: "--leader-election-lease-duration="
+      - notContains:
+          path: spec.template.spec.containers[0].args
+          content: "--leader-election-renew-deadline="
+      - notContains:
+          path: spec.template.spec.containers[0].args
+          content: "--leader-election-retry-period="
 
   - it: does not enable HA when only replicas is raised
     set:

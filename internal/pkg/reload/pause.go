@@ -20,11 +20,9 @@ func NewPauseHandler(cfg *config.Config) *PauseHandler {
 	return &PauseHandler{cfg: cfg}
 }
 
-// ShouldPause reports whether a deployment should be paused after reload. It returns
-// a non-nil error when the pause-period annotation is present but unusable, in which
-// case the caller reloads without pausing: pausing on a zero or negative period would
-// unpause again on the next reconcile, and pausing on an unparseable one would leave
-// the deployment paused with no expiry to hit.
+// ShouldPause reports whether a deployment should be paused after reload. A non-nil
+// error means the pause-period annotation is present but unusable, and the caller
+// should reload without pausing.
 func (h *PauseHandler) ShouldPause(wl workload.Workload) (bool, error) {
 	if wl.Kind() != workload.KindDeployment {
 		return false, nil
@@ -93,31 +91,34 @@ func (h *PauseHandler) ApplyPause(wl workload.Workload) error {
 	return nil
 }
 
-// CheckPauseExpired checks if the pause period has expired for a deployment.
+// CheckPauseExpired checks if the pause period has expired for a deployment. Every
+// error return reports expired, because the annotations are the only record of when
+// the pause ends: if they cannot be read the pause has no expiry left to reach, so the
+// caller must clear it rather than retry.
 func (h *PauseHandler) CheckPauseExpired(deploy *appsv1.Deployment) (expired bool, remainingTime time.Duration, err error) {
 	annotations := deploy.GetAnnotations()
 	if annotations == nil {
-		return false, 0, fmt.Errorf("no annotations on deployment")
+		return true, 0, fmt.Errorf("no annotations on deployment")
 	}
 
 	pausePeriodStr := annotations[h.cfg.Annotations.PausePeriod]
 	if pausePeriodStr == "" {
-		return false, 0, fmt.Errorf("no pause period annotation")
+		return true, 0, fmt.Errorf("no pause period annotation")
 	}
 
 	pausedAtStr := annotations[h.cfg.Annotations.PausedAt]
 	if pausedAtStr == "" {
-		return false, 0, fmt.Errorf("no paused-at annotation")
+		return true, 0, fmt.Errorf("no paused-at annotation")
 	}
 
 	pausePeriod, err := parsePausePeriod(pausePeriodStr)
 	if err != nil {
-		return false, 0, err
+		return true, 0, err
 	}
 
 	pausedAt, err := time.Parse(time.RFC3339, pausedAtStr)
 	if err != nil {
-		return false, 0, fmt.Errorf("invalid paused-at time %q: %w", pausedAtStr, err)
+		return true, 0, fmt.Errorf("invalid paused-at time %q: %w", pausedAtStr, err)
 	}
 
 	elapsed := time.Since(pausedAt)

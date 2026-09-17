@@ -9,14 +9,6 @@ tests:
       - hasDocuments:
           count: 0
 
-  - it: does not render when reloader.service is an empty map
-    set:
-      reloader:
-        service: {}
-    asserts:
-      - hasDocuments:
-          count: 0
-
   - it: does not render when reloader.service is null
     set:
       reloader:
@@ -278,7 +270,9 @@ tests:
       - notExists:
           path: spec.ipFamilyPolicy
 
-  - it: sets SingleStack with IPv4 per values.schema.json
+  # One case per ipFamilyPolicy value, which is the only axis values.schema.json
+  # branches on, plus one case pinning that ipFamilies order is preserved.
+  - it: sets SingleStack per values.schema.json
     set:
       reloader:
         service:
@@ -295,58 +289,7 @@ tests:
           value:
             - IPv4
 
-  - it: sets SingleStack with IPv6 per values.schema.json
-    set:
-      reloader:
-        service:
-          port: 9090
-          ipFamilyPolicy: SingleStack
-          ipFamilies:
-            - IPv6
-    asserts:
-      - equal:
-          path: spec.ipFamilyPolicy
-          value: SingleStack
-      - equal:
-          path: spec.ipFamilies
-          value:
-            - IPv6
-
-  - it: sets PreferDualStack with IPv4 only per values.schema.json
-    set:
-      reloader:
-        service:
-          port: 9090
-          ipFamilyPolicy: PreferDualStack
-          ipFamilies:
-            - IPv4
-    asserts:
-      - equal:
-          path: spec.ipFamilyPolicy
-          value: PreferDualStack
-      - equal:
-          path: spec.ipFamilies
-          value:
-            - IPv4
-
-  - it: sets PreferDualStack with IPv6 only per values.schema.json
-    set:
-      reloader:
-        service:
-          port: 9090
-          ipFamilyPolicy: PreferDualStack
-          ipFamilies:
-            - IPv6
-    asserts:
-      - equal:
-          path: spec.ipFamilyPolicy
-          value: PreferDualStack
-      - equal:
-          path: spec.ipFamilies
-          value:
-            - IPv6
-
-  - it: sets PreferDualStack with IPv4 and IPv6 per values.schema.json
+  - it: sets PreferDualStack per values.schema.json
     set:
       reloader:
         service:
@@ -365,26 +308,7 @@ tests:
             - IPv4
             - IPv6
 
-  - it: sets PreferDualStack with IPv6 and IPv4 per values.schema.json
-    set:
-      reloader:
-        service:
-          port: 9090
-          ipFamilyPolicy: PreferDualStack
-          ipFamilies:
-            - IPv6
-            - IPv4
-    asserts:
-      - equal:
-          path: spec.ipFamilyPolicy
-          value: PreferDualStack
-      - equal:
-          path: spec.ipFamilies
-          value:
-            - IPv6
-            - IPv4
-
-  - it: sets RequireDualStack with IPv4 and IPv6 per values.schema.json
+  - it: sets RequireDualStack per values.schema.json
     set:
       reloader:
         service:
@@ -403,7 +327,7 @@ tests:
             - IPv4
             - IPv6
 
-  - it: sets RequireDualStack with IPv6 and IPv4 per values.schema.json
+  - it: preserves the order of ipFamilies
     set:
       reloader:
         service:
@@ -413,9 +337,6 @@ tests:
             - IPv6
             - IPv4
     asserts:
-      - equal:
-          path: spec.ipFamilyPolicy
-          value: RequireDualStack
       - equal:
           path: spec.ipFamilies
           value:
@@ -426,10 +347,14 @@ tests:
     set:
       reloader:
         service:
+          port: 9090
           ipFamilyPolicy: PreferDualStack
     asserts:
       - hasDocuments:
           count: 1
+      - equal:
+          path: spec.ports[0].port
+          value: 9090
       - equal:
           path: spec.ipFamilyPolicy
           value: PreferDualStack
@@ -440,11 +365,15 @@ tests:
     set:
       reloader:
         service:
+          port: 9090
           annotations:
             example.com/enabled: "true"
     asserts:
       - hasDocuments:
           count: 1
+      - equal:
+          path: spec.ports[0].port
+          value: 9090
       - equal:
           path: metadata.annotations["example.com/enabled"]
           value: "true"

@@ -98,12 +98,12 @@ reloader:
   # Set to true to enable leadership election allowing you to run multiple replicas
   enableHA: false
   # Leader election settings, only applied when enableHA is true.
-  # id is the name of the Lease Reloader locks on; the RBAC rules pin get/update to it,
-  # so override it only if you also want the restricted grant to follow.
+  # id is the name of the Lease Reloader locks on. The chart passes it as
+  # --leader-election-id and pins the RBAC get/update grant to the same name.
   # Leave the timings empty to keep the client-go defaults (leaseDuration 15s,
-  # renewDeadline 10s, retryPeriod 2s). leaseDuration must be a whole number of seconds
-  # and greater than renewDeadline, and renewDeadline must be greater than retryPeriod
-  # multiplied by the jitter factor (1.2).
+  # renewDeadline 10s, retryPeriod 2s). Each is a Go duration string, for example "30s".
+  # leaseDuration must be greater than renewDeadline, and renewDeadline must be greater
+  # than retryPeriod multiplied by the jitter factor (1.2).
   leaderElection:
     id: ""
     leaseDuration: ""

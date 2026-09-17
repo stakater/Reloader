@@ -83,8 +83,11 @@ func run(cmd *cobra.Command, args []string) error {
 
 	log.Info("Starting Reloader")
 
-	scopeMsg, scopeKV := namespaceWatchScope(cfg)
-	log.Info(scopeMsg, scopeKV...)
+	if cfg.IsGlobalMode() {
+		log.Info("watching all namespaces", "ignoredNamespaces", cfg.IgnoredNamespaces)
+	} else {
+		log.Info("watching scoped namespaces", "namespaces", cfg.WatchedNamespaces)
+	}
 
 	if len(cfg.NamespaceSelectors) > 0 {
 		log.Info("namespace-selector is set", "selectors", cfg.NamespaceSelectorStrings)
@@ -236,17 +239,4 @@ func startPProfServer(log logr.Logger) {
 	if err := http.ListenAndServe(cfg.PProfAddr, nil); err != nil {
 		log.Error(err, "Failed to start pprof server")
 	}
-}
-
-// namespaceWatchScope describes the namespace scope Reloader will watch, as a log
-// message plus its key/value pairs. Global mode names the ignored namespaces so the
-// line is not misleading when --namespaces-to-ignore is set.
-func namespaceWatchScope(cfg *config.Config) (string, []any) {
-	if !cfg.IsGlobalMode() {
-		return "watching scoped namespaces", []any{"namespaces", cfg.WatchedNamespaces}
-	}
-	if len(cfg.IgnoredNamespaces) > 0 {
-		return "watching all namespaces except the ignored ones", []any{"ignoredNamespaces", cfg.IgnoredNamespaces}
-	}
-	return "watching all namespaces", nil
 }

@@ -168,7 +168,7 @@ passed to the container, since the RBAC rules pin get/update to this name.
 Defaults to the binary's own default when the value is unset.
 */}}
 {{- define "reloader-leaderElectionId" -}}
-{{- .Values.reloader.leaderElection.id | default "reloader-leader-election" -}}
+{{- (.Values.reloader.leaderElection).id | default "reloader-leader-election" -}}
 {{- end -}}
 
 {{/*
@@ -201,7 +201,7 @@ Expects the root context ($) as its argument.
   - apiGroups:
       - "coordination.k8s.io"
     resourceNames:
-      - {{ include "reloader-leaderElectionId" . }}
+      - {{ include "reloader-leaderElectionId" . | quote }}
     resources:
       - leases
     verbs:

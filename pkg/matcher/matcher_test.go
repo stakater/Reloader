@@ -523,25 +523,35 @@ func TestMatcher_InvalidRegexIsReported(t *testing.T) {
 	cfg := config.NewDefault()
 	matcher := NewMatcher(cfg)
 
-	t.Run(
-		"invalid pattern still matches an exact name and reports the error", func(t *testing.T) {
-			input := MatchInput{
-				ResourceName:      "my-[config",
-				ResourceNamespace: "default",
-				ResourceType:      ResourceTypeConfigMap,
-				WorkloadAnnotations: map[string]string{
-					"configmap.reloader.stakater.com/reload": "my-[config",
-				},
-			}
-			result := matcher.ShouldReload(input)
-			if !result.ShouldReload {
-				t.Error("Expected exact-name fallback to match, got ShouldReload=false")
-			}
-			if len(result.Errors) != 1 {
-				t.Fatalf("Expected 1 regex error, got %d: %v", len(result.Errors), result.Errors)
-			}
-		},
-	)
+	// An invalid pattern must be reported wherever it sits in the list, not only when
+	// the loop happens to reach it before something else matches.
+	for _, tc := range []struct {
+		name       string
+		annotation string
+	}{
+		{"invalid pattern after a matching one", "my-config,bad-[regex"},
+		{"invalid pattern before a matching one", "bad-[regex,my-config"},
+	} {
+		t.Run(
+			tc.name, func(t *testing.T) {
+				input := MatchInput{
+					ResourceName:      "my-config",
+					ResourceNamespace: "default",
+					ResourceType:      ResourceTypeConfigMap,
+					WorkloadAnnotations: map[string]string{
+						"configmap.reloader.stakater.com/reload": tc.annotation,
+					},
+				}
+				result := matcher.ShouldReload(input)
+				if !result.ShouldReload {
+					t.Error("Expected the valid pattern to match, got ShouldReload=false")
+				}
+				if len(result.Errors) != 1 {
+					t.Fatalf("Expected 1 regex error, got %d: %v", len(result.Errors), result.Errors)
+				}
+			},
+		)
+	}
 
 	t.Run(
 		"invalid pattern that does not match reports the error", func(t *testing.T) {

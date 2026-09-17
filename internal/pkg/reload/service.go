@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"sync"
 	"time"
 
 	"github.com/go-logr/logr"
@@ -22,6 +23,10 @@ type Service struct {
 	hasher   *Hasher
 	matcher  *matcher.Matcher
 	strategy Strategy
+	// reportedAnnotationErrors remembers annotation problems already logged. The
+	// annotations are static while this runs once per workload per event, so without
+	// it one typo on a templated workload floods the log for the process lifetime.
+	reportedAnnotationErrors sync.Map
 }
 
 // NewService creates a new reload Service with the given configuration.
@@ -103,12 +108,7 @@ func (s *Service) processResource(
 		matchResult := s.matcher.ShouldReload(input)
 
 		for _, err := range matchResult.Errors {
-			s.log.Error(
-				err, "problem evaluating reload annotations",
-				"workload", wl.GetName(), "kind", wl.Kind(),
-				"namespace", resourceNamespace,
-				"resource", resourceName, "resourceKind", resourceType.Kind(),
-			)
+			s.reportAnnotationError(err, wl, resourceNamespace)
 		}
 
 		shouldReload := matchResult.ShouldReload
@@ -337,4 +337,17 @@ func (s *Service) findContainerWithEnvRef(containers []corev1.Container, resourc
 // Hasher returns the hasher used by this service.
 func (s *Service) Hasher() *Hasher {
 	return s.hasher
+}
+
+// reportAnnotationError logs an annotation problem the first time it is seen. Keying
+// on the error text, which names the offending annotation and pattern, collapses the
+// same typo templated across many workloads into one line.
+func (s *Service) reportAnnotationError(err error, wl workload.Workload, namespace string) {
+	if _, seen := s.reportedAnnotationErrors.LoadOrStore(err.Error(), struct{}{}); seen {
+		return
+	}
+	s.log.Error(
+		err, "problem evaluating reload annotations",
+		"workload", wl.GetName(), "kind", wl.Kind(), "namespace", namespace,
+	)
 }

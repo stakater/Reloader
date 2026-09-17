@@ -73,9 +73,9 @@ helm uninstall {{RELEASE_NAME}} -n {{NAMESPACE}}
 | `reloader.namespaces`               | Explicit namespaces to watch (scoped mode). When non-empty and `reloader.watchGlobally` is `false`, Reloader watches exactly these namespaces and the chart creates a namespace-scoped Role + RoleBinding in each (no ClusterRole). The release namespace is not watched for reloads unless you list it explicitly; the chart only grants it a minimal Role for Reloader's internal meta-info ConfigMap (and leader-election in HA). Accepts either a YAML list (`["team-a","team-b"]`) or a comma-separated string (`"team-a,team-b"`).                                                 | list/string | `[]`      |
 | `reloader.enableHA`                 | Enable leadership election allowing you to run multiple replicas                                                                                    | boolean     | `false`   |
 | `reloader.leaderElection.id` | Name of the Lease Reloader locks on, only applied when `reloader.enableHA` is `true`. The RBAC `get`/`update` grant is pinned to this name. Empty keeps the binary default of `reloader-leader-election` | string | `""` |
-| `reloader.leaderElection.leaseDuration` | Duration non-leader candidates wait before force acquiring leadership, only applied when `reloader.enableHA` is `true`. Empty keeps the client-go default of `15s`. Must be a whole number of seconds | string | `""` |
-| `reloader.leaderElection.renewDeadline` | Duration the acting leader retries refreshing leadership before giving up, only applied when `reloader.enableHA` is `true`. Empty keeps the client-go default of `10s` | string | `""` |
-| `reloader.leaderElection.retryPeriod` | Duration clients wait between attempting acquisition and renewal of leadership, only applied when `reloader.enableHA` is `true`. Empty keeps the client-go default of `2s` | string | `""` |
+| `reloader.leaderElection.leaseDuration` | Duration non-leader candidates wait before force acquiring leadership, only applied when `reloader.enableHA` is `true`. Empty keeps the client-go default of `15s`. A Go duration string, for example `30s`, and must be greater than `renewDeadline` | string | `""` |
+| `reloader.leaderElection.renewDeadline` | Duration the acting leader retries refreshing leadership before giving up, only applied when `reloader.enableHA` is `true`. Empty keeps the client-go default of `10s`. A Go duration string, for example `10s` | string | `""` |
+| `reloader.leaderElection.retryPeriod` | Duration clients wait between attempting acquisition and renewal of leadership, only applied when `reloader.enableHA` is `true`. Empty keeps the client-go default of `2s`. A Go duration string, for example `2s` | string | `""` |
 | `reloader.enablePProf`              | Enables pprof for profiling | boolean | `false` |
 | `reloader.pprofAddr` | Address to start pprof server on | string | `:6060` |
 | `reloader.readOnlyRootFileSystem`   | Enforce readOnlyRootFilesystem                                                                                                                      | boolean     | `false`   |
@@ -179,7 +179,7 @@ helm uninstall {{RELEASE_NAME}} -n {{NAMESPACE}}
 #### 🗳️ `enableHA` Behavior
 **When true:**
 ✅ `--enable-ha=true` and the `POD_NAME`/`POD_NAMESPACE` env vars are rendered
-✅ The `coordination.k8s.io` Lease RBAC is rendered when `reloader.rbac.enabled` is `true`. It always lands in the namespaced `-metadata-role` in the release namespace, never in the ClusterRole and never in the watched namespace Roles, and `get`/`update` are restricted to the lease named by `reloader.leaderElection.id`
+✅ The `coordination.k8s.io` Lease RBAC is rendered when `reloader.rbac.enabled` is `true`. It always lands in the namespaced `-metadata-role` in the release namespace, never in the ClusterRole and never in the watched namespace Roles, and `get`/`update` are restricted to the lease the chart also names in `--leader-election-id`, so the grant and the flag cannot disagree
 ✅ The default pod anti-affinity is rendered unless custom affinity is configured
 ✅ `reloader.deployment.replicas` is honored, and any `reloader.leaderElection.*` settings are passed to the binary
 
