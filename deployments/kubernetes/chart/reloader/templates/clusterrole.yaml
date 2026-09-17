@@ -50,6 +50,7 @@ rules:
     verbs:
       - list
       - get
+      - watch
       - update
       - patch
 {{- end }}
