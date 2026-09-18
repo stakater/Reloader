@@ -12,6 +12,92 @@
             "env-vars",
             "annotations"
           ]
+        },
+        "leaderElection": {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string"
+            },
+            "leaseDuration": {
+              "type": "string",
+              "pattern": "^$|^([0-9]+(\\.[0-9]+)?(ns|us|µs|ms|s|m|h))+$"
+            },
+            "renewDeadline": {
+              "type": "string",
+              "pattern": "^$|^([0-9]+(\\.[0-9]+)?(ns|us|µs|ms|s|m|h))+$"
+            },
+            "retryPeriod": {
+              "type": "string",
+              "pattern": "^$|^([0-9]+(\\.[0-9]+)?(ns|us|µs|ms|s|m|h))+$"
+            }
+          }
+        },
+        "service": {
+          "type": "object",
+          "properties": {
+            "ipFamilyPolicy": {
+              "type": "string",
+              "enum": [
+                "SingleStack",
+                "PreferDualStack",
+                "RequireDualStack"
+              ]
+            },
+            "ipFamilies": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "enum": [
+                  "IPv4",
+                  "IPv6"
+                ]
+              },
+              "minItems": 1,
+              "maxItems": 2,
+              "uniqueItems": true
+            }
+          },
+          "allOf": [
+            {
+              "if": {
+                "properties": {
+                  "ipFamilyPolicy": {
+                    "const": "SingleStack"
+                  }
+                },
+                "required": [
+                  "ipFamilyPolicy"
+                ]
+              },
+              "then": {
+                "properties": {
+                  "ipFamilies": {
+                    "maxItems": 1
+                  }
+                }
+              }
+            },
+            {
+              "if": {
+                "properties": {
+                  "ipFamilyPolicy": {
+                    "const": "RequireDualStack"
+                  }
+                },
+                "required": [
+                  "ipFamilyPolicy"
+                ]
+              },
+              "then": {
+                "properties": {
+                  "ipFamilies": {
+                    "minItems": 2
+                  }
+                }
+              }
+            }
+          ]
         }
       }
     }

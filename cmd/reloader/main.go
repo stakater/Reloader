@@ -84,7 +84,7 @@ func run(cmd *cobra.Command, args []string) error {
 	log.Info("Starting Reloader")
 
 	if cfg.IsGlobalMode() {
-		log.Info("watching all namespaces")
+		log.Info("watching all namespaces", "ignoredNamespaces", cfg.IgnoredNamespaces)
 	} else {
 		log.Info("watching scoped namespaces", "namespaces", cfg.WatchedNamespaces)
 	}

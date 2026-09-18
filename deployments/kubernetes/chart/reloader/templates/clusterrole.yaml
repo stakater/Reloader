@@ -50,6 +50,7 @@ rules:
     verbs:
       - list
       - get
+      - watch
       - update
       - patch
 {{- end }}
@@ -100,16 +101,6 @@ rules:
       - list
       - get
       - watch
-{{- end}}
-{{- if .Values.reloader.enableHA }}
-  - apiGroups:
-      - "coordination.k8s.io"
-    resources:
-      - leases
-    verbs:
-      - create
-      - get
-      - update
 {{- end}}
 {{- if .Values.reloader.enableCSIIntegration }}
   - apiGroups:

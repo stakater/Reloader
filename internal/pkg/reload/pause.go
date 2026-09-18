@@ -20,19 +20,41 @@ func NewPauseHandler(cfg *config.Config) *PauseHandler {
 	return &PauseHandler{cfg: cfg}
 }
 
-// ShouldPause checks if a deployment should be paused after reload.
-func (h *PauseHandler) ShouldPause(wl workload.Workload) bool {
+// ShouldPause reports whether a deployment should be paused after reload. A non-nil
+// error means the pause-period annotation is present but unusable, and the caller
+// should reload without pausing.
+func (h *PauseHandler) ShouldPause(wl workload.Workload) (bool, error) {
 	if wl.Kind() != workload.KindDeployment {
-		return false
+		return false, nil
 	}
 
 	annotations := wl.GetAnnotations()
 	if annotations == nil {
-		return false
+		return false, nil
 	}
 
 	pausePeriod := annotations[h.cfg.Annotations.PausePeriod]
-	return pausePeriod != ""
+	if pausePeriod == "" {
+		return false, nil
+	}
+
+	if _, err := parsePausePeriod(pausePeriod); err != nil {
+		return false, err
+	}
+	return true, nil
+}
+
+// parsePausePeriod parses a pause-period annotation value, accepting only positive
+// durations.
+func parsePausePeriod(value string) (time.Duration, error) {
+	period, err := time.ParseDuration(value)
+	if err != nil {
+		return 0, fmt.Errorf("invalid pause period %q: %w", value, err)
+	}
+	if period <= 0 {
+		return 0, fmt.Errorf("pause period must be positive, got %q", value)
+	}
+	return period, nil
 }
 
 // GetPausePeriod returns the configured pause period for a workload.
@@ -47,7 +69,7 @@ func (h *PauseHandler) GetPausePeriod(wl workload.Workload) (time.Duration, erro
 		return 0, fmt.Errorf("no pause period annotation")
 	}
 
-	return time.ParseDuration(pausePeriodStr)
+	return parsePausePeriod(pausePeriodStr)
 }
 
 // ApplyPause pauses a deployment and sets the paused-at annotation.
@@ -69,31 +91,34 @@ func (h *PauseHandler) ApplyPause(wl workload.Workload) error {
 	return nil
 }
 
-// CheckPauseExpired checks if the pause period has expired for a deployment.
+// CheckPauseExpired checks if the pause period has expired for a deployment. Every
+// error return reports expired, because the annotations are the only record of when
+// the pause ends: if they cannot be read the pause has no expiry left to reach, so the
+// caller must clear it rather than retry.
 func (h *PauseHandler) CheckPauseExpired(deploy *appsv1.Deployment) (expired bool, remainingTime time.Duration, err error) {
 	annotations := deploy.GetAnnotations()
 	if annotations == nil {
-		return false, 0, fmt.Errorf("no annotations on deployment")
+		return true, 0, fmt.Errorf("no annotations on deployment")
 	}
 
 	pausePeriodStr := annotations[h.cfg.Annotations.PausePeriod]
 	if pausePeriodStr == "" {
-		return false, 0, fmt.Errorf("no pause period annotation")
+		return true, 0, fmt.Errorf("no pause period annotation")
 	}
 
 	pausedAtStr := annotations[h.cfg.Annotations.PausedAt]
 	if pausedAtStr == "" {
-		return false, 0, fmt.Errorf("no paused-at annotation")
+		return true, 0, fmt.Errorf("no paused-at annotation")
 	}
 
-	pausePeriod, err := time.ParseDuration(pausePeriodStr)
+	pausePeriod, err := parsePausePeriod(pausePeriodStr)
 	if err != nil {
-		return false, 0, fmt.Errorf("invalid pause period %q: %w", pausePeriodStr, err)
+		return true, 0, err
 	}
 
 	pausedAt, err := time.Parse(time.RFC3339, pausedAtStr)
 	if err != nil {
-		return false, 0, fmt.Errorf("invalid paused-at time %q: %w", pausedAtStr, err)
+		return true, 0, fmt.Errorf("invalid paused-at time %q: %w", pausedAtStr, err)
 	}
 
 	elapsed := time.Since(pausedAt)
