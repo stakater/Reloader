@@ -27,12 +27,13 @@ const (
 	EnvReloaderDeploymentName = "RELOADER_DEPLOYMENT_NAME"
 )
 
-// Version, Commit, and BuildDate are set during the build process
+// Version, Commit, BuildDate, and Edition are set during the build process
 // using the -X linker flag to inject these values into the binary.
 var (
 	Version   = "dev"
 	Commit    = "unknown"
 	BuildDate = "unknown"
+	Edition   = "oss"
 )
 
 // MetaInfo contains comprehensive metadata about the Reloader instance.
@@ -55,6 +56,8 @@ type BuildInfo struct {
 	CommitHash string `json:"commitHash"`
 	// CommitTime is the timestamp of the Git commit used to build this binary.
 	CommitTime time.Time `json:"commitTime"`
+	// Edition indicates the edition of Reloader (e.g., oss, enterprise).
+	Edition string `json:"edition"`
 }
 
 // DeploymentInfo contains metadata about the Reloader deployment.
@@ -72,6 +75,7 @@ func NewBuildInfo() BuildInfo {
 		ReleaseVersion: Version,
 		CommitHash:     Commit,
 		CommitTime:     parseUTCTime(BuildDate),
+		Edition:        Edition,
 	}
 }
 

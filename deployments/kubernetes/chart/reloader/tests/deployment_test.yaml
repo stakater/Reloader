@@ -102,3 +102,126 @@ tests:
       - notContains:
           path: spec.template.spec.containers[0].args
           content: "--ignored-workload-types=cronjobs"
+
+  - it: sets runtimeClassName when reloader.deployment.runtimeClassName is set
+    set:
+      reloader:
+        deployment:
+          runtimeClassName: gvisor
+    asserts:
+      - equal:
+          path: spec.template.spec.runtimeClassName
+          value: gvisor
+
+  - it: does not set runtimeClassName by default
+    asserts:
+      - notExists:
+          path: spec.template.spec.runtimeClassName
+
+  - it: sets schedulerName when reloader.deployment.schedulerName is set
+    set:
+      reloader:
+        deployment:
+          schedulerName: my-scheduler
+    asserts:
+      - equal:
+          path: spec.template.spec.schedulerName
+          value: my-scheduler
+
+  - it: does not set schedulerName by default
+    asserts:
+      - notExists:
+          path: spec.template.spec.schedulerName
+
+  - it: passes the leader election timings when set with HA
+    set:
+      reloader:
+        enableHA: true
+        leaderElection:
+          leaseDuration: 30s
+          renewDeadline: 20s
+          retryPeriod: 5s
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].args
+          content: "--leader-election-lease-duration=30s"
+      - contains:
+          path: spec.template.spec.containers[0].args
+          content: "--leader-election-renew-deadline=20s"
+      - contains:
+          path: spec.template.spec.containers[0].args
+          content: "--leader-election-retry-period=5s"
+
+  - it: passes the leader election id when overridden
+    set:
+      reloader:
+        enableHA: true
+        leaderElection:
+          id: custom-lock
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].args
+          content: "--leader-election-id=custom-lock"
+
+  # The id flag must always be emitted, so it and the RBAC resourceNames pin resolve
+  # through the same helper. notContains is exact element equality, so each timing flag
+  # is asserted at the value the chart would actually render.
+  - it: passes the default leader election id and no timing flags when they are unset
+    set:
+      reloader:
+        enableHA: true
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].args
+          content: "--leader-election-id=reloader-leader-election"
+      - notContains:
+          path: spec.template.spec.containers[0].args
+          content: "--leader-election-lease-duration="
+      - notContains:
+          path: spec.template.spec.containers[0].args
+          content: "--leader-election-renew-deadline="
+      - notContains:
+          path: spec.template.spec.containers[0].args
+          content: "--leader-election-retry-period="
+
+  - it: does not enable HA when only replicas is raised
+    set:
+      reloader:
+        enableHA: false
+        deployment:
+          replicas: 3
+    asserts:
+      - notContains:
+          path: spec.template.spec.containers[0].args
+          content: "--enable-ha=true"
+      - equal:
+          path: spec.replicas
+          value: 1
+      - notContains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: POD_NAME
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.name
+
+  - it: enables HA and renders POD_NAME when enableHA is true
+    set:
+      reloader:
+        enableHA: true
+        deployment:
+          replicas: 3
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].args
+          content: "--enable-ha=true"
+      - equal:
+          path: spec.replicas
+          value: 3
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: POD_NAME
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.name

@@ -29,10 +29,12 @@ GOPRIVATE ?=
 # Version information for ldflags
 GIT_COMMIT ?= $(shell git rev-parse --short HEAD 2>/dev/null || echo "unknown")
 BUILD_DATE ?= $(shell date -u +"%Y-%m-%dT%H:%M:%SZ")
+EDITION ?= oss
 LDFLAGS = -s -w \
-	-X github.com/stakater/Reloader/internal/pkg/metadata.Version=$(VERSION) \
-	-X github.com/stakater/Reloader/internal/pkg/metadata.Commit=$(GIT_COMMIT) \
-	-X github.com/stakater/Reloader/internal/pkg/metadata.BuildDate=$(BUILD_DATE)
+	-X github.com/stakater/Reloader/pkg/metadata.Version=$(VERSION) \
+	-X github.com/stakater/Reloader/pkg/metadata.Commit=$(GIT_COMMIT) \
+	-X github.com/stakater/Reloader/pkg/metadata.BuildDate=$(BUILD_DATE) \
+	-X github.com/stakater/Reloader/pkg/metadata.Edition=$(EDITION)
 
 ## Location to install dependencies to
 LOCALBIN ?= $(shell pwd)/bin

@@ -7,6 +7,7 @@ import (
 	"github.com/go-logr/logr"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	logf "sigs.k8s.io/controller-runtime/pkg/log"
 
 	"github.com/stakater/Reloader/internal/pkg/alerting"
 	"github.com/stakater/Reloader/internal/pkg/events"
@@ -132,6 +133,10 @@ func (h *ReloadHandler) applyReloads(
 	decisions []reload.ReloadDecision,
 	log logr.Logger,
 ) {
+	// Carry this reconcile's logger, and the resource context it already holds, into
+	// the update helpers rather than letting them pick up the manager's own logger.
+	ctx = logf.IntoContext(ctx, log)
+
 	for _, decision := range decisions {
 		log.Info(
 			"reloading workload",

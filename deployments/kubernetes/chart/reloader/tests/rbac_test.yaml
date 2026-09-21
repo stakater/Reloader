@@ -1,0 +1,115 @@
+suite: RBAC lease permissions
+
+templates:
+  - clusterrole.yaml
+  - role.yaml
+
+tests:
+  - it: does not grant leases cluster wide when HA is enabled
+    template: clusterrole.yaml
+    set:
+      reloader:
+        enableHA: true
+        watchGlobally: true
+    asserts:
+      - exists:
+          path: rules[?(@.apiGroups[0] == "coordination.k8s.io")]
+        not: true
+
+  - it: grants the lease to the metadata role, scoped to the lock name, when HA is enabled
+    template: role.yaml
+    documentSelector:
+      path: metadata.name
+      value: RELEASE-NAME-reloader-metadata-role
+    set:
+      reloader:
+        enableHA: true
+    asserts:
+      - contains:
+          path: rules
+          content:
+            apiGroups:
+              - "coordination.k8s.io"
+            resources:
+              - leases
+            verbs:
+              - create
+      - contains:
+          path: rules
+          content:
+            apiGroups:
+              - "coordination.k8s.io"
+            resourceNames:
+              - reloader-leader-election
+            resources:
+              - leases
+            verbs:
+              - get
+              - update
+
+  - it: follows leaderElection.id when the lock name is overridden
+    template: role.yaml
+    documentSelector:
+      path: metadata.name
+      value: RELEASE-NAME-reloader-metadata-role
+    set:
+      reloader:
+        enableHA: true
+        leaderElection:
+          id: custom-lock
+    asserts:
+      - contains:
+          path: rules
+          content:
+            apiGroups:
+              - "coordination.k8s.io"
+            resourceNames:
+              - custom-lock
+            resources:
+              - leases
+            verbs:
+              - get
+              - update
+
+  - it: does not grant the lease to the metadata role when HA is disabled
+    template: role.yaml
+    documentSelector:
+      path: metadata.name
+      value: RELEASE-NAME-reloader-metadata-role
+    set:
+      reloader:
+        enableHA: false
+    asserts:
+      - exists:
+          path: rules[?(@.apiGroups[0] == "coordination.k8s.io")]
+        not: true
+
+  - it: does not grant the lease to the watched namespace roles when HA is enabled
+    template: role.yaml
+    set:
+      reloader:
+        enableHA: true
+        watchGlobally: false
+        namespaces:
+          - watched-ns
+    asserts:
+      - exists:
+          path: rules[?(@.apiGroups[0] == "coordination.k8s.io")]
+        not: true
+        documentSelector:
+          path: metadata.namespace
+          value: watched-ns
+
+  - it: does not grant the lease to the single-namespace role when HA is enabled
+    template: role.yaml
+    documentSelector:
+      path: metadata.name
+      value: RELEASE-NAME-reloader-role
+    set:
+      reloader:
+        enableHA: true
+        watchGlobally: false
+    asserts:
+      - exists:
+          path: rules[?(@.apiGroups[0] == "coordination.k8s.io")]
+        not: true

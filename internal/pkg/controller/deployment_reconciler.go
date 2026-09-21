@@ -42,11 +42,11 @@ func (r *DeploymentReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 		return ctrl.Result{}, nil
 	}
 
-	// Check if pause period has expired
+	// Check if pause period has expired. An unusable annotation reports expired, so the
+	// deployment is unpaused instead of being requeued on an error that cannot resolve.
 	expired, remainingTime, err := r.PauseHandler.CheckPauseExpired(&deploy)
 	if err != nil {
-		log.Error(err, "Failed to check pause expiration")
-		return ctrl.Result{}, err
+		log.Error(err, "Unusable pause annotations, unpausing deployment")
 	}
 
 	if !expired {
