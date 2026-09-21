@@ -1,24 +1,35 @@
 # Stakater Reloader Project Memory
 
+**This file documents the `v2` branch**, a ground up controller-runtime rewrite. The `master` branch
+(Reloader v1.x) has a completely different layout: `internal/pkg/handler/`, `internal/pkg/callbacks/`,
+`pkg/common.ShouldReload()`, a root `main.go`. None of that exists here. Confirm the checked out branch
+before trusting any architecture note.
+
+Cross repo context (how OSS Reloader, the Enterprise Gateway and the Enterprise Console fit together)
+lives in `~/Documents/work/Reloader Workspace/CLAUDE.md`.
+
+---
+
 ## Project Purpose
 
-Reloader is a Kubernetes operator that automatically triggers rolling restarts of workloads when the ConfigMaps or Secrets they reference are updated. Without it, Kubernetes does not restart pods when configuration changes — operators must do it manually or rely on GitOps pipelines.
+Reloader is a Kubernetes operator that triggers rolling restarts of workloads when the ConfigMaps or
+Secrets they reference change. Kubernetes does not restart pods on config change, so applications that
+read config at startup keep serving stale data until something restarts them. Reloader closes that gap
+selectively, driven by annotations.
 
-**What it watches**: ConfigMaps, Secrets, Namespaces, and (optionally) `SecretProviderClassPodStatus` (CSI-mounted secrets).
+**Watches**: ConfigMaps, Secrets, Namespaces (only when a namespace selector is set), Deployments (for
+pause expiry), and optionally `SecretProviderClassPodStatus` (CSI mounted secrets).
 
-**Workload types it can reload**: Deployment, StatefulSet, DaemonSet, CronJob, Job, Argo Rollout, and OpenShift DeploymentConfig.
+**Reloads**: Deployment, StatefulSet, DaemonSet, CronJob, Job, Argo Rollout, OpenShift DeploymentConfig.
 
-**How restarts are triggered**: Two strategies (selected via `--reload-strategy`):
-1. **env-vars** (default) — injects an environment variable (`STAKATER_{NAME}_{TYPE}`) into every container with the SHA1 hash of the resource's data. A change in data changes the env var value, causing Kubernetes to restart pods.
-2. **annotations** — writes the SHA1 hash into the pod template's annotations, which also forces a rollout.
+**Two reload strategies** (`--reload-strategy`):
 
-**The core problem it solves**: ConfigMaps and Secrets are decoupled from pod lifecycle in Kubernetes. Applications reading config at startup see stale data after a config update unless pods are restarted. Reloader closes that gap automatically and selectively.
+1. **env-vars** (default) sets `STAKATER_{NAME}_{TYPE}` on the container with the SHA1 of the resource
+   data. A data change changes the value, so the pod template changes and Kubernetes rolls the pods.
+2. **annotations** writes the same SHA1 into the pod template annotations.
 
-**Potential improvements observed**:
-- **Duplicate reload suppression**: If a workload references both a ConfigMap and a Secret that are updated in the same controller reconcile cycle, it may get reloaded twice. Could be solved with a per-workload debounce map keyed by namespace/name/resourceVersion, flushed after a short TTL.
-- **CronJob/Job reload is destructive**: Jobs are deleted and recreated on change, which loses run history. Could instead only annotate the CronJob template without spawning a new Job.
-- **No per-resource reload rate limiting**: A rapid-fire ConfigMap update (e.g., from a CI pipeline) can trigger many restarts. A cooldown window per resource would help.
-- **CSI integration gap**: CSI volumes are watched at the `SecretProviderClassPodStatus` level, but the link back to the workload is indirect and may miss edge cases. Needs a direct map from SecretProviderClass → workloads that mount it.
+env-vars is the GitOps friendlier default because the mutation lands inside the pod template rather than
+on workload level annotations.
 
 ---
 
@@ -26,283 +37,329 @@ Reloader is a Kubernetes operator that automatically triggers rolling restarts o
 
 | Path | Owns | Inspect when |
 |---|---|---|
-| `main.go` | Entry point, delegates to `app.Run()` | Never needs changes |
-| `internal/pkg/app/` | `Run()` bootstrap, Cobra command wiring | Startup sequence changes |
-| `internal/pkg/cmd/` | CLI flags parsing, `startReloader()`, controller/HA wiring | Adding new flags or startup behavior |
-| `internal/pkg/controller/` | Informer/queue per resource type, event handlers (Add/Update/Delete) | Watching new resource types, queue tuning |
-| `internal/pkg/handler/` | Per-event handlers (create, update, delete), `doRollingUpgrade()`, pause deployment | Core reload logic changes |
-| `internal/pkg/callbacks/` | Workload-specific get/list/update/patch functions, `RollingUpgradeFuncs` struct | Adding new workload types |
-| `internal/pkg/options/` | All CLI flag variables, defaults, `ArgoRolloutStrategy` type | Adding or renaming flags |
-| `internal/pkg/constants/` | Constants: env var postfixes, annotation prefix, strategy names, HA lock name | Renaming global identifiers |
-| `internal/pkg/metrics/` | Prometheus `Collectors` struct, all metric registration and recording helpers | Adding metrics |
-| `internal/pkg/alerts/` | Slack/Teams/GChat/raw webhook alerting, env var config | Alert sink changes |
-| `internal/pkg/util/` | SHA generation via `crypto/sha.go`, env var name conversion, namespace/label utilities | Utility/hash changes |
-| `internal/pkg/crypto/` | `GenerateSHA(data)` — SHA1 hex digest | Hash algorithm changes |
-| `internal/pkg/leadership/` | Leader election via Kubernetes Lease, HA stop/start of controllers | HA behavior changes |
-| `internal/pkg/testutil/` | Fake Kubernetes objects for unit tests | Writing new tests |
-| `pkg/common/` | `ReloadCheckResult`, `ReloaderOptions`, `ShouldReload()` logic, `Config` struct | Reload decision logic, annotation precedence |
-| `pkg/kube/` | `Clients` struct (k8s + OpenShift + Argo + CSI), `GetKubernetesClient()`, `ResourceMap` | Client initialization, new CRD clients |
-| `deployments/` | Helm chart (`deployments/kubernetes/chart/reloader/`), Kustomize manifests | Helm values, RBAC, deployment config |
-| `docs/` | User-facing annotation documentation, architecture notes | Writing docs or confirming annotation behavior |
-| `scripts/` | Shell scripts used by CI and Makefile | Build/release pipeline |
-| `test/loadtest/` | Load test CLI (`cmd/loadtest`), 13 scenarios (S1–S13), Kind cluster setup | Performance testing, regression benchmarks |
-| `.github/` | CI workflows: lint, test, Kind e2e, multi-arch Docker build, release | CI changes |
+| `cmd/reloader/main.go` | Entry point: cobra command, logging, capability detection, manager start | Startup sequence changes |
+| `internal/pkg/config/flags/` | pflag + viper CLI layer. Deliberately internal so `pkg/config` does not drag viper into consumers | Adding or renaming flags |
+| `internal/pkg/controller/` | `manager.go` plus one reconciler per watched kind, generic `ResourceReconciler[T]`, predicates wiring, retry helpers | Watching new kinds, reconcile behaviour |
+| `internal/pkg/reload/` | `service`, `decision`, `strategy`, `hasher`, `change`, `predicate`, `pause` | Core reload logic |
+| `internal/pkg/workload/` | Per workload type adapters, `Registry`, `Lister`, `uses.go` reference scanning | Adding a workload type |
+| `internal/pkg/alerting/` | Slack, Teams, Google Chat and raw webhook sinks | Alert sink changes |
+| `internal/pkg/events/` | Kubernetes Event recorder | Event reason or message changes |
+| `internal/pkg/metrics/` | Prometheus collectors and recording helpers | Adding metrics |
+| `internal/pkg/webhook/` | Webhook mode client, replaces reloading with an HTTP POST | Webhook payload changes |
+| `internal/pkg/openshift/`, `internal/pkg/csi/` | Cluster capability detection via discovery | Capability probing |
+| `internal/pkg/http/` | Shared HTTP client | Timeout or proxy handling |
+| `internal/pkg/testutil/` | Fixtures for unit tests | Writing unit tests |
+| `pkg/config/` | **Public.** `Config`, `AnnotationConfig`, defaults, validation | Config shape changes, breaking for the gateway |
+| `pkg/matcher/` | **Public.** `Matcher.ShouldReload()`, the annotation decision tree | Reload decision changes |
+| `pkg/metadata/` | **Public.** `reloader-meta-info` ConfigMap model and publisher runnable | Meta info contract changes |
+| `deployments/kubernetes/chart/reloader/` | Helm chart, depends on the `reloader-enterprise` OCI subchart aliased `enterprise` | Chart values, RBAC, enterprise packaging |
+| `test/e2e/` | Ginkgo suites by area: core, annotations, argo, csi, flags, advanced | Behaviour changes |
+| `test/loadtest/` | Load test CLI, scenarios S1 to S13 | Performance regressions |
+| `.github/workflows/` | CI: lint, test, Kind e2e, multi arch build, release, enterprise dispatch | CI changes |
+
+---
+
+## Public API Contract
+
+`pkg/` is a published API, not an internal detail. `reloader-enterprise-gateway` imports
+`pkg/{config,matcher,metadata}` by pseudo version so it can reuse the reload decision instead of
+reimplementing annotation matching. Anything under `internal/` is explicitly not part of the contract.
+
+Three consequences:
+
+1. Renaming or moving anything under `pkg/` is a breaking change for a private downstream repo that CI
+   here will not catch.
+2. A local `pkg/` change is invisible to the gateway until a tag or pseudo version bump, or a temporary
+   `replace` directive.
+3. `pkg/config.Config` is serialized verbatim into the `reloader-meta-info` ConfigMap `config` key, so a
+   JSON tag change is a wire format change. The gateway owns the deserialization; v2 exposes no parser.
+   A missing `config` key makes the gateway fail open and report every referenced workload as reload
+   eligible.
+
+`pkg/metadata` publishes `reloader-meta-info` in Reloader's own namespace with label
+`reloader.stakater.com/meta-info: reloader` and keys `buildInfo`, `config`, `deploymentInfo`. The
+publisher builds its own uncached client because that namespace is outside the manager cache in scoped
+mode (`cmd/reloader/main.go:158`). Failure to add it is logged and non fatal.
+
+`Version`, `Commit`, `BuildDate` and `Edition` in `pkg/metadata` are injected with `-X` ldflags from the
+Makefile. `EDITION=enterprise` is set by the enterprise image pipeline.
 
 ---
 
 ## Core Runtime Flow
 
-**1. Entry** — `main.go:10` calls `app.Run()`.
+**1. Command** (`cmd/reloader/main.go:44`) builds `config.NewDefault()`, binds flags via
+`flags.BindFlags`, and runs `run()`.
 
-**2. CLI Init** — `internal/pkg/app/app.go` calls `cmd.NewReloaderCommand()` which registers all Cobra flags from `options/flags.go` and runs `startReloader()`.
+**2. Logging first** (`main.go:60`). zerolog behind logr, so `flags.ApplyFlags` can surface warnings
+through a ready logger. `--log-format=json` switches from console output to JSON.
 
-**3. Client Setup** — `pkg/kube/client.go`: builds `kube.Clients` with:
-- `kubernetes.Interface` — standard k8s client
-- `appsclient.Interface` — OpenShift client (auto-detected by probing `deploymentconfigs`)
-- `argorollout.Interface` — if `--is-Argo-Rollouts=true`
-- `csiclient.Interface` — if `--enable-csi-integration`
+**3. Config** `flags.ApplyFlags` then `cfg.Validate()`. HA additionally requires `POD_NAME` and
+`POD_NAMESPACE`; `POD_NAME` becomes the leader identity.
 
-**4. Controller Creation** — `startReloader()` iterates `kube.ResourceMap` (configmaps, secrets, namespaces, and optionally secretproviderclasspodstatuses) and calls `controller.NewController()` for each resource in each watched namespace.
+**4. Capability detection** (`main.go:114`) builds a discovery client, then:
 
-**5. Informer/Queue** — `controller.NewController()`:
-- Creates a `cache.NewFilteredListWatchFromClient` with label/field selectors.
-- Registers `Add`, `Update`, `Delete` event handlers.
-- Creates a `workqueue.TypedRateLimitingQueue` for async processing.
+- OpenShift: `openshift.HasDeploymentConfigSupport` unless `--is-openshift` forces true or false.
+- CSI: `--enable-csi-integration` **and** `csi.HasCSISupport`. The flag alone is not enough; a missing
+  CRD disables the integration with a log line, because controller-runtime would otherwise crash trying
+  to watch an absent CRD.
 
-**6. Event Detection**:
-- `Add` — enqueues only if `ReloadOnCreate` is enabled (skips during initial sync unless `SyncAfterRestart`).
-- `Update` — compares SHA of old vs new object data; enqueues only on real changes.
-- `Delete` — enqueues only if `ReloadOnDelete` is enabled.
-- Namespace events update `selectedNamespacesCache` for namespace-selector filtering.
+Detected capabilities feed `controller.AddOptionalSchemes`, which registers the Argo, OpenShift and CSI
+schemes only when needed.
 
-**7. Handler Dispatch** — The queue worker calls `handler.Handle()` on the dequeued item. Three handler types:
-- `ResourceCreatedHandler` (`create.go`) — fires `doRollingUpgrade` or sends webhook.
-- `ResourceUpdatedHandler` (`update.go`) — fires `doRollingUpgrade` or sends webhook.
-- `ResourceDeleteHandler` (`delete.go`) — calls `invokeDeleteStrategy` (removes env vars or clears annotation).
+**5. Manager** (`controller.NewManager`) is a standard controller-runtime manager. Metrics on
+`--metrics-addr` (default `:9090`), health on `--health-addr` (default `:8080`). `--namespaces` maps to
+`cache.Options.DefaultNamespaces`, so scoped mode is enforced by the cache, not by per event filtering.
+Leader election is controller-runtime's, lease name `reloader-leader-election`.
 
-**8. Workload Discovery** — `doRollingUpgrade()` (`upgrade.go:181`) calls `rollingUpgrade()` for each workload type. For each type, `ItemsFunc` lists all workloads in the namespace, then `pkg/common.ShouldReload()` checks annotations to decide which ones need reloading.
+**6. Reconcilers** (`controller.SetupReconcilers`) wires one shared `reload.Service`, `events.Recorder`,
+`reload.PauseHandler`, `alerting.Alerter`, optional `webhook.Client` and `workload.Registry`, then
+registers:
 
-**9. Reload Execution** — `invokeReloadStrategy()` either:
-- **env-vars**: mutates container env vars; uses JSON patch if `SupportsPatch=true`, full update otherwise.
-- **annotations**: writes SHA to pod template annotations; same patch/update split.
+- `NamespaceReconciler`, only when `--namespace-selector` is set, maintaining a shared `NamespaceCache`.
+- `ConfigMapReconciler` unless configmaps are in `--resources-to-ignore`.
+- `SecretReconciler` unless secrets are ignored.
+- `SecretProviderClassReconciler` when CSI is enabled.
+- `DeploymentReconciler`, always, purely to expire pauses.
 
-**10. Post-reload** — optionally pauses the Deployment via `pause_deployment.go`, records Kubernetes Events via `recorder`, updates Prometheus metrics, sends alert webhooks.
+ConfigMap and Secret reconcilers are both `ResourceReconciler[T]`, one generic implementation
+parameterized by a `ResourceConfig[T]`.
 
-**HA Mode**: if `--enable-ha`, `internal/pkg/leadership/` runs Kubernetes Lease-based leader election. Only the leader runs controllers; losing leadership stops them and marks the pod unhealthy.
+**7. Event filtering** happens in predicates, not in the handler. `reload.ConfigMapPredicates` and
+`SecretPredicates` compare the content hash of old and new so a no op update never enqueues.
+`controller.BuildEventFilter` layers on namespace filtering, label selectors, the ignore annotation, and
+a create predicate that uses the controller start time to tell a genuine post startup create from the
+initial sync replay of pre existing objects.
 
-**HTTP Server**: port `:9090` serves `/metrics` (Prometheus) and liveness/readiness probes.
+**8. Reconcile** (`ResourceReconciler.Reconcile`) resolves the change, then `ReloadHandler.Process`
+lists candidate workloads in the namespace through `workload.Lister`, and calls `reload.Service.Process`.
+
+**9. Decision** `reload.Service` delegates to `matcher.Matcher.ShouldReload` per workload and returns
+`[]ReloadDecision`. In webhook mode (`--webhook-url`) the handler POSTs and stops here, nothing is
+reloaded.
+
+**10. Apply** `Service.ApplyReload` finds the target container (by volume mount, then by env reference),
+applies the strategy, and sets the `reloader.stakater.com/last-reloaded-from` attribution annotation.
+`controller.UpdateWorkloadWithRetry` then persists it, re fetching and re applying on conflict.
+
+**11. Update mechanism** depends on `Workload.UpdateStrategy()`:
+
+- `UpdateStrategyPatch` for Deployment, StatefulSet, DaemonSet, Rollout, DeploymentConfig.
+- `UpdateStrategyRecreate` for Job: delete then recreate.
+- `UpdateStrategyCreateNew` for CronJob: create a fresh Job from the CronJob template.
+
+**12. Post reload** optional Deployment pause, Kubernetes Event, Prometheus counters, alert webhook.
 
 ---
 
 ## Reload Behavior And Annotations
 
-All annotation names are configurable via CLI flags; the values below are defaults.
+Annotation keys are configurable via flags; the values below are the defaults from
+`config.DefaultAnnotations()` (`pkg/config/config.go:146`).
 
 ### Trigger Annotations (on workloads)
 
 | Annotation | Value | Behavior |
 |---|---|---|
-| `reloader.stakater.com/auto` | `"true"` | Reload on change to **any** ConfigMap or Secret referenced by the workload (via envFrom, env valueFrom, or volumes) |
-| `configmap.reloader.stakater.com/auto` | `"true"` | Reload on change to **any referenced ConfigMap** only |
-| `secret.reloader.stakater.com/auto` | `"true"` | Reload on change to **any referenced Secret** only |
-| `secretproviderclass.reloader.stakater.com/auto` | `"true"` | Reload on change to **any referenced SecretProviderClass** only |
-| `configmap.reloader.stakater.com/reload` | `"cm1,cm2"` | Reload only when the **named ConfigMaps** change (regex supported) |
-| `secret.reloader.stakater.com/reload` | `"sec1,sec2"` | Reload only when the **named Secrets** change (regex supported) |
-| `secretproviderclass.reloader.stakater.com/reload` | `"spc1"` | Reload only when the **named SecretProviderClass** changes |
-| `reloader.stakater.com/search` | `"true"` | Reload when any ConfigMap/Secret tagged with `reloader.stakater.com/match: "true"` changes |
+| `reloader.stakater.com/auto` | `"true"` | Reload on change to any referenced ConfigMap or Secret |
+| `configmap.reloader.stakater.com/auto` | `"true"` | Referenced ConfigMaps only |
+| `secret.reloader.stakater.com/auto` | `"true"` | Referenced Secrets only |
+| `secretproviderclass.reloader.stakater.com/auto` | `"true"` | Referenced SecretProviderClasses only |
+| `configmap.reloader.stakater.com/reload` | `"cm1,cm2"` | Only the named ConfigMaps, each entry treated as a regex anchored with `^...$` |
+| `secret.reloader.stakater.com/reload` | `"sec1,sec2"` | Only the named Secrets, same regex handling |
+| `secretproviderclass.reloader.stakater.com/reload` | `"spc1"` | Only the named SecretProviderClasses |
+| `reloader.stakater.com/search` | `"true"` | Reload when any resource carrying `reloader.stakater.com/match: "true"` changes |
 
-### Exclude Annotations (on workloads)
+An entry in a `.../reload` list that fails to compile as a regex falls back to an exact name comparison
+and is reported through `MatchResult.Errors`. Every entry is evaluated even after one matches, so a typo
+is reported wherever it sits in the list. `Service.reportAnnotationError` deduplicates by error text so
+one bad annotation templated across many workloads logs once.
 
-| Annotation | Value | Behavior |
-|---|---|---|
-| `reloader.stakater.com/ignore` | `"true"` | Skip this workload entirely |
-| `configmaps.exclude.reloader.stakater.com/reload` | `"cm1,cm2"` | Exclude these named ConfigMaps from triggering reload |
-| `secrets.exclude.reloader.stakater.com/reload` | `"sec1,sec2"` | Exclude these named Secrets |
-| `secretproviderclasses.exclude.reloader.stakater.com/reload` | `"spc1"` | Exclude these named SecretProviderClasses |
-
-### Behavior Annotations (on workloads)
+### Exclude And Ignore
 
 | Annotation | Value | Behavior |
 |---|---|---|
-| `reloader.stakater.com/rollout-strategy` | `"restart"` or `"rollout"` | For Argo Rollouts: `"restart"` uses restartAt, `"rollout"` (default) uses full rollout update |
-| `deployment.reloader.stakater.com/pause-period` | Go duration e.g. `"30s"` | Pause Deployment for this duration after reload |
-| `deployment.reloader.stakater.com/paused-at` | RFC3339 timestamp | Set by Reloader to track pause start time; do not set manually |
+| `reloader.stakater.com/ignore` | `"true"` | On the **resource**, skip it entirely. Checked first, before annotation selection |
+| `configmaps.exclude.reloader.stakater.com/reload` | `"cm1,cm2"` | Exact names only, no regex |
+| `secrets.exclude.reloader.stakater.com/reload` | `"sec1,sec2"` | Exact names only |
+| `secretproviderclasses.exclude.reloader.stakater.com/reload` | `"spc1"` | Exact names only |
 
-### Search/Match Pattern
+### Behavior Annotations
 
-The `reloader.stakater.com/search` annotation on a workload pairs with `reloader.stakater.com/match: "true"` on a ConfigMap or Secret. Any workload with `search: true` will reload when any `match: true` resource changes.
+| Annotation | Value | Behavior |
+|---|---|---|
+| `reloader.stakater.com/rollout-strategy` | `"restart"` or `"rollout"` | Argo Rollouts only. `restart` uses `restartAt`, `rollout` (default) does a full update |
+| `deployment.reloader.stakater.com/pause-period` | Go duration, e.g. `"30s"` | Pause the Deployment for this long after reload. Only positive durations are accepted |
+| `deployment.reloader.stakater.com/paused-at` | RFC3339 | Written by Reloader, do not set by hand |
+| `reloader.stakater.com/last-reloaded-from` | JSON | Written by Reloader: kind, name, namespace, hash, containers, reloadedAt |
+
+### Decision Order
+
+`matcher.Matcher.ShouldReload` (`pkg/matcher/matcher.go:47`) evaluates in this order:
+
+1. Resource carries the ignore annotation, stop, no reload.
+2. Pick the annotation source: workload annotations if they carry any relevant key for this resource
+   type, else pod template annotations, else workload annotations. **Whole maps are selected, never
+   merged**, so a workload with one relevant annotation shadows the pod template entirely.
+3. Resource is in the exclude list, stop.
+4. Explicit `.../reload` regex match.
+5. `search` on the workload paired with `match: "true"` on the resource.
+6. `auto` or the type specific auto annotation set to `"true"`.
+7. `--auto-reload-all`, which an explicit `auto: "false"` on the workload still vetoes.
 
 ### Global Flag Overrides
 
-- `--auto-reload-all` — reload all workloads on any ConfigMap/Secret change; annotation not required.
-- `--resources-to-ignore=configMaps` or `=secrets` — skip one type entirely.
-- `--ignored-workload-types=jobs,cronjobs` — skip Job and CronJob reload.
-- `--namespaces-to-ignore` — comma-separated namespace names to skip.
-- `--namespace-selector` — only watch namespaces with matching labels.
-- `--resource-label-selector` — only watch ConfigMaps/Secrets with matching labels.
-
-### Precedence Rules
-
-1. `reloader.stakater.com/ignore: "true"` wins everything — workload is skipped.
-2. Exclude annotations override include annotations for specific named resources.
-3. Named annotations (`.../reload`) are checked before auto annotations.
-4. `--auto-reload-all` is the lowest-priority fallback (only applies if no annotation matches).
-5. Annotations are checked on both the workload and its pod template (pod template takes precedence in some paths — verify in `pkg/common/common.go:ShouldReload()`).
+`--auto-reload-all`, `--resources-to-ignore`, `--ignored-workload-types`, `--namespaces`,
+`--namespaces-to-ignore`, `--namespace-selector`, `--resource-label-selector`.
 
 ---
 
 ## Workload Support
 
-| Workload | SupportsPatch | Update Mechanism | Key files |
-|---|---|---|---|
-| **Deployment** | Yes | JSON patch or full update | `callbacks/rolling_upgrade.go`, `handler/upgrade.go:38` |
-| **StatefulSet** | Yes | JSON patch or full update | `callbacks/rolling_upgrade.go`, `handler/upgrade.go:109` |
-| **DaemonSet** | Yes | JSON patch or full update | `callbacks/rolling_upgrade.go`, `handler/upgrade.go:91` |
-| **CronJob** | No | Creates a new Job from CronJob spec (adds `cronjob.kubernetes.io/instantiate: manual`) | `callbacks.CreateJobFromCronjob`, `handler/upgrade.go:55` |
-| **Job** | No | Deletes old Job, creates new one (strips ResourceVersion, UID, Status, controller labels) | `callbacks.ReCreateJobFromjob`, `handler/upgrade.go:73` |
-| **Argo Rollout** | No | Full update via Argo Rollouts client | `callbacks.UpdateRollout`, `handler/upgrade.go:127`; requires `--is-Argo-Rollouts=true` |
-| **DeploymentConfig** | Yes | OpenShift DeploymentConfigs API | `callbacks/rolling_upgrade.go`; auto-detected by probing `deploymentconfigs` |
+| Workload | Update Strategy | Notes |
+|---|---|---|
+| Deployment | Patch | Extra pause handling in `updateDeploymentWithPause` |
+| StatefulSet | Patch | |
+| DaemonSet | Patch | |
+| DeploymentConfig | Patch | OpenShift, auto detected |
+| Argo Rollout | Patch | Needs `--is-Argo-Rollouts=true`, honours the rollout-strategy annotation |
+| Job | Recreate | Deletes the old Job first, so any in flight pod is terminated |
+| CronJob | CreateNew | Creates a Job from the CronJob template rather than touching the CronJob |
 
-**Reload flow per workload**: `doRollingUpgrade()` → `rollingUpgrade()` per type → `ItemsFunc` lists workloads → `ShouldReload()` filters → `invokeReloadStrategy()` patches or updates → optional pause + metrics + alert.
+Adding a workload type means a new file in `internal/pkg/workload/` embedding `BaseWorkload[T]`, a lister
+in `lister.go`, and registration in `registry.go`. `BaseWorkload` supplies the default patch strategy;
+override `UpdateStrategy()` and `PerformSpecialUpdate()` only for the Job and CronJob shaped cases.
 
 ---
 
 ## CSI Support
 
-**Enabled by**: `--enable-csi-integration`
+Enabled by `--enable-csi-integration` **and** the presence of the secrets-store CSI driver CRDs.
 
-**What is watched**: `SecretProviderClassPodStatus` resources (from `sigs.k8s.io/secrets-store-csi-driver`). Resource name constant: `constants.SecretProviderClassController = "secretproviderclasspodstatuses"`.
+`SecretProviderClassPodStatusPredicates` ignores create and delete and passes an update only when the
+hashed status changes. The hash is the sorted set of object `ID=Version` entries plus the
+SecretProviderClass name (`reload.Hasher.HashSecretProviderClass`). The reconciler resolves the
+`SecretProviderClass` behind the status and builds a `SecretProviderClassChange`, which then flows
+through the same decision and strategy path as a Secret. Env var postfix is
+`STAKATER_{NAME}_SECRETPROVIDERCLASS`.
 
-**How it works**:
-1. The CSI driver injects secrets into pods as volume mounts and tracks injection state via `SecretProviderClassPodStatus` objects.
-2. Reloader watches these objects for version changes.
-3. When a version change is detected, it computes a SHA of the object's IDs and versions.
-4. It then looks up the referenced `SecretProviderClass` and treats the event like a Secret update, triggering workload reloads.
-
-**Workload annotation**: `secretproviderclass.reloader.stakater.com/reload: "my-spc"` or `secretproviderclass.reloader.stakater.com/auto: "true"`.
-
-**Required**: CSI CRDs must be installed in the cluster. Reloader auto-detects their presence at startup.
-
-**Env var postfix**: `STAKATER_{NAME}_SECRETPROVIDERCLASS`.
-
-**Known limitations**:
-- Only works for secrets mounted as volumes via CSI, not env-var-based CSI injection.
-- The link from `SecretProviderClassPodStatus` → workload is indirect; edge cases may be missed.
-- Requires the CSI driver CRDs to be pre-installed; Reloader won't start CSI controller if CRDs are absent.
+Limits: volume mounted CSI secrets only, not env var injection. If the CSI driver updates the status
+without changing the tracked IDs or versions, the reload is missed.
 
 ---
 
-## Build, Test, And Run Commands
+## Helm Chart
 
-**Go version**: `go 1.26.8` (from `go.mod`)
+`deployments/kubernetes/chart/reloader/`, chart name `reloader`.
+
+- `image.tag` defaults to `Chart.yaml` `appVersion`, so a release only bumps `appVersion`.
+- `enterprise.enabled` (default `false`) pulls in the `reloader-enterprise` chart from
+  `oci://ghcr.io/stakater/public/charts` under alias `enterprise`, which brings the console, the gateway
+  and Dragonfly. The gateway defaults to `tier: free` in that subchart.
+- Enterprise mode also expects the operator image swapped to the enterprise image plus
+  `global.imagePullSecrets`.
+- `global.host` plus `global.gatewayBasePath` (default `/gateway`) are the single hostname for both
+  enterprise components; console at `/`, gateway at the base path.
+- If `global.imageRegistry` is set, the operator image resolves from `global.imageRegistry` plus
+  `image.name` and `image.repository` is ignored. Override `image.name` in that mode.
+- Chart unit tests live in `chart/reloader/tests/` and run with helm unittest.
+
+---
+
+## Build, Test, And Run
+
+Go version `1.26.8` (`go.mod`). Tooling is pinned as Go tool dependencies, hence `go tool <name>`.
 
 | Purpose | Command |
 |---|---|
-| Run locally | `go run ./main.go` |
-| Build binary | `make build` → `go build -o Reloader` |
-| Unit tests | `make test` → `go test -timeout 1800s -v ./...` |
-| Lint | `make lint` → `golangci-lint run ./...` (v2.6.1) |
-| Docker build (single arch) | `make build-image ARCH=amd64` |
-| Docker push | `make push` |
-| Full release (build+push+manifest) | `make release ARCH=amd64` |
-| Multi-arch release | `make release-all` |
-| Generate k8s manifests | `make k8s-manifests` (Kustomize v5.3.0) |
-| Load test (quick) | `make loadtest-quick LOADTEST_OLD_IMAGE=... LOADTEST_NEW_IMAGE=...` (runs S1, S4, S6) |
-| Load test (full) | `make loadtest-full LOADTEST_OLD_IMAGE=... LOADTEST_NEW_IMAGE=...` |
-| Load test (custom) | `make loadtest LOADTEST_SCENARIOS=S1,S3 LOADTEST_DURATION=120` |
+| Run locally | `make run` |
+| Build | `make build` (injects version ldflags) |
+| Unit tests | `make test` (`./internal/...` and `./test/e2e/utils/...`) |
+| Single unit test | `go test ./internal/pkg/reload/ -run TestShouldReload -v` |
+| Lint | `make lint` (`go tool golangci-lint`) |
+| Format | `make fmt` (`goimports -local github.com/stakater/Reloader` then gofmt) |
+| e2e cluster setup | `make e2e-setup` (Kind plus Argo, CSI, Vault) |
+| e2e | `make e2e`, or `SKIP_BUILD=true make e2e` to reuse an image |
+| Single e2e suite | `go tool ginkgo -v ./test/e2e/annotations/` |
+| e2e teardown | `make e2e-cleanup` |
+| Manifests | `make k8s-manifests` (kustomize) |
+| Load test | `make loadtest-quick LOADTEST_OLD_IMAGE=... LOADTEST_NEW_IMAGE=...` |
 
-**Docker image**: `ghcr.io/stakater/reloader` — multi-arch (amd64, arm64, arm), distroless nonroot base.
-
-**Helm chart**: `deployments/kubernetes/chart/reloader/` — install via Helm or `kubectl apply -f deployments/kubernetes/reloader.yaml`.
+`make test` does **not** cover `pkg/`, and CI calls `make test`, so the public API tests never run
+automatically. Run `go test ./pkg/...` by hand when touching `pkg/config`, `pkg/matcher` or
+`pkg/metadata`.
 
 ---
 
 ## Coding Conventions
 
-**Package boundaries**: Each `internal/pkg/<name>` package has a single clear responsibility. Cross-package access goes through exported types/functions only.
+**Logging** is `logr` backed by zerolog. Never `logrus`, that is the master branch. Structured key value
+pairs, not formatted strings.
 
-**Error handling**: `logrus.Errorf(...)` for non-fatal, `logrus.Fatalf(...)` for startup failures. Errors are returned up the call stack and logged at the point of action, not at every layer. Retry uses `k8s.io/client-go/util/retry.RetryOnConflict`.
+**Errors** are wrapped with `fmt.Errorf("doing thing: %w", err)` and returned up. Startup failures come
+back from `run()` as errors, they do not call `os.Exit` mid flow.
 
-**Logging**: `logrus` with structured fields. Format controlled by `--log-format=json` flag. Log level controlled by `--log-level`. Messages follow the pattern: `"Changes detected in '%s' of type '%s' in namespace '%s'"`.
+**Kubernetes access** goes through the manager's cached `client.Client`. Use `mgr.GetAPIReader()` only
+when the cache genuinely cannot serve the read, as the SecretProviderClass reconciler does. Conflicts
+are handled by `controller.UpdateWorkloadWithRetry`, which re fetches and re applies rather than
+retrying a stale object.
 
-**Kubernetes client patterns**: All k8s operations go through the `kube.Clients` struct. Use `context.TODO()` for context (no request-scoped contexts). List/watch via informers, not polling.
+**Filtering belongs in predicates**, not in `Reconcile`. If a change should never wake the reconciler,
+add a predicate in `internal/pkg/reload/predicate.go` and wire it through
+`controller.BuildEventFilter`.
 
-**Callback pattern**: Workload-specific logic is encapsulated in `callbacks.RollingUpgradeFuncs` structs returned by `handler.Get*RollingUpgradeFuncs()`. Adding a new workload type = add a new `RollingUpgradeFuncs` factory function and call it in `doRollingUpgrade()`.
+**Public versus internal.** New behaviour is internal by default. Promote to `pkg/` only when a
+downstream consumer genuinely needs it, and treat the promotion as an API commitment.
 
-**Test style**: Standard `testing.T`, `testify/assert`. Fake k8s objects via `testutil/kube.go`. Tests live alongside source in the same package. Large integration-style tests in `handler/upgrade_test.go`.
+**Adding a flag**: `internal/pkg/config/flags/flags.go` to bind and apply, field on `config.Config`,
+default in `config.NewDefault()`, validation in `pkg/config/validation.go`, then the chart values and
+deployment template. Flags are viper backed with `-` to `_` env var mapping, so `--alert-webhook-url`
+also reads `ALERT_WEBHOOK_URL`.
 
-**Naming patterns**:
-- Annotation variables: `XxxUpdateOnChangeAnnotation`, `XxxReloaderAutoAnnotation`
-- Callback funcs: `GetXxxItem`, `GetXxxItems`, `UpdateXxx`, `PatchXxx`
-- Handler factories: `GetXxxRollingUpgradeFuncs()`
-
-**Adding new behavior**: Add flag to `options/flags.go` + `common.ReloaderOptions` struct → wire in `cmd/reloader.go` → implement logic in `handler/` or `callbacks/` → add metrics recording → write tests in `*_test.go`.
+**Tests** use standard `testing` plus testify, fixtures from `internal/pkg/testutil/`. e2e uses Ginkgo
+and Gomega with helpers in `test/e2e/utils/`.
 
 ---
 
 ## Gotchas And Risks
 
-**Duplicate reloads**: If a workload references multiple ConfigMaps/Secrets and all change simultaneously, each change event fires a separate reload. No deduplication exists within a reconcile window. This can cause unnecessary rolling restarts.
+**The chart values template is dead.** `deployments/kubernetes/chart/reloader/values.yaml` opens with
+"Generated from deployments/kubernetes/templates/chart/values.yaml.tmpl", but nothing in the Makefile,
+scripts or workflows runs that generation, and the template is 142 lines against the chart's 446 with no
+enterprise section. Edit the chart values directly; the header comment is stale.
 
-**Controller init guard**: `secretControllerInitialized` and `configmapControllerInitialized` booleans in `controller/controller.go` prevent processing Add events during the initial list/sync (to avoid reloading everything on startup). If `--sync-after-restart` is set, both are pre-set to `true`, bypassing the guard. Be careful when this interacts with `--reload-on-create`.
+**`pkg/` unit tests are not in CI.** `make test` targets `./internal/...` and `./test/e2e/utils/...`, and
+`pull_request.yaml` runs `make test`, so the five test files under `pkg/` are never executed by a PR
+check even though `pkg/` is the contract the enterprise gateway builds against.
 
-**Namespace filtering**: `--namespaces-to-ignore` does a name match; `--namespace-selector` watches namespaces by label and caches them in `selectedNamespacesCache`. The cache is updated on Namespace Add/Update/Delete events. A race between cache population and first ConfigMap event could cause missed reloads on startup in label-selected deployments.
+**`VERSION` at the repo root says `1.4.14`** and is not read by any workflow or script. Do not treat it
+as the release version; `Chart.yaml` and the git tag are the real sources.
 
-**RBAC**: Reloader requires get/list/watch on secrets and configmaps, and get/list/watch/update/patch on all workload types it manages. Missing RBAC silently causes no reloads (not an error — just empty lists). Check ClusterRole in `deployments/kubernetes/chart/reloader/templates/`.
+**Annotation source selection does not merge.** See Decision Order step 2. A workload level annotation
+suppresses every pod template annotation for that resource type, rather than the two combining.
 
-**HA lease RBAC placement**: The `coordination.k8s.io` lease grant belongs only in the `reloader-release-rules` helper in `_helpers.tpl`, which renders into the `-metadata-role` in the release namespace. It must never be added to `clusterrole.yaml` or to the `reloader-namespaced-rules` helper, which would grant leases cluster wide or in every watched namespace. `create` is a rule of its own; `get`/`update` are pinned to `resourceNames: [<reloader-leaderElectionId>]`. `deployment.yaml` emits `--leader-election-id` unconditionally under `enableHA` from the same `reloader-leaderElectionId` helper, so the pin and the flag cannot drift apart and the binary's own default is never relied on. The helper reads `(.Values.reloader.leaderElection).id` so a null `leaderElection` block does not abort the render, and quotes the name so a YAML-truthy id stays a string. `tests/rbac_test.yaml` guards this.
+**Scoped mode hides more than it filters.** `--namespaces` scopes the controller-runtime cache, so
+resources outside the list are not merely skipped, they are never listed. Meta info publishing works
+around this with an uncached client.
 
-**HA is gated on `enableHA` alone**: `reloader.deployment.replicas > 1` does not imply HA. Raising replicas by itself leaves HA off (and the replica count clamped to 1), because `POD_NAME`, the anti-affinity and the lease RBAC are all gated on `reloader.enableHA`; emitting `--enable-ha=true` without them crash-loops the binary on `POD_NAME not set`.
+**`--enable-csi-integration` can silently no op.** Missing CRDs disable it with an info log, not an
+error.
 
-**Pause period must be positive, but only on the way in**: `parsePausePeriod` in `internal/pkg/reload/pause.go` rejects unparseable, zero and negative values, and `ShouldPause` returns `(bool, error)` so `internal/pkg/controller/retry.go` reloads without pausing and logs why. The exit path must stay permissive: every error return from `CheckPauseExpired` reports `expired = true`, and `DeploymentReconciler` logs and clears the pause instead of requeueing. Requeueing there would retry an annotation that cannot change on its own, leaving `spec.paused` set forever with no expiry to reach. `TestDeploymentReconciler_UnpausesOnUnusablePausePeriod` guards this.
+**Job reload is destructive.** `UpdateStrategyRecreate` deletes the Job first, terminating any running
+pod. Intentional, and there is no long running job protection.
 
-**Invalid regex in reload annotations**: `pkg/matcher/matcher.go` compiles each `.../reload` pattern with `regexp.Compile` (never `MustCompile`, which would panic). An invalid pattern falls back to an exact name comparison and is reported through `MatchResult.Errors`. Every pattern in the annotation is evaluated even after one has matched, so an invalid pattern is reported wherever it sits in the list. `ShouldReload` attaches `Errors` once, on the single return path that wraps `classify`, so a new precedence rule cannot silently drop them. `internal/pkg/reload/service.go` logs each error once per distinct message, since the annotation is static while the evaluation runs per workload per event.
+**Argo Rollouts must be explicitly enabled.** Without `--is-Argo-Rollouts=true` the scheme is not even
+registered, so Rollouts are invisible rather than skipped.
 
-**GitOps drift**: If a GitOps tool (Flux, ArgoCD) manages the same Deployments, annotation or env var changes made by Reloader will be detected as drift and reverted. Use `--reload-strategy=annotations` with care in GitOps setups; `env-vars` strategy is generally safer since it modifies the pod template rather than workload-level annotations.
+**RBAC failures are silent.** Missing get/list/watch produces empty lists, not errors, so reloads simply
+never happen. Check the ClusterRole in the chart templates.
 
-**Annotation precedence edge case**: Annotations are checked first on the workload object, then on the pod template. If both are set to conflicting values, the behavior depends on which path `ShouldReload()` hits first. Verify in `pkg/common/common.go`.
+**GitOps drift.** Reloader mutates workloads, so Flux or ArgoCD may revert it. `env-vars` is safer than
+`annotations` because the change lands inside the pod template.
 
-**CronJob/Job destructive reload**: Job recreation deletes the old Job. Any in-flight pod from that Job will be terminated. This is intentional but surprising. There is no protection for long-running jobs.
+**Annotation defaults are a compatibility surface.** They are configurable, so changing a default breaks
+existing clusters. Never change one without a migration path.
 
-**OpenShift DeploymentConfig**: Auto-detected by probing for the `deploymentconfigs` resource. If the probe fails at startup, OpenShift support is silently disabled. Check `pkg/kube/client.go`.
-
-**Argo Rollouts**: Must be explicitly enabled via `--is-Argo-Rollouts=true`. Without it, Rollout objects are never listed. The `SupportsPatch=false` means full object updates are used — be aware of potential conflicts with Argo's own controller.
-
-**CSI rotation behavior**: `SecretProviderClassPodStatus` is updated by the CSI driver when secrets rotate. Reloader reacts to those updates. However, if the CSI driver updates the status in a way that doesn't change the versions Reloader tracks, the reload will be missed.
-
-**Backward compatibility**: Annotation names are configurable, so changing defaults would break existing clusters. Never change default annotation values without a migration path.
-
-**Tests to update for risky changes**: `handler/upgrade_test.go` (large suite covering all workload types), `controller/controller_test.go` (event handling), `pkg/common/common_test.go` (reload decision logic).
-
----
-
-## Open Questions
-
-- **Exact `ShouldReload()` precedence**: The code in `pkg/common/common.go` checks annotations in a specific order. The exact tie-breaking when both workload-level and pod-template-level annotations are set should be verified by reading that function fully before making annotation behavior changes.
-- **CSI → workload mapping**: How exactly does Reloader map a `SecretProviderClassPodStatus` change back to workloads? Is it via the SecretProviderClass name matching an annotation on the workload, or via volume reference scanning? Needs confirmation before adding CSI-related features.
-- **`ContainerPatchPathFunc` field**: `RollingUpgradeFuncs` has a `ContainerPatchPathFunc` field, but it is not documented — unclear if/how it differs from `ContainersFunc` in patch scenarios.
-- **Webhook vs alert**: `--webhook-url` replaces reloading with a POST request. `ALERT_WEBHOOK_URL` env var sends an alert *after* reloading. These are two different mechanisms; the naming is confusing and easy to conflate.
-- **Load test scenarios S7–S13**: Only S1, S4, and S6 are confirmed from CI. The behavior and coverage of the remaining scenarios is unknown without reading `test/loadtest/` in full.
-- **`SyncAfterRestart` semantics**: Flag docs say it "syncs add events after restart" but only if `ReloadOnCreate` is also true. The interaction between these two flags in HA mode (where controllers restart on leader change) needs verification.
-
----
-
-## Important Files
-
-| File | Description |
-|---|---|
-| `internal/pkg/cmd/reloader.go` | `startReloader()` — main wiring of clients, controllers, HA, and HTTP server |
-| `internal/pkg/handler/upgrade.go` | `doRollingUpgrade()` + all `Get*RollingUpgradeFuncs()` factories |
-| `internal/pkg/callbacks/rolling_upgrade.go` | All workload-specific get/update/patch implementations |
-| `pkg/common/common.go` | `ShouldReload()` — the annotation decision tree |
-| `internal/pkg/options/flags.go` | Every configurable option with defaults |
-| `internal/pkg/controller/controller.go` | Informer setup, queue, event handlers |
-| `pkg/kube/client.go` | Multi-client initialization and OpenShift/CSI detection |
-| `internal/pkg/handler/pause_deployment.go` | Pause/resume deployment logic with timers |
-| `internal/pkg/leadership/leadership.go` | HA leader election |
-| `internal/pkg/metrics/prometheus.go` | All Prometheus collector definitions |
-| `internal/pkg/alerts/alert.go` | Slack/Teams/GChat alerting |
-| `internal/pkg/constants/constants.go` | Global constants (env var prefixes, annotation prefix, strategy names) |
-| `deployments/kubernetes/chart/reloader/values.yaml` | Helm chart defaults — source of truth for production config |
-| `handler/upgrade_test.go` | Largest test suite; must be updated for any reload logic change |
-| `Makefile` | All build/test/release/loadtest commands |
+**Tests to update for risky changes**: `internal/pkg/reload/*_test.go`,
+`internal/pkg/workload/workload_test.go`, `internal/pkg/controller/*_test.go`, `pkg/matcher/`, and the
+matching `test/e2e/` suite.
