@@ -20,6 +20,6 @@ maintainers:
 dependencies:
   - name: reloader-enterprise
     alias: enterprise
-    version: 0.1.2
+    version: 0.1.3
     repository: oci://ghcr.io/stakater/public/charts
     condition: enterprise.enabled
