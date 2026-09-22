@@ -203,35 +203,46 @@ helm uninstall {{RELEASE_NAME}} -n {{NAMESPACE}}
 Reloader Enterprise adds a console, gateway, and cache (dragonfly) alongside the
 operator. It ships as an optional subchart gated by `enterprise.enabled`.
 
-Enabling it requires **four** changes, because the operator image is swapped manually:
+Enabling it requires **five** changes, because the operator image is swapped manually:
 
-1. Turn on the subchart and set the component hostnames:
+1. Turn on the subchart and set the hostname. The console and the gateway share a
+   single hostname and are told apart by path: the console at `/`, the gateway at
+   `global.gatewayBasePath`.
 
    ```yaml
    enterprise:
      enabled: true
    global:
-     consoleHost: reloader-enterprise-console.apps.example.com
-     gatewayHost: reloader-enterprise-gateway.apps.example.com
+     host: reloader.apps.example.com
+     gatewayBasePath: /gateway   # default
+     ingressScheme: https        # default
    ```
+
+   > `global.host` is required when `enterprise.enabled=true`. Leaving it empty
+   > renders both Ingresses with an empty `host:` and **no error**, so the release
+   > installs and the console is simply unreachable.
 
 2. Swap the operator image to the enterprise image:
 
    ```yaml
    image:
      repository: ghcr.io/stakater/reloader-enterprise
-     tag: v0.0.43   # enterprise operator image tag (v-prefixed); use the latest release
+     tag: v1.4.22   # a Reloader release tag; add -ubi for the UBI variant
    ```
 
    > **Version note:** three different numbers are in play here, don't mix them up:
-   > - `image.tag` above is the **enterprise operator image** tag (e.g. `v0.0.43`).
-   > - the `reloader-enterprise` **subchart** version (`0.1.0`, in `Chart.yaml`
+   > - `image.tag` above is the **enterprise operator image** tag. These mirror the
+   >   Reloader release tags (`v1.4.22`, plus a `v1.4.22-ubi` variant), because the
+   >   enterprise pipeline builds from a Reloader tag. A tag only exists once that
+   >   pipeline has run for the release, so it can lag the OSS image.
+   > - the `reloader-enterprise` **subchart** version (`0.1.3`, in `Chart.yaml`
    >   dependencies) is the Helm chart version, not an image tag.
    > - the console and gateway images have their own tags again, set under
    >   `enterprise.console.*` / `enterprise.gateway.*`.
 
-3. Provide an image pull secret — the enterprise operator, console, and gateway
-   images are in **private GHCR**:
+3. Provide an image pull secret. The enterprise **operator** image is in private
+   GHCR. The console and gateway images are published to `ghcr.io/stakater/public/`
+   and pull anonymously, so this secret is only needed for the operator image:
 
    ```bash
    kubectl create secret docker-registry saap-dockerconfigjson \
@@ -246,7 +257,28 @@ Enabling it requires **four** changes, because the operator image is swapped man
        - name: saap-dockerconfigjson
    ```
 
-4. Deeper enterprise component settings pass through under `enterprise.console.*`,
+   > The subchart still names `saap-dockerconfigjson` per component by default. A
+   > pull secret that does not exist is a warning, not a failure, so the public
+   > console and gateway images still pull.
+
+4. Choose the gateway tier. These values live under `gateway:` inside the
+   enterprise chart, so the keys are `enterprise.gateway.*`. `enterprise.tier`
+   looks right and is silently ignored.
+
+   ```yaml
+   enterprise:
+     gateway:
+       tier: free                  # default; caps at 3 namespaces
+       namespaces: "app-a,app-b"   # required on any finite cap
+   ```
+
+   > On the free tier `namespaces` defaults to the release namespace, which holds
+   > nothing worth watching, so the console looks empty until you set it. The free
+   > tier also **purges** cached data and reload history for namespaces outside the
+   > list. `tier: paid` needs a valid signed license ConfigMap in the release
+   > namespace and the gateway refuses to start without one; it never downgrades.
+
+5. Deeper enterprise component settings pass through under `enterprise.console.*`,
    `enterprise.gateway.*`, and `enterprise.dragonfly.*` (see the reloader-enterprise
    chart values for the full list). Values you do not override fall back to the
    subchart defaults.
