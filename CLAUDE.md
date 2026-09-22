@@ -255,7 +255,10 @@ without changing the tracked IDs or versions, the reload is missed.
 - `image.tag` defaults to `Chart.yaml` `appVersion`, so a release only bumps `appVersion`.
 - `enterprise.enabled` (default `false`) pulls in the `reloader-enterprise` chart from
   `oci://ghcr.io/stakater/public/charts` under alias `enterprise`, which brings the console, the gateway
-  and Dragonfly. The gateway defaults to `tier: free` in that subchart.
+  and Dragonfly. The gateway defaults to `tier: free`.
+- Gateway licensing values sit under `gateway:` inside the enterprise chart, so from here the keys are
+  `enterprise.gateway.tier` and `enterprise.gateway.namespaces`. `enterprise.tier` looks right and is
+  silently ignored.
 - Enterprise mode also expects the operator image swapped to the enterprise image plus
   `global.imagePullSecrets`.
 - `global.host` plus `global.gatewayBasePath` (default `/gateway`) are the single hostname for both
