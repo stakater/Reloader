@@ -107,6 +107,8 @@ type ReloaderOptions struct {
 	PProfAddr string `json:"pprofAddr"`
 }
 
+// CommandLineOptions is retained for compatibility with external users of this
+// package. Reloader refreshes it once after Cobra parses the process flags.
 var CommandLineOptions *ReloaderOptions
 
 func PublishMetaInfoConfigmap(clientset kubernetes.Interface) {
@@ -342,54 +344,61 @@ func checkIfResourceIsExcluded(resourceName, excludedResources string) bool {
 	return false
 }
 
-func init() {
-	CommandLineOptions = GetCommandLineOptions()
-}
-
 func GetCommandLineOptions() *ReloaderOptions {
 	// Return an independent snapshot: event workers and the window scheduler run concurrently.
-	CommandLineOptions := &ReloaderOptions{}
-	CommandLineOptions.EnableRestartWindows = options.EnableRestartWindows
+	commandLineOptions := &ReloaderOptions{}
+	commandLineOptions.EnableRestartWindows = options.EnableRestartWindows
 
-	CommandLineOptions.AutoReloadAll = options.AutoReloadAll
-	CommandLineOptions.ConfigmapUpdateOnChangeAnnotation = options.ConfigmapUpdateOnChangeAnnotation
-	CommandLineOptions.SecretUpdateOnChangeAnnotation = options.SecretUpdateOnChangeAnnotation
-	CommandLineOptions.SecretProviderClassUpdateOnChangeAnnotation = options.SecretProviderClassUpdateOnChangeAnnotation
-	CommandLineOptions.ReloaderAutoAnnotation = options.ReloaderAutoAnnotation
-	CommandLineOptions.IgnoreResourceAnnotation = options.IgnoreResourceAnnotation
-	CommandLineOptions.ConfigmapReloaderAutoAnnotation = options.ConfigmapReloaderAutoAnnotation
-	CommandLineOptions.SecretReloaderAutoAnnotation = options.SecretReloaderAutoAnnotation
-	CommandLineOptions.SecretProviderClassReloaderAutoAnnotation = options.SecretProviderClassReloaderAutoAnnotation
-	CommandLineOptions.ConfigmapExcludeReloaderAnnotation = options.ConfigmapExcludeReloaderAnnotation
-	CommandLineOptions.SecretExcludeReloaderAnnotation = options.SecretExcludeReloaderAnnotation
-	CommandLineOptions.SecretProviderClassExcludeReloaderAnnotation = options.SecretProviderClassExcludeReloaderAnnotation
-	CommandLineOptions.AutoSearchAnnotation = options.AutoSearchAnnotation
-	CommandLineOptions.SearchMatchAnnotation = options.SearchMatchAnnotation
-	CommandLineOptions.RolloutStrategyAnnotation = options.RolloutStrategyAnnotation
-	CommandLineOptions.PauseDeploymentAnnotation = options.PauseDeploymentAnnotation
-	CommandLineOptions.PauseDeploymentTimeAnnotation = options.PauseDeploymentTimeAnnotation
-	CommandLineOptions.LogFormat = options.LogFormat
-	CommandLineOptions.LogLevel = options.LogLevel
-	CommandLineOptions.ReloadStrategy = options.ReloadStrategy
-	CommandLineOptions.SyncAfterRestart = options.SyncAfterRestart
-	CommandLineOptions.EnableHA = options.EnableHA
-	CommandLineOptions.LeaderElectionLeaseDuration = options.LeaderElectionLeaseDuration.String()
-	CommandLineOptions.LeaderElectionRenewDeadline = options.LeaderElectionRenewDeadline.String()
-	CommandLineOptions.LeaderElectionRetryPeriod = options.LeaderElectionRetryPeriod.String()
-	CommandLineOptions.EnableCSIIntegration = options.EnableCSIIntegration
-	CommandLineOptions.WebhookUrl = options.WebhookUrl
-	CommandLineOptions.ResourcesToIgnore = options.ResourcesToIgnore
-	CommandLineOptions.WorkloadTypesToIgnore = options.WorkloadTypesToIgnore
-	CommandLineOptions.NamespaceSelectors = options.NamespaceSelectors
-	CommandLineOptions.ResourceSelectors = options.ResourceSelectors
-	CommandLineOptions.NamespacesToIgnore = options.NamespacesToIgnore
-	CommandLineOptions.IsArgoRollouts = parseBool(options.IsArgoRollouts)
-	CommandLineOptions.ReloadOnCreate = parseBool(options.ReloadOnCreate)
-	CommandLineOptions.ReloadOnDelete = parseBool(options.ReloadOnDelete)
-	CommandLineOptions.EnablePProf = options.EnablePProf
-	CommandLineOptions.PProfAddr = options.PProfAddr
+	commandLineOptions.AutoReloadAll = options.AutoReloadAll
+	commandLineOptions.ConfigmapUpdateOnChangeAnnotation = options.ConfigmapUpdateOnChangeAnnotation
+	commandLineOptions.SecretUpdateOnChangeAnnotation = options.SecretUpdateOnChangeAnnotation
+	commandLineOptions.SecretProviderClassUpdateOnChangeAnnotation = options.SecretProviderClassUpdateOnChangeAnnotation
+	commandLineOptions.ReloaderAutoAnnotation = options.ReloaderAutoAnnotation
+	commandLineOptions.IgnoreResourceAnnotation = options.IgnoreResourceAnnotation
+	commandLineOptions.ConfigmapReloaderAutoAnnotation = options.ConfigmapReloaderAutoAnnotation
+	commandLineOptions.SecretReloaderAutoAnnotation = options.SecretReloaderAutoAnnotation
+	commandLineOptions.SecretProviderClassReloaderAutoAnnotation = options.SecretProviderClassReloaderAutoAnnotation
+	commandLineOptions.ConfigmapExcludeReloaderAnnotation = options.ConfigmapExcludeReloaderAnnotation
+	commandLineOptions.SecretExcludeReloaderAnnotation = options.SecretExcludeReloaderAnnotation
+	commandLineOptions.SecretProviderClassExcludeReloaderAnnotation = options.SecretProviderClassExcludeReloaderAnnotation
+	commandLineOptions.AutoSearchAnnotation = options.AutoSearchAnnotation
+	commandLineOptions.SearchMatchAnnotation = options.SearchMatchAnnotation
+	commandLineOptions.RolloutStrategyAnnotation = options.RolloutStrategyAnnotation
+	commandLineOptions.PauseDeploymentAnnotation = options.PauseDeploymentAnnotation
+	commandLineOptions.PauseDeploymentTimeAnnotation = options.PauseDeploymentTimeAnnotation
+	commandLineOptions.LogFormat = options.LogFormat
+	commandLineOptions.LogLevel = options.LogLevel
+	commandLineOptions.ReloadStrategy = options.ReloadStrategy
+	commandLineOptions.SyncAfterRestart = options.SyncAfterRestart
+	commandLineOptions.EnableHA = options.EnableHA
+	commandLineOptions.LeaderElectionLeaseDuration = options.LeaderElectionLeaseDuration.String()
+	commandLineOptions.LeaderElectionRenewDeadline = options.LeaderElectionRenewDeadline.String()
+	commandLineOptions.LeaderElectionRetryPeriod = options.LeaderElectionRetryPeriod.String()
+	commandLineOptions.EnableCSIIntegration = options.EnableCSIIntegration
+	commandLineOptions.WebhookUrl = options.WebhookUrl
+	commandLineOptions.ResourcesToIgnore = options.ResourcesToIgnore
+	commandLineOptions.WorkloadTypesToIgnore = options.WorkloadTypesToIgnore
+	commandLineOptions.NamespaceSelectors = options.NamespaceSelectors
+	commandLineOptions.ResourceSelectors = options.ResourceSelectors
+	commandLineOptions.NamespacesToIgnore = options.NamespacesToIgnore
+	commandLineOptions.IsArgoRollouts = parseBool(options.IsArgoRollouts)
+	commandLineOptions.ReloadOnCreate = parseBool(options.ReloadOnCreate)
+	commandLineOptions.ReloadOnDelete = parseBool(options.ReloadOnDelete)
+	commandLineOptions.EnablePProf = options.EnablePProf
+	commandLineOptions.PProfAddr = options.PProfAddr
 
+	return commandLineOptions
+}
+
+// RefreshCommandLineOptions publishes a current immutable options snapshot.
+// Call it during startup before worker goroutines begin reading the value.
+func RefreshCommandLineOptions() *ReloaderOptions {
+	CommandLineOptions = GetCommandLineOptions()
 	return CommandLineOptions
+}
+
+func init() {
+	RefreshCommandLineOptions()
 }
 
 func parseBool(value string) bool {

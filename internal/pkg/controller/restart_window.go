@@ -1,9 +1,9 @@
-// Copyright 2026 Doska. Licensed under the Apache License, Version 2.0.
 package controller
 
 import (
 	"context"
 	"fmt"
+	"os"
 	"slices"
 	"sync"
 	"time"
@@ -13,6 +13,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/scheme"
@@ -21,14 +22,18 @@ import (
 	"k8s.io/client-go/tools/record"
 	"k8s.io/client-go/util/workqueue"
 
+	alert "github.com/stakater/Reloader/internal/pkg/alerts"
 	"github.com/stakater/Reloader/internal/pkg/constants"
+	"github.com/stakater/Reloader/internal/pkg/metrics"
 	"github.com/stakater/Reloader/internal/pkg/options"
 	"github.com/stakater/Reloader/internal/pkg/restartwindow"
 	"github.com/stakater/Reloader/internal/pkg/util"
 )
 
+var sendWindowAlert = alert.SendWebhookAlert
+
 // NewRestartWindowController shares the normal controller/leader lifecycle.
-func NewRestartWindowController(client kubernetes.Interface, namespace string, ignored util.List, namespaceSelector, resourceSelector string, recorder record.EventRecorder) *Controller {
+func NewRestartWindowController(client kubernetes.Interface, namespace string, ignored util.List, namespaceSelector, resourceSelector string, recorder record.EventRecorder, collectors metrics.Collectors) *Controller {
 	return &Controller{windowRunner: func(stop chan struct{}) {
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
@@ -63,6 +68,7 @@ func NewRestartWindowController(client kubernetes.Interface, namespace string, i
 			"StatefulSet": factory.Apps().V1().StatefulSets().Informer(),
 			"DaemonSet":   factory.Apps().V1().DaemonSets().Informer(),
 		}
+		blockedReasons := map[restartwindow.Target]string{}
 		for kind, informer := range informersByKind {
 			add := func(obj any) {
 				m, e := meta.Accessor(obj)
@@ -101,6 +107,41 @@ func NewRestartWindowController(client kubernetes.Interface, namespace string, i
 						queue.Forget(target)
 						return
 					}
+					informer := informersByKind[target.Kind]
+					cached, exists, cacheErr := informer.GetStore().GetByKey(target.Namespace + "/" + target.Name)
+					if cacheErr != nil || !exists {
+						queue.Forget(target)
+						delete(blockedReasons, target)
+						return
+					}
+					cachedObject, ok := cached.(runtime.Object)
+					if !ok {
+						queue.Forget(target)
+						logrus.Errorf("Cached %s %s/%s does not implement runtime.Object", target.Kind, target.Namespace, target.Name)
+						return
+					}
+					delay, pending, preflightErr := restartwindow.Preflight(cachedObject, time.Now())
+					if preflightErr != nil {
+						message := preflightErr.Error()
+						logrus.WithError(preflightErr).Warnf("Restart window reconciliation blocked for %s %s/%s", target.Kind, target.Namespace, target.Name)
+						if recorder != nil && blockedReasons[target] != message {
+							recorder.Event(&corev1.ObjectReference{Kind: target.Kind, APIVersion: "apps/v1", Namespace: target.Namespace, Name: target.Name}, corev1.EventTypeWarning, "RestartWindowBlocked", message)
+						}
+						blockedReasons[target] = message
+						queue.AddRateLimited(target)
+						return
+					}
+					if !pending {
+						queue.Forget(target)
+						delete(blockedReasons, target)
+						return
+					}
+					if delay > 0 {
+						queue.Forget(target)
+						delete(blockedReasons, target)
+						queue.AddAfter(target, delay)
+						return
+					}
 					if namespaceSelector != "" {
 						ns, e := client.CoreV1().Namespaces().Get(ctx, target.Namespace, metav1.GetOptions{})
 						if e != nil {
@@ -119,21 +160,33 @@ func NewRestartWindowController(client kubernetes.Interface, namespace string, i
 						}
 						return !slices.Contains(options.ResourcesToIgnore, name)
 					}
-					delay, e := restartwindow.Reconcile(ctx, client, target, time.Now, selector, allowed, recorder)
+					actionStart := time.Now()
+					result, e := restartwindow.Reconcile(ctx, client, target, time.Now, selector, allowed, recorder)
 					if e != nil {
 						logrus.WithError(e).Warnf("Restart window reconciliation failed for %s %s/%s", target.Kind, target.Namespace, target.Name)
-						if recorder != nil {
-							recorder.Event(&corev1.ObjectReference{Kind: target.Kind, APIVersion: "apps/v1", Namespace: target.Namespace, Name: target.Name}, corev1.EventTypeWarning, "RestartWindowBlocked", fmt.Sprint(e))
+						message := e.Error()
+						if recorder != nil && blockedReasons[target] != message {
+							recorder.Event(&corev1.ObjectReference{Kind: target.Kind, APIVersion: "apps/v1", Namespace: target.Namespace, Name: target.Name}, corev1.EventTypeWarning, "RestartWindowBlocked", message)
 						}
-						delay = time.Minute
+						blockedReasons[target] = message
+						if result.Attempted {
+							collectors.RecordReload(false, target.Namespace)
+							collectors.RecordAction(target.Kind, "error", time.Since(actionStart))
+						}
+						queue.AddRateLimited(target)
+						return
 					}
 					queue.Forget(target)
-					// Revisit closed windows at least once a minute for clock changes and policy edits.
-					if delay > time.Minute {
-						delay = time.Minute
+					delete(blockedReasons, target)
+					if result.Executed {
+						collectors.RecordReload(true, target.Namespace)
+						collectors.RecordAction(target.Kind, "success", time.Since(actionStart))
+						if os.Getenv("ALERT_ON_RELOAD") == "true" {
+							sendWindowAlert(fmt.Sprintf("Reloader applied pending configuration changes and reloaded *%s* of type *%s* in namespace *%s*", target.Name, target.Kind, target.Namespace))
+						}
 					}
-					if delay > 0 {
-						queue.AddAfter(target, delay)
+					if result.RequeueAfter > 0 {
+						queue.AddAfter(target, result.RequeueAfter)
 					}
 				}()
 			}

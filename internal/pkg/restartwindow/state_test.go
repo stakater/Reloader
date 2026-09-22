@@ -19,6 +19,7 @@ import (
 	"k8s.io/client-go/kubernetes/fake"
 
 	"github.com/stakater/Reloader/internal/pkg/constants"
+	"github.com/stakater/Reloader/internal/pkg/options"
 	"github.com/stakater/Reloader/pkg/common"
 )
 
@@ -39,7 +40,8 @@ func request(t *testing.T, c *fake.Clientset, target Target, name string) {
 }
 func reconcile(t *testing.T, c *fake.Clientset, target Target, when string) (time.Duration, error) {
 	t.Helper()
-	return Reconcile(context.Background(), c, target, func() time.Time { return at(when) }, labels.Everything(), func(string) bool { return true }, nil)
+	result, err := Reconcile(context.Background(), c, target, func() time.Time { return at(when) }, labels.Everything(), func(string) bool { return true }, nil)
+	return result.RequeueAfter, err
 }
 func deployment(t *testing.T, c *fake.Clientset) *appsv1.Deployment {
 	t.Helper()
@@ -85,6 +87,16 @@ func TestPersistentCoalescingAndFreshSource(t *testing.T) {
 	json.Unmarshal([]byte(d.Annotations[AppliedAnnotation]), &applied)
 	if applied[constants.SecretEnvVarPostfix+"/tls"] != common.GetSecretConfig(s).SHAValue {
 		t.Fatal("used stale certificate hash")
+	}
+	wantEnv := constants.EnvVarPrefix + "TLS_" + constants.SecretEnvVarPostfix
+	foundEnv := false
+	for _, env := range d.Spec.Template.Spec.Containers[0].Env {
+		if env.Name == wantEnv && env.Value == common.GetSecretConfig(s).SHAValue {
+			foundEnv = true
+		}
+	}
+	if !foundEnv {
+		t.Fatal("normal reload strategy marker was not refreshed")
 	}
 	token := d.Spec.Template.Annotations[RestartAnnotation]
 	// A replayed event after a crash does not change the restart token.
@@ -222,5 +234,25 @@ func TestWindowClosesDuringSourceReads(t *testing.T) {
 	}
 	if deployment(t, c).Annotations[PendingAnnotation] == "" || deployment(t, c).Spec.Template.Annotations[RestartAnnotation] != "" {
 		t.Fatal("crossed closing boundary")
+	}
+}
+
+func TestAnnotationStrategyMarkerIsUpdated(t *testing.T) {
+	originalStrategy := options.ReloadStrategy
+	options.ReloadStrategy = constants.AnnotationsReloadStrategy
+	defer func() { options.ReloadStrategy = originalStrategy }()
+
+	c, target := fixture()
+	request(t, c, target, "tls")
+	result, err := Reconcile(context.Background(), c, target, func() time.Time { return at("2026-09-09T23:00:00Z") }, labels.Everything(), func(string) bool { return true }, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !result.Executed {
+		t.Fatal("window reload was not reported as executed")
+	}
+	annotationKey := constants.ReloaderAnnotationPrefix + "/" + constants.LastReloadedFromAnnotation
+	if deployment(t, c).Spec.Template.Annotations[annotationKey] == "" {
+		t.Fatal("annotation reload strategy marker was not refreshed")
 	}
 }

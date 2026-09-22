@@ -30,16 +30,20 @@ already-persisted pending work does not require either startup flag.
 ## Behavior and failure handling
 
 - Without a window annotation, upstream restart behavior is unchanged.
-- The annotation without the enabling flag fails closed; it does not silently
-  restart immediately. Unsupported workload/source kinds also fail closed.
+- The annotation without the enabling flag skips only that workload and emits a
+  warning; other workloads that use the same source continue to be processed.
+  Pending state by itself does not block the normal path when the feature is
+  disabled. Unsupported workload/source kinds are isolated the same way.
 - Secret and ConfigMap events persist source names and observed hashes on the
   workload. Secret contents, private keys and passwords are never persisted in
   annotations or logs by this extension.
 - Recovery covers requests already persisted before an outage. Secret events
   lost before persistence retain upstream Reloader startup-sync semantics.
-- A workload informer recovers pending work on startup/leader election. A delayed
-  workqueue wakes when the window opens and revisits pending work at least once
-  a minute. No new Secret event is needed. No CronJob or new CRD is required.
+- A workload informer recovers pending work on startup/leader election. Closed
+  windows are evaluated from the informer cache and scheduled directly for the
+  next opening; a live workload read is made immediately before mutation. Policy
+  edits requeue through informer updates. No new Secret event is needed. No
+  CronJob or new CRD is required.
 - At execution, source content and opt-in/ignore/filter settings are read again.
   Multiple pending sources produce one pod-template annotation change, using
   their current hashes. Replayed events do not restart an already applied hash.
@@ -49,9 +53,12 @@ already-persisted pending work does not require either startup flag.
 - Invalid policies, missing sources, and paused Deployments hold pending work.
   Missing Secrets are never a reason to restart. No automatic expiry override
   exists: operational alerting must cover certificates and blocked rotations.
-- `WindowReloaded` and `RestartWindowBlocked` Kubernetes Events expose outcomes;
-  errors are logged. `reloader_skipped_total{reason="restart_window_queued"}`
-  records deferred event handling through upstream metrics.
+- `WindowReloaded` and deduplicated `RestartWindowBlocked` Kubernetes Events
+  expose outcomes; errors are logged with rate-limited retries. Successful and
+  failed rollout attempts update the normal reload/action metrics, and successful
+  rollouts use the normal `ALERT_ON_RELOAD` webhook. The
+  `reloader_skipped_total{reason="restart_window_queued"}` metric records deferred
+  event handling.
 - Removing the window annotation releases pending work immediately while the
   scheduler is enabled. To cancel a request, remove its Reloader trigger or
   explicitly remove its pending annotation. Disabling the scheduler retains
@@ -59,9 +66,11 @@ already-persisted pending work does not require either startup flag.
 - The window governs **starting** a rollout, not finishing it. Kubernetes may
   complete replacement after the window closes. This extension does not verify
   application health, TLS expiry, served certificates, or query completion.
-- Windowed workloads use a deterministic pod-template hash annotation regardless
-  of upstream `--reload-strategy`; they do not use the upstream pause-period
-  cooldown. Manually paused Deployments remain paused and are not modified.
+- Windowed workloads use a deterministic pod-template hash annotation and update
+  the selected upstream reload-strategy marker in the same patch. This prevents
+  a later startup reconciliation from treating an already-applied source hash as
+  new. Windowed workloads do not use the upstream pause-period cooldown.
+  Manually paused Deployments remain paused and are not modified.
 - Supported: apps/v1 Deployments, unpartitioned RollingUpdate StatefulSets, and
   RollingUpdate DaemonSets. Jobs, CronJobs, Argo Rollouts, DeploymentConfigs,
   CSI sources, and directly operator-managed pods are not supported.

@@ -182,6 +182,7 @@ func sendWebhook(url string) (string, []error) {
 
 func doRollingUpgrade(config common.Config, collectors metrics.Collectors, recorder record.EventRecorder, invoke invokeStrategy) error {
 	clients := kube.GetClients()
+	var upgradeErrors []error
 
 	// Get ignored workload types to avoid listing resources without RBAC permissions
 	ignoredWorkloadTypes, err := util.GetIgnoredWorkloadTypesList()
@@ -192,14 +193,14 @@ func doRollingUpgrade(config common.Config, collectors metrics.Collectors, recor
 
 	err = rollingUpgrade(clients, config, GetDeploymentRollingUpgradeFuncs(), collectors, recorder, invoke)
 	if err != nil {
-		return err
+		upgradeErrors = append(upgradeErrors, err)
 	}
 
 	// Only process CronJobs if they are not ignored
 	if !ignoredWorkloadTypes.Contains("cronjobs") {
 		err = rollingUpgrade(clients, config, GetCronJobCreateJobFuncs(), collectors, recorder, invoke)
 		if err != nil {
-			return err
+			upgradeErrors = append(upgradeErrors, err)
 		}
 	}
 
@@ -207,27 +208,27 @@ func doRollingUpgrade(config common.Config, collectors metrics.Collectors, recor
 	if !ignoredWorkloadTypes.Contains("jobs") {
 		err = rollingUpgrade(clients, config, GetJobCreateJobFuncs(), collectors, recorder, invoke)
 		if err != nil {
-			return err
+			upgradeErrors = append(upgradeErrors, err)
 		}
 	}
 
 	err = rollingUpgrade(clients, config, GetDaemonSetRollingUpgradeFuncs(), collectors, recorder, invoke)
 	if err != nil {
-		return err
+		upgradeErrors = append(upgradeErrors, err)
 	}
 	err = rollingUpgrade(clients, config, GetStatefulSetRollingUpgradeFuncs(), collectors, recorder, invoke)
 	if err != nil {
-		return err
+		upgradeErrors = append(upgradeErrors, err)
 	}
 
 	if options.IsArgoRollouts == "true" {
 		err = rollingUpgrade(clients, config, GetArgoRolloutRollingUpgradeFuncs(), collectors, recorder, invoke)
 		if err != nil {
-			return err
+			upgradeErrors = append(upgradeErrors, err)
 		}
 	}
 
-	return nil
+	return errors.Join(upgradeErrors...)
 }
 
 func rollingUpgrade(clients kube.Clients, config common.Config, upgradeFuncs callbacks.RollingUpgradeFuncs, collectors metrics.Collectors, recorder record.EventRecorder, strategy invokeStrategy) error {
@@ -246,12 +247,14 @@ func PerformAction(clients kube.Clients, config common.Config, upgradeFuncs call
 	collectors.RecordWorkloadsScanned(upgradeFuncs.ResourceType, len(items))
 
 	matchedCount := 0
+	var actionErrors []error
 	for _, item := range items {
 		matched, err := retryOnConflict(retry.DefaultRetry, func(fetchResource bool) (bool, error) {
 			return upgradeResource(clients, config, upgradeFuncs, collectors, recorder, strategy, item, fetchResource)
 		})
 		if err != nil {
-			return err
+			actionErrors = append(actionErrors, err)
+			continue
 		}
 		if matched {
 			matchedCount++
@@ -261,7 +264,7 @@ func PerformAction(clients kube.Clients, config common.Config, upgradeFuncs call
 	// Record workloads matched
 	collectors.RecordWorkloadsMatched(upgradeFuncs.ResourceType, matchedCount)
 
-	return nil
+	return errors.Join(actionErrors...)
 }
 
 func retryOnConflict(backoff wait.Backoff, fn func(_ bool) (bool, error)) (bool, error) {
@@ -322,17 +325,19 @@ func upgradeResource(clients kube.Clients, config common.Config, upgradeFuncs ca
 
 	// Never mutate the pod template until its window opens.
 	// Only workload metadata carries policy/state, keeping upstream behavior intact.
-	if restartwindow.HasPolicy(annotations) || restartwindow.HasPolicy(podAnnotations) {
-		if !options.EnableRestartWindows {
-			return true, fmt.Errorf("restart windows require --enable-restart-windows")
-		}
+	windowConfigured := restartwindow.HasPolicy(annotations) || restartwindow.HasPolicy(podAnnotations)
+	if windowConfigured && !options.EnableRestartWindows {
+		return skipRestartWindow(resource, upgradeFuncs.ResourceType, resourceName, config.Namespace, "restart_window_disabled", "restart-window policy requires --enable-restart-windows", collectors, recorder)
+	}
+	if windowConfigured {
 		if restartwindow.HasPolicy(podAnnotations) {
-			return true, fmt.Errorf("restart-window policy must be on workload metadata, not pod template")
+			return skipRestartWindow(resource, upgradeFuncs.ResourceType, resourceName, config.Namespace, "restart_window_pod_template_policy", "restart-window policy must be on workload metadata, not pod template", collectors, recorder)
 		}
 		if !restartwindow.Supported(upgradeFuncs.ResourceType) {
-			return true, fmt.Errorf("restart windows do not support %s", upgradeFuncs.ResourceType)
+			return skipRestartWindow(resource, upgradeFuncs.ResourceType, resourceName, config.Namespace, "restart_window_unsupported_workload", fmt.Sprintf("restart windows do not support %s", upgradeFuncs.ResourceType), collectors, recorder)
 		}
-		if getContainerUsingResource(upgradeFuncs, resource, config, result.AutoReload) == nil {
+		container := getContainerUsingResource(upgradeFuncs, resource, config, result.AutoReload)
+		if container == nil {
 			return false, nil
 		}
 		accessor, _ = meta.Accessor(resource)
@@ -344,7 +349,6 @@ func upgradeResource(clients kube.Clients, config common.Config, upgradeFuncs ca
 		}
 		return true, err
 	}
-
 	strategyResult := strategy(upgradeFuncs, resource, config, result.AutoReload)
 
 	if strategyResult.Result != constants.Updated {
@@ -408,6 +412,15 @@ func upgradeResource(clients kube.Clients, config common.Config, upgradeFuncs ca
 		}
 	}
 
+	return true, nil
+}
+
+func skipRestartWindow(resource runtime.Object, kind, name, namespace, reason, message string, collectors metrics.Collectors, recorder record.EventRecorder) (bool, error) {
+	logrus.Warnf("Skipping %s '%s' in namespace '%s': %s", kind, name, namespace, message)
+	collectors.RecordSkipped(reason)
+	if recorder != nil {
+		recorder.Event(resource, v1.EventTypeWarning, "RestartWindowSkipped", message)
+	}
 	return true, nil
 }
 

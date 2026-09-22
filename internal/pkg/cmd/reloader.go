@@ -174,7 +174,7 @@ func namespaceWatchScopeMessage(ignoredNamespaces []string) string {
 }
 
 func startReloader(cmd *cobra.Command, args []string) {
-	common.GetCommandLineOptions()
+	common.RefreshCommandLineOptions()
 	err := configureLogging(options.LogFormat, options.LogLevel)
 	if err != nil {
 		logrus.Warn(err)
@@ -265,7 +265,7 @@ func startReloader(cmd *cobra.Command, args []string) {
 
 	if options.EnableRestartWindows {
 		for _, currentNamespace := range watchNamespaces {
-			c := controller.NewRestartWindowController(clientset, currentNamespace, ignoredNamespacesList, namespaceLabelSelector, resourceLabelSelector, nil)
+			c := controller.NewRestartWindowController(clientset, currentNamespace, ignoredNamespacesList, namespaceLabelSelector, resourceLabelSelector, nil, collectors)
 			controllers = append(controllers, c)
 			if !options.EnableHA {
 				stop := make(chan struct{})
