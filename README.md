@@ -441,6 +441,13 @@ These flags allow you to redefine annotation keys used in your workloads or reso
 | `--secret-annotation` | Overrides `secret.reloader.stakater.com/reload` |
 | `--configmap-annotation` | Overrides `configmap.reloader.stakater.com/reload` |
 | `--ignore-annotation` | Overrides `reloader.stakater.com/ignore` |
+| `--secretproviderclass-annotation` | Overrides `secretproviderclass.reloader.stakater.com/reload` |
+| `--secretproviderclass-auto-annotation` | Overrides `secretproviderclass.reloader.stakater.com/auto` |
+| `--configmap-exclude-annotation` | Overrides `configmaps.exclude.reloader.stakater.com/reload` |
+| `--secret-exclude-annotation` | Overrides `secrets.exclude.reloader.stakater.com/reload` |
+| `--secretproviderclass-exclude-annotation` | Overrides `secretproviderclasses.exclude.reloader.stakater.com/reload` |
+| `--rollout-strategy-annotation` | Overrides `reloader.stakater.com/rollout-strategy` |
+| `--last-reloaded-from-annotation` | Overrides `reloader.stakater.com/last-reloaded-from` |
 | `--pause-deployment-annotation` | Overrides `deployment.reloader.stakater.com/pause-period` |
 | `--pause-deployment-time-annotation` | Overrides `deployment.reloader.stakater.com/paused-at` |
 
