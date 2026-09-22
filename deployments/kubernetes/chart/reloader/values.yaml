@@ -24,6 +24,8 @@ image:
   pullPolicy: IfNotPresent
 
 reloader:
+  # Optional restart windows; only annotated workloads are scheduled.
+  enableRestartWindows: false
   autoReloadAll: false
   isArgoRollouts: false
   isOpenshift: false
