@@ -160,9 +160,20 @@ func Request(ctx context.Context, c kubernetes.Interface, t Target, uid types.UI
 		if m.GetUID() != uid {
 			return nil
 		} // never transfer work to a recreated workload
-		p, _, err := state(m.GetAnnotations())
+		p, applied, err := state(m.GetAnnotations())
 		if err != nil {
 			return err
+		}
+		if applied[key(s)] == s.ObservedHash {
+			if _, exists := p[key(s)]; !exists {
+				return nil
+			}
+			delete(p, key(s))
+			var pending any = encode(p)
+			if len(p) == 0 {
+				pending = nil
+			}
+			return patch(ctx, c, t, obj, map[string]any{PendingAnnotation: pending}, "", "", nil)
 		}
 		if old, ok := p[key(s)]; ok && old == s {
 			return nil
@@ -398,12 +409,12 @@ func Reconcile(ctx context.Context, c kubernetes.Interface, t Target, now func()
 				}
 				attribution = string(attributionBytes)
 			}
-		}
-		if options.ReloadStrategy != constants.AnnotationsReloadStrategy {
-			envName := constants.EnvVarPrefix + util.ConvertToEnvVarName(s.Name) + "_" + s.Type
-			if value, ok := containerEnvValue(&template(obj).Spec, containerName, envName); !ok || value != config.SHAValue {
-				markerChanged = true
-				envMutations = append(envMutations, envMutation{Container: containerName, Name: envName, Value: config.SHAValue})
+			if options.ReloadStrategy != constants.AnnotationsReloadStrategy {
+				envName := constants.EnvVarPrefix + util.ConvertToEnvVarName(s.Name) + "_" + s.Type
+				if value, ok := containerEnvValue(&template(obj).Spec, containerName, envName); !ok || value != config.SHAValue {
+					markerChanged = true
+					envMutations = append(envMutations, envMutation{Container: containerName, Name: envName, Value: config.SHAValue})
+				}
 			}
 		}
 	}

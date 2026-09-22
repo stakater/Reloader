@@ -108,6 +108,64 @@ func TestPersistentCoalescingAndFreshSource(t *testing.T) {
 		t.Fatal("duplicate rollout on replay")
 	}
 }
+
+func TestAppliedReplayDoesNotBackfillMarkerOrRollout(t *testing.T) {
+	c, target := fixture()
+	s, err := c.CoreV1().Secrets("test").Get(context.Background(), "tls", metav1.GetOptions{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	hash := common.GetSecretConfig(s).SHAValue
+	d := deployment(t, c)
+	d.Annotations[AppliedAnnotation] = encode(map[string]string{constants.SecretEnvVarPostfix + "/tls": hash})
+	d.Spec.Template.Annotations = map[string]string{RestartAnnotation: "existing-restart-token"}
+	if _, err = c.AppsV1().Deployments("test").Update(context.Background(), d, metav1.UpdateOptions{}); err != nil {
+		t.Fatal(err)
+	}
+
+	request(t, c, target, "tls")
+	result, err := Reconcile(context.Background(), c, target, func() time.Time { return at("2026-09-09T23:00:00Z") }, labels.Everything(), func(string) bool { return true }, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.Executed {
+		t.Fatal("already-applied source triggered a rollout")
+	}
+	d = deployment(t, c)
+	if d.Annotations[PendingAnnotation] != "" {
+		t.Fatal("already-applied pending state was not cleared")
+	}
+	if d.Spec.Template.Annotations[RestartAnnotation] != "existing-restart-token" {
+		t.Fatal("already-applied source changed the restart token")
+	}
+	if len(d.Spec.Template.Spec.Containers[0].Env) != 0 {
+		t.Fatal("already-applied source backfilled a marker and changed the pod template")
+	}
+}
+
+func TestRequestSuppressesAppliedReplayAndClearsStalePending(t *testing.T) {
+	c, target := fixture()
+	s, err := c.CoreV1().Secrets("test").Get(context.Background(), "tls", metav1.GetOptions{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	hash := common.GetSecretConfig(s).SHAValue
+	d := deployment(t, c)
+	d.Annotations[AppliedAnnotation] = encode(map[string]string{constants.SecretEnvVarPostfix + "/tls": hash})
+	d.Annotations[PendingAnnotation] = encode(State{constants.SecretEnvVarPostfix + "/tls": {Type: constants.SecretEnvVarPostfix, Name: "tls", ObservedHash: hash}})
+	if _, err = c.AppsV1().Deployments("test").Update(context.Background(), d, metav1.UpdateOptions{}); err != nil {
+		t.Fatal(err)
+	}
+
+	request(t, c, target, "tls")
+	d = deployment(t, c)
+	if d.Annotations[PendingAnnotation] != "" {
+		t.Fatal("applied replay retained stale pending state")
+	}
+	if len(d.Spec.Template.Spec.Containers[0].Env) != 0 || d.Spec.Template.Annotations[RestartAnnotation] != "" {
+		t.Fatal("applied replay changed the pod template")
+	}
+}
 func TestInvalidPolicyAndMissingSecretHold(t *testing.T) {
 	c, target := fixture()
 	request(t, c, target, "tls")
