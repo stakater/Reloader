@@ -70,6 +70,8 @@ jobs:
         with:
           current-version: ${{ steps.new_chart_version.outputs.result }}
           previous-version: ${{ steps.chart_eval.outputs.CURRENT_CHART_VERSION }}
+          # Chart betas (3.0.0-beta.1) are a valid bump; the action rejects them by default.
+          allow-pre-release: true
 
       - name: Fail if Helm Chart version isnt updated
         if: steps.check-version.outputs.is-version-increased != 'true'
