@@ -9,9 +9,12 @@ permissions: {}
 
 jobs:
   dispatch:
-    # Skip prereleases (betas) and chart releases; only stable operator
-    # releases should trigger the enterprise build.
-    if: ${{ !github.event.release.prerelease && !startsWith(github.event.release.tag_name, 'chart-v') }}
+    # Skip chart releases. release-helm-chart.yaml publishes those as GitHub
+    # releases too, and a chart tag carries no operator source to build, so a
+    # dispatch would produce a Go image named after a chart version.
+    # Prereleases are deliberately allowed through so betas get an enterprise
+    # image alongside the OSS one.
+    if: ${{ !startsWith(github.event.release.tag_name, 'chart-v') }}
     runs-on: ubuntu-latest
     steps:
       - name: Trigger target repository workflow

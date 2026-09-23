@@ -335,6 +335,13 @@ enterprise section. Edit the chart values directly; the header comment is stale.
 `pull_request.yaml` runs `make test`, so the five test files under `pkg/` are never executed by a PR
 check even though `pkg/` is the contract the enterprise gateway builds against.
 
+**Prereleases trigger the enterprise image build.**
+`.github/workflows/reloader-enterprise-published.yml` dispatches to
+`stakater-ab/reloader-enterprise` on every published release except `chart-v*` ones, betas included.
+That `chart-v` check is the only filter left, so removing it would build a Go image named after a
+chart version. The enterprise build also dispatches an SBOM payload to `reloader-docs`, so that fires
+for betas too.
+
 **`VERSION` at the repo root says `1.4.14`** and is not read by any workflow or script. Do not treat it
 as the release version; `Chart.yaml` and the git tag are the real sources.
 
