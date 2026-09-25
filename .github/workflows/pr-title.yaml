@@ -39,12 +39,12 @@ jobs:
           PR: ${{ github.event.pull_request.number }}
           BODY: |
             <!-- pr-title-freeze -->
-            👋 Thanks for the PR! `master` is in feature freeze and only accepts `fix:` and `chore:` PRs.
+            Thank you for your contribution. The `master` branch is in feature freeze and accepts only `fix:` and `chore:` pull requests.
 
-            - Bug fix or maintenance: rename the title to start with `fix:` or `chore:` (e.g. `fix(chart): ...`).
-            - New feature: please retarget this PR to the `v2` branch, which is where new development happens.
+            - For a bug fix or maintenance change, update the title to begin with `fix:` or `chore:`, for example `fix(chart): correct probe port`.
+            - For a new feature, change the base branch of this pull request to `v2`, the active development branch.
 
-            See [Branches and PR titles](https://github.com/stakater/Reloader/blob/master/README.md#branches-and-pr-titles) for details.
+            For more details, see [Branches and PR titles](https://github.com/stakater/Reloader/blob/master/README.md#branches-and-pr-titles).
         run: |
           # Marker keeps it to one comment per PR, however many times the title is edited.
           if ! gh api "repos/$GITHUB_REPOSITORY/issues/$PR/comments" --paginate --jq '.[].body' | grep -q 'pr-title-freeze'; then
