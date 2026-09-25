@@ -72,7 +72,7 @@ jobs:
     - name: Get version for chart from helm repo
       id: chart_eval
       run: |
-        current_chart_version=$(helm search repo stakater/reloader | tail -n 1 | awk '{print $2}')
+        current_chart_version=$(helm search repo stakater/reloader --version '^2' | tail -n 1 | awk '{print $2}')
         echo "CURRENT_CHART_VERSION=$(echo ${current_chart_version})" >> $GITHUB_OUTPUT
 
     - name: Get Updated Chart version from Chart.yaml
