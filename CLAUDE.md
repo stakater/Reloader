@@ -215,6 +215,8 @@ The `reloader.stakater.com/search` annotation on a workload pairs with `reloader
 
 **Helm chart**: `deployments/kubernetes/chart/reloader/` — install via Helm or `kubectl apply -f deployments/kubernetes/reloader.yaml`.
 
+**Branch policy**: `master` is in feature freeze, `pr-title.yaml` only lets `fix:` and `chore:` PR titles through. New features go to `v2`. The master chart stays on 2.x, so its version gate compares against `helm search repo stakater/reloader --version '^2'`, not the newest chart (v2 publishes 3.x to the same repo). Likewise the UBI builder image in `pull_request.yaml` comes from the highest stable `v1.*` tag.
+
 ---
 
 ## Coding Conventions

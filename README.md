@@ -493,6 +493,13 @@ Join and talk to us on Slack for discussing Reloader:
 
 ## Contributing
 
+### Branches and PR titles
+
+- `master` is in feature freeze and accepts only bug fixes (`fix:`) and maintenance changes (`chore:`).
+- `v2` is the active development branch. Please open pull requests for new features against `v2`.
+
+Pull request titles must follow the [Conventional Commits](https://www.conventionalcommits.org/) format, for example `fix(chart): correct probe port`. The following prefixes are accepted on `v2`: `feat`, `fix`, `chore`, `docs`, `refactor`, `perf`, `test`, `ci`, `build` and `revert`.
+
 ### Bug Reports & Feature Requests
 
 Please use the [issue tracker](https://github.com/stakater/Reloader/issues) to report any bugs or file feature requests.

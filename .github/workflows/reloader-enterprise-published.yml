@@ -9,6 +9,9 @@ permissions: {}
 
 jobs:
   dispatch:
+    # Skip chart releases. release-helm-chart.yaml publishes those as GitHub
+    # releases too, and a chart tag carries no operator source to build.
+    if: ${{ !startsWith(github.event.release.tag_name, 'chart-v') }}
     runs-on: ubuntu-latest
     steps:
       - name: Trigger target repository workflow
