@@ -484,10 +484,10 @@ Join and talk to us on Slack for discussing Reloader:
 
 ### Branches and PR titles
 
-- `master` is in feature freeze and only accepts `fix:` and `chore:` PRs.
-- `v2` is the development branch, new features go there.
+- `master` is in feature freeze and accepts only bug fixes (`fix:`) and maintenance changes (`chore:`).
+- `v2` is the active development branch. Please open pull requests for new features against `v2`.
 
-PR titles must follow [Conventional Commits](https://www.conventionalcommits.org/), e.g. `fix(chart): correct probe port`. Allowed prefixes on `v2`: `feat`, `fix`, `chore`, `docs`, `refactor`, `perf`, `test`, `ci`, `build`, `revert`.
+Pull request titles must follow the [Conventional Commits](https://www.conventionalcommits.org/) format, for example `fix(chart): correct probe port`. The following prefixes are accepted on `v2`: `feat`, `fix`, `chore`, `docs`, `refactor`, `perf`, `test`, `ci`, `build` and `revert`.
 
 ### Bug Reports & Feature Requests
 
