@@ -1,0 +1,52 @@
+name: PR Title
+
+# pull_request_target so the comment step also works on fork PRs.
+# Safe because nothing from the PR is checked out, the title only reaches the shell via env.
+on:
+  pull_request_target:
+    types: [opened, edited, synchronize, reopened]
+    branches:
+      - master
+      - 'v**'
+
+permissions:
+  pull-requests: write
+
+jobs:
+  semantic-prefix:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check semantic prefix
+        env:
+          TITLE: ${{ github.event.pull_request.title }}
+          BASE: ${{ github.base_ref }}
+        run: |
+          # master is in feature freeze, only fixes and chores land there.
+          if [ "$BASE" = master ]; then
+            pattern='^(fix|chore)(\([a-z0-9./_-]+\))?: .+'
+          else
+            pattern='^(feat|fix|chore|docs|refactor|perf|test|ci|build|revert)(\([a-z0-9./_-]+\))?!?: .+'
+          fi
+          if ! printf '%s' "$TITLE" | grep -qE "$pattern"; then
+            echo "::error::PR title \"$TITLE\" must match $pattern for base branch $BASE"
+            exit 1
+          fi
+
+      - name: Explain the master freeze
+        if: failure() && github.base_ref == 'master'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR: ${{ github.event.pull_request.number }}
+          BODY: |
+            <!-- pr-title-freeze -->
+            Thank you for your contribution. The `master` branch is in feature freeze and accepts only `fix:` and `chore:` pull requests.
+
+            - For a bug fix or maintenance change, update the title to begin with `fix:` or `chore:`, for example `fix(chart): correct probe port`.
+            - For a new feature, change the base branch of this pull request to `v2`, the active development branch.
+
+            For more details, see [Branches and PR titles](https://github.com/stakater/Reloader/blob/master/README.md#branches-and-pr-titles).
+        run: |
+          # Marker keeps it to one comment per PR, however many times the title is edited.
+          if ! gh api "repos/$GITHUB_REPOSITORY/issues/$PR/comments" --paginate --jq '.[].body' | grep -q 'pr-title-freeze'; then
+            gh pr comment "$PR" --repo "$GITHUB_REPOSITORY" --body "$BODY"
+          fi
