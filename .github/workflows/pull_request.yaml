@@ -73,12 +73,13 @@ jobs:
       run: echo "created=$(date -u +'%Y-%m-%dT%H:%M:%SZ')" >> $GITHUB_OUTPUT
 
 
-    # Get highest tag and remove any suffixes with '-'
+    # Highest v2 tag, used as the UBI builder image. Prereleases are kept as is,
+    # the release workflow publishes an image for every exact tag.
     - name: Get Highest tag
       id: highest_tag
       run: |
-        highest=$(git tag -l --sort -version:refname | head -n 1)
-        echo "tag=${highest%%-*}" >> $GITHUB_OUTPUT
+        highest=$(git tag -l 'v2.*' --sort -version:refname | head -n 1)
+        echo "tag=${highest}" >> $GITHUB_OUTPUT
 
     - name: Install Dependencies
       run: |
