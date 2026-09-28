@@ -75,6 +75,7 @@ reloader:
     image:
       name: {{ getenv "DOCKER_IMAGE" }}
       tag: "{{ getenv "VERSION" }}"
+      # repository, tag and digest are rendered with tpl, so they may reference other values.
       pullPolicy: IfNotPresent
     # Support for extra environment variables.
     env:

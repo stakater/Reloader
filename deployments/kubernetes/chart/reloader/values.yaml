@@ -21,6 +21,7 @@ image:
   repository: ghcr.io/stakater/reloader
   tag: v1.4.22
   # digest: sha256:1234567
+  # repository, tag and digest are rendered with tpl, so they may reference other values.
   pullPolicy: IfNotPresent
 
 reloader:
