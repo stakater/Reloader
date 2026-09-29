@@ -86,14 +86,16 @@ spec:
       {{- toYaml . | nindent 8 }}
       {{- end }}
       containers:
-      {{- $imageTag := .Values.image.tag | default .Chart.AppVersion }}
+      {{- $repository := tpl (.Values.image.repository | toString) . }}
+      {{- $tag := tpl (.Values.image.tag | default .Chart.AppVersion | toString) . }}
+      {{- $digest := tpl (.Values.image.digest | default "" | toString) . }}
       {{- if .Values.global.imageRegistry }}
-      - image: "{{ .Values.global.imageRegistry }}/{{ .Values.image.name }}:{{ $imageTag }}"
+      - image: "{{ .Values.global.imageRegistry }}/{{ .Values.image.name }}:{{ $tag }}"
       {{- else }}
-      {{- if .Values.image.digest }}
-      - image: "{{ .Values.image.repository }}@{{ .Values.image.digest }}"
+      {{- if $digest }}
+      - image: "{{ $repository }}@{{ $digest }}"
       {{- else }}
-      - image: "{{ .Values.image.repository }}:{{ $imageTag }}"
+      - image: "{{ $repository }}:{{ $tag }}"
       {{- end }}
       {{- end }}
         imagePullPolicy: {{ .Values.image.pullPolicy }}
