@@ -228,3 +228,38 @@ tests:
       - contains:
           path: spec.template.spec.containers[0].args
           content: "--enable-ha=true"
+
+  - it: defaults the readiness probe to /metrics and the liveness probe to /live
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].readinessProbe.httpGet.path
+          value: /metrics
+      - equal:
+          path: spec.template.spec.containers[0].readinessProbe.httpGet.port
+          value: http
+      - equal:
+          path: spec.template.spec.containers[0].livenessProbe.httpGet.path
+          value: /live
+      - equal:
+          path: spec.template.spec.containers[0].livenessProbe.httpGet.port
+          value: http
+
+  - it: allows overriding the probe httpGet path and port
+    set:
+      reloader:
+        deployment:
+          readinessProbe:
+            httpGetPath: /live
+            httpGetPort: http
+          livenessProbe:
+            httpGetPath: /healthz
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].readinessProbe.httpGet.path
+          value: /live
+      - equal:
+          path: spec.template.spec.containers[0].readinessProbe.httpGet.port
+          value: http
+      - equal:
+          path: spec.template.spec.containers[0].livenessProbe.httpGet.path
+          value: /healthz

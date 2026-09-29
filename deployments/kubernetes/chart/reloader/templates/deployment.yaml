@@ -184,8 +184,8 @@ spec:
           containerPort: 9090
         livenessProbe:
           httpGet:
-            path: /live
-            port: http
+            path: {{ .Values.reloader.deployment.livenessProbe.httpGetPath | default "/live" }}
+            port: {{ .Values.reloader.deployment.livenessProbe.httpGetPort | default "http" }}
           timeoutSeconds: {{ .Values.reloader.deployment.livenessProbe.timeoutSeconds | default "5" }}
           failureThreshold: {{ .Values.reloader.deployment.livenessProbe.failureThreshold | default "5" }}
           periodSeconds: {{ .Values.reloader.deployment.livenessProbe.periodSeconds | default "10" }}
@@ -193,8 +193,8 @@ spec:
           initialDelaySeconds: {{ .Values.reloader.deployment.livenessProbe.initialDelaySeconds | default "10" }}
         readinessProbe:
           httpGet:
-            path: /metrics
-            port: http
+            path: {{ .Values.reloader.deployment.readinessProbe.httpGetPath | default "/metrics" }}
+            port: {{ .Values.reloader.deployment.readinessProbe.httpGetPort | default "http" }}
           timeoutSeconds: {{ .Values.reloader.deployment.readinessProbe.timeoutSeconds | default "5" }}
           failureThreshold: {{ .Values.reloader.deployment.readinessProbe.failureThreshold | default "5" }}
           periodSeconds: {{ .Values.reloader.deployment.readinessProbe.periodSeconds | default "10" }}

@@ -174,17 +174,23 @@ reloader:
       #    ALERT_WEBHOOK_URL: alert_webhook_key
       #    ALERT_ADDITIONAL_INFO: alert_additional_info_key
 
-    # Liveness and readiness probe timeout values.
+    # Liveness and readiness probe values. The httpGet path and port can be
+    # overridden (e.g. use /live for readiness instead of the default
+    # /metrics, which only proves the HTTP server is up).
     livenessProbe: {}
     #  timeoutSeconds: 5
     #  failureThreshold: 5
     #  periodSeconds: 10
     #  successThreshold: 1
+    #  httpGetPath: /live
+    #  httpGetPort: http
     readinessProbe: {}
     #  timeoutSeconds: 15
     #  failureThreshold: 5
     #  periodSeconds: 10
     #  successThreshold: 1
+    #  httpGetPath: /metrics
+    #  httpGetPort: http
 
     # Specify resource requests/limits for the deployment.
     # Example:
