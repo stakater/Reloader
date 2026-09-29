@@ -234,14 +234,14 @@ tests:
             reloader:
               registry: acr.example.invalid
               image: reloader-enterprise
-              digest: "sha256:4444444444444444444444444444444444444444444444444444444444444"
+              digest: "sha256:4444444444444444444444444444444444444444444444444444444444444444"
       image:
         repository: "{{ .Values.global.azure.images.reloader.registry }}/{{ .Values.global.azure.images.reloader.image }}"
         digest: "{{ .Values.global.azure.images.reloader.digest }}"
     asserts:
       - equal:
           path: spec.template.spec.containers[0].image
-          value: "acr.example.invalid/reloader-enterprise@sha256:4444444444444444444444444444444444444444444444444444444444444"
+          value: "acr.example.invalid/reloader-enterprise@sha256:4444444444444444444444444444444444444444444444444444444444444444"
 
   - it: renders a templated repository and tag through tpl when no digest is set
     set:
