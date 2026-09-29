@@ -225,3 +225,36 @@ tests:
             valueFrom:
               fieldRef:
                 fieldPath: metadata.name
+
+  - it: renders a templated repository and digest through tpl
+    set:
+      global:
+        azure:
+          images:
+            reloader:
+              registry: acr.example.invalid
+              image: reloader-enterprise
+              digest: "sha256:4444444444444444444444444444444444444444444444444444444444444444"
+      image:
+        repository: "{{ .Values.global.azure.images.reloader.registry }}/{{ .Values.global.azure.images.reloader.image }}"
+        digest: "{{ .Values.global.azure.images.reloader.digest }}"
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].image
+          value: "acr.example.invalid/reloader-enterprise@sha256:4444444444444444444444444444444444444444444444444444444444444444"
+
+  - it: renders a templated repository and tag through tpl when no digest is set
+    set:
+      global:
+        azure:
+          images:
+            reloader:
+              registry: acr.example.invalid
+              image: reloader-enterprise
+      image:
+        repository: "{{ .Values.global.azure.images.reloader.registry }}/{{ .Values.global.azure.images.reloader.image }}"
+        tag: "v9.9.9"
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].image
+          value: "acr.example.invalid/reloader-enterprise:v9.9.9"

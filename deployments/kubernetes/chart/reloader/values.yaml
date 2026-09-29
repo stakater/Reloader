@@ -29,6 +29,7 @@ image:
   # Defaults to Chart.yaml appVersion, so a release only needs to bump appVersion.
   tag: ""
   # digest: sha256:1234567
+  # repository, tag and digest are rendered with tpl, so they may reference other values.
   pullPolicy: IfNotPresent
 
 # Reloader Enterprise components (console + gateway + dragonfly cache).

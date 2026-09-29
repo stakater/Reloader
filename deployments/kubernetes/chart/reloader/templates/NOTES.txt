@@ -6,7 +6,7 @@
 
 - After successful installation, your pods will get rolling updates when a change in data of configmap or secret will happen.
 {{- if .Values.enterprise.enabled }}
-{{- $usingCommunityImage := ternary (eq .Values.image.name "stakater/reloader") (eq .Values.image.repository "ghcr.io/stakater/reloader") (not (empty .Values.global.imageRegistry)) }}
+{{- $usingCommunityImage := ternary (eq .Values.image.name "stakater/reloader") (eq (tpl (.Values.image.repository | toString) .) "ghcr.io/stakater/reloader") (not (empty .Values.global.imageRegistry)) }}
 {{- if $usingCommunityImage }}
 
   WARNING: enterprise.enabled=true but the operator image still points at the
