@@ -85,13 +85,16 @@ spec:
       {{- toYaml . | nindent 8 }}
       {{- end }}
       containers:
+      {{- $repository := tpl (.Values.image.repository | toString) . }}
+      {{- $tag := tpl (.Values.image.tag | toString) . }}
+      {{- $digest := tpl (.Values.image.digest | default "" | toString) . }}
       {{- if .Values.global.imageRegistry }}
-      - image: "{{ .Values.global.imageRegistry }}/{{ .Values.image.name }}:{{ .Values.image.tag }}"
+      - image: "{{ .Values.global.imageRegistry }}/{{ .Values.image.name }}:{{ $tag }}"
       {{- else }}
-      {{- if .Values.image.digest }}
-      - image: "{{ .Values.image.repository }}@{{ .Values.image.digest }}"
+      {{- if $digest }}
+      - image: "{{ $repository }}@{{ $digest }}"
       {{- else }}
-      - image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+      - image: "{{ $repository }}:{{ $tag }}"
       {{- end }}
       {{- end }}
         imagePullPolicy: {{ .Values.image.pullPolicy }}
