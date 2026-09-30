@@ -11,6 +11,12 @@
 [![GitHub Stars](https://img.shields.io/github/stars/stakater/Reloader.svg?style=flat-square)](https://github.com/stakater/Reloader)
 [![license](https://img.shields.io/github/license/stakater/reloader.svg?style=flat-square)](LICENSE)
 
+## 📢 Reloader v2 is here
+
+Reloader v2, rebuilt on the [Operator SDK](https://sdk.operatorframework.io/), has been released. All new development happens on the [`v2`](https://github.com/stakater/Reloader/tree/v2) branch.
+
+The `master` branch (Reloader v1) is **feature-frozen** and will only receive security and critical bug fixes. Please open new feature requests and pull requests against `v2`, and see the [contribution guide](#contributing) for branch and PR title rules.
+
 ## 🔁 What is Reloader?
 
 Reloader is a Kubernetes controller that automatically triggers rollouts of workloads (like Deployments, StatefulSets, and more) whenever referenced `Secrets`, `ConfigMaps` or **optionally CSI-mounted secrets** are updated.
