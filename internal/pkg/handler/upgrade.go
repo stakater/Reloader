@@ -569,10 +569,7 @@ func secretProviderClassAnnotationReloaded(oldAnnotations map[string]string, new
 }
 
 func getReloaderAnnotationKey() string {
-	return fmt.Sprintf("%s/%s",
-		constants.ReloaderAnnotationPrefix,
-		constants.LastReloadedFromAnnotation,
-	)
+	return options.LastReloadedFromAnnotation
 }
 
 func createReloadedAnnotations(target *common.ReloadSource, upgradeFuncs callbacks.RollingUpgradeFuncs) (map[string]string, []byte, error) {
