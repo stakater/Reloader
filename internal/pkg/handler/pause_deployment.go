@@ -179,6 +179,15 @@ func CreateResumeTimer(deployment *app.Deployment, clients kube.Clients, namespa
 func ResumeDeployment(deployment *app.Deployment, namespace string, clients kube.Clients) {
 	deploymentName := deployment.Name
 
+	// Remove the timer first: if this attempt fails, a later change to the
+	// deployment must find no timer, so that HandleMissingTimer retries the resume.
+	timerKey := getTimerKey(namespace, deploymentName)
+	if timer, exists := activeTimers[timerKey]; exists {
+		timer.Stop()
+		delete(activeTimers, timerKey)
+		logrus.Debugf("Removed pause timer for deployment '%s' in namespace '%s'", deploymentName, namespace)
+	}
+
 	currentDeployment, err := clients.KubernetesClient.AppsV1().Deployments(namespace).Get(context.TODO(), deploymentName, metav1.GetOptions{})
 
 	if err != nil {
@@ -197,14 +206,6 @@ func ResumeDeployment(deployment *app.Deployment, namespace string, clients kube
 	if err != nil {
 		logrus.Errorf("Failed to create resume patch for deployment '%s': %v", deploymentName, err)
 		return
-	}
-
-	// Remove the timer
-	timerKey := getTimerKey(namespace, deploymentName)
-	if timer, exists := activeTimers[timerKey]; exists {
-		timer.Stop()
-		delete(activeTimers, timerKey)
-		logrus.Debugf("Removed pause timer for deployment '%s' in namespace '%s'", deploymentName, namespace)
 	}
 
 	err = deploymentFuncs.PatchFunc(clients, namespace, currentDeployment, patchtypes.StrategicMergePatchType, resumePatch)
