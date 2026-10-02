@@ -491,6 +491,283 @@ func TestGetPatchDeleteTemplateEnvVar(t *testing.T) {
 	assert.Equal(t, 2, strings.Count(templates.DeleteEnvVarTemplate, "%d"))
 }
 
+// TestHydrateRolloutFromWorkloadRef tests that Rollouts with spec.workloadRef
+// get their template hydrated from the referenced Deployment.
+func TestHydrateRolloutFromWorkloadRef(t *testing.T) {
+	namespace := "test-hydrate-ns"
+
+	// Create a Deployment that the Rollout's workloadRef will point to
+	deploymentContainers := []v1.Container{
+		{
+			Name:  "app",
+			Image: "myapp:latest",
+			EnvFrom: []v1.EnvFromSource{
+				{ConfigMapRef: &v1.ConfigMapEnvSource{LocalObjectReference: v1.LocalObjectReference{Name: "my-configmap"}}},
+			},
+		},
+	}
+	deploymentVolumes := []v1.Volume{
+		{
+			Name: "secret-vol",
+			VolumeSource: v1.VolumeSource{
+				Secret: &v1.SecretVolumeSource{SecretName: "my-secret"},
+			},
+		},
+	}
+	deployment := &appsv1.Deployment{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "referenced-deployment",
+			Namespace: namespace,
+		},
+		Spec: appsv1.DeploymentSpec{
+			Template: v1.PodTemplateSpec{
+				ObjectMeta: metav1.ObjectMeta{
+					Annotations: map[string]string{"existing-annotation": "value"},
+				},
+				Spec: v1.PodSpec{
+					Containers: deploymentContainers,
+					Volumes:    deploymentVolumes,
+				},
+			},
+		},
+	}
+	_, err := clients.KubernetesClient.AppsV1().Deployments(namespace).Create(
+		context.TODO(), deployment, metav1.CreateOptions{})
+	assert.NoError(t, err)
+	defer func() {
+		_ = clients.KubernetesClient.AppsV1().Deployments(namespace).Delete(
+			context.TODO(), "referenced-deployment", metav1.DeleteOptions{})
+	}()
+
+	t.Run("workloadRef Rollout gets template hydrated from Deployment", func(t *testing.T) {
+		// Create a Rollout with workloadRef and no inline template
+		rollout := &argorolloutv1alpha1.Rollout{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "workloadref-rollout",
+				Namespace: namespace,
+				Annotations: map[string]string{
+					"reloader.stakater.com/auto": "true",
+				},
+			},
+			Spec: argorolloutv1alpha1.RolloutSpec{
+				WorkloadRef: &argorolloutv1alpha1.ObjectRef{
+					APIVersion: "apps/v1",
+					Kind:       "Deployment",
+					Name:       "referenced-deployment",
+				},
+			},
+		}
+		_, err := clients.ArgoRolloutClient.ArgoprojV1alpha1().Rollouts(namespace).Create(
+			context.TODO(), rollout, metav1.CreateOptions{})
+		assert.NoError(t, err)
+		defer func() {
+			_ = clients.ArgoRolloutClient.ArgoprojV1alpha1().Rollouts(namespace).Delete(
+				context.TODO(), "workloadref-rollout", metav1.DeleteOptions{})
+		}()
+
+		// Fetch via GetRolloutItem — hydration should happen automatically
+		obj, err := callbacks.GetRolloutItem(clients, "workloadref-rollout", namespace)
+		assert.NoError(t, err)
+
+		hydratedRollout := obj.(*argorolloutv1alpha1.Rollout)
+
+		// Verify containers were hydrated from Deployment
+		assert.Len(t, hydratedRollout.Spec.Template.Spec.Containers, 1)
+		assert.Equal(t, "app", hydratedRollout.Spec.Template.Spec.Containers[0].Name)
+
+		// Verify volumes were hydrated
+		assert.Len(t, hydratedRollout.Spec.Template.Spec.Volumes, 1)
+		assert.Equal(t, "my-secret", hydratedRollout.Spec.Template.Spec.Volumes[0].Secret.SecretName)
+
+		// Verify restart strategy was defaulted for safety
+		assert.Equal(t, "restart", hydratedRollout.Annotations[options.RolloutStrategyAnnotation])
+
+		// Verify TemplateResolvedFromRef flag is set
+		assert.True(t, hydratedRollout.Spec.TemplateResolvedFromRef)
+	})
+
+	t.Run("workloadRef Rollout preserves explicit rollout-strategy annotation", func(t *testing.T) {
+		rollout := &argorolloutv1alpha1.Rollout{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "workloadref-explicit-strategy",
+				Namespace: namespace,
+				Annotations: map[string]string{
+					options.RolloutStrategyAnnotation: "restart",
+				},
+			},
+			Spec: argorolloutv1alpha1.RolloutSpec{
+				WorkloadRef: &argorolloutv1alpha1.ObjectRef{
+					APIVersion: "apps/v1",
+					Kind:       "Deployment",
+					Name:       "referenced-deployment",
+				},
+			},
+		}
+		_, err := clients.ArgoRolloutClient.ArgoprojV1alpha1().Rollouts(namespace).Create(
+			context.TODO(), rollout, metav1.CreateOptions{})
+		assert.NoError(t, err)
+		defer func() {
+			_ = clients.ArgoRolloutClient.ArgoprojV1alpha1().Rollouts(namespace).Delete(
+				context.TODO(), "workloadref-explicit-strategy", metav1.DeleteOptions{})
+		}()
+
+		obj, err := callbacks.GetRolloutItem(clients, "workloadref-explicit-strategy", namespace)
+		assert.NoError(t, err)
+
+		hydratedRollout := obj.(*argorolloutv1alpha1.Rollout)
+
+		// Existing annotation should not be overwritten
+		assert.Equal(t, "restart", hydratedRollout.Annotations[options.RolloutStrategyAnnotation])
+		assert.Len(t, hydratedRollout.Spec.Template.Spec.Containers, 1)
+	})
+
+	t.Run("inline template Rollout is not hydrated", func(t *testing.T) {
+		// Rollout with both workloadRef and inline template — inline takes precedence
+		rollout := &argorolloutv1alpha1.Rollout{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "inline-template-rollout",
+				Namespace: namespace,
+			},
+			Spec: argorolloutv1alpha1.RolloutSpec{
+				WorkloadRef: &argorolloutv1alpha1.ObjectRef{
+					APIVersion: "apps/v1",
+					Kind:       "Deployment",
+					Name:       "referenced-deployment",
+				},
+				Template: v1.PodTemplateSpec{
+					Spec: v1.PodSpec{
+						Containers: []v1.Container{{Name: "inline-container"}},
+					},
+				},
+			},
+		}
+		_, err := clients.ArgoRolloutClient.ArgoprojV1alpha1().Rollouts(namespace).Create(
+			context.TODO(), rollout, metav1.CreateOptions{})
+		assert.NoError(t, err)
+		defer func() {
+			_ = clients.ArgoRolloutClient.ArgoprojV1alpha1().Rollouts(namespace).Delete(
+				context.TODO(), "inline-template-rollout", metav1.DeleteOptions{})
+		}()
+
+		obj, err := callbacks.GetRolloutItem(clients, "inline-template-rollout", namespace)
+		assert.NoError(t, err)
+
+		fetchedRollout := obj.(*argorolloutv1alpha1.Rollout)
+
+		// Should still have the inline container, not the Deployment's
+		assert.Len(t, fetchedRollout.Spec.Template.Spec.Containers, 1)
+		assert.Equal(t, "inline-container", fetchedRollout.Spec.Template.Spec.Containers[0].Name)
+		assert.False(t, fetchedRollout.Spec.TemplateResolvedFromRef)
+	})
+
+	t.Run("unsupported workloadRef kind is skipped", func(t *testing.T) {
+		rollout := &argorolloutv1alpha1.Rollout{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "unsupported-kind-rollout",
+				Namespace: namespace,
+			},
+			Spec: argorolloutv1alpha1.RolloutSpec{
+				WorkloadRef: &argorolloutv1alpha1.ObjectRef{
+					APIVersion: "apps/v1",
+					Kind:       "ReplicaSet",
+					Name:       "some-replicaset",
+				},
+			},
+		}
+		_, err := clients.ArgoRolloutClient.ArgoprojV1alpha1().Rollouts(namespace).Create(
+			context.TODO(), rollout, metav1.CreateOptions{})
+		assert.NoError(t, err)
+		defer func() {
+			_ = clients.ArgoRolloutClient.ArgoprojV1alpha1().Rollouts(namespace).Delete(
+				context.TODO(), "unsupported-kind-rollout", metav1.DeleteOptions{})
+		}()
+
+		obj, err := callbacks.GetRolloutItem(clients, "unsupported-kind-rollout", namespace)
+		assert.NoError(t, err)
+
+		fetchedRollout := obj.(*argorolloutv1alpha1.Rollout)
+
+		// Template should remain empty — no hydration for unsupported kinds
+		assert.Empty(t, fetchedRollout.Spec.Template.Spec.Containers)
+		assert.False(t, fetchedRollout.Spec.TemplateResolvedFromRef)
+	})
+
+	t.Run("missing referenced Deployment does not crash", func(t *testing.T) {
+		rollout := &argorolloutv1alpha1.Rollout{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "missing-deployment-rollout",
+				Namespace: namespace,
+			},
+			Spec: argorolloutv1alpha1.RolloutSpec{
+				WorkloadRef: &argorolloutv1alpha1.ObjectRef{
+					APIVersion: "apps/v1",
+					Kind:       "Deployment",
+					Name:       "nonexistent-deployment",
+				},
+			},
+		}
+		_, err := clients.ArgoRolloutClient.ArgoprojV1alpha1().Rollouts(namespace).Create(
+			context.TODO(), rollout, metav1.CreateOptions{})
+		assert.NoError(t, err)
+		defer func() {
+			_ = clients.ArgoRolloutClient.ArgoprojV1alpha1().Rollouts(namespace).Delete(
+				context.TODO(), "missing-deployment-rollout", metav1.DeleteOptions{})
+		}()
+
+		obj, err := callbacks.GetRolloutItem(clients, "missing-deployment-rollout", namespace)
+		assert.NoError(t, err)
+
+		fetchedRollout := obj.(*argorolloutv1alpha1.Rollout)
+
+		// Should gracefully return empty template, not error
+		assert.Empty(t, fetchedRollout.Spec.Template.Spec.Containers)
+		assert.False(t, fetchedRollout.Spec.TemplateResolvedFromRef)
+	})
+
+	t.Run("GetRolloutItems hydrates workloadRef Rollouts in list", func(t *testing.T) {
+		rollout := &argorolloutv1alpha1.Rollout{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "list-workloadref-rollout",
+				Namespace: namespace,
+				Annotations: map[string]string{
+					"reloader.stakater.com/auto": "true",
+				},
+			},
+			Spec: argorolloutv1alpha1.RolloutSpec{
+				WorkloadRef: &argorolloutv1alpha1.ObjectRef{
+					APIVersion: "apps/v1",
+					Kind:       "Deployment",
+					Name:       "referenced-deployment",
+				},
+			},
+		}
+		_, err := clients.ArgoRolloutClient.ArgoprojV1alpha1().Rollouts(namespace).Create(
+			context.TODO(), rollout, metav1.CreateOptions{})
+		assert.NoError(t, err)
+		defer func() {
+			_ = clients.ArgoRolloutClient.ArgoprojV1alpha1().Rollouts(namespace).Delete(
+				context.TODO(), "list-workloadref-rollout", metav1.DeleteOptions{})
+		}()
+
+		items := callbacks.GetRolloutItems(clients, namespace)
+		assert.NotEmpty(t, items)
+
+		// Find our rollout in the list
+		var foundRollout *argorolloutv1alpha1.Rollout
+		for _, item := range items {
+			r := item.(*argorolloutv1alpha1.Rollout)
+			if r.Name == "list-workloadref-rollout" {
+				foundRollout = r
+				break
+			}
+		}
+		assert.NotNil(t, foundRollout, "workloadRef rollout should be in items list")
+		assert.Len(t, foundRollout.Spec.Template.Spec.Containers, 1)
+		assert.Equal(t, "app", foundRollout.Spec.Template.Spec.Containers[0].Name)
+		assert.True(t, foundRollout.Spec.TemplateResolvedFromRef)
+	})
+}
+
 // Helper functions
 
 func isRestartStrategy(rollout *argorolloutv1alpha1.Rollout) bool {
