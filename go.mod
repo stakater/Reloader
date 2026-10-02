@@ -3,6 +3,7 @@ module github.com/stakater/Reloader
 go 1.26.8
 
 require (
+	github.com/robfig/cron/v3 v3.0.1
 	github.com/argoproj/argo-rollouts v1.9.0
 	github.com/onsi/ginkgo/v2 v2.27.4
 	github.com/onsi/gomega v1.39.0

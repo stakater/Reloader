@@ -30,6 +30,7 @@ import (
 
 // Controller for checking events
 type Controller struct {
+	windowRunner      func(chan struct{})
 	client            kubernetes.Interface
 	queue             workqueue.TypedRateLimitingInterface[any]
 	informer          cache.Controller
@@ -291,6 +292,10 @@ func (c *Controller) enqueue(item interface{}) {
 
 // Run function for controller which handles the queue
 func (c *Controller) Run(threadiness int, stopCh chan struct{}) {
+	if c.windowRunner != nil {
+		c.windowRunner(stopCh)
+		return
+	}
 	defer runtime.HandleCrash()
 
 	var wg sync.WaitGroup
