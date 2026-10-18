@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"sync"
 	"testing"
 	"time"
 
@@ -500,4 +501,37 @@ func FindDeploymentByName(deployments []runtime.Object, deploymentName string) (
 		}
 	}
 	return nil, fmt.Errorf("deployment '%s' not found", deploymentName)
+}
+
+func TestResumeTimersConcurrentAccess(t *testing.T) {
+	// Each controller worker and each resume timer runs in its own goroutine,
+	// so pausing and resuming different deployments must not race on activeTimers.
+	clients := kube.Clients{KubernetesClient: testclient.NewClientset()}
+	defer func() {
+		for key, timer := range activeTimers {
+			timer.Stop()
+			delete(activeTimers, key)
+		}
+	}()
+
+	var wg sync.WaitGroup
+	for i := 0; i < 8; i++ {
+		deployment := &appsv1.Deployment{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      fmt.Sprintf("test-deployment-%d", i),
+				Namespace: "default",
+			},
+		}
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for j := 0; j < 1000; j++ {
+				CreateResumeTimer(deployment, clients, "default", time.Hour)
+				ResumeDeployment(deployment, "default", clients)
+			}
+		}()
+	}
+	wg.Wait()
+
+	assert.Empty(t, activeTimers, "All resume timers should be removed")
 }
