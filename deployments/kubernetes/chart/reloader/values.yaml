@@ -293,6 +293,7 @@ reloader:
   #     secretproviderclass_auto: "my.company.com/secretproviderclass-auto"
   #     secretproviderclass_exclude: "my.company.com/secretproviderclass-exclude"
   #     ignore: "my.company.com/reloader-ignore"
+  #     pause: "my.company.com/reloader-pause"
   custom_annotations: {}
 
   serviceMonitor:

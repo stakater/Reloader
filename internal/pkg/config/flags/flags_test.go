@@ -66,6 +66,7 @@ func TestBindFlags(t *testing.T) {
 		"auto-search-annotation",
 		"search-match-annotation",
 		"ignore-annotation",
+		"pause-annotation",
 		"pause-deployment-annotation",
 		"pause-deployment-time-annotation",
 		"namespaces",
@@ -284,6 +285,38 @@ func TestApplyFlags_IgnoreAnnotation(t *testing.T) {
 	}
 	if cfg.Annotations.Ignore != "my.company.com/reloader-ignore" {
 		t.Errorf("Ignore = %q, want %q", cfg.Annotations.Ignore, "my.company.com/reloader-ignore")
+	}
+}
+
+func TestApplyFlags_PauseAnnotation(t *testing.T) {
+	// Default is preserved when the flag is not provided.
+	resetViper()
+	cfg := config.NewDefault()
+	fs := pflag.NewFlagSet("test", pflag.ContinueOnError)
+	BindFlags(fs, cfg)
+	if err := fs.Parse(nil); err != nil {
+		t.Fatalf("Parse() error = %v", err)
+	}
+	if err := ApplyFlags(cfg, logr.Discard()); err != nil {
+		t.Fatalf("ApplyFlags() error = %v", err)
+	}
+	if cfg.Annotations.Pause != "reloader.stakater.com/pause" {
+		t.Errorf("Pause = %q, want default %q", cfg.Annotations.Pause, "reloader.stakater.com/pause")
+	}
+
+	// Custom value is applied from the flag.
+	resetViper()
+	cfg = config.NewDefault()
+	fs = pflag.NewFlagSet("test", pflag.ContinueOnError)
+	BindFlags(fs, cfg)
+	if err := fs.Parse([]string{"--pause-annotation=my.company.com/reloader-pause"}); err != nil {
+		t.Fatalf("Parse() error = %v", err)
+	}
+	if err := ApplyFlags(cfg, logr.Discard()); err != nil {
+		t.Fatalf("ApplyFlags() error = %v", err)
+	}
+	if cfg.Annotations.Pause != "my.company.com/reloader-pause" {
+		t.Errorf("Pause = %q, want %q", cfg.Annotations.Pause, "my.company.com/reloader-pause")
 	}
 }
 

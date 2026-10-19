@@ -182,6 +182,23 @@ metadata:
 
 This instructs Reloader to skip all reload logic for that resource across all workloads.
 
+### ⏯️ Pausing Reloads
+
+To edit many ConfigMaps or Secrets without restarting workloads after every change, pause reloads for a whole namespace or for a single resource:
+
+```yaml
+apiVersion: v1
+kind: Namespace  # or ConfigMap / Secret
+metadata:
+  name: my-namespace
+  annotations:
+    reloader.stakater.com/pause: "true"
+```
+
+Unlike `ignore`, a pause holds changes back instead of dropping them. Reloader retries a held change every 30 seconds. After you remove the annotation, or set it to anything other than `"true"`, the next retry applies the latest content of every resource that changed in the meantime. Resources that ended up unchanged don't cause a restart.
+
+Pausing a namespace requires `get` permission on Namespaces, which the Helm chart grants when `watchGlobally` is enabled. With namespaced RBAC, Reloader logs once that it can't read the namespace and ignores the namespace annotation.
+
 ### 4. ⚙️ Workload-Specific Rollout Strategy (Argo Rollouts Only)
 
 Note: This is only applicable when using [Argo Rollouts](https://argoproj.github.io/argo-rollouts/). It is ignored for standard Kubernetes `Deployments`, `StatefulSets`, or `DaemonSets`. To use this feature, Argo Rollouts support must be enabled in Reloader (for example via --is-argo-rollouts=true).
@@ -448,6 +465,7 @@ These flags allow you to redefine annotation keys used in your workloads or reso
 | `--secret-annotation` | Overrides `secret.reloader.stakater.com/reload` |
 | `--configmap-annotation` | Overrides `configmap.reloader.stakater.com/reload` |
 | `--ignore-annotation` | Overrides `reloader.stakater.com/ignore` |
+| `--pause-annotation` | Overrides `reloader.stakater.com/pause` |
 | `--pause-deployment-annotation` | Overrides `deployment.reloader.stakater.com/pause-period` |
 | `--pause-deployment-time-annotation` | Overrides `deployment.reloader.stakater.com/paused-at` |
 

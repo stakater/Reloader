@@ -74,6 +74,7 @@ type AnnotationConfig struct {
 	SecretProviderClassReload  string `json:"secretProviderClassReload"`
 	SecretProviderClassExclude string `json:"secretProviderClassExclude"`
 	Ignore                     string `json:"ignore"`
+	Pause                      string `json:"pause"`
 	Search                     string `json:"search"`
 	Match                      string `json:"match"`
 	RolloutStrategy            string `json:"rolloutStrategy"`
@@ -157,6 +158,7 @@ func DefaultAnnotations() AnnotationConfig {
 		SecretProviderClassReload:  "secretproviderclass.reloader.stakater.com/reload",
 		SecretProviderClassExclude: "secretproviderclasses.exclude.reloader.stakater.com/reload",
 		Ignore:                     "reloader.stakater.com/ignore",
+		Pause:                      "reloader.stakater.com/pause",
 		Search:                     "reloader.stakater.com/search",
 		Match:                      "reloader.stakater.com/match",
 		RolloutStrategy:            "reloader.stakater.com/rollout-strategy",

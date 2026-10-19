@@ -1,0 +1,62 @@
+suite: Pause annotation
+
+templates:
+  - clusterrole.yaml
+  - deployment.yaml
+
+tests:
+  - it: grants get on namespaces so the pause annotation can be read
+    template: clusterrole.yaml
+    set:
+      reloader:
+        watchGlobally: true
+    asserts:
+      - contains:
+          path: rules
+          content:
+            apiGroups:
+              - ""
+            resources:
+              - namespaces
+            verbs:
+              - get
+
+  - it: also grants list and watch on namespaces when a namespace selector is set
+    template: clusterrole.yaml
+    set:
+      reloader:
+        watchGlobally: true
+        namespaceSelector: "team=a"
+    asserts:
+      - contains:
+          path: rules
+          content:
+            apiGroups:
+              - ""
+            resources:
+              - namespaces
+            verbs:
+              - get
+              - list
+              - watch
+
+  - it: passes a custom pause annotation to Reloader
+    template: deployment.yaml
+    set:
+      reloader:
+        custom_annotations:
+          pause: "my.company.com/reloader-pause"
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].args
+          content: "--pause-annotation"
+      - contains:
+          path: spec.template.spec.containers[0].args
+          content: "my.company.com/reloader-pause"
+
+  - it: does not pass the pause annotation flag by default
+    template: deployment.yaml
+    asserts:
+      - notContains:
+          path: spec.template.spec.containers[0].args
+          content: "--pause-annotation"

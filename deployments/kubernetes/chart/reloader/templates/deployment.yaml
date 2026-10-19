@@ -314,6 +314,10 @@ spec:
           - "--ignore-annotation"
           - "{{ .Values.reloader.custom_annotations.ignore }}"
             {{- end }}
+            {{- if .Values.reloader.custom_annotations.pause }}
+          - "--pause-annotation"
+          - "{{ .Values.reloader.custom_annotations.pause }}"
+            {{- end }}
             {{- if .Values.reloader.custom_annotations.pausePeriod }}
           - "--pause-deployment-annotation"
           - "{{ .Values.reloader.custom_annotations.pausePeriod }}"
