@@ -258,6 +258,12 @@ func (c *Controller) Update(old interface{}, new interface{}) {
 func (c *Controller) Delete(old interface{}) {
 	c.collectors.RecordEventReceived("delete", c.resource)
 
+	// The informer passes a tombstone when it missed the delete event and only
+	// noticed the object was gone on relist. Unwrap it to get the last known state.
+	if tombstone, ok := old.(cache.DeletedFinalStateUnknown); ok {
+		old = tombstone.Obj
+	}
+
 	if _, ok := old.(*csiv1.SecretProviderClassPodStatus); ok {
 		return
 	}
