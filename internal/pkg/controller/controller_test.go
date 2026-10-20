@@ -753,3 +753,95 @@ func TestProcessNextItemQueueShutdown(t *testing.T) {
 	result := c.processNextItem()
 	assert.False(t, result, "Should return false when queue is shutdown")
 }
+
+func TestMarkIgnoredResourcesInitialized(t *testing.T) {
+	tests := []struct {
+		name              string
+		resourcesToIgnore []string
+		wantSecrets       bool
+		wantConfigmaps    bool
+	}{
+		{name: "nothing ignored", resourcesToIgnore: nil, wantSecrets: false, wantConfigmaps: false},
+		{name: "configmaps ignored", resourcesToIgnore: []string{"configMaps"}, wantSecrets: false, wantConfigmaps: true},
+		{name: "secrets ignored", resourcesToIgnore: []string{"secrets"}, wantSecrets: true, wantConfigmaps: false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			resetGlobalState()
+			original := options.ResourcesToIgnore
+			options.ResourcesToIgnore = tt.resourcesToIgnore
+			defer func() { options.ResourcesToIgnore = original }()
+
+			markIgnoredResourcesInitialized()
+
+			assert.Equal(t, tt.wantSecrets, secretControllerInitialized.Load())
+			assert.Equal(t, tt.wantConfigmaps, configmapControllerInitialized.Load())
+		})
+	}
+}
+
+func TestHandlersWithIgnoredResource(t *testing.T) {
+	secret := &v1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-secret",
+			Namespace: "default",
+		},
+	}
+
+	tests := []struct {
+		name            string
+		secretInit      bool
+		expectQueueItem bool
+	}{
+		{
+			name:            "Initial list before secret controller started - should not queue",
+			secretInit:      false,
+			expectQueueItem: false,
+		},
+		{
+			name:            "Secret controller started - should queue",
+			secretInit:      true,
+			expectQueueItem: true,
+		},
+	}
+
+	originalIgnore := options.ResourcesToIgnore
+	originalCreate := options.ReloadOnCreate
+	originalDelete := options.ReloadOnDelete
+	originalSync := options.SyncAfterRestart
+	defer func() {
+		options.ResourcesToIgnore = originalIgnore
+		options.ReloadOnCreate = originalCreate
+		options.ReloadOnDelete = originalDelete
+		options.SyncAfterRestart = originalSync
+	}()
+
+	options.ResourcesToIgnore = []string{"configmaps"}
+	options.ReloadOnCreate = "true"
+	options.ReloadOnDelete = "true"
+	options.SyncAfterRestart = false
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			for _, handle := range []func(*Controller){
+				func(c *Controller) { c.Add(secret) },
+				func(c *Controller) { c.Delete(secret) },
+			} {
+				resetGlobalState()
+				markIgnoredResourcesInitialized()
+				// Simulate runWorker of the secret controller.
+				secretControllerInitialized.Store(tt.secretInit)
+
+				c := newTestController([]string{}, "")
+				handle(c)
+
+				if tt.expectQueueItem {
+					assert.Equal(t, 1, c.queue.Len(), "Expected queue to have 1 item")
+				} else {
+					assert.Equal(t, 0, c.queue.Len(), "Expected queue to be empty")
+				}
+			}
+		})
+	}
+}
