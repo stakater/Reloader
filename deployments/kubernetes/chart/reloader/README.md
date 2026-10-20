@@ -203,7 +203,9 @@ helm uninstall {{RELEASE_NAME}} -n {{NAMESPACE}}
 Reloader Enterprise adds a console, gateway, and cache (dragonfly) alongside the
 operator. It ships as an optional subchart gated by `enterprise.enabled`.
 
-Enabling it requires **five** changes, because the operator image is swapped manually:
+Steps 1, 4 and 5 enable it. Steps 2 and 3 are optional: the community operator image
+works with the enterprise components, so swap it only if you want the enterprise
+operator image (signed, CVE-scanned, with SBOM).
 
 1. Turn on the subchart and set the hostname. The console and the gateway share a
    single hostname and are told apart by path: the console at `/`, the gateway at
@@ -222,7 +224,7 @@ Enabling it requires **five** changes, because the operator image is swapped man
    > renders both Ingresses with an empty `host:` and **no error**, so the release
    > installs and the console is simply unreachable.
 
-2. Swap the operator image to the enterprise image:
+2. *(Optional)* Swap the operator image to the enterprise image:
 
    ```yaml
    image:
@@ -240,9 +242,9 @@ Enabling it requires **five** changes, because the operator image is swapped man
    > - the console and gateway images have their own tags again, set under
    >   `enterprise.console.*` / `enterprise.gateway.*`.
 
-3. Provide an image pull secret. The enterprise **operator** image is in private
-   GHCR. The console and gateway images are published to `ghcr.io/stakater/public/`
-   and pull anonymously, so this secret is only needed for the operator image:
+3. *(Optional, only with step 2)* Provide an image pull secret. The enterprise
+   **operator** image is in private GHCR. The console and gateway images are
+   published to `ghcr.io/stakater/public/` and pull anonymously, so this secret is only needed for the operator image:
 
    ```bash
    kubectl create secret docker-registry saap-dockerconfigjson \
@@ -284,7 +286,7 @@ Enabling it requires **five** changes, because the operator image is swapped man
    subchart defaults.
 
 When `enterprise.enabled=false` (the default) none of the enterprise components are
-rendered and the operator uses the community image.
+rendered.
 
 ## Release Process
 
