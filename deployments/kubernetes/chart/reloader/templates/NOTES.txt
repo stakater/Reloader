@@ -9,9 +9,8 @@
 {{- $usingCommunityImage := ternary (eq .Values.image.name "stakater/reloader") (eq (tpl (.Values.image.repository | toString) .) "ghcr.io/stakater/reloader") (not (empty .Values.global.imageRegistry)) }}
 {{- if $usingCommunityImage }}
 
-  WARNING: enterprise.enabled=true but the operator image still points at the
-  community image. The operator will run, but without enterprise features. To use
-  the enterprise operator, override {{ if .Values.global.imageRegistry }}image.name{{ else }}image.repository{{ end }}/image.tag — see the
+  NOTE: enterprise components are enabled with the community operator image, which
+  is supported. To use the optional enterprise operator image, override {{ if .Values.global.imageRegistry }}image.name{{ else }}image.repository{{ end }}/image.tag — see the
   chart README "Enterprise mode".
 {{- end }}
 {{- end }}
