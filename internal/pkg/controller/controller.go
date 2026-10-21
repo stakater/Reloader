@@ -87,12 +87,30 @@ func loadSelectedNamespacesList() []string {
 	return result
 }
 
+// markIgnoredResourcesInitialized marks the flag of an ignored resource type as
+// initialized. No controller is created for an ignored type, so its flag would
+// otherwise never be set and Add/Delete events for the watched type would be
+// dropped forever.
+func markIgnoredResourcesInitialized() {
+	ignoredResources, err := util.GetIgnoredResourcesList()
+	if err != nil {
+		return
+	}
+	if ignoredResources.Contains(string(v1.ResourceConfigMaps)) {
+		configmapControllerInitialized.Store(true)
+	}
+	if ignoredResources.Contains(string(v1.ResourceSecrets)) {
+		secretControllerInitialized.Store(true)
+	}
+}
+
 // NewController for initializing a Controller
 func NewController(client kubernetes.Interface, resource string, namespace string, ignoredNamespaces []string, namespaceLabelSelector string, resourceLabelSelector string, collectors metrics.Collectors) (*Controller, error) {
 	if options.SyncAfterRestart {
 		secretControllerInitialized.Store(true)
 		configmapControllerInitialized.Store(true)
 	}
+	markIgnoredResourcesInitialized()
 
 	c := Controller{
 		client:            client,
