@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"sync"
 	"time"
 
 	"github.com/sirupsen/logrus"
@@ -15,8 +16,12 @@ import (
 	"github.com/stakater/Reloader/pkg/kube"
 )
 
-// Keeps track of currently active timers
-var activeTimers = make(map[string]*time.Timer)
+// Keeps track of currently active timers. Controller workers and resume
+// timers run in separate goroutines, so access is guarded by activeTimersMu.
+var (
+	activeTimers   = make(map[string]*time.Timer)
+	activeTimersMu sync.Mutex
+)
 
 // Returns unique key for the activeTimers map
 func getTimerKey(namespace, deploymentName string) string {
@@ -110,7 +115,9 @@ func PauseDeployment(deployment *app.Deployment, clients kube.Clients, namespace
 	logrus.Debugf("Deployment '%s' in namespace '%s' is already paused by reloader", deploymentName, namespace)
 
 	timerKey := getTimerKey(namespace, deploymentName)
+	activeTimersMu.Lock()
 	_, timerExists := activeTimers[timerKey]
+	activeTimersMu.Unlock()
 
 	if !timerExists {
 		logrus.Warnf("Timer does not exist for already paused deployment '%s' in namespace '%s', creating new one",
@@ -156,6 +163,9 @@ func CreateResumeTimer(deployment *app.Deployment, clients kube.Clients, namespa
 	deploymentName := deployment.Name
 	timerKey := getTimerKey(namespace, deployment.Name)
 
+	activeTimersMu.Lock()
+	defer activeTimersMu.Unlock()
+
 	// Check if there's an existing timer for this deployment
 	if _, exists := activeTimers[timerKey]; exists {
 		logrus.Debugf("Timer already exists for deployment '%s' in namespace '%s', Skipping creation",
@@ -182,11 +192,13 @@ func ResumeDeployment(deployment *app.Deployment, namespace string, clients kube
 	// Remove the timer first: if this attempt fails, a later change to the
 	// deployment must find no timer, so that HandleMissingTimer retries the resume.
 	timerKey := getTimerKey(namespace, deploymentName)
+	activeTimersMu.Lock()
 	if timer, exists := activeTimers[timerKey]; exists {
 		timer.Stop()
 		delete(activeTimers, timerKey)
 		logrus.Debugf("Removed pause timer for deployment '%s' in namespace '%s'", deploymentName, namespace)
 	}
+	activeTimersMu.Unlock()
 
 	currentDeployment, err := clients.KubernetesClient.AppsV1().Deployments(namespace).Get(context.TODO(), deploymentName, metav1.GetOptions{})
 
