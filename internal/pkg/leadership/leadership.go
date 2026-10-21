@@ -112,7 +112,16 @@ func stopControllers(stopChannels []chan struct{}) {
 // enabled and a replica stops leading the liveness probe will fail and the
 // kubelet will restart the container.
 func SetupLivenessEndpoint() {
-	http.HandleFunc("/live", healthz)
+	SetupLivenessEndpointWithMux(http.DefaultServeMux)
+}
+
+// SetupLivenessEndpointWithMux sets up the liveness probe endpoint on the provided ServeMux.
+func SetupLivenessEndpointWithMux(mux *http.ServeMux) {
+	if mux != nil {
+		mux.HandleFunc("/live", healthz)
+	} else {
+		http.HandleFunc("/live", healthz)
+	}
 }
 
 func healthz(w http.ResponseWriter, req *http.Request) {
