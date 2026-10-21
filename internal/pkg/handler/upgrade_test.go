@@ -1,9 +1,11 @@
 package handler
 
 import (
+	"encoding/json"
 	"errors"
 	"testing"
 
+	argorolloutv1alpha1 "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/stretchr/testify/assert"
 	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
@@ -16,6 +18,7 @@ import (
 	"github.com/stakater/Reloader/internal/pkg/callbacks"
 	"github.com/stakater/Reloader/internal/pkg/constants"
 	"github.com/stakater/Reloader/internal/pkg/options"
+	"github.com/stakater/Reloader/internal/pkg/testutil"
 	"github.com/stakater/Reloader/pkg/common"
 )
 
@@ -1373,4 +1376,77 @@ func TestInvokeReloadStrategy(t *testing.T) {
 			assert.Equal(t, tt.expectResult, result.Result)
 		})
 	}
+}
+
+func TestUpdateRolloutRestartState(t *testing.T) {
+	funcs := GetArgoRolloutRollingUpgradeFuncs()
+	config := common.Config{
+		ResourceName: "my-configmap",
+		Type:         constants.ConfigmapEnvVarPostfix,
+		SHAValue:     "sha-1",
+		Namespace:    "default",
+	}
+	key := getEnvVarName(config.ResourceName, config.Type)
+
+	newRollout := func(state string) *argorolloutv1alpha1.Rollout {
+		annotations := map[string]string{options.RolloutStrategyAnnotation: "restart"}
+		if state != "" {
+			annotations[constants.RolloutRestartStateAnnotation] = state
+		}
+		return testutil.GetRollout("default", "my-rollout", annotations)
+	}
+	getState := func(t *testing.T, rollout *argorolloutv1alpha1.Rollout) map[string]string {
+		state := map[string]string{}
+		assert.NoError(t, json.Unmarshal([]byte(rollout.GetAnnotations()[constants.RolloutRestartStateAnnotation]), &state))
+		return state
+	}
+
+	t.Run("records sha when no state exists", func(t *testing.T) {
+		rollout := newRollout("")
+		result := invokeReloadStrategy(funcs, rollout, config, false)
+		assert.Equal(t, constants.Updated, result.Result)
+		assert.Nil(t, result.Patch)
+		assert.Equal(t, map[string]string{key: "sha-1"}, getState(t, rollout))
+	})
+
+	t.Run("skips restart when sha already recorded", func(t *testing.T) {
+		rollout := newRollout(`{"` + key + `":"sha-1"}`)
+		result := invokeReloadStrategy(funcs, rollout, config, false)
+		assert.Equal(t, constants.NotUpdated, result.Result)
+	})
+
+	t.Run("updates sha and keeps other resources", func(t *testing.T) {
+		rollout := newRollout(`{"` + key + `":"sha-0","STAKATER_OTHER_SECRET":"sha-x"}`)
+		result := invokeReloadStrategy(funcs, rollout, config, false)
+		assert.Equal(t, constants.Updated, result.Result)
+		assert.Equal(t, map[string]string{key: "sha-1", "STAKATER_OTHER_SECRET": "sha-x"}, getState(t, rollout))
+	})
+
+	t.Run("resets invalid state", func(t *testing.T) {
+		rollout := newRollout("not-json")
+		result := invokeReloadStrategy(funcs, rollout, config, false)
+		assert.Equal(t, constants.Updated, result.Result)
+		assert.Equal(t, map[string]string{key: "sha-1"}, getState(t, rollout))
+	})
+
+	t.Run("delete removes recorded sha", func(t *testing.T) {
+		rollout := newRollout(`{"` + key + `":"sha-1","STAKATER_OTHER_SECRET":"sha-x"}`)
+		result := invokeDeleteStrategy(funcs, rollout, config, false)
+		assert.Equal(t, constants.Updated, result.Result)
+		assert.Equal(t, map[string]string{"STAKATER_OTHER_SECRET": "sha-x"}, getState(t, rollout))
+	})
+
+	t.Run("delete is a no-op when sha not recorded", func(t *testing.T) {
+		rollout := newRollout("")
+		result := invokeDeleteStrategy(funcs, rollout, config, false)
+		assert.Equal(t, constants.NotUpdated, result.Result)
+	})
+
+	t.Run("rollout strategy does not use restart state", func(t *testing.T) {
+		rollout := testutil.GetRollout("default", "my-rollout", map[string]string{options.RolloutStrategyAnnotation: "rollout"})
+		assert.False(t, isArgoRolloutRestart(rollout))
+		invokeReloadStrategy(funcs, rollout, config, false)
+		_, ok := rollout.GetAnnotations()[constants.RolloutRestartStateAnnotation]
+		assert.False(t, ok)
+	})
 }
