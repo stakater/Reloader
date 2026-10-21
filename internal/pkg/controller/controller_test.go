@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/workqueue"
 
 	"github.com/stakater/Reloader/internal/pkg/handler"
@@ -620,6 +621,72 @@ func TestDeleteHandler(t *testing.T) {
 			},
 		)
 	}
+}
+
+func TestDeleteHandlerWithTombstone(t *testing.T) {
+	t.Run(
+		"ConfigMap tombstone - should queue the ConfigMap", func(t *testing.T) {
+			resetGlobalState()
+			options.ReloadOnDelete = "true"
+			secretControllerInitialized.Store(true)
+			configmapControllerInitialized.Store(true)
+
+			cm := &v1.ConfigMap{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-cm",
+					Namespace: "default",
+				},
+			}
+
+			c := newTestController([]string{}, "")
+			c.Delete(cache.DeletedFinalStateUnknown{Key: "default/test-cm", Obj: cm})
+
+			assert.Equal(t, 1, c.queue.Len(), "Expected queue to have 1 item")
+			item, _ := c.queue.Get()
+			deleteHandler, ok := item.(handler.ResourceDeleteHandler)
+			assert.True(t, ok, "Expected ResourceDeleteHandler in queue")
+			assert.Equal(t, cm, deleteHandler.Resource, "Expected the ConfigMap from the tombstone")
+			c.queue.Done(item)
+		},
+	)
+
+	t.Run(
+		"ConfigMap tombstone in ignored namespace - should not queue", func(t *testing.T) {
+			resetGlobalState()
+			options.ReloadOnDelete = "true"
+			secretControllerInitialized.Store(true)
+			configmapControllerInitialized.Store(true)
+
+			cm := &v1.ConfigMap{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-cm",
+					Namespace: "kube-system",
+				},
+			}
+
+			c := newTestController([]string{"kube-system"}, "")
+			c.Delete(cache.DeletedFinalStateUnknown{Key: "kube-system/test-cm", Obj: cm})
+
+			assert.Equal(t, 0, c.queue.Len(), "Expected queue to be empty")
+		},
+	)
+
+	t.Run(
+		"Namespace tombstone - should remove namespace from cache", func(t *testing.T) {
+			resetGlobalState()
+			storeSelectedNamespaces([]string{"ns-1", "ns-to-delete"})
+
+			ns := &v1.Namespace{
+				ObjectMeta: metav1.ObjectMeta{Name: "ns-to-delete"},
+			}
+
+			c := newTestController([]string{}, "env=prod")
+			c.Delete(cache.DeletedFinalStateUnknown{Key: "ns-to-delete", Obj: ns})
+
+			assert.NotContains(t, loadSelectedNamespaces(), "ns-to-delete")
+			assert.Contains(t, loadSelectedNamespaces(), "ns-1")
+		},
+	)
 }
 
 func TestHandleErr(t *testing.T) {
