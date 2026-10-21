@@ -31,13 +31,14 @@ rules:
       - list
       - get
       - watch
-{{- if (include "reloader-namespaceSelector" .) }}
   - apiGroups:
       - ""
     resources:
       - namespaces
     verbs:
+      # get reads the pause annotation on namespaces
       - get
+{{- if (include "reloader-namespaceSelector" .) }}
       - list
       - watch
 {{- end }}

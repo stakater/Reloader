@@ -218,6 +218,10 @@ func BindFlags(fs *pflag.FlagSet, cfg *config.Config) {
 		"Annotation to ignore changes on watched resources",
 	)
 	fs.String(
+		"pause-annotation", cfg.Annotations.Pause,
+		"Annotation on a namespace, configmap or secret to hold reloads until it is removed",
+	)
+	fs.String(
 		"pause-deployment-annotation", cfg.Annotations.PausePeriod,
 		"Annotation to define the time period to pause a deployment after a configmap/secret change",
 	)
@@ -340,6 +344,7 @@ func ApplyFlags(cfg *config.Config, log logr.Logger) error {
 	cfg.Annotations.Search = v.GetString("auto-search-annotation")
 	cfg.Annotations.Match = v.GetString("search-match-annotation")
 	cfg.Annotations.Ignore = v.GetString("ignore-annotation")
+	cfg.Annotations.Pause = v.GetString("pause-annotation")
 	cfg.Annotations.PausePeriod = v.GetString("pause-deployment-annotation")
 	cfg.Annotations.PausedAt = v.GetString("pause-deployment-time-annotation")
 

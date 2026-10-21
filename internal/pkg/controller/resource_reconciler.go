@@ -23,7 +23,8 @@ import (
 // ResourceReconcilerDeps holds shared dependencies for resource reconcilers.
 type ResourceReconcilerDeps struct {
 	Client client.Client
-	// APIReader is an optional non-cached reader for ResolveChange lookups.
+	// APIReader is an optional non-cached reader for ResolveChange lookups and for
+	// reading the pause annotation on Namespaces. The cached Client is used when unset.
 	APIReader      client.Reader
 	Log            logr.Logger
 	Config         *config.Config
@@ -68,6 +69,7 @@ type ResourceReconciler[T client.Object] struct {
 	ResourceConfig[T]
 
 	handler *ReloadHandler
+	pause   *pauseChecker
 }
 
 // NewResourceReconciler creates a new generic resource reconciler.
@@ -115,6 +117,10 @@ func (r *ResourceReconciler[T]) Reconcile(ctx context.Context, req ctrl.Request)
 		return ctrl.Result{}, nil
 	}
 
+	if held, err := r.holdIfPaused(ctx, log, namespace, resource.GetAnnotations(), startTime); held || err != nil {
+		return ctrl.Result{RequeueAfter: requeueIfHeld(held)}, err
+	}
+
 	change, ok := r.buildChange(ctx, log, resource)
 	if !ok {
 		r.Collectors.RecordSkipped("resolve_skipped")
@@ -153,6 +159,9 @@ func (r *ResourceReconciler[T]) handleNotFound(
 		return ctrl.Result{}, nil
 	}
 	if r.Config.ReloadOnDelete {
+		if held, err := r.holdIfPaused(ctx, log, req.Namespace, nil, startTime); held || err != nil {
+			return ctrl.Result{RequeueAfter: requeueIfHeld(held)}, err
+		}
 		r.Collectors.RecordEventReceived("delete", string(r.ResourceType))
 		result, err := r.handleDelete(ctx, req, log)
 		r.recordReconcile(startTime, err)
@@ -181,6 +190,49 @@ func (r *ResourceReconciler[T]) handleDelete(
 			return r.ReloadService.Process(r.CreateChange(resource, reload.EventTypeDelete), workloads)
 		}, log,
 	)
+}
+
+// holdIfPaused reports whether the pause annotation holds this change back. A held change
+// is requeued rather than dropped so it is applied once the pause is lifted.
+func (r *ResourceReconciler[T]) holdIfPaused(
+	ctx context.Context,
+	log logr.Logger,
+	namespace string,
+	annotations map[string]string,
+	startTime time.Time,
+) (bool, error) {
+	pausedBy, err := r.pauseChecker().pausedBy(ctx, log, namespace, annotations)
+	if err != nil {
+		log.Error(err, "failed to check pause annotation")
+		r.Collectors.RecordError("get_namespace")
+		r.Collectors.RecordReconcile("error", time.Since(startTime))
+		return false, err
+	}
+	if pausedBy == "" {
+		return false, nil
+	}
+	log.Info("reload paused, will retry", "pausedBy", pausedBy, "retryAfter", PausedRequeueInterval)
+	r.Collectors.RecordSkipped("paused")
+	r.Collectors.RecordReconcile("success", time.Since(startTime))
+	return true, nil
+}
+
+func requeueIfHeld(held bool) time.Duration {
+	if held {
+		return PausedRequeueInterval
+	}
+	return 0
+}
+
+func (r *ResourceReconciler[T]) pauseChecker() *pauseChecker {
+	if r.pause == nil {
+		reader := r.APIReader
+		if reader == nil {
+			reader = r.Client
+		}
+		r.pause = &pauseChecker{annotation: r.Config.Annotations.Pause, reader: reader}
+	}
+	return r.pause
 }
 
 func (r *ResourceReconciler[T]) recordReconcile(startTime time.Time, err error) {

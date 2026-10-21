@@ -185,6 +185,7 @@ func SetupReconcilers(mgr ctrl.Manager, cfg *config.Config, log logr.Logger, col
 			pauseHandler,
 			nsCache,
 		)
+		cmReconciler.APIReader = mgr.GetAPIReader()
 		if err := SetupConfigMapReconciler(mgr, cmReconciler); err != nil {
 			return fmt.Errorf("setting up configmap reconciler: %w", err)
 		}
@@ -205,6 +206,7 @@ func SetupReconcilers(mgr ctrl.Manager, cfg *config.Config, log logr.Logger, col
 			pauseHandler,
 			nsCache,
 		)
+		secretReconciler.APIReader = mgr.GetAPIReader()
 		if err := SetupSecretReconciler(mgr, secretReconciler); err != nil {
 			return fmt.Errorf("setting up secret reconciler: %w", err)
 		}
