@@ -42,9 +42,9 @@ enterprise:
   enabled: false
   console:
     enabled: true
-    # deployment:
-    #   image:
-    #     tag: ""
+    deployment:
+      image:
+        tag: "0.0.41"
     # OpenShift: router auto-creates a Route from the Ingress; this annotation
     # sets edge TLS termination on that Route.
     # ingress:
@@ -54,10 +54,10 @@ enterprise:
     enabled: true
     dragonfly:
       enabled: true
-    # deployment:
-    #   image:
-        # Gateway images are published v-prefixed (WITH_V: true); latest is v0.0.23.
-    #     tag: ""
+    deployment:
+      image:
+        # Gateway images are published v prefixed.
+        tag: "v0.0.28"
     # ingress:
     #   annotations:
     #     route.openshift.io/termination: edge
