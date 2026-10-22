@@ -367,10 +367,6 @@ func NewCollectors() Collectors {
 	}
 }
 
-func SetupPrometheusEndpoint() Collectors {
-	return SetupPrometheusEndpointWithMux(http.DefaultServeMux)
-}
-
 // SetupPrometheusEndpointWithMux configures metrics collectors and registers the /metrics handler
 // on the provided ServeMux instead of the global DefaultServeMux.
 func SetupPrometheusEndpointWithMux(mux *http.ServeMux) Collectors {
@@ -396,11 +392,7 @@ func SetupPrometheusEndpointWithMux(mux *http.ServeMux) Collectors {
 		prometheus.MustRegister(collectors.ReloadedByNamespace)
 	}
 
-	if mux != nil {
-		mux.Handle("/metrics", promhttp.Handler())
-	} else {
-		http.Handle("/metrics", promhttp.Handler())
-	}
+	mux.Handle("/metrics", promhttp.Handler())
 
 	return collectors
 }
