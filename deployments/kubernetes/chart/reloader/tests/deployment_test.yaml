@@ -261,3 +261,23 @@ tests:
       - equal:
           path: spec.template.spec.containers[0].image
           value: "acr.example.invalid/reloader-enterprise:v9.9.9"
+
+  - it: renders deployment strategy when configured in reloader.deployment.strategy
+    set:
+      reloader:
+        deployment:
+          strategy:
+            type: Recreate
+    asserts:
+      - equal:
+          path: spec.strategy.type
+          value: Recreate
+
+  - it: does not render deployment strategy when reloader.deployment.strategy is empty
+    set:
+      reloader:
+        deployment:
+          strategy: {}
+    asserts:
+      - notExists:
+          path: spec.strategy

@@ -95,6 +95,18 @@ reloader:
 
     revisionHistoryLimit: 2
 
+    # Deployment update strategy. If unset, Kubernetes default (RollingUpdate) is used.
+    # Example:
+    #   strategy:
+    #     type: Recreate
+    #
+    #   strategy:
+    #     type: RollingUpdate
+    #     rollingUpdate:
+    #       maxSurge: 0
+    #       maxUnavailable: 1
+    strategy: {}
+
     hostUsers: null
 
     nodeSelector:

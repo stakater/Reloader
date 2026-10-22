@@ -17,6 +17,10 @@ metadata:
   name: {{ template "reloader-fullname" . }}
   namespace: {{ .Values.namespace | default .Release.Namespace }}
 spec:
+{{- with .Values.reloader.deployment.strategy }}
+  strategy:
+    {{- toYaml . | nindent 4 }}
+{{- end }}
 {{- if not (.Values.reloader.enableHA) }}
   replicas: {{ min .Values.reloader.deployment.replicas 1 }}
 {{- else }}
