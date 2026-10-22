@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"math"
 	"net/http"
-	_ "net/http/pprof"
+	"net/http/pprof"
 	"os"
 	"strings"
 	"time"
@@ -231,7 +231,8 @@ func startReloader(cmd *cobra.Command, args []string) {
 		logrus.Warnf("webhook-url is set, will only send webhook, no resources will be reloaded")
 	}
 
-	collectors := metrics.SetupPrometheusEndpoint()
+	mainMux := http.NewServeMux()
+	collectors := metrics.SetupPrometheusEndpointWithMux(mainMux)
 
 	var controllers []*controller.Controller
 	for _, currentNamespace := range watchNamespaces {
@@ -278,13 +279,24 @@ func startReloader(cmd *cobra.Command, args []string) {
 		go startPProfServer()
 	}
 
-	leadership.SetupLivenessEndpoint()
-	logrus.Fatal(http.ListenAndServe(constants.DefaultHttpListenAddr, nil))
+	leadership.SetupLivenessEndpointWithMux(mainMux)
+	logrus.Fatal(http.ListenAndServe(constants.DefaultHttpListenAddr, mainMux))
+}
+
+func newPProfServeMux() *http.ServeMux {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/debug/pprof/", pprof.Index)
+	mux.HandleFunc("/debug/pprof/cmdline", pprof.Cmdline)
+	mux.HandleFunc("/debug/pprof/profile", pprof.Profile)
+	mux.HandleFunc("/debug/pprof/symbol", pprof.Symbol)
+	mux.HandleFunc("/debug/pprof/trace", pprof.Trace)
+	return mux
 }
 
 func startPProfServer() {
 	logrus.Infof("Starting pprof server on %s", options.PProfAddr)
-	if err := http.ListenAndServe(options.PProfAddr, nil); err != nil {
+	mux := newPProfServeMux()
+	if err := http.ListenAndServe(options.PProfAddr, mux); err != nil {
 		logrus.Errorf("Failed to start pprof server: %v", err)
 	}
 }
