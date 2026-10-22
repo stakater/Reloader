@@ -44,7 +44,7 @@ enterprise:
     enabled: true
     deployment:
       image:
-        tag: "0.0.41"
+        tag: "0.0.42"
     # OpenShift: router auto-creates a Route from the Ingress; this annotation
     # sets edge TLS termination on that Route.
     # ingress:
