@@ -72,6 +72,9 @@ rules:
       - daemonsets
       - statefulsets
     verbs:
+{{- if .Values.reloader.enableRestartWindows }}
+      - watch
+{{- end }}
       - list
       - get
       - update
