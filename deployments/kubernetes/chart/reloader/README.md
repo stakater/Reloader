@@ -112,6 +112,7 @@ helm uninstall {{RELEASE_NAME}} -n {{NAMESPACE}}
 | `reloader.podMonitor.enabled`          | Enable to scrape Reloader's Prometheus metrics                  | boolean | `false` |
 | `reloader.podDisruptionBudget.enabled` | Limit the number of pods of a replicated application            | boolean | `false` |
 | `reloader.netpol.enabled`              |                                                                 | boolean | `false` |
+| `reloader.netpol.egressPorts`          | Optional ports for API server egress                            | array   | `[443]` |
 | `reloader.volumeMounts`                | Mount volume                                                    | array   | `[]`    |
 | `reloader.volumes`                     | Add volume to a pod                                             | array   | `[]`    |
 | `reloader.webhookUrl`                  | Add webhook to Reloader                                         | string  | `""`    |

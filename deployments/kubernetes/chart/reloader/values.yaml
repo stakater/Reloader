@@ -356,6 +356,9 @@ reloader:
 
   netpol:
     enabled: false
+    # Optional ports for API server egress. Set to [6443] (or [443, 6443]) for clusters whose API endpoint is not on 443 (e.g. kind, self-managed).
+    egressPorts:
+      - 443
     from: []
     # - podSelector:
     #     matchLabels:
