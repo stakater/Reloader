@@ -72,10 +72,15 @@ rules:
     resources:
       - configmaps
     verbs:
-      - list
-      - get
-      - watch
       - create
+  - apiGroups:
+      - ""
+    resources:
+      - configmaps
+    resourceNames:
+      - reloader-meta-info
+    verbs:
+      - get
       - update
 {{- if .Values.reloader.enableHA }}
   - apiGroups:
