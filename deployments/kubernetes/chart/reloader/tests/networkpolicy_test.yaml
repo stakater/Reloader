@@ -1,0 +1,60 @@
+suite: NetworkPolicy
+
+templates:
+  - networkpolicy.yaml
+
+tests:
+  - it: does not render when reloader.netpol.enabled is false
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: renders default egress port 443 TCP when enabled
+    set:
+      reloader:
+        netpol:
+          enabled: true
+    asserts:
+      - hasDocuments:
+          count: 1
+      - isKind:
+          of: NetworkPolicy
+      - equal:
+          path: spec.egress[0].ports
+          value:
+            - port: 443
+              protocol: TCP
+
+  - it: renders configurable egress ports
+    set:
+      reloader:
+        netpol:
+          enabled: true
+          egressPorts:
+            - 443
+            - 6443
+    asserts:
+      - hasDocuments:
+          count: 1
+      - equal:
+          path: spec.egress[0].ports
+          value:
+            - port: 443
+              protocol: TCP
+            - port: 6443
+              protocol: TCP
+
+  - it: defaults to port 443 TCP when egressPorts is empty
+    set:
+      reloader:
+        netpol:
+          enabled: true
+          egressPorts: []
+    asserts:
+      - hasDocuments:
+          count: 1
+      - equal:
+          path: spec.egress[0].ports
+          value:
+            - port: 443
+              protocol: TCP
