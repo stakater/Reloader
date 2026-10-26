@@ -51,6 +51,9 @@ var (
 	SearchMatchAnnotation = "reloader.stakater.com/match"
 	// RolloutStrategyAnnotation is an annotation to define rollout update strategy
 	RolloutStrategyAnnotation = "reloader.stakater.com/rollout-strategy"
+	// LastReloadedFromAnnotation is an annotation set by Reloader to describe the
+	// resource that triggered the last reload
+	LastReloadedFromAnnotation = constants.ReloaderAnnotationPrefix + "/" + constants.LastReloadedFromAnnotation
 	// PauseDeploymentAnnotation is an annotation to define the time period to pause a deployment after
 	// a configmap/secret change has been detected. Valid values are described here: https://pkg.go.dev/time#ParseDuration
 	// only positive values are allowed
