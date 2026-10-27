@@ -310,3 +310,18 @@ func TestGetCommandLineOptions_LeaderElectionTimingsAreDurationStrings(t *testin
 		}
 	}
 }
+
+func TestRefreshCommandLineOptionsPublishesParsedValues(t *testing.T) {
+	originalFlag := options.EnableRestartWindows
+	originalSnapshot := CommandLineOptions
+	defer func() {
+		options.EnableRestartWindows = originalFlag
+		CommandLineOptions = originalSnapshot
+	}()
+
+	options.EnableRestartWindows = true
+	snapshot := RefreshCommandLineOptions()
+	if snapshot != CommandLineOptions || !CommandLineOptions.EnableRestartWindows {
+		t.Fatal("published command-line options did not include the parsed flag value")
+	}
+}
