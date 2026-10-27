@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	argorolloutv1alpha1 "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/parnurzeal/gorequest"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/sirupsen/logrus"
@@ -525,10 +526,69 @@ type InvokeStrategyResult struct {
 type invokeStrategy func(upgradeFuncs callbacks.RollingUpgradeFuncs, item runtime.Object, config common.Config, autoReload bool) InvokeStrategyResult
 
 func invokeReloadStrategy(upgradeFuncs callbacks.RollingUpgradeFuncs, item runtime.Object, config common.Config, autoReload bool) InvokeStrategyResult {
+	if isArgoRolloutRestart(item) {
+		return updateRolloutRestartState(upgradeFuncs, item, config, autoReload, false)
+	}
 	if options.ReloadStrategy == constants.AnnotationsReloadStrategy {
 		return updatePodAnnotations(upgradeFuncs, item, config, autoReload)
 	}
 	return updateContainerEnvVars(upgradeFuncs, item, config, autoReload)
+}
+
+// isArgoRolloutRestart reports whether item is an Argo Rollout configured to reload via spec.restartAt
+func isArgoRolloutRestart(item runtime.Object) bool {
+	rollout, ok := item.(*argorolloutv1alpha1.Rollout)
+	if !ok {
+		return false
+	}
+	return options.ToArgoRolloutStrategy(rollout.GetAnnotations()[options.RolloutStrategyAnnotation]) == options.RestartStrategy
+}
+
+// updateRolloutRestartState records the SHA of the changed resource in the Rollout's restart state annotation.
+// The restart strategy only sets spec.restartAt, so without this record Reloader cannot tell after a restart or
+// leader failover whether a restart was already issued for the current version of a resource.
+func updateRolloutRestartState(upgradeFuncs callbacks.RollingUpgradeFuncs, item runtime.Object, config common.Config, autoReload bool, remove bool) InvokeStrategyResult {
+	if getContainerUsingResource(upgradeFuncs, item, config, autoReload) == nil {
+		return InvokeStrategyResult{constants.NoContainerFound, nil}
+	}
+
+	rollout := item.(*argorolloutv1alpha1.Rollout)
+	annotations := rollout.GetAnnotations()
+	if annotations == nil {
+		annotations = map[string]string{}
+	}
+
+	state := map[string]string{}
+	if raw, ok := annotations[constants.RolloutRestartStateAnnotation]; ok && raw != "" {
+		if err := json.Unmarshal([]byte(raw), &state); err != nil {
+			logrus.Warnf("Resetting invalid '%s' annotation on Rollout '%s' in namespace '%s': %v", constants.RolloutRestartStateAnnotation, rollout.Name, rollout.Namespace, err)
+			state = map[string]string{}
+		}
+	}
+
+	key := getEnvVarName(config.ResourceName, config.Type)
+	sha, found := state[key]
+	if remove {
+		if !found {
+			return InvokeStrategyResult{constants.NotUpdated, nil}
+		}
+		delete(state, key)
+	} else {
+		if found && sha == config.SHAValue {
+			return InvokeStrategyResult{constants.NotUpdated, nil}
+		}
+		state[key] = config.SHAValue
+	}
+
+	value, err := json.Marshal(state)
+	if err != nil {
+		logrus.Errorf("Failed to marshal '%s' annotation for Rollout '%s' in namespace '%s': %v", constants.RolloutRestartStateAnnotation, rollout.Name, rollout.Namespace, err)
+		return InvokeStrategyResult{constants.NotUpdated, nil}
+	}
+	annotations[constants.RolloutRestartStateAnnotation] = string(value)
+	rollout.SetAnnotations(annotations)
+
+	return InvokeStrategyResult{constants.Updated, nil}
 }
 
 func updatePodAnnotations(upgradeFuncs callbacks.RollingUpgradeFuncs, item runtime.Object, config common.Config, autoReload bool) InvokeStrategyResult {

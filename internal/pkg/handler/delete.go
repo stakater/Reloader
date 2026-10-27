@@ -79,6 +79,9 @@ func (r ResourceDeleteHandler) GetConfig() (common.Config, string) {
 }
 
 func invokeDeleteStrategy(upgradeFuncs callbacks.RollingUpgradeFuncs, item runtime.Object, config common.Config, autoReload bool) InvokeStrategyResult {
+	if isArgoRolloutRestart(item) {
+		return updateRolloutRestartState(upgradeFuncs, item, config, autoReload, true)
+	}
 	if options.ReloadStrategy == constants.AnnotationsReloadStrategy {
 		return removePodAnnotations(upgradeFuncs, item, config, autoReload)
 	}

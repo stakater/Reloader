@@ -17,6 +17,9 @@ const (
 	ReloaderAnnotationPrefix = "reloader.stakater.com"
 	// LastReloadedFromAnnotation is an annotation used to describe the last resource that triggered a reload
 	LastReloadedFromAnnotation = "last-reloaded-from"
+	// RolloutRestartStateAnnotation is an annotation set on Argo Rollouts using the restart strategy. It records the
+	// SHA of every resource that triggered a restart so missed or replayed events can be reconciled after Reloader restarts
+	RolloutRestartStateAnnotation = ReloaderAnnotationPrefix + "/rollout-restart-state"
 
 	// 	ReloadStrategyFlag The reload strategy flag name
 	ReloadStrategyFlag = "reload-strategy"
