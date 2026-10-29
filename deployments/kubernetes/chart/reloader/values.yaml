@@ -57,7 +57,7 @@ enterprise:
     deployment:
       image:
         # Gateway images are published v prefixed.
-        tag: "v0.0.28"
+        tag: "v0.0.29"
     # ingress:
     #   annotations:
     #     route.openshift.io/termination: edge
