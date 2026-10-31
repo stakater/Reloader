@@ -1,0 +1,89 @@
+suite: NetworkPolicy
+
+templates:
+  - networkpolicy.yaml
+
+tests:
+  - it: does not render when reloader.netpol.enabled is false
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: renders default egress port 443 TCP when enabled
+    set:
+      reloader:
+        netpol:
+          enabled: true
+    asserts:
+      - hasDocuments:
+          count: 1
+      - isKind:
+          of: NetworkPolicy
+      - equal:
+          path: spec.egress
+          value:
+            - ports:
+                - port: 443
+                  protocol: TCP
+
+  - it: renders custom egress with custom port
+    set:
+      reloader:
+        netpol:
+          enabled: true
+          egress:
+            - ports:
+                - port: 6443
+                  protocol: TCP
+    asserts:
+      - hasDocuments:
+          count: 1
+      - equal:
+          path: spec.egress
+          value:
+            - ports:
+                - port: 6443
+                  protocol: TCP
+
+  - it: renders custom egress with multiple rules and to destinations
+    set:
+      reloader:
+        netpol:
+          enabled: true
+          egress:
+            - ports:
+                - port: 6443
+                  protocol: TCP
+              to:
+                - ipBlock:
+                    cidr: 10.0.0.0/8
+            - ports:
+                - port: 53
+                  protocol: UDP
+    asserts:
+      - hasDocuments:
+          count: 1
+      - equal:
+          path: spec.egress
+          value:
+            - ports:
+                - port: 6443
+                  protocol: TCP
+              to:
+                - ipBlock:
+                    cidr: 10.0.0.0/8
+            - ports:
+                - port: 53
+                  protocol: UDP
+
+  - it: drops egress when reloader.netpol.egress is empty
+    set:
+      reloader:
+        netpol:
+          enabled: true
+          egress: []
+    asserts:
+      - hasDocuments:
+          count: 1
+      - isNull:
+          path: spec.egress

@@ -360,7 +360,13 @@ reloader:
     # - podSelector:
     #     matchLabels:
     #       app.kubernetes.io/name: prometheus
-    to: []
+    egress:
+      - ports:
+          - port: 443
+            protocol: TCP
+      #   to:
+      #     - ipBlock:
+      #         cidr: 0.0.0.0/0
 
   # Enable vertical pod autoscaler
   verticalPodAutoscaler:
