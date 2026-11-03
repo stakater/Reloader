@@ -20,6 +20,13 @@ const (
 	// Value: comma-separated list of Secret names, e.g., "secret1,secret2"
 	AnnotationSecretReload = "secret.reloader.stakater.com/reload"
 
+	// AnnotationReloadAfter defers a workload's reload until the listed workloads finish reloading.
+	// Value: comma-separated list of kind/name references, e.g., "cronjob/migrate,deployment/api"
+	AnnotationReloadAfter = "reloader.stakater.com/reload-after"
+
+	// AnnotationPendingReload is set by Reloader on workloads whose reload is deferred by reload-after.
+	AnnotationPendingReload = "reloader.stakater.com/pending-reload"
+
 	// AnnotationSecretProviderClassReload triggers reload when specified SecretProviderClass(es) change.
 	// Value: comma-separated list of SecretProviderClass names, e.g., "spc1,spc2"
 	// Note: Reloader actually watches SecretProviderClassPodStatus resources, not SecretProviderClass.

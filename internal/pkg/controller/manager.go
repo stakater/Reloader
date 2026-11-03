@@ -234,6 +234,35 @@ func SetupReconcilers(mgr ctrl.Manager, cfg *config.Config, log logr.Logger, col
 		log.Info("CSI SecretProviderClass reconciler enabled")
 	}
 
+	// Setup reconcilers that apply reloads deferred by the reload-after annotation
+	dependentHandler := &ReloadHandler{
+		Client:        mgr.GetClient(),
+		ReloadService: reloadService,
+		WebhookClient: webhookClient,
+		Collectors:    collectors,
+		EventRecorder: eventRecorder,
+		Alerter:       alerter,
+		PauseHandler:  pauseHandler,
+	}
+	for _, kind := range registry.SupportedKinds() {
+		if cfg.IsWorkloadIgnored(string(kind)) {
+			continue
+		}
+		if err := (&DependentReloadReconciler{
+			Client:        mgr.GetClient(),
+			Log:           log.WithName("reload-after-reconciler"),
+			Config:        cfg,
+			Kind:          kind,
+			Registry:      registry,
+			ReloadService: reloadService,
+			Handler:       dependentHandler,
+			EventRecorder: eventRecorder,
+			Collectors:    collectors,
+		}).SetupWithManager(mgr); err != nil {
+			return fmt.Errorf("setting up reload-after reconciler for %s: %w", kind, err)
+		}
+	}
+
 	// Setup Deployment reconciler for pause handling
 	if err := (&DeploymentReconciler{
 		Client:       mgr.GetClient(),
