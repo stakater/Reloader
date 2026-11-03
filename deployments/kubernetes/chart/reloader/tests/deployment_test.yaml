@@ -258,3 +258,18 @@ tests:
       - equal:
           path: spec.template.spec.containers[0].image
           value: "acr.example.invalid/reloader-enterprise:v9.9.9"
+
+  - it: passes reload-after timeout and poll interval when set
+    set:
+      reloader:
+        reloadAfter:
+          timeout: 45m
+          pollInterval: 10s
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].args
+          content: "--reload-after-timeout=45m"
+      - contains:
+          path: spec.template.spec.containers[0].args
+          content: "--reload-after-poll-interval=10s"
+

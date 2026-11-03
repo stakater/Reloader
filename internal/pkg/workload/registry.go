@@ -88,6 +88,31 @@ func (r *Registry) SupportedKinds() []Kind {
 	return kinds
 }
 
+// NewObject returns an empty object for the given kind, or nil if the kind is not enabled.
+func (r *Registry) NewObject(kind Kind) client.Object {
+	switch kind {
+	case KindDeployment:
+		return &appsv1.Deployment{}
+	case KindDaemonSet:
+		return &appsv1.DaemonSet{}
+	case KindStatefulSet:
+		return &appsv1.StatefulSet{}
+	case KindJob:
+		return &batchv1.Job{}
+	case KindCronJob:
+		return &batchv1.CronJob{}
+	case KindArgoRollout:
+		if r.argoRolloutsEnabled {
+			return &argorolloutv1alpha1.Rollout{}
+		}
+	case KindDeploymentConfig:
+		if r.deploymentConfigEnabled {
+			return &openshiftv1.DeploymentConfig{}
+		}
+	}
+	return nil
+}
+
 // FromObject creates a Workload from a Kubernetes object.
 func (r *Registry) FromObject(obj client.Object) (Workload, error) {
 	switch o := obj.(type) {

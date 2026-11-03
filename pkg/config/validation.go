@@ -111,6 +111,23 @@ func (c *Config) Validate() error {
 		}
 	}
 
+	if c.ReloadAfterTimeout <= 0 {
+		errs = append(
+			errs, ValidationError{
+				Field:   "ReloadAfterTimeout",
+				Message: fmt.Sprintf("must be positive, got %s", c.ReloadAfterTimeout),
+			},
+		)
+	}
+	if c.ReloadAfterPollInterval <= 0 {
+		errs = append(
+			errs, ValidationError{
+				Field:   "ReloadAfterPollInterval",
+				Message: fmt.Sprintf("must be positive, got %s", c.ReloadAfterPollInterval),
+			},
+		)
+	}
+
 	c.IgnoredResources = normalizeToLower(c.IgnoredResources)
 
 	// Normalize ignored workloads to canonical Kind values (e.g., "cronjobs" -> "CronJob")

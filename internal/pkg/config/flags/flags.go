@@ -225,6 +225,26 @@ func BindFlags(fs *pflag.FlagSet, cfg *config.Config) {
 		"pause-deployment-time-annotation", cfg.Annotations.PausedAt,
 		"Annotation to indicate when a deployment was paused by Reloader",
 	)
+	fs.String(
+		"reload-after-annotation", cfg.Annotations.ReloadAfter,
+		"Annotation listing workloads (kind/name) that must finish reloading before this workload reloads",
+	)
+	fs.String(
+		"reload-after-timeout-annotation", cfg.Annotations.ReloadAfterTimeout,
+		"Annotation overriding how long a workload waits for its reload-after dependencies",
+	)
+	fs.String(
+		"pending-reload-annotation", cfg.Annotations.PendingReload,
+		"Annotation Reloader uses to record reloads deferred by reload-after",
+	)
+	fs.Duration(
+		"reload-after-timeout", cfg.ReloadAfterTimeout,
+		"Default time a deferred reload waits for its reload-after dependencies before it is dropped",
+	)
+	fs.Duration(
+		"reload-after-poll-interval", cfg.ReloadAfterPollInterval,
+		"How often deferred reloads re-check their reload-after dependencies",
+	)
 
 	// Watched namespaces (scoped mode). Empty means watch all namespaces;
 	// KUBERNETES_NAMESPACE (env) is used as a single-namespace fallback.
@@ -342,6 +362,11 @@ func ApplyFlags(cfg *config.Config, log logr.Logger) error {
 	cfg.Annotations.Ignore = v.GetString("ignore-annotation")
 	cfg.Annotations.PausePeriod = v.GetString("pause-deployment-annotation")
 	cfg.Annotations.PausedAt = v.GetString("pause-deployment-time-annotation")
+	cfg.Annotations.ReloadAfter = v.GetString("reload-after-annotation")
+	cfg.Annotations.ReloadAfterTimeout = v.GetString("reload-after-timeout-annotation")
+	cfg.Annotations.PendingReload = v.GetString("pending-reload-annotation")
+	cfg.ReloadAfterTimeout = v.GetDuration("reload-after-timeout")
+	cfg.ReloadAfterPollInterval = v.GetDuration("reload-after-poll-interval")
 
 	// Alerting
 	cfg.Alerting.Enabled = v.GetBool("alert-on-reload")

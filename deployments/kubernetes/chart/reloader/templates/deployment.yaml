@@ -339,6 +339,14 @@ spec:
           {{- if eq .Values.reloader.syncAfterRestart true }}
           - "--sync-after-restart={{ .Values.reloader.syncAfterRestart }}"
           {{- end }}
+          {{- with .Values.reloader.reloadAfter }}
+          {{- with .timeout }}
+          - "--reload-after-timeout={{ . }}"
+          {{- end }}
+          {{- with .pollInterval }}
+          - "--reload-after-poll-interval={{ . }}"
+          {{- end }}
+          {{- end }}
           {{- if ne .Values.reloader.reloadStrategy "default" }}
           - "--reload-strategy={{ .Values.reloader.reloadStrategy }}"
           {{- end }}
