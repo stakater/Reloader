@@ -288,7 +288,7 @@ func TestHandleMissingTimerSimple(t *testing.T) {
 	}
 }
 
-func TestResumeDeploymentRecoversAfterFailedGet(t *testing.T) {
+func TestResumeDeploymentRetriesAfterFailedGet(t *testing.T) {
 	deployment := &appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "test-deployment",
@@ -308,10 +308,12 @@ func TestResumeDeploymentRecoversAfterFailedGet(t *testing.T) {
 	timerKey := getTimerKey("default", deployment.Name)
 	activeTimers[timerKey] = time.NewTimer(time.Hour)
 	defer func() {
+		activeTimersMu.Lock()
 		for key, timer := range activeTimers {
 			timer.Stop()
 			delete(activeTimers, key)
 		}
+		activeTimersMu.Unlock()
 	}()
 
 	// The API server is unavailable when the resume timer fires.
@@ -324,17 +326,95 @@ func TestResumeDeploymentRecoversAfterFailedGet(t *testing.T) {
 	})
 	ResumeDeployment(deployment, "default", clients)
 
+	activeTimersMu.Lock()
 	_, timerExists := activeTimers[timerKey]
-	assert.False(t, timerExists, "Timer should be removed even if the resume fails")
+	activeTimersMu.Unlock()
+	assert.True(t, timerExists, "A retry timer should be kept while the resume is still pending")
 
-	// The next change to the deployment recovers through HandleMissingTimer.
+	// Simulate the scheduled retry once the API server is available again.
 	failGet = false
-	_, err := PauseDeployment(deployment, clients, "default", deployment.Annotations[options.PauseDeploymentAnnotation])
-	assert.NoError(t, err)
+	resumeDeployment(deployment, "default", clients, resumeRetryInitialBackoff)
 
 	updatedDeployment, err := fakeClient.AppsV1().Deployments("default").Get(context.TODO(), deployment.Name, metav1.GetOptions{})
 	assert.NoError(t, err)
-	assert.False(t, updatedDeployment.Spec.Paused, "Deployment should be resumed after the failed attempt")
+	assert.False(t, updatedDeployment.Spec.Paused, "Deployment should be resumed after the retry")
+
+	activeTimersMu.Lock()
+	_, timerExists = activeTimers[timerKey]
+	activeTimersMu.Unlock()
+	assert.False(t, timerExists, "Timer should be removed after a successful resume")
+}
+
+func TestResumeDeploymentRetriesAfterFailedPatch(t *testing.T) {
+	deployment := &appsv1.Deployment{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-deployment",
+			Namespace: "default",
+			Annotations: map[string]string{
+				options.PauseDeploymentTimeAnnotation: time.Now().Add(-6 * time.Minute).Format(time.RFC3339),
+				options.PauseDeploymentAnnotation:     "5m",
+			},
+		},
+		Spec: appsv1.DeploymentSpec{
+			Paused: true,
+		},
+	}
+	fakeClient := testclient.NewClientset(deployment)
+	clients := kube.Clients{KubernetesClient: fakeClient}
+
+	timerKey := getTimerKey("default", deployment.Name)
+	activeTimers[timerKey] = time.NewTimer(time.Hour)
+	defer func() {
+		activeTimersMu.Lock()
+		for key, timer := range activeTimers {
+			timer.Stop()
+			delete(activeTimers, key)
+		}
+		activeTimersMu.Unlock()
+	}()
+
+	// The resume write is rejected (for example a validating webhook is down).
+	failPatch := true
+	fakeClient.PrependReactor("patch", "deployments", func(clienttesting.Action) (bool, runtime.Object, error) {
+		if failPatch {
+			return true, nil, errors.New("failed calling webhook: connection refused")
+		}
+		return false, nil, nil
+	})
+	ResumeDeployment(deployment, "default", clients)
+
+	activeTimersMu.Lock()
+	_, timerExists := activeTimers[timerKey]
+	activeTimersMu.Unlock()
+	assert.True(t, timerExists, "A retry timer should be kept while the resume write is still pending")
+
+	stillPaused, err := fakeClient.AppsV1().Deployments("default").Get(context.TODO(), deployment.Name, metav1.GetOptions{})
+	assert.NoError(t, err)
+	assert.True(t, stillPaused.Spec.Paused, "Deployment should stay paused after a failed resume write")
+
+	// Simulate the scheduled retry once the write succeeds again.
+	failPatch = false
+	resumeDeployment(deployment, "default", clients, resumeRetryInitialBackoff)
+
+	updatedDeployment, err := fakeClient.AppsV1().Deployments("default").Get(context.TODO(), deployment.Name, metav1.GetOptions{})
+	assert.NoError(t, err)
+	assert.False(t, updatedDeployment.Spec.Paused, "Deployment should be resumed after the retry")
+	_, hasPauseAnnotation := updatedDeployment.Annotations[options.PauseDeploymentTimeAnnotation]
+	assert.False(t, hasPauseAnnotation, "Pause annotation should be cleared after a successful resume")
+
+	activeTimersMu.Lock()
+	_, timerExists = activeTimers[timerKey]
+	activeTimersMu.Unlock()
+	assert.False(t, timerExists, "Timer should be removed after a successful resume")
+}
+
+func TestNextResumeRetryBackoff(t *testing.T) {
+	assert.Equal(t, resumeRetryInitialBackoff, nextResumeRetryBackoff(0))
+	assert.Equal(t, 10*time.Second, nextResumeRetryBackoff(5*time.Second))
+	assert.Equal(t, 20*time.Second, nextResumeRetryBackoff(10*time.Second))
+	assert.Equal(t, 40*time.Second, nextResumeRetryBackoff(20*time.Second))
+	assert.Equal(t, resumeRetryMaxBackoff, nextResumeRetryBackoff(40*time.Second))
+	assert.Equal(t, resumeRetryMaxBackoff, nextResumeRetryBackoff(resumeRetryMaxBackoff))
 }
 
 func TestResumeDeploymentRecoversAfterManualResume(t *testing.T) {
