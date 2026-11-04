@@ -287,6 +287,12 @@ the rule set is defined once. Expects the root context ($) as its argument.
       - watch
       - update
       - patch
+  - apiGroups:
+      - "batch"
+    resources:
+      - cronjobs/finalizers
+    verbs:
+      - update
 {{- end }}
 {{- if .Values.reloader.ignoreJobs }}{{- else }}
   - apiGroups:

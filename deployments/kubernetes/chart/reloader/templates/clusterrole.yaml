@@ -89,6 +89,12 @@ rules:
       - watch
       - update
       - patch
+  - apiGroups:
+      - "batch"
+    resources:
+      - cronjobs/finalizers
+    verbs:
+      - update
 {{- end }}
 {{- if .Values.reloader.ignoreJobs }}{{- else }}
   - apiGroups:

@@ -1,0 +1,66 @@
+suite: RBAC CronJob permissions
+
+templates:
+  - clusterrole.yaml
+  - role.yaml
+
+tests:
+  - it: grants update on cronjobs/finalizers in the ClusterRole
+    template: clusterrole.yaml
+    set:
+      reloader:
+        watchGlobally: true
+    asserts:
+      - contains:
+          path: rules
+          content:
+            apiGroups:
+              - "batch"
+            resources:
+              - cronjobs/finalizers
+            verbs:
+              - update
+
+  - it: grants update on cronjobs/finalizers in the namespaced Role
+    template: role.yaml
+    documentSelector:
+      path: metadata.name
+      value: RELEASE-NAME-reloader-role
+    set:
+      reloader:
+        watchGlobally: false
+    asserts:
+      - contains:
+          path: rules
+          content:
+            apiGroups:
+              - "batch"
+            resources:
+              - cronjobs/finalizers
+            verbs:
+              - update
+
+  - it: does not grant cronjobs/finalizers in the ClusterRole when CronJobs are ignored
+    template: clusterrole.yaml
+    set:
+      reloader:
+        watchGlobally: true
+        ignoreCronJobs: true
+    asserts:
+      - exists:
+          path: rules[?(@.resources[0] == "cronjobs/finalizers")]
+        not: true
+
+  - it: does not grant cronjobs/finalizers in the namespaced Role when CronJobs are ignored
+    template: role.yaml
+    documentSelector:
+      path: metadata.name
+      value: RELEASE-NAME-reloader-role
+    set:
+      reloader:
+        watchGlobally: false
+        ignoreCronJobs: true
+    asserts:
+      - exists:
+          path: rules[?(@.resources[0] == "cronjobs/finalizers")]
+        not: true
