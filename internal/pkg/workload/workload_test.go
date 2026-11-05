@@ -6,6 +6,7 @@ import (
 	argorolloutv1alpha1 "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/utils/ptr"
 
 	"github.com/stakater/Reloader/internal/pkg/testutil"
 )
@@ -1685,6 +1686,21 @@ func TestStatefulSetWorkload_PerformSpecialUpdate(t *testing.T) {
 	}
 	if updated {
 		t.Error("PerformSpecialUpdate() should return false for StatefulSet")
+	}
+}
+
+func TestCronJobWorkload_PerformSpecialUpdate_Suspended(t *testing.T) {
+	cj := testutil.NewCronJob("test", "default")
+	cj.Spec.Suspend = ptr.To(true)
+	w := NewCronJobWorkload(cj)
+
+	// A nil client would panic if a Job were created.
+	updated, err := w.PerformSpecialUpdate(t.Context(), nil)
+	if err != nil {
+		t.Errorf("PerformSpecialUpdate() error = %v", err)
+	}
+	if updated {
+		t.Error("PerformSpecialUpdate() should return false for a suspended CronJob")
 	}
 }
 

@@ -8,6 +8,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	logf "sigs.k8s.io/controller-runtime/pkg/log"
 )
 
 // cronJobAccessor implements PodTemplateAccessor for CronJob.
@@ -61,8 +62,17 @@ func (w *CronJobWorkload) UpdateStrategy() UpdateStrategy {
 
 // PerformSpecialUpdate creates a new Job from the CronJob's template.
 // This triggers an immediate execution of the CronJob with updated config.
+// A suspended CronJob is skipped: suspend stops new runs, and Reloader should not start one either.
 func (w *CronJobWorkload) PerformSpecialUpdate(ctx context.Context, c client.Client) (bool, error) {
 	cronJob := w.Object()
+
+	if cronJob.Spec.Suspend != nil && *cronJob.Spec.Suspend {
+		logf.FromContext(ctx).Info(
+			"skipping reload of suspended CronJob",
+			"workload", cronJob.Name, "namespace", cronJob.Namespace,
+		)
+		return false, nil
+	}
 
 	annotations := make(map[string]string)
 	annotations["cronjob.kubernetes.io/instantiate"] = "manual"

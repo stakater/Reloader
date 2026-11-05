@@ -10,6 +10,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
@@ -284,6 +285,63 @@ func TestUpdateWorkloadWithRetry_NoUpdate(t *testing.T) {
 	}
 	if updated {
 		t.Error("Expected workload NOT to be updated (same hash)")
+	}
+}
+
+func TestUpdateWorkloadWithRetry_SuspendedCronJob(t *testing.T) {
+	tests := []struct {
+		name        string
+		suspend     *bool
+		wantUpdated bool
+		wantJobs    int
+	}{
+		{name: "suspended", suspend: ptr.To(true), wantUpdated: false, wantJobs: 0},
+		{name: "explicitly not suspended", suspend: ptr.To(false), wantUpdated: true, wantJobs: 1},
+		{name: "suspend unset", suspend: nil, wantUpdated: true, wantJobs: 1},
+	}
+
+	for _, tt := range tests {
+		t.Run(
+			tt.name, func(t *testing.T) {
+				cfg := config.NewDefault()
+				reloadService := reload.NewService(cfg, testr.New(t))
+
+				cronJob := testutil.NewCronJob("test-cronjob", "default")
+				cronJob.Spec.Suspend = tt.suspend
+
+				fakeClient := fake.NewClientBuilder().
+					WithScheme(testutil.NewScheme()).
+					WithObjects(cronJob).
+					Build()
+
+				updated, err := controller.UpdateWorkloadWithRetry(
+					context.Background(),
+					fakeClient,
+					reloadService,
+					nil, // no pause handler
+					workload.NewCronJobWorkload(cronJob),
+					"test-cm",
+					matcher.ResourceTypeConfigMap,
+					"default",
+					"abc123",
+					false,
+				)
+				if err != nil {
+					t.Fatalf("UpdateWorkloadWithRetry failed: %v", err)
+				}
+				if updated != tt.wantUpdated {
+					t.Errorf("updated = %v, want %v", updated, tt.wantUpdated)
+				}
+
+				var jobs batchv1.JobList
+				if err := fakeClient.List(context.Background(), &jobs, client.InNamespace("default")); err != nil {
+					t.Fatalf("Failed to list jobs: %v", err)
+				}
+				if len(jobs.Items) != tt.wantJobs {
+					t.Errorf("got %d jobs, want %d", len(jobs.Items), tt.wantJobs)
+				}
+			},
+		)
 	}
 }
 
