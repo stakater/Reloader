@@ -64,3 +64,27 @@ tests:
       - exists:
           path: rules[?(@.resources[0] == "cronjobs/finalizers")]
         not: true
+
+  - it: grants update on cronjobs/finalizers in each scoped namespace's Role
+    template: role.yaml
+    documentSelector:
+      path: metadata.namespace
+      value: team-b
+    set:
+      reloader:
+        watchGlobally: false
+        namespaces:
+          - team-a
+          - team-b
+    asserts:
+      - isKind:
+          of: Role
+      - contains:
+          path: rules
+          content:
+            apiGroups:
+              - "batch"
+            resources:
+              - cronjobs/finalizers
+            verbs:
+              - update
