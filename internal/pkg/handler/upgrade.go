@@ -176,6 +176,9 @@ func sendWebhook(url string) (string, []error) {
 	if bufferErr != nil {
 		logrus.Error(bufferErr)
 	}
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return buffer.String(), []error{fmt.Errorf("webhook returned status %s", resp.Status)}
+	}
 	return buffer.String(), nil
 }
 
