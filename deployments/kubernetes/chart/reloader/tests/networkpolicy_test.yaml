@@ -76,7 +76,7 @@ tests:
                 - port: 53
                   protocol: UDP
 
-  - it: drops egress when reloader.netpol.egress is empty
+  - it: denies all egress when reloader.netpol.egress is empty
     set:
       reloader:
         netpol:
@@ -87,3 +87,23 @@ tests:
           count: 1
       - isNull:
           path: spec.egress
+
+  - it: renders legacy port 443 egress when reloader.netpol.to is set
+    set:
+      reloader:
+        netpol:
+          enabled: true
+          to:
+            - ipBlock:
+                cidr: 10.0.0.0/8
+    asserts:
+      - hasDocuments:
+          count: 1
+      - equal:
+          path: spec.egress
+          value:
+            - ports:
+                - port: 443
+              to:
+                - ipBlock:
+                    cidr: 10.0.0.0/8

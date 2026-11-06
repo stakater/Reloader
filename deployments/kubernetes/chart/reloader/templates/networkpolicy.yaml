@@ -28,8 +28,14 @@ spec:
       from:
         {{- toYaml .| nindent 8 }}
       {{- end }}
-  {{- with .Values.reloader.netpol.egress }}
+  {{- if .Values.reloader.netpol.to }}
   egress:
-    {{- toYaml . | nindent 4 }}
+    - ports:
+        - port: 443
+      to:
+        {{- toYaml .Values.reloader.netpol.to | nindent 8 }}
+  {{- else if .Values.reloader.netpol.egress }}
+  egress:
+    {{- toYaml .Values.reloader.netpol.egress | nindent 4 }}
   {{- end }}
 {{- end }}
