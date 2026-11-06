@@ -53,7 +53,13 @@ func (h *ReloadHandler) Process(
 		h.Collectors.RecordWorkloadsScanned(kind, count)
 	}
 
-	decisions := reload.FilterDecisions(getDecisions(workloads))
+	all := getDecisions(workloads)
+	for _, d := range all {
+		if d.Suspended {
+			h.Collectors.RecordSkipped("suspended")
+		}
+	}
+	decisions := reload.FilterDecisions(all)
 
 	matchedByKind := make(map[string]int)
 	for _, d := range decisions {

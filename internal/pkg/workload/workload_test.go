@@ -1689,18 +1689,28 @@ func TestStatefulSetWorkload_PerformSpecialUpdate(t *testing.T) {
 	}
 }
 
-func TestCronJobWorkload_PerformSpecialUpdate_Suspended(t *testing.T) {
-	cj := testutil.NewCronJob("test", "default")
-	cj.Spec.Suspend = ptr.To(true)
-	w := NewCronJobWorkload(cj)
-
-	// A nil client would panic if a Job were created.
-	updated, err := w.PerformSpecialUpdate(t.Context(), nil)
-	if err != nil {
-		t.Errorf("PerformSpecialUpdate() error = %v", err)
+func TestWorkload_IsSuspended(t *testing.T) {
+	tests := []struct {
+		name    string
+		suspend *bool
+		want    bool
+	}{
+		{name: "suspended", suspend: ptr.To(true), want: true},
+		{name: "not suspended", suspend: ptr.To(false), want: false},
+		{name: "suspend unset", suspend: nil, want: false},
 	}
-	if updated {
-		t.Error("PerformSpecialUpdate() should return false for a suspended CronJob")
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cj := testutil.NewCronJob("test", "default")
+			cj.Spec.Suspend = tt.suspend
+			if got := NewCronJobWorkload(cj).IsSuspended(); got != tt.want {
+				t.Errorf("IsSuspended() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+
+	if NewDeploymentWorkload(testutil.NewDeployment("test", "default", nil)).IsSuspended() {
+		t.Error("IsSuspended() should be false for a Deployment")
 	}
 }
 
