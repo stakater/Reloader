@@ -203,3 +203,11 @@ Helm chart will be released to the chart registry whenever files in `deployments
 1. Create a new branch and update the Helm chart `appVersion` and `version`, example pull-request: [PR-846](https://github.com/stakater/Reloader/pull/846)
 1. Label the PR with `release/helm-chart`
 1. After approval and just before squash, make sure the squash commit message represents all changes, because it will be used to autogenerate the changelog message
+
+### Optional restart windows
+
+Set `reloader.enableRestartWindows: true` to enable per-workload restart windows
+(default: `false`). This passes `--enable-restart-windows` and adds workload
+watch permissions to the generated RBAC. Workloads must also opt in using
+`reloader.stakater.com/restart-window` on their metadata alongside the normal
+Reloader source annotations. See [restart window documentation](../../../../docs/restart-windows.md).
