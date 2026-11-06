@@ -111,7 +111,9 @@ helm uninstall {{RELEASE_NAME}} -n {{NAMESPACE}}
 | `reloader.serviceMonitor.enabled`      | Enable to scrape Reloader's Prometheus metrics (legacy)         | boolean | `false` |
 | `reloader.podMonitor.enabled`          | Enable to scrape Reloader's Prometheus metrics                  | boolean | `false` |
 | `reloader.podDisruptionBudget.enabled` | Limit the number of pods of a replicated application            | boolean | `false` |
-| `reloader.netpol.enabled`              |                                                                 | boolean | `false` |
+| `reloader.netpol.enabled`              | Enable NetworkPolicy for Reloader                               | boolean | `false` |
+| `reloader.netpol.to`                   | (Deprecated: use `reloader.netpol.egress[].to` instead) Destinations for port 443 egress | array | `[]` |
+| `reloader.netpol.egress`               | NetworkPolicy egress rules (setting to an empty list `[]` denies all egress, including API server access) | array | `see values.yaml` |
 | `reloader.volumeMounts`                | Mount volume                                                    | array   | `[]`    |
 | `reloader.volumes`                     | Add volume to a pod                                             | array   | `[]`    |
 | `reloader.webhookUrl`                  | Add webhook to Reloader                                         | string  | `""`    |
