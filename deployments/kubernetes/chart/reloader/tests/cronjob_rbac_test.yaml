@@ -40,31 +40,6 @@ tests:
             verbs:
               - update
 
-  - it: does not grant cronjobs/finalizers in the ClusterRole when CronJobs are ignored
-    template: clusterrole.yaml
-    set:
-      reloader:
-        watchGlobally: true
-        ignoreCronJobs: true
-    asserts:
-      - exists:
-          path: rules[?(@.resources[0] == "cronjobs/finalizers")]
-        not: true
-
-  - it: does not grant cronjobs/finalizers in the namespaced Role when CronJobs are ignored
-    template: role.yaml
-    documentSelector:
-      path: metadata.name
-      value: RELEASE-NAME-reloader-role
-    set:
-      reloader:
-        watchGlobally: false
-        ignoreCronJobs: true
-    asserts:
-      - exists:
-          path: rules[?(@.resources[0] == "cronjobs/finalizers")]
-        not: true
-
   - it: grants update on cronjobs/finalizers in each scoped namespace's Role
     template: role.yaml
     documentSelector:
@@ -80,6 +55,110 @@ tests:
       - isKind:
           of: Role
       - contains:
+          path: rules
+          content:
+            apiGroups:
+              - "batch"
+            resources:
+              - cronjobs/finalizers
+            verbs:
+              - update
+
+  # A Job that a CronJob created keeps its ownerReference when Reloader recreates it, so the rule
+  # stays while Jobs are still reloaded.
+  - it: still grants cronjobs/finalizers in the ClusterRole when only CronJobs are ignored
+    template: clusterrole.yaml
+    set:
+      reloader:
+        watchGlobally: true
+        ignoreCronJobs: true
+        ignoreJobs: false
+    asserts:
+      - contains:
+          path: rules
+          content:
+            apiGroups:
+              - "batch"
+            resources:
+              - cronjobs/finalizers
+            verbs:
+              - update
+
+  - it: still grants cronjobs/finalizers in the namespaced Role when only CronJobs are ignored
+    template: role.yaml
+    documentSelector:
+      path: metadata.name
+      value: RELEASE-NAME-reloader-role
+    set:
+      reloader:
+        watchGlobally: false
+        ignoreCronJobs: true
+        ignoreJobs: false
+    asserts:
+      - contains:
+          path: rules
+          content:
+            apiGroups:
+              - "batch"
+            resources:
+              - cronjobs/finalizers
+            verbs:
+              - update
+
+  - it: does not grant cronjobs/finalizers in the ClusterRole when CronJobs and Jobs are ignored
+    template: clusterrole.yaml
+    set:
+      reloader:
+        watchGlobally: true
+        ignoreCronJobs: true
+        ignoreJobs: true
+    asserts:
+      - notContains:
+          path: rules
+          content:
+            apiGroups:
+              - "batch"
+            resources:
+              - cronjobs/finalizers
+            verbs:
+              - update
+
+  - it: does not grant cronjobs/finalizers in the namespaced Role when CronJobs and Jobs are ignored
+    template: role.yaml
+    documentSelector:
+      path: metadata.name
+      value: RELEASE-NAME-reloader-role
+    set:
+      reloader:
+        watchGlobally: false
+        ignoreCronJobs: true
+        ignoreJobs: true
+    asserts:
+      - notContains:
+          path: rules
+          content:
+            apiGroups:
+              - "batch"
+            resources:
+              - cronjobs/finalizers
+            verbs:
+              - update
+
+  - it: does not grant cronjobs/finalizers in a scoped namespace's Role when CronJobs and Jobs are ignored
+    template: role.yaml
+    documentSelector:
+      path: metadata.namespace
+      value: team-b
+    set:
+      reloader:
+        watchGlobally: false
+        ignoreCronJobs: true
+        ignoreJobs: true
+        namespaces:
+          - team-a
+          - team-b
+    asserts:
+      - notContains:
           path: rules
           content:
             apiGroups:

@@ -287,6 +287,10 @@ the rule set is defined once. Expects the root context ($) as its argument.
       - watch
       - update
       - patch
+{{- end }}
+{{- /* A Job recreated from a CronJob keeps its ownerReference (blockOwnerDeletion), so the Job
+       path needs this too: it is left out only when both CronJobs and Jobs are ignored. */}}
+{{- if not (and .Values.reloader.ignoreCronJobs .Values.reloader.ignoreJobs) }}
   - apiGroups:
       - "batch"
     resources:
