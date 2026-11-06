@@ -23,6 +23,10 @@ spec:
   replicas: {{ .Values.reloader.deployment.replicas }}
 {{- end}}
   revisionHistoryLimit: {{ .Values.reloader.deployment.revisionHistoryLimit }}
+{{- with .Values.reloader.deployment.strategy }}
+  strategy:
+    {{- toYaml . | nindent 4 }}
+{{- end }}
   selector:
     matchLabels:
 {{ include "reloader-match-labels.chart" . | indent 6 }}

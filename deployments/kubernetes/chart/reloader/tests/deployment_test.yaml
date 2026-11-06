@@ -261,3 +261,39 @@ tests:
       - equal:
           path: spec.template.spec.containers[0].image
           value: "acr.example.invalid/reloader-enterprise:v9.9.9"
+
+  - it: does not render strategy by default
+    asserts:
+      - isNull:
+          path: spec.strategy
+
+  - it: renders Recreate deployment strategy when configured
+    set:
+      reloader:
+        deployment:
+          strategy:
+            type: Recreate
+    asserts:
+      - equal:
+          path: spec.strategy.type
+          value: Recreate
+
+  - it: renders custom RollingUpdate strategy with maxSurge and maxUnavailable
+    set:
+      reloader:
+        deployment:
+          strategy:
+            type: RollingUpdate
+            rollingUpdate:
+              maxSurge: 0
+              maxUnavailable: 1
+    asserts:
+      - equal:
+          path: spec.strategy.type
+          value: RollingUpdate
+      - equal:
+          path: spec.strategy.rollingUpdate.maxSurge
+          value: 0
+      - equal:
+          path: spec.strategy.rollingUpdate.maxUnavailable
+          value: 1
