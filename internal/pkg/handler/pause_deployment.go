@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"math"
 	"sync"
 	"time"
 
@@ -12,15 +13,21 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	patchtypes "k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/wait"
 
 	"github.com/stakater/Reloader/internal/pkg/options"
 	"github.com/stakater/Reloader/pkg/kube"
 )
 
-const (
-	resumeRetryInitialBackoff = 5 * time.Second
-	resumeRetryMaxBackoff     = 60 * time.Second
-)
+// resumeRetryBackoff controls how often a failed resume is retried. Retries
+// continue until the resume succeeds or is no longer needed.
+var resumeRetryBackoff = wait.Backoff{
+	Duration: 5 * time.Second,
+	Factor:   2,
+	Jitter:   0.1,
+	Steps:    math.MaxInt32,
+	Cap:      60 * time.Second,
+}
 
 // Keeps track of currently active timers. Controller workers and resume
 // timers run in separate goroutines, so access is guarded by activeTimersMu.
@@ -193,27 +200,37 @@ func CreateResumeTimer(deployment *app.Deployment, clients kube.Clients, namespa
 
 // ResumeDeployment resumes a deployment that has been paused by reloader
 func ResumeDeployment(deployment *app.Deployment, namespace string, clients kube.Clients) {
-	resumeDeployment(deployment, namespace, clients, 0)
+	backoff := resumeRetryBackoff
+	resumeDeployment(deployment.Name, namespace, clients, &backoff)
 }
 
-func resumeDeployment(deployment *app.Deployment, namespace string, clients kube.Clients, previousBackoff time.Duration) {
-	deploymentName := deployment.Name
+func resumeDeployment(deploymentName, namespace string, clients kube.Clients, backoff *wait.Backoff) {
+	// Remove the timer first: a pause that happens while this resume is in
+	// flight must be able to create its own timer. If this attempt fails, the
+	// retry is only scheduled when no such timer exists.
+	timerKey := getTimerKey(namespace, deploymentName)
+	activeTimersMu.Lock()
+	if timer, exists := activeTimers[timerKey]; exists {
+		timer.Stop()
+		delete(activeTimers, timerKey)
+		logrus.Debugf("Removed pause timer for deployment '%s' in namespace '%s'", deploymentName, namespace)
+	}
+	activeTimersMu.Unlock()
 
 	currentDeployment, err := clients.KubernetesClient.AppsV1().Deployments(namespace).Get(context.TODO(), deploymentName, metav1.GetOptions{})
+
 	if err != nil {
 		if apierrors.IsNotFound(err) {
 			logrus.Infof("Deployment '%s' in namespace '%s' no longer exists. Skipping resume", deploymentName, namespace)
-			clearResumeTimer(namespace, deploymentName)
 			return
 		}
 		logrus.Errorf("Failed to get deployment '%s' in namespace '%s': %v", deploymentName, namespace, err)
-		scheduleResumeRetry(deployment, namespace, clients, previousBackoff)
+		scheduleResumeRetry(deploymentName, namespace, clients, backoff)
 		return
 	}
 
 	if !IsPausedByReloader(currentDeployment) {
 		logrus.Infof("Deployment '%s' in namespace '%s' not paused by Reloader. Skipping resume", deploymentName, namespace)
-		clearResumeTimer(namespace, deploymentName)
 		return
 	}
 
@@ -222,65 +239,43 @@ func resumeDeployment(deployment *app.Deployment, namespace string, clients kube
 	resumePatch, err := CreateResumePatch()
 	if err != nil {
 		logrus.Errorf("Failed to create resume patch for deployment '%s': %v", deploymentName, err)
-		clearResumeTimer(namespace, deploymentName)
+		scheduleResumeRetry(deploymentName, namespace, clients, backoff)
 		return
 	}
 
 	err = deploymentFuncs.PatchFunc(clients, namespace, currentDeployment, patchtypes.StrategicMergePatchType, resumePatch)
+
 	if err != nil {
 		logrus.Errorf("Failed to resume deployment '%s' in namespace '%s': %v", deploymentName, namespace, err)
-		scheduleResumeRetry(deployment, namespace, clients, previousBackoff)
+		scheduleResumeRetry(deploymentName, namespace, clients, backoff)
 		return
 	}
 
-	clearResumeTimer(namespace, deploymentName)
 	logrus.Infof("Successfully resumed deployment '%s' in namespace '%s'", deploymentName, namespace)
 }
 
-func nextResumeRetryBackoff(previousBackoff time.Duration) time.Duration {
-	if previousBackoff <= 0 {
-		return resumeRetryInitialBackoff
-	}
-	next := previousBackoff * 2
-	if next > resumeRetryMaxBackoff {
-		return resumeRetryMaxBackoff
-	}
-	return next
-}
-
-// scheduleResumeRetry keeps an activeTimers entry so PauseDeployment does not
-// start a second timer, and retries the resume with exponential backoff.
-func scheduleResumeRetry(deployment *app.Deployment, namespace string, clients kube.Clients, previousBackoff time.Duration) {
-	backoff := nextResumeRetryBackoff(previousBackoff)
-	timerKey := getTimerKey(namespace, deployment.Name)
-
-	activeTimersMu.Lock()
-	defer activeTimersMu.Unlock()
-
-	if timer, exists := activeTimers[timerKey]; exists {
-		timer.Stop()
-	}
-
-	timer := time.AfterFunc(backoff, func() {
-		resumeDeployment(deployment, namespace, clients, backoff)
-	})
-	activeTimers[timerKey] = timer
-
-	logrus.Infof("Scheduled resume retry for deployment '%s' in namespace '%s' in %s",
-		deployment.Name, namespace, backoff)
-}
-
-func clearResumeTimer(namespace, deploymentName string) {
+// scheduleResumeRetry retries a failed resume after the next backoff step.
+// If a pause created a new timer in the meantime, that timer resumes the
+// deployment and no retry is needed.
+func scheduleResumeRetry(deploymentName, namespace string, clients kube.Clients, backoff *wait.Backoff) {
 	timerKey := getTimerKey(namespace, deploymentName)
 
 	activeTimersMu.Lock()
 	defer activeTimersMu.Unlock()
 
-	if timer, exists := activeTimers[timerKey]; exists {
-		timer.Stop()
-		delete(activeTimers, timerKey)
-		logrus.Debugf("Removed pause timer for deployment '%s' in namespace '%s'", deploymentName, namespace)
+	if _, exists := activeTimers[timerKey]; exists {
+		logrus.Debugf("Timer already exists for deployment '%s' in namespace '%s', Skipping resume retry",
+			deploymentName, namespace)
+		return
 	}
+
+	delay := backoff.Step()
+	activeTimers[timerKey] = time.AfterFunc(delay, func() {
+		resumeDeployment(deploymentName, namespace, clients, backoff)
+	})
+
+	logrus.Infof("Scheduled resume retry for deployment '%s' in namespace '%s' in %s",
+		deploymentName, namespace, delay)
 }
 
 func CreatePausePatch() ([]byte, error) {
