@@ -59,6 +59,13 @@ func (w *CronJobWorkload) UpdateStrategy() UpdateStrategy {
 	return UpdateStrategyCreateNew
 }
 
+// IsSuspended reports whether the CronJob has spec.suspend set. Suspend stops new runs, so Reloader
+// does not start one either (#822).
+func (w *CronJobWorkload) IsSuspended() bool {
+	suspend := w.Object().Spec.Suspend
+	return suspend != nil && *suspend
+}
+
 // PerformSpecialUpdate creates a new Job from the CronJob's template.
 // This triggers an immediate execution of the CronJob with updated config.
 func (w *CronJobWorkload) PerformSpecialUpdate(ctx context.Context, c client.Client) (bool, error) {

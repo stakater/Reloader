@@ -736,6 +736,13 @@ func WithCronJobSecretEnvFrom(name string) CronJobOption {
 	}
 }
 
+// WithCronJobSuspend sets spec.suspend on the CronJob.
+func WithCronJobSuspend(suspend bool) CronJobOption {
+	return func(cj *batchv1.CronJob) {
+		cj.Spec.Suspend = ptr.To(suspend)
+	}
+}
+
 // baseCronJobResource creates a base CronJob template.
 func baseCronJobResource(namespace, name string) *batchv1.CronJob {
 	labels := map[string]string{"app": name}

@@ -362,6 +362,32 @@ var _ = Describe("Workload Reload Tests", Serial, func() {
 				Expect(err).NotTo(HaveOccurred())
 				Expect(triggered).To(BeTrue(), "CronJob with auto=true should have triggered a Job creation")
 			})
+
+			It("should not trigger a Job while the CronJob is suspended", func() {
+				By("Creating a ConfigMap")
+				_, err := utils.CreateConfigMap(ctx, kubeClient, testNamespace, configMapName,
+					map[string]string{"key": "initial"}, nil)
+				Expect(err).NotTo(HaveOccurred())
+
+				By("Creating a suspended CronJob with ConfigMap reference annotation")
+				_, err = utils.CreateCronJob(ctx, kubeClient, testNamespace, workloadName,
+					utils.WithCronJobConfigMapEnvFrom(configMapName),
+					utils.WithCronJobAnnotations(utils.BuildConfigMapReloadAnnotation(configMapName)),
+					utils.WithCronJobSuspend(true),
+				)
+				Expect(err).NotTo(HaveOccurred())
+				DeferCleanup(func() { _ = cronJobAdapter.Delete(ctx, testNamespace, workloadName) })
+
+				By("Updating the ConfigMap data")
+				err = utils.UpdateConfigMap(ctx, kubeClient, testNamespace, configMapName, map[string]string{"key": "updated"})
+				Expect(err).NotTo(HaveOccurred())
+
+				By("Verifying no Job was triggered (negative test)")
+				time.Sleep(utils.NegativeTestWait)
+				triggered, err := cronJobAdapter.WaitForTriggeredJob(ctx, testNamespace, workloadName, utils.ShortTimeout)
+				Expect(err).NotTo(HaveOccurred())
+				Expect(triggered).To(BeFalse(), "suspended CronJob should NOT trigger a Job")
+			})
 		})
 
 		// Volume mount tests
