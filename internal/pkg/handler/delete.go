@@ -54,7 +54,7 @@ func (r ResourceDeleteHandler) Handle() error {
 		if err == nil {
 			result = "success"
 		}
-		return err
+		return webhookRequeueError(err, r.Collectors)
 	}
 	// process resource based on its type
 	err := doRollingUpgrade(config, r.Collectors, r.Recorder, invokeDeleteStrategy)
