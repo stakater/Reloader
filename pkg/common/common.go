@@ -255,6 +255,18 @@ func ShouldReload(config Config, resourceType string, annotations Map, podAnnota
 		searchAnnotationValue = annotations[reloaderOpts.AutoSearchAnnotation]
 		reloaderEnabledValue = annotations[reloaderOpts.ReloaderAutoAnnotation]
 		typedAutoAnnotationEnabledValue = annotations[config.TypedAutoAnnotation]
+		// The exclude annotations can sit on the pod template next to the auto
+		// annotation they refine, so read them from there too. One set on the
+		// workload itself still wins.
+		if !foundExcludeConfigmap {
+			excludeConfigmapAnnotationValue, foundExcludeConfigmap = annotations[reloaderOpts.ConfigmapExcludeReloaderAnnotation]
+		}
+		if !foundExcludeSecret {
+			excludeSecretAnnotationValue, foundExcludeSecret = annotations[reloaderOpts.SecretExcludeReloaderAnnotation]
+		}
+		if !foundExcludeSecretProviderClass {
+			excludeSecretProviderClassProviderAnnotationValue, foundExcludeSecretProviderClass = annotations[reloaderOpts.SecretProviderClassExcludeReloaderAnnotation]
+		}
 	}
 
 	isResourceExcluded := false
