@@ -53,7 +53,7 @@ spec:
   jobLabel: {{ template "reloader-fullname" . }}
   namespaceSelector:
     matchNames:
-    - {{ .Release.Namespace }}
+    - {{ .Values.namespace | default .Release.Namespace }}
   selector:
     matchLabels:
       {{ include "reloader-match-labels.chart" . | nindent 6 }}
