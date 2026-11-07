@@ -76,7 +76,7 @@ jobs:
         echo "CURRENT_CHART_VERSION=$(echo ${current_chart_version})" >> $GITHUB_OUTPUT
 
     - name: Get Updated Chart version from Chart.yaml
-      uses: mikefarah/yq@751d8ad57b84f1794661bc70c0afb92a22ad7b3c # v4.53.2
+      uses: mikefarah/yq@1b9b4ac5187171d2e5e3129be0cfa827c7f9d53d # v4.53.3
       id: new_chart_version
       with:
         cmd: yq e '.version' deployments/kubernetes/chart/reloader/Chart.yaml
