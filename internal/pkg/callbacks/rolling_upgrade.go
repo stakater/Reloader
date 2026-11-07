@@ -2,8 +2,8 @@ package callbacks
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
-	"fmt"
 	"time"
 
 	"github.com/sirupsen/logrus"
@@ -14,6 +14,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	patchtypes "k8s.io/apimachinery/pkg/types"
 
+	"github.com/stakater/Reloader/internal/pkg/constants"
 	"github.com/stakater/Reloader/internal/pkg/options"
 	"github.com/stakater/Reloader/pkg/kube"
 
@@ -661,11 +662,34 @@ func UpdateRollout(clients kube.Clients, namespace string, resource runtime.Obje
 	var err error
 	switch options.ToArgoRolloutStrategy(strategy) {
 	case options.RestartStrategy:
-		_, err = clients.ArgoRolloutClient.ArgoprojV1alpha1().Rollouts(namespace).Patch(context.TODO(), rollout.Name, patchtypes.MergePatchType, []byte(fmt.Sprintf(`{"spec": {"restartAt": "%s"}}`, time.Now().Format(time.RFC3339))), meta_v1.PatchOptions{FieldManager: "Reloader"})
+		var patch []byte
+		patch, err = getRolloutRestartPatch(rollout)
+		if err != nil {
+			return err
+		}
+		_, err = clients.ArgoRolloutClient.ArgoprojV1alpha1().Rollouts(namespace).Patch(context.TODO(), rollout.Name, patchtypes.MergePatchType, patch, meta_v1.PatchOptions{FieldManager: "Reloader"})
 	case options.RolloutStrategy:
 		_, err = clients.ArgoRolloutClient.ArgoprojV1alpha1().Rollouts(namespace).Update(context.TODO(), rollout, meta_v1.UpdateOptions{FieldManager: "Reloader"})
 	}
 	return err
+}
+
+// getRolloutRestartPatch builds a merge patch that sets spec.restartAt and, when present, the restart state
+// annotation in a single request so the restart and the record of it are applied atomically
+func getRolloutRestartPatch(rollout *argorolloutv1alpha1.Rollout) ([]byte, error) {
+	patch := map[string]any{
+		"spec": map[string]any{
+			"restartAt": time.Now().Format(time.RFC3339),
+		},
+	}
+	if state, ok := rollout.GetAnnotations()[constants.RolloutRestartStateAnnotation]; ok {
+		patch["metadata"] = map[string]any{
+			"annotations": map[string]any{
+				constants.RolloutRestartStateAnnotation: state,
+			},
+		}
+	}
+	return json.Marshal(patch)
 }
 
 func PatchRollout(clients kube.Clients, namespace string, resource runtime.Object, patchType patchtypes.PatchType, bytes []byte) error {

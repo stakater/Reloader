@@ -22,6 +22,7 @@ import (
 	patchtypes "k8s.io/apimachinery/pkg/types"
 
 	"github.com/stakater/Reloader/internal/pkg/callbacks"
+	"github.com/stakater/Reloader/internal/pkg/constants"
 	"github.com/stakater/Reloader/internal/pkg/options"
 	"github.com/stakater/Reloader/internal/pkg/testutil"
 	"github.com/stakater/Reloader/pkg/kube"
@@ -111,6 +112,24 @@ func TestUpdateRollout(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestUpdateRolloutRestartPersistsState(t *testing.T) {
+	namespace := "test-ns"
+	state := `{"STAKATER_MY_CONFIGMAP_CONFIGMAP":"sha-1"}`
+	rollout, err := testutil.CreateRollout(
+		clients.ArgoRolloutClient, "test-restart-state", namespace,
+		map[string]string{options.RolloutStrategyAnnotation: "restart"},
+	)
+	assert.NoError(t, err)
+
+	rollout.Annotations[constants.RolloutRestartStateAnnotation] = state
+	assert.NoError(t, callbacks.UpdateRollout(clients, namespace, rollout))
+
+	rollout, err = clients.ArgoRolloutClient.ArgoprojV1alpha1().Rollouts(namespace).Get(context.TODO(), rollout.Name, metav1.GetOptions{})
+	assert.NoError(t, err)
+	assert.NotNil(t, rollout.Spec.RestartAt)
+	assert.Equal(t, state, rollout.Annotations[constants.RolloutRestartStateAnnotation])
 }
 
 func TestPatchRollout(t *testing.T) {
