@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -59,13 +60,7 @@ func TestSendUpgradeWebhookRetriesOnlyOn5xxAnd429(t *testing.T) {
 
 			err := sendUpgradeWebhook(common.Config{ResourceName: "my-cm", Namespace: "default"}, server.URL)
 			assert.Error(t, err)
-
-			requeueErr := webhookRequeueError(err, metrics.NewCollectors())
-			if tt.wantRetry {
-				assert.Error(t, requeueErr)
-			} else {
-				assert.NoError(t, requeueErr)
-			}
+			assert.Equal(t, !tt.wantRetry, errors.Is(err, ErrNotRetryable))
 		})
 	}
 }
@@ -101,11 +96,8 @@ func TestResourceCreatedHandlerWebhookStatus(t *testing.T) {
 			}
 
 			err := handler.Handle()
-			if tt.wantRetry {
-				assert.Error(t, err)
-			} else {
-				assert.NoError(t, err)
-			}
+			assert.Error(t, err)
+			assert.Equal(t, !tt.wantRetry, errors.Is(err, ErrNotRetryable))
 			assert.Equal(t, float64(1), reconcileCount(t, collectors, "error"))
 			assert.Equal(t, float64(0), reconcileCount(t, collectors, "success"))
 		})

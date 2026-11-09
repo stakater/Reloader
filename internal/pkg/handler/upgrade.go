@@ -144,9 +144,9 @@ func GetArgoRolloutRollingUpgradeFuncs() callbacks.RollingUpgradeFuncs {
 	}
 }
 
-// errWebhookNotRetryable marks a webhook response that a retry will not fix,
-// such as a 4xx other than 429.
-var errWebhookNotRetryable = errors.New("webhook returned a non-retryable status")
+// ErrNotRetryable marks a failure that a retry will not fix, such as a
+// webhook 4xx other than 429. The controller drops it instead of requeueing.
+var ErrNotRetryable = errors.New("not retryable")
 
 func sendUpgradeWebhook(config common.Config, webhookUrl string) error {
 	logrus.Infof("Changes detected in '%s' of type '%s' in namespace '%s', Sending webhook to '%s'",
@@ -154,10 +154,6 @@ func sendUpgradeWebhook(config common.Config, webhookUrl string) error {
 
 	body, errs := sendWebhook(webhookUrl)
 	if errs != nil {
-		if errors.Is(errs[0], errWebhookNotRetryable) {
-			logrus.Errorf("Webhook for '%s' of type '%s' in namespace '%s' failed and will not be retried: %v",
-				config.ResourceName, config.Type, config.Namespace, errs[0])
-		}
 		// return the first error
 		return errs[0]
 	} else {
@@ -191,18 +187,7 @@ func sendWebhook(url string) (string, []error) {
 	if resp.StatusCode >= 500 || resp.StatusCode == http.StatusTooManyRequests {
 		return buffer.String(), []error{fmt.Errorf("webhook returned status %s", resp.Status)}
 	}
-	return buffer.String(), []error{fmt.Errorf("%w: %s", errWebhookNotRetryable, resp.Status)}
-}
-
-// webhookRequeueError returns the error the controller should requeue on.
-// Failures that a retry will not fix are recorded and dropped, so the
-// reconcile still counts as an error but the event is not requeued.
-func webhookRequeueError(err error, collectors metrics.Collectors) error {
-	if errors.Is(err, errWebhookNotRetryable) {
-		collectors.RecordError("webhook_non_retryable")
-		return nil
-	}
-	return err
+	return buffer.String(), []error{fmt.Errorf("%w: webhook returned status %s", ErrNotRetryable, resp.Status)}
 }
 
 func doRollingUpgrade(config common.Config, collectors metrics.Collectors, recorder record.EventRecorder, invoke invokeStrategy) error {

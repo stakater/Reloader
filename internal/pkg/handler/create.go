@@ -46,7 +46,7 @@ func (r ResourceCreatedHandler) Handle() error {
 		if err == nil {
 			result = "success"
 		}
-		return webhookRequeueError(err, r.Collectors)
+		return err
 	}
 	// process resource based on its type
 	err := doRollingUpgrade(config, r.Collectors, r.Recorder, invokeReloadStrategy)

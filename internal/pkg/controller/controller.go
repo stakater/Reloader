@@ -1,6 +1,7 @@
 package controller
 
 import (
+	"errors"
 	"fmt"
 	"sync"
 	"sync/atomic"
@@ -418,6 +419,14 @@ func (c *Controller) handleErr(err error, key interface{}) {
 
 		// Record successful event processing
 		c.collectors.RecordEventProcessed("unknown", c.resource, "success")
+		return
+	}
+
+	if errors.Is(err, handler.ErrNotRetryable) {
+		c.queue.Forget(key)
+		c.collectors.RecordError("webhook_non_retryable")
+		c.collectors.RecordEventProcessed("unknown", c.resource, "dropped")
+		logrus.Errorf("Dropping key, not retryable: %v", err)
 		return
 	}
 
