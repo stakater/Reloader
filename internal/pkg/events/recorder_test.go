@@ -3,6 +3,7 @@ package events
 import (
 	"errors"
 	"testing"
+	"time"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -99,6 +100,7 @@ func TestNilRecorder_NoPanic(t *testing.T) {
 	// These should not panic
 	r.ReloadSuccess(pod, "ConfigMap", "my-config")
 	r.ReloadFailed(pod, "Secret", "my-secret", errors.New("test error"))
+	r.ReloadDeferred(pod, "ConfigMap", "my-config", time.Now())
 }
 
 func TestRecorder_NilInternalRecorder(t *testing.T) {
@@ -113,6 +115,34 @@ func TestRecorder_NilInternalRecorder(t *testing.T) {
 
 	r.ReloadSuccess(pod, "ConfigMap", "my-config")
 	r.ReloadFailed(pod, "Secret", "my-secret", errors.New("test error"))
+	r.ReloadDeferred(pod, "ConfigMap", "my-config", time.Now())
+}
+
+func TestReloadDeferred_RecordsEvent(t *testing.T) {
+	fakeRecorder := k8sevents.NewFakeRecorder(10)
+	r := NewRecorder(fakeRecorder)
+
+	pod := &corev1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-pod",
+			Namespace: "default",
+		},
+	}
+
+	until := time.Date(2026, time.November, 11, 2, 0, 0, 0, time.UTC)
+	r.ReloadDeferred(pod, "ConfigMap", "my-config", until)
+
+	select {
+	case event := <-fakeRecorder.Events:
+		expectedContains := []string{"Normal", "ReloadDeferred", "ConfigMap", "my-config", "2026-11-11T02:00:00Z"}
+		for _, expected := range expectedContains {
+			if !contains(event, expected) {
+				t.Errorf("Event %q should contain %q", event, expected)
+			}
+		}
+	default:
+		t.Error("Expected event to be recorded, but none was")
+	}
 }
 
 func TestReloadSuccess_DifferentObjectTypes(t *testing.T) {

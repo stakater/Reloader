@@ -79,6 +79,9 @@ reloader:
   reloadOnCreate: false
   reloadOnDelete: false
   syncAfterRestart: false
+  # Spread reloads deferred by sync windows over this long after a window opens, e.g. "10m".
+  # Empty keeps Reloader's default (10m); "0s" reloads them all at once.
+  syncWindowSpread: ""
   reloadStrategy: default # Set to default, env-vars or annotations
   ignoreNamespaces: "" # Comma separated list of namespaces to ignore
   namespaceSelector: "" # Comma separated list of k8s label selectors for namespaces selection
@@ -293,6 +296,8 @@ reloader:
   #     secretproviderclass_auto: "my.company.com/secretproviderclass-auto"
   #     secretproviderclass_exclude: "my.company.com/secretproviderclass-exclude"
   #     ignore: "my.company.com/reloader-ignore"
+  #     syncWindows: "my.company.com/sync-windows"
+  #     pendingReload: "my.company.com/pending-reload"
   custom_annotations: {}
 
   serviceMonitor:

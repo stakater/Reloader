@@ -177,3 +177,32 @@ func SecretProviderClassPodStatusPredicates(cfg *config.Config, hasher *Hasher) 
 		},
 	}
 }
+
+// PendingReloadPredicate selects workloads that record a pending reload, when they appear
+// (including the replay of existing objects when the cache starts) and when the pending
+// reload, the sync-windows annotation or the spec changes. Clearing the annotation is not
+// an event: nothing is left to wait on.
+func PendingReloadPredicate(cfg *config.Config) predicate.Predicate {
+	pendingKey := cfg.Annotations.PendingReload
+	windowsKey := cfg.Annotations.SyncWindows
+	hasPending := func(obj client.Object) bool {
+		_, ok := obj.GetAnnotations()[pendingKey]
+		return ok
+	}
+	return predicate.Funcs{
+		CreateFunc: func(e event.CreateEvent) bool {
+			return hasPending(e.Object)
+		},
+		UpdateFunc: func(e event.UpdateEvent) bool {
+			if !hasPending(e.ObjectNew) {
+				return false
+			}
+			oldAnnotations, newAnnotations := e.ObjectOld.GetAnnotations(), e.ObjectNew.GetAnnotations()
+			return oldAnnotations[pendingKey] != newAnnotations[pendingKey] ||
+				oldAnnotations[windowsKey] != newAnnotations[windowsKey] ||
+				e.ObjectOld.GetGeneration() != e.ObjectNew.GetGeneration()
+		},
+		DeleteFunc:  func(e event.DeleteEvent) bool { return false },
+		GenericFunc: func(e event.GenericEvent) bool { return false },
+	}
+}

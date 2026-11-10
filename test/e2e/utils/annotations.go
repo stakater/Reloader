@@ -96,6 +96,24 @@ const (
 	AnnotationDeploymentPausedAt = "deployment.reloader.stakater.com/paused-at"
 
 	// ============================================================
+	// Sync window annotations
+	// ============================================================
+
+	// AnnotationSyncWindows limits when a workload may be reloaded.
+	// Value: YAML or JSON list of {kind, schedule, duration, timeZone} windows
+	AnnotationSyncWindows = "reloader.stakater.com/sync-windows"
+
+	// AnnotationPendingReload is set by Reloader on a workload whose reload a sync window deferred.
+	// Value: JSON list of {kind, name, hash, notBefore}
+	AnnotationPendingReload = "reloader.stakater.com/pending-reload"
+
+	// SyncWindowsAlwaysDenied is a deny window without gaps: hourly occurrences lasting 90 minutes.
+	SyncWindowsAlwaysDenied = `[{"kind":"deny","schedule":"0 * * * *","duration":"90m"}]`
+
+	// SyncWindowsAlwaysAllowed is an allow window without gaps: hourly occurrences lasting 90 minutes.
+	SyncWindowsAlwaysAllowed = `[{"kind":"allow","schedule":"0 * * * *","duration":"90m"}]`
+
+	// ============================================================
 	// Argo Rollouts specific annotations
 	// ============================================================
 
@@ -218,6 +236,13 @@ func BuildSecretExcludeAnnotation(secretNames ...string) map[string]string {
 func BuildPausePeriodAnnotation(duration string) map[string]string {
 	return map[string]string{
 		AnnotationDeploymentPausePeriod: duration,
+	}
+}
+
+// BuildSyncWindowsAnnotation creates an annotation for sync windows.
+func BuildSyncWindowsAnnotation(windows string) map[string]string {
+	return map[string]string{
+		AnnotationSyncWindows: windows,
 	}
 }
 

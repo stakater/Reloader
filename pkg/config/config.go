@@ -38,6 +38,9 @@ type Config struct {
 	SyncAfterRestart        bool                `json:"syncAfterRestart"`
 	EnableHA                bool                `json:"enableHA"`
 	WebhookURL              string              `json:"webhookUrl,omitempty"`
+	// SyncWindowSpread spreads reloads deferred by sync windows over this long after a
+	// window opens, so they do not all start at once.
+	SyncWindowSpread time.Duration `json:"syncWindowSpread"`
 
 	IgnoredResources         []string          `json:"ignoredResources,omitempty"`
 	IgnoredWorkloads         []string          `json:"ignoredWorkloads,omitempty"`
@@ -79,6 +82,8 @@ type AnnotationConfig struct {
 	RolloutStrategy            string `json:"rolloutStrategy"`
 	PausePeriod                string `json:"pausePeriod"`
 	PausedAt                   string `json:"pausedAt"`
+	SyncWindows                string `json:"syncWindows"`
+	PendingReload              string `json:"pendingReload"`
 	LastReloadedFrom           string `json:"lastReloadedFrom"`
 }
 
@@ -118,6 +123,7 @@ func NewDefault() *Config {
 		SyncAfterRestart:        false,
 		EnableHA:                false,
 		WebhookURL:              "",
+		SyncWindowSpread:        10 * time.Minute,
 		IgnoredResources:        []string{},
 		IgnoredWorkloads:        []string{},
 		IgnoredNamespaces:       []string{},
@@ -162,6 +168,8 @@ func DefaultAnnotations() AnnotationConfig {
 		RolloutStrategy:            "reloader.stakater.com/rollout-strategy",
 		PausePeriod:                "deployment.reloader.stakater.com/pause-period",
 		PausedAt:                   "deployment.reloader.stakater.com/paused-at",
+		SyncWindows:                "reloader.stakater.com/sync-windows",
+		PendingReload:              "reloader.stakater.com/pending-reload",
 		LastReloadedFrom:           "reloader.stakater.com/last-reloaded-from",
 	}
 }

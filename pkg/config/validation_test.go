@@ -4,6 +4,7 @@ import (
 	"errors"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestConfig_Validate_ReloadStrategy(t *testing.T) {
@@ -225,6 +226,28 @@ func TestConfig_Validate_WatchedNamespaces(t *testing.T) {
 				}
 			},
 		)
+	}
+}
+
+func TestConfig_Validate_SyncWindowSpread(t *testing.T) {
+	tests := []struct {
+		name    string
+		spread  time.Duration
+		wantErr bool
+	}{
+		{"default", NewDefault().SyncWindowSpread, false},
+		{"zero reloads all at once", 0, false},
+		{"negative", -time.Minute, true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cfg := NewDefault()
+			cfg.SyncWindowSpread = tt.spread
+			if err := cfg.Validate(); (err != nil) != tt.wantErr {
+				t.Errorf("Validate() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
 	}
 }
 

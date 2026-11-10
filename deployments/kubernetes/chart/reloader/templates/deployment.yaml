@@ -322,6 +322,14 @@ spec:
           - "--pause-deployment-time-annotation"
           - "{{ .Values.reloader.custom_annotations.pauseTime }}"
             {{- end }}
+            {{- if .Values.reloader.custom_annotations.syncWindows }}
+          - "--sync-windows-annotation"
+          - "{{ .Values.reloader.custom_annotations.syncWindows }}"
+            {{- end }}
+            {{- if .Values.reloader.custom_annotations.pendingReload }}
+          - "--pending-reload-annotation"
+          - "{{ .Values.reloader.custom_annotations.pendingReload }}"
+            {{- end }}
             {{- if .Values.reloader.webhookUrl }}
           - "--webhook-url"
           - "{{ .Values.reloader.webhookUrl }}"
@@ -338,6 +346,9 @@ spec:
           {{- end }}
           {{- if eq .Values.reloader.syncAfterRestart true }}
           - "--sync-after-restart={{ .Values.reloader.syncAfterRestart }}"
+          {{- end }}
+          {{- if .Values.reloader.syncWindowSpread }}
+          - "--sync-window-spread={{ .Values.reloader.syncWindowSpread }}"
           {{- end }}
           {{- if ne .Values.reloader.reloadStrategy "default" }}
           - "--reload-strategy={{ .Values.reloader.reloadStrategy }}"

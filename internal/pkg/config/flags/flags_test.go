@@ -3,6 +3,7 @@ package flags
 import (
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/go-logr/logr"
 	"github.com/spf13/pflag"
@@ -68,6 +69,9 @@ func TestBindFlags(t *testing.T) {
 		"ignore-annotation",
 		"pause-deployment-annotation",
 		"pause-deployment-time-annotation",
+		"sync-windows-annotation",
+		"pending-reload-annotation",
+		"sync-window-spread",
 		"namespaces",
 		"alert-on-reload",
 		"alert-webhook-url",
@@ -285,6 +289,54 @@ func TestApplyFlags_IgnoreAnnotation(t *testing.T) {
 	if cfg.Annotations.Ignore != "my.company.com/reloader-ignore" {
 		t.Errorf("Ignore = %q, want %q", cfg.Annotations.Ignore, "my.company.com/reloader-ignore")
 	}
+}
+
+func TestApplyFlags_SyncWindows(t *testing.T) {
+	apply := func(t *testing.T, args ...string) *config.Config {
+		t.Helper()
+		resetViper()
+		cfg := config.NewDefault()
+		fs := pflag.NewFlagSet("test", pflag.ContinueOnError)
+		BindFlags(fs, cfg)
+		if err := fs.Parse(args); err != nil {
+			t.Fatalf("Parse() error = %v", err)
+		}
+		if err := ApplyFlags(cfg, logr.Discard()); err != nil {
+			t.Fatalf("ApplyFlags() error = %v", err)
+		}
+		return cfg
+	}
+
+	t.Run("defaults are kept when the flags are not set", func(t *testing.T) {
+		cfg := apply(t)
+		defaults := config.NewDefault()
+		if cfg.Annotations.SyncWindows != defaults.Annotations.SyncWindows {
+			t.Errorf("SyncWindows = %q, want default %q", cfg.Annotations.SyncWindows, defaults.Annotations.SyncWindows)
+		}
+		if cfg.Annotations.PendingReload != defaults.Annotations.PendingReload {
+			t.Errorf("PendingReload = %q, want default %q", cfg.Annotations.PendingReload, defaults.Annotations.PendingReload)
+		}
+		if cfg.SyncWindowSpread != defaults.SyncWindowSpread {
+			t.Errorf("SyncWindowSpread = %s, want default %s", cfg.SyncWindowSpread, defaults.SyncWindowSpread)
+		}
+	})
+
+	t.Run("custom values are applied from the flags", func(t *testing.T) {
+		cfg := apply(t,
+			"--sync-windows-annotation=my.company.com/sync-windows",
+			"--pending-reload-annotation=my.company.com/pending-reload",
+			"--sync-window-spread=30m",
+		)
+		if cfg.Annotations.SyncWindows != "my.company.com/sync-windows" {
+			t.Errorf("SyncWindows = %q, want %q", cfg.Annotations.SyncWindows, "my.company.com/sync-windows")
+		}
+		if cfg.Annotations.PendingReload != "my.company.com/pending-reload" {
+			t.Errorf("PendingReload = %q, want %q", cfg.Annotations.PendingReload, "my.company.com/pending-reload")
+		}
+		if cfg.SyncWindowSpread != 30*time.Minute {
+			t.Errorf("SyncWindowSpread = %s, want 30m", cfg.SyncWindowSpread)
+		}
+	})
 }
 
 func TestApplyFlags_BooleanStrings(t *testing.T) {
