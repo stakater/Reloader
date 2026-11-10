@@ -13,6 +13,19 @@
             "annotations"
           ]
         },
+        "reloadAfter": {
+          "type": "object",
+          "properties": {
+            "timeout": {
+              "type": "string",
+              "pattern": "^$|^([0-9]+(\\.[0-9]+)?(ns|us|µs|ms|s|m|h))+$"
+            },
+            "pollInterval": {
+              "type": "string",
+              "pattern": "^$|^([0-9]+(\\.[0-9]+)?(ns|us|µs|ms|s|m|h))+$"
+            }
+          }
+        },
         "leaderElection": {
           "type": "object",
           "properties": {

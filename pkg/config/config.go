@@ -58,6 +58,12 @@ type Config struct {
 	LeaderElection    LeaderElectionConfig `json:"leaderElection"`
 	WatchedNamespaces []string             `json:"watchedNamespaces,omitempty"`
 	SyncPeriod        time.Duration        `json:"syncPeriod"`
+
+	// ReloadAfterTimeout is how long a deferred reload waits for its reload-after
+	// dependencies before it is dropped; the per-workload annotation overrides it.
+	ReloadAfterTimeout time.Duration `json:"reloadAfterTimeout"`
+	// ReloadAfterPollInterval is how often deferred reloads re-check their dependencies.
+	ReloadAfterPollInterval time.Duration `json:"reloadAfterPollInterval"`
 }
 
 // AnnotationConfig holds customizable annotation keys.
@@ -80,6 +86,9 @@ type AnnotationConfig struct {
 	PausePeriod                string `json:"pausePeriod"`
 	PausedAt                   string `json:"pausedAt"`
 	LastReloadedFrom           string `json:"lastReloadedFrom"`
+	ReloadAfter                string `json:"reloadAfter"`
+	ReloadAfterTimeout         string `json:"reloadAfterTimeout"`
+	PendingReload              string `json:"pendingReload"`
 }
 
 // AlertingConfig holds configuration for alerting integrations.
@@ -139,6 +148,9 @@ func NewDefault() *Config {
 		},
 		WatchedNamespaces: []string{},
 		SyncPeriod:        0,
+
+		ReloadAfterTimeout:      30 * time.Minute,
+		ReloadAfterPollInterval: 5 * time.Second,
 	}
 }
 
@@ -163,6 +175,9 @@ func DefaultAnnotations() AnnotationConfig {
 		PausePeriod:                "deployment.reloader.stakater.com/pause-period",
 		PausedAt:                   "deployment.reloader.stakater.com/paused-at",
 		LastReloadedFrom:           "reloader.stakater.com/last-reloaded-from",
+		ReloadAfter:                "reloader.stakater.com/reload-after",
+		ReloadAfterTimeout:         "reloader.stakater.com/reload-after-timeout",
+		PendingReload:              "reloader.stakater.com/pending-reload",
 	}
 }
 

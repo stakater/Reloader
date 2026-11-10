@@ -128,6 +128,10 @@ type WorkloadUpdater interface {
 
 	// DeepCopy returns a deep copy of the workload.
 	DeepCopy() Workload
+
+	// ReloadProgress reports whether a reload whose pod template passes applied
+	// has rolled out (or, for Jobs and CronJobs, run to completion).
+	ReloadProgress(ctx context.Context, c client.Reader, applied TemplateCheck) (Progress, error)
 }
 
 // Workload combines all workload interfaces for full workload access.

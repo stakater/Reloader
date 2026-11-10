@@ -736,6 +736,22 @@ func WithCronJobSecretEnvFrom(name string) CronJobOption {
 	}
 }
 
+// WithCronJobCommand sets the command for the CronJob's job container.
+func WithCronJobCommand(command string) CronJobOption {
+	return func(cj *batchv1.CronJob) {
+		cj.Spec.JobTemplate.Spec.Template.Spec.Containers[0].Command = []string{"sh", "-c", command}
+	}
+}
+
+// WithCronJobFailFast makes a failing job run fail immediately instead of retrying.
+func WithCronJobFailFast() CronJobOption {
+	return func(cj *batchv1.CronJob) {
+		backoffLimit := int32(0)
+		cj.Spec.JobTemplate.Spec.BackoffLimit = &backoffLimit
+		cj.Spec.JobTemplate.Spec.Template.Spec.RestartPolicy = corev1.RestartPolicyNever
+	}
+}
+
 // baseCronJobResource creates a base CronJob template.
 func baseCronJobResource(namespace, name string) *batchv1.CronJob {
 	labels := map[string]string{"app": name}

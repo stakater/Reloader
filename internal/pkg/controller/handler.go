@@ -137,6 +137,22 @@ func (h *ReloadHandler) applyReloads(
 	// the update helpers rather than letting them pick up the manager's own logger.
 	ctx = logf.IntoContext(ctx, log)
 
+	decisions, deferred := splitDeferred(h.ReloadService, decisions, log)
+	h.reloadNow(ctx, resourceName, resourceNamespace, resourceType, decisions, log)
+	// Pending state is written after the immediate reloads so that every dependency
+	// has either applied the change or recorded its own pending entry by then.
+	h.deferReloads(ctx, resourceName, resourceNamespace, resourceType, deferred, log)
+}
+
+// reloadNow applies the given reload decisions immediately and returns how many failed.
+func (h *ReloadHandler) reloadNow(
+	ctx context.Context,
+	resourceName, resourceNamespace string,
+	resourceType matcher.ResourceType,
+	decisions []reload.ReloadDecision,
+	log logr.Logger,
+) int {
+	failed := 0
 	for _, decision := range decisions {
 		log.Info(
 			"reloading workload",
@@ -170,6 +186,7 @@ func (h *ReloadHandler) applyReloads(
 			h.Collectors.RecordReload(false, resourceNamespace)
 			h.Collectors.RecordAction(string(decision.Workload.Kind()), "error", actionLatency)
 			h.Collectors.RecordError("update_workload")
+			failed++
 			continue
 		}
 
@@ -200,4 +217,5 @@ func (h *ReloadHandler) applyReloads(
 			h.Collectors.RecordAction(string(decision.Workload.Kind()), "no_change", actionLatency)
 		}
 	}
+	return failed
 }

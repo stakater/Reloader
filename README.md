@@ -312,6 +312,50 @@ CSI limitations (such as `subPath` mounts) still apply and may require pod resta
 If secrets are synced to Kubernetes Secret objects, standard Reloader behavior applies and CSI support may not be required
 `--resource-label-selector` is not applied to CSI watches: it scopes ConfigMaps/Secrets only, since `SecretProviderClassPodStatus` objects are managed by the CSI driver and cannot carry user labels. CSI reloads continue to work when a label selector is configured
 
+### 9. ⏭️ Ordered Reloads (`reload-after`)
+
+Sometimes a workload must only restart after another one has finished picking up the same change. For example, a migration Job has to run against the new database credentials before the API is restarted with them.
+
+| Annotation                                               | Applies To   | Description                                                                                       |
+|----------------------------------------------------------|--------------|---------------------------------------------------------------------------------------------------|
+| `reloader.stakater.com/reload-after: "cronjob/migrate"`  | Any workload | Comma-separated `kind/name` list of same-namespace workloads that must finish reloading first      |
+| `reloader.stakater.com/reload-after-timeout: "1h"`       | Any workload | How long to wait for the dependencies (default `30m`, set globally with `--reload-after-timeout`)  |
+
+Supported kinds: `deployment`, `statefulset`, `daemonset`, `job`, `cronjob`, `rollout` (Argo) and `deploymentconfig` (OpenShift).
+
+```yaml
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: migrate
+  annotations:
+    secret.reloader.stakater.com/reload: "db-credentials"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: api
+  annotations:
+    secret.reloader.stakater.com/reload: "db-credentials"
+    reloader.stakater.com/reload-after: "cronjob/migrate"
+```
+
+#### How it works
+
+1. When `db-credentials` changes, Reloader reloads every matching workload as usual, except those whose `reload-after` dependencies are **reloaded by the same change**. Those are deferred, and Reloader records them in a `reloader.stakater.com/pending-reload` annotation and a `ReloadDeferred` event.
+1. A deferred workload is reloaded once every dependency has picked up the change and finished:
+   - `Deployment`, `StatefulSet`, `DaemonSet`, `Rollout`, `DeploymentConfig`: the rollout completed and all replicas are updated and available.
+   - `Job`: the recreated Job completed.
+   - `CronJob`: the Job Reloader triggered from it completed.
+1. If a dependency fails (failed Job, `ProgressDeadlineExceeded`, degraded Rollout), never picks up the change, or does not finish within the timeout, the deferred reload is **skipped**, and a `ReloadSkippedDependency` warning event is recorded on the workload.
+1. If a dependency does not use the changed resource, the workload is reloaded immediately. Chains (`a` → `b` → `c`) are supported; workloads in a cycle are reloaded without waiting.
+
+#### Notes
+
+1. Pending state lives on the workload itself, so deferred reloads survive Reloader restarts.
+1. Dependencies are re-checked every `--reload-after-poll-interval` (default `5s`).
+1. In webhook mode (`--webhook-url`) nothing is reloaded by Reloader, so `reload-after` has no effect.
+
 ## 🚀 Installation
 
 ### 1. 📦 Helm
@@ -383,6 +427,8 @@ These flags let you customize Reloader's behavior globally, at the Reloader cont
 | `--auto-reload-all=true` | Automatically reload all workloads unless opted out (`auto: "false"`) |
 | `--reload-strategy=env-vars` | Strategy to use for triggering reload (`env-vars` or `annotations`) |
 | `--log-format=json` | Enable JSON-formatted logs for better machine readability |
+| `--reload-after-timeout=30m` | Default time a reload deferred by `reload-after` waits for its dependencies |
+| `--reload-after-poll-interval=5s` | How often deferred reloads re-check their dependencies |
 
 ##### Reload Strategies
 

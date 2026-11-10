@@ -16,6 +16,11 @@ const (
 	ReasonReloaded = "Reloaded"
 	// ReasonReloadFailed indicates a workload reload failed.
 	ReasonReloadFailed = "ReloadFailed"
+	// ReasonReloadDeferred indicates a reload waits for its reload-after dependencies.
+	ReasonReloadDeferred = "ReloadDeferred"
+	// ReasonReloadSkipped indicates a deferred reload was dropped because a
+	// reload-after dependency failed or did not finish in time.
+	ReasonReloadSkipped = "ReloadSkippedDependency"
 
 	// actionReloading is the action reported on reload events.
 	actionReloading = "Reloading"
@@ -61,5 +66,35 @@ func (r *Recorder) ReloadFailed(object runtime.Object, resourceType, resourceNam
 		ReasonReloadFailed,
 		actionReloading,
 		"Failed to reload due to %s %s change: %v", resourceType, resourceName, err,
+	)
+}
+
+// ReloadDeferred records that a reload waits for the given dependencies.
+func (r *Recorder) ReloadDeferred(object runtime.Object, resourceType, resourceName, dependencies string) {
+	if r == nil || r.recorder == nil {
+		return
+	}
+	r.recorder.Eventf(
+		object,
+		nil,
+		EventTypeNormal,
+		ReasonReloadDeferred,
+		actionReloading,
+		"Reload due to %s %s change deferred until %s finish reloading", resourceType, resourceName, dependencies,
+	)
+}
+
+// ReloadSkipped records that a deferred reload was dropped.
+func (r *Recorder) ReloadSkipped(object runtime.Object, resourceType, resourceName, reason string) {
+	if r == nil || r.recorder == nil {
+		return
+	}
+	r.recorder.Eventf(
+		object,
+		nil,
+		EventTypeWarning,
+		ReasonReloadSkipped,
+		actionReloading,
+		"Skipped reload due to %s %s change: %s", resourceType, resourceName, reason,
 	)
 }
