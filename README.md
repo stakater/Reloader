@@ -316,10 +316,10 @@ If secrets are synced to Kubernetes Secret objects, standard Reloader behavior a
 
 Sync windows limit when Reloader may restart a workload, for example to keep restarts inside a maintenance window or out of business hours. They follow the same model as [Argo CD sync windows](https://argo-cd.readthedocs.io/en/stable/user-guide/sync_windows/).
 
-| Annotation                             | Applies To                                                          | Description                                                                 |
-|----------------------------------------|---------------------------------------------------------------------|-----------------------------------------------------------------------------|
-| `reloader.stakater.com/sync-windows`   | Deployment, StatefulSet, DaemonSet, Argo Rollout, DeploymentConfig | YAML or JSON list of windows that allow or deny reloads                     |
-| `reloader.stakater.com/pending-reload` | Same as above                                                       | Written by Reloader: the reloads it deferred and when they are due. Do not set by hand |
+| Annotation                             | Applies To                                                                      | Description                                                                            |
+|----------------------------------------|---------------------------------------------------------------------------------|----------------------------------------------------------------------------------------|
+| `reloader.stakater.com/sync-windows`   | `Deployment`, `StatefulSet`, `DaemonSet`, Argo `Rollout`, `DeploymentConfig`    | YAML or JSON list of windows that allow or deny reloads                                |
+| `reloader.stakater.com/pending-reload` | Same as above                                                                   | Written by Reloader: the reloads it deferred and when they are due. Do not set by hand |
 
 Each window has these fields:
 
@@ -360,7 +360,7 @@ metadata:
 #### Notes & Limitations
 
 - Deferred reloads survive a restart of Reloader or a change of leader: on startup Reloader finds the workloads with a `pending-reload` annotation and schedules their reloads again. If Reloader was not running during the whole window, the reload waits for the next window.
-- If the ConfigMap or Secret is deleted before the reload is due, the deferred reload is dropped (with `--reload-on-delete`, the delete is deferred instead).
+- If the ConfigMap or Secret is deleted before the reload is due, the deferred reload is dropped (with `--reload-on-delete`, the reload for the deletion is deferred instead).
 - If the annotation cannot be parsed, or defines more than 16 windows, Reloader logs the error and reloads the workload as if it had no sync windows.
 - In webhook mode (`--webhook-url`), deferred workloads are sent in a later webhook call, once their windows allow it.
 - Jobs and CronJobs ignore sync windows and reload as usual, with a warning in the log. Their reload starts a new run instead of restarting long-running pods, and a CronJob's next scheduled run picks up the new configuration anyway.
