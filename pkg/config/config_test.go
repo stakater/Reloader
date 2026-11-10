@@ -79,6 +79,8 @@ func TestDefaultAnnotations(t *testing.T) {
 		{"RolloutStrategy", ann.RolloutStrategy, "reloader.stakater.com/rollout-strategy"},
 		{"PausePeriod", ann.PausePeriod, "deployment.reloader.stakater.com/pause-period"},
 		{"PausedAt", ann.PausedAt, "deployment.reloader.stakater.com/paused-at"},
+		{"SyncWindows", ann.SyncWindows, "reloader.stakater.com/sync-windows"},
+		{"PendingReload", ann.PendingReload, "reloader.stakater.com/pending-reload"},
 		{"LastReloadedFrom", ann.LastReloadedFrom, "reloader.stakater.com/last-reloaded-from"},
 	}
 

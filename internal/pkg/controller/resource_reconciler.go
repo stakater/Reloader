@@ -6,9 +6,15 @@ import (
 
 	"github.com/go-logr/logr"
 	"k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/event"
+	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+	"sigs.k8s.io/controller-runtime/pkg/source"
 
 	"github.com/stakater/Reloader/internal/pkg/alerting"
 	"github.com/stakater/Reloader/internal/pkg/events"
@@ -60,6 +66,11 @@ type ResourceConfig[T client.Object] struct {
 
 	// BuildFilter overrides the default BuildEventFilter for the watch.
 	BuildFilter func(cfg *config.Config, hasher *reload.Hasher) predicate.Predicate
+
+	// PendingRequests maps a resource named in a workload's pending-reload annotation to
+	// the requests that reconcile it. Nil means the resource's own namespace/name (CSI:
+	// the change is reconciled through a SecretProviderClassPodStatus instead).
+	PendingRequests func(ctx context.Context, reader client.Reader, namespace, name string) []reconcile.Request
 }
 
 // ResourceReconciler is a generic reconciler for ConfigMaps and Secrets.
@@ -158,6 +169,11 @@ func (r *ResourceReconciler[T]) handleNotFound(
 		r.recordReconcile(startTime, err)
 		return result, err
 	}
+	// A deleted resource has nothing left to reload, so reloads it deferred are dropped.
+	if err := r.reloadHandler().ClearPending(ctx, req.Namespace, req.Name, r.ResourceType, log); err != nil {
+		r.Collectors.RecordReconcile("error", time.Since(startTime))
+		return ctrl.Result{}, err
+	}
 	r.Collectors.RecordSkipped("not_found")
 	r.Collectors.RecordReconcile("success", time.Since(startTime))
 	return ctrl.Result{}, nil
@@ -202,6 +218,7 @@ func (r *ResourceReconciler[T]) reloadHandler() *ReloadHandler {
 			EventRecorder: r.EventRecorder,
 			Alerter:       r.Alerter,
 			PauseHandler:  r.PauseHandler,
+			Config:        r.Config,
 		}
 	}
 	return r.handler
@@ -220,8 +237,49 @@ func (r *ResourceReconciler[T]) SetupWithManager(mgr ctrl.Manager, forObject T) 
 			r.Config, time.Now(),
 		)
 	}
-	return ctrl.NewControllerManagedBy(mgr).
-		For(forObject).
-		WithEventFilter(filter).
-		Complete(r)
+	// Workloads waiting on a deferred reload wake this controller for the resource they
+	// wait on, including when they are listed again after a restart or a change of leader.
+	pending := make(chan event.GenericEvent)
+	if err := ctrl.NewControllerManagedBy(mgr).
+		For(forObject, builder.WithPredicates(filter)).
+		WatchesRawSource(source.Channel(pending, handler.EnqueueRequestsFromMapFunc(r.pendingReloadRequests))).
+		Complete(r); err != nil {
+		return err
+	}
+
+	var objects []client.Object
+	for _, kind := range r.Registry.SupportedKinds() {
+		if r.Config.IsWorkloadIgnored(string(kind)) || !reload.SupportsSyncWindows(kind) {
+			continue
+		}
+		if obj := r.Registry.NewObject(kind); obj != nil {
+			objects = append(objects, obj)
+		}
+	}
+	return mgr.Add(&pendingReloadSource{
+		informers: mgr.GetCache(),
+		objects:   objects,
+		predicate: reload.PendingReloadPredicate(r.Config),
+		events:    pending,
+		log:       r.Log,
+	})
+}
+
+// pendingReloadRequests maps a workload to the resources of this reconciler's type that
+// its pending-reload annotation waits on.
+func (r *ResourceReconciler[T]) pendingReloadRequests(ctx context.Context, obj client.Object) []reconcile.Request {
+	var requests []reconcile.Request
+	for _, entry := range reload.ParsePendingReloads(obj.GetAnnotations()[r.Config.Annotations.PendingReload]) {
+		if entry.Kind != r.ResourceType {
+			continue
+		}
+		if r.PendingRequests != nil {
+			requests = append(requests, r.PendingRequests(ctx, r.Client, obj.GetNamespace(), entry.Name)...)
+			continue
+		}
+		requests = append(requests, reconcile.Request{
+			NamespacedName: types.NamespacedName{Namespace: obj.GetNamespace(), Name: entry.Name},
+		})
+	}
+	return requests
 }

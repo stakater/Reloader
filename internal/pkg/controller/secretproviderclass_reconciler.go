@@ -8,6 +8,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	csiv1 "sigs.k8s.io/secrets-store-csi-driver/apis/v1"
@@ -29,11 +30,12 @@ func NewSecretProviderClassReconciler(deps ResourceReconcilerDeps, apiReader cli
 	return NewResourceReconciler(
 		deps,
 		ResourceConfig[*csiv1.SecretProviderClassPodStatus]{
-			ResourceType:   matcher.ResourceTypeSecretProviderClass,
-			NewResource:    func() *csiv1.SecretProviderClassPodStatus { return &csiv1.SecretProviderClassPodStatus{} },
-			ResolveChange:  resolveSecretProviderClassChange,
-			SkipOnNotFound: true,
-			BuildFilter:    secretProviderClassFilter,
+			ResourceType:    matcher.ResourceTypeSecretProviderClass,
+			NewResource:     func() *csiv1.SecretProviderClassPodStatus { return &csiv1.SecretProviderClassPodStatus{} },
+			ResolveChange:   resolveSecretProviderClassChange,
+			SkipOnNotFound:  true,
+			BuildFilter:     secretProviderClassFilter,
+			PendingRequests: secretProviderClassPendingRequests,
 		},
 	)
 }
@@ -72,6 +74,28 @@ func resolveSecretProviderClassChange(
 		Status:      spcps.Status,
 		EventType:   reload.EventTypeUpdate,
 	}, true
+}
+
+// secretProviderClassPendingRequests reconciles a deferred SecretProviderClass reload
+// through one of the SecretProviderClassPodStatus objects that reference it, since the
+// change is resolved from a status object. Any of them yields the same change.
+func secretProviderClassPendingRequests(ctx context.Context, reader client.Reader, namespace, name string) []reconcile.Request {
+	var list csiv1.SecretProviderClassPodStatusList
+	if err := reader.List(ctx, &list, client.InNamespace(namespace)); err != nil {
+		logf.FromContext(ctx).Error(err, "failed to list SecretProviderClassPodStatuses for a deferred reload",
+			"namespace", namespace, "secretProviderClass", name)
+		return nil
+	}
+	var first string
+	for _, spcps := range list.Items {
+		if spcps.Status.SecretProviderClassName == name && (first == "" || spcps.Name < first) {
+			first = spcps.Name
+		}
+	}
+	if first == "" {
+		return nil
+	}
+	return []reconcile.Request{{NamespacedName: types.NamespacedName{Namespace: namespace, Name: first}}}
 }
 
 // secretProviderClassFilter omits the label selector (driver-owned SPCPS can't

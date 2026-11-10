@@ -258,3 +258,50 @@ tests:
       - equal:
           path: spec.template.spec.containers[0].image
           value: "acr.example.invalid/reloader-enterprise:v9.9.9"
+
+  - it: passes the sync-windows annotation override to the container args
+    set:
+      reloader:
+        custom_annotations:
+          syncWindows: my.company.com/sync-windows
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].args
+          content: "--sync-windows-annotation"
+      - contains:
+          path: spec.template.spec.containers[0].args
+          content: "my.company.com/sync-windows"
+
+  - it: does not pass the sync-windows annotation flag by default
+    asserts:
+      - notContains:
+          path: spec.template.spec.containers[0].args
+          content: "--sync-windows-annotation"
+
+  - it: passes the pending-reload annotation override to the container args
+    set:
+      reloader:
+        custom_annotations:
+          pendingReload: my.company.com/pending-reload
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].args
+          content: "--pending-reload-annotation"
+      - contains:
+          path: spec.template.spec.containers[0].args
+          content: "my.company.com/pending-reload"
+
+  - it: passes the sync window spread to the container args
+    set:
+      reloader:
+        syncWindowSpread: 30m
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].args
+          content: "--sync-window-spread=30m"
+
+  - it: does not pass the sync window spread by default
+    asserts:
+      - notContains:
+          path: spec.template.spec.containers[0].args
+          content: "--sync-window-spread="

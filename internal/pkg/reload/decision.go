@@ -1,6 +1,8 @@
 package reload
 
 import (
+	"time"
+
 	"github.com/stakater/Reloader/internal/pkg/workload"
 )
 
@@ -17,6 +19,14 @@ type ReloadDecision struct {
 	Reason string
 	// Hash is the computed hash of the resource content.
 	Hash string
+	// DeferUntil is when the workload's sync windows let the reload happen. The zero time
+	// means it may happen now.
+	DeferUntil time.Time
+}
+
+// IsDeferred reports whether the workload's sync windows block the reload for now.
+func (d ReloadDecision) IsDeferred() bool {
+	return !d.DeferUntil.IsZero()
 }
 
 // FilterDecisions returns only decisions where ShouldReload is true.

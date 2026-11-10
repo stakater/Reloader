@@ -4,6 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"hash/fnv"
+	"strings"
 	"sync"
 	"time"
 
@@ -23,6 +25,8 @@ type Service struct {
 	hasher   *Hasher
 	matcher  *matcher.Matcher
 	strategy Strategy
+	// now is the clock sync windows are evaluated against.
+	now func() time.Time
 	// reportedAnnotationErrors remembers annotation problems already logged. The
 	// annotations are static while this runs once per workload per event, so without
 	// it one typo on a templated workload floods the log for the process lifetime.
@@ -37,6 +41,7 @@ func NewService(cfg *config.Config, log logr.Logger) *Service {
 		hasher:   NewHasher(),
 		matcher:  matcher.NewMatcher(cfg),
 		strategy: NewStrategy(cfg),
+		now:      time.Now,
 	}
 }
 
@@ -116,6 +121,14 @@ func (s *Service) processResource(
 			shouldReload = false
 		}
 
+		var deferUntil time.Time
+		if shouldReload {
+			var err error
+			if deferUntil, err = s.syncWindowDeferral(wl, resourceType, resourceName, hash); err != nil {
+				s.reportAnnotationError(err, wl, resourceNamespace)
+			}
+		}
+
 		decisions = append(
 			decisions, ReloadDecision{
 				Workload:     wl,
@@ -123,11 +136,103 @@ func (s *Service) processResource(
 				AutoReload:   matchResult.AutoReload,
 				Reason:       matchResult.Reason,
 				Hash:         hash,
+				DeferUntil:   deferUntil,
 			},
 		)
 	}
 
 	return decisions
+}
+
+// syncWindowDeferral returns when the workload's sync windows let it reload for this
+// change, or the zero time when it may reload now. The annotation is read from the
+// workload, then from its pod template. An unusable annotation is reported as an error and
+// the workload reloads as if it had none, matching how an unusable pause-period annotation
+// is handled.
+//
+// A reload already deferred for the same content keeps the time recorded in the
+// pending-reload annotation, so a restart neither moves it nor lets it start early.
+// Otherwise, outside the windows, the reload is due when they next allow it, plus an offset
+// that spreads the deferred workloads over the start of the window.
+func (s *Service) syncWindowDeferral(
+	wl workload.Workload,
+	resourceType matcher.ResourceType,
+	resourceName string,
+	hash string,
+) (time.Time, error) {
+	key := s.cfg.Annotations.SyncWindows
+	// A deferral is recorded in the pending-reload annotation, so without its key there is
+	// nowhere to keep one.
+	if key == "" || s.cfg.Annotations.PendingReload == "" {
+		return time.Time{}, nil
+	}
+
+	value := wl.GetAnnotations()[key]
+	if value == "" {
+		value = wl.GetPodTemplateAnnotations()[key]
+	}
+	if strings.TrimSpace(value) == "" {
+		return time.Time{}, nil
+	}
+	if !SupportsSyncWindows(wl.Kind()) {
+		return time.Time{}, fmt.Errorf("ignoring %s annotation on %s, which does not support sync windows", key, wl.Kind())
+	}
+
+	windows, err := ParseSyncWindows(value)
+	if err != nil {
+		return time.Time{}, fmt.Errorf("ignoring %s annotation, reloading without sync windows: %w", key, err)
+	}
+
+	now := s.now()
+	// Parsing rejects schedules that never fire, so while blocked there is always a later
+	// time to look again at, even when the search ends before finding an allowed one.
+	opens, _ := windows.NextAllowed(now)
+	offset, spread := s.spreadOffset(wl, windows, opens)
+
+	// A reload already deferred for this content keeps its recorded time, but only while
+	// that time is one the current windows could have produced: a hand-edited or stale
+	// annotation must not postpone the reload past the window.
+	pending, ok := FindPendingReload(wl.GetAnnotations(), s.cfg.Annotations.PendingReload, resourceType, resourceName)
+	if ok && pending.Hash == hash && now.Before(pending.NotBefore) && !pending.NotBefore.After(opens.Add(spread)) {
+		return pending.NotBefore, nil
+	}
+	if opens.Equal(now) {
+		return time.Time{}, nil
+	}
+	return opens.Add(offset), nil
+}
+
+// SupportsSyncWindows reports whether sync windows can defer reloads of a workload kind.
+// A Job or CronJob reload starts a new run rather than restarting long-lived pods, and a
+// CronJob's next scheduled run reads the new configuration anyway, so neither is deferred.
+// Reloader also has no update permission on Jobs to record a deferral on them.
+func SupportsSyncWindows(kind workload.Kind) bool {
+	switch kind {
+	case workload.KindJob, workload.KindCronJob:
+		return false
+	default:
+		return true
+	}
+}
+
+// spreadOffset returns how long after the window opens the workload reloads, and the
+// spread the offset was drawn from. The offset is derived from the workload's identity, so
+// it is stable across restarts and spreads many workloads evenly. The spread is kept within
+// the first half of the allowed period, so the reload still starts before the window closes.
+func (s *Service) spreadOffset(wl workload.Workload, windows SyncWindows, opens time.Time) (time.Duration, time.Duration) {
+	spread := windows.Spread(s.cfg.SyncWindowSpread)
+	if closes, ok := windows.NextBlocked(opens); ok {
+		spread = min(spread, closes.Sub(opens)/2)
+	}
+	spread = spread.Truncate(time.Second)
+	if spread <= 0 {
+		return 0, 0
+	}
+
+	h := fnv.New64a()
+	_, _ = h.Write([]byte(string(wl.Kind()) + "/" + wl.GetNamespace() + "/" + wl.GetName()))
+	seconds := h.Sum64() % uint64(spread/time.Second)
+	return time.Duration(seconds) * time.Second, spread
 }
 
 func (s *Service) shouldProcessEvent(eventType EventType) bool {
@@ -171,6 +276,10 @@ func (s *Service) ApplyReload(
 	}
 
 	if updated {
+		// The reload this change was waiting for is happening, so it is no longer pending.
+		// The same write persists both.
+		ClearPendingReload(wl.GetObject(), s.cfg.Annotations.PendingReload, resourceType, resourceName)
+
 		// Attribution annotation is informational; log errors but don't fail reloads
 		if err := s.setAttributionAnnotation(wl, resourceName, resourceType, namespace, hash, container); err != nil {
 			s.log.V(1).Info("failed to set attribution annotation", "error", err, "workload", wl.GetName())

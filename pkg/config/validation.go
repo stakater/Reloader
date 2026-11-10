@@ -111,6 +111,15 @@ func (c *Config) Validate() error {
 		}
 	}
 
+	if c.SyncWindowSpread < 0 {
+		errs = append(
+			errs, ValidationError{
+				Field:   "SyncWindowSpread",
+				Message: fmt.Sprintf("must not be negative, got %s", c.SyncWindowSpread),
+			},
+		)
+	}
+
 	c.IgnoredResources = normalizeToLower(c.IgnoredResources)
 
 	// Normalize ignored workloads to canonical Kind values (e.g., "cronjobs" -> "CronJob")

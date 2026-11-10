@@ -225,6 +225,18 @@ func BindFlags(fs *pflag.FlagSet, cfg *config.Config) {
 		"pause-deployment-time-annotation", cfg.Annotations.PausedAt,
 		"Annotation to indicate when a deployment was paused by Reloader",
 	)
+	fs.String(
+		"sync-windows-annotation", cfg.Annotations.SyncWindows,
+		"Annotation to define the sync windows that allow or deny reloads of a workload",
+	)
+	fs.String(
+		"pending-reload-annotation", cfg.Annotations.PendingReload,
+		"Annotation in which Reloader records reloads that sync windows deferred",
+	)
+	fs.Duration(
+		"sync-window-spread", cfg.SyncWindowSpread,
+		"Spread reloads deferred by sync windows over this long after a window opens (0 reloads them all at once)",
+	)
 
 	// Watched namespaces (scoped mode). Empty means watch all namespaces;
 	// KUBERNETES_NAMESPACE (env) is used as a single-namespace fallback.
@@ -342,6 +354,9 @@ func ApplyFlags(cfg *config.Config, log logr.Logger) error {
 	cfg.Annotations.Ignore = v.GetString("ignore-annotation")
 	cfg.Annotations.PausePeriod = v.GetString("pause-deployment-annotation")
 	cfg.Annotations.PausedAt = v.GetString("pause-deployment-time-annotation")
+	cfg.Annotations.SyncWindows = v.GetString("sync-windows-annotation")
+	cfg.Annotations.PendingReload = v.GetString("pending-reload-annotation")
+	cfg.SyncWindowSpread = v.GetDuration("sync-window-spread")
 
 	// Alerting
 	cfg.Alerting.Enabled = v.GetBool("alert-on-reload")

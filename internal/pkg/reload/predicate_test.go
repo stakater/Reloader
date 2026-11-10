@@ -3,6 +3,7 @@ package reload
 import (
 	"testing"
 
+	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
@@ -982,5 +983,53 @@ func TestSecretProviderClassPodStatusPredicates(t *testing.T) {
 	// Type-assertion failure (wrong object type) must be rejected, not panic.
 	if p.Update(event.UpdateEvent{ObjectOld: &corev1.ConfigMap{}, ObjectNew: &corev1.ConfigMap{}}) {
 		t.Fatal("UpdateFunc should return false when objects are not SPCPS")
+	}
+}
+
+func TestPendingReloadPredicate(t *testing.T) {
+	cfg := config.NewDefault()
+	p := PendingReloadPredicate(cfg)
+
+	deploy := func(annotations map[string]string, generation int64) *appsv1.Deployment {
+		return &appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{
+			Name: "app", Namespace: "default", Annotations: annotations, Generation: generation,
+		}}
+	}
+	pending := map[string]string{cfg.Annotations.PendingReload: `[{"kind":"configmap","name":"app-cm"}]`}
+	otherPending := map[string]string{cfg.Annotations.PendingReload: `[{"kind":"secret","name":"app-secret"}]`}
+	pendingWithWindows := map[string]string{
+		cfg.Annotations.PendingReload: pending[cfg.Annotations.PendingReload],
+		cfg.Annotations.SyncWindows:   `[]`,
+	}
+
+	if !p.Create(event.CreateEvent{Object: deploy(pending, 1)}) {
+		t.Error("Create with a pending reload = false, want true")
+	}
+	if p.Create(event.CreateEvent{Object: deploy(nil, 1)}) {
+		t.Error("Create without a pending reload = true, want false")
+	}
+
+	updates := []struct {
+		name     string
+		old, new *appsv1.Deployment
+		want     bool
+	}{
+		{"pending reload recorded", deploy(nil, 1), deploy(pending, 1), true},
+		{"pending reload changed", deploy(pending, 1), deploy(otherPending, 1), true},
+		{"sync windows changed", deploy(pending, 1), deploy(pendingWithWindows, 1), true},
+		{"spec changed", deploy(pending, 1), deploy(pending, 2), true},
+		{"nothing relevant changed", deploy(pending, 1), deploy(pending, 1), false},
+		{"pending reload cleared", deploy(pending, 1), deploy(nil, 1), false},
+	}
+	for _, tt := range updates {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := p.Update(event.UpdateEvent{ObjectOld: tt.old, ObjectNew: tt.new}); got != tt.want {
+				t.Errorf("Update() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+
+	if p.Delete(event.DeleteEvent{Object: deploy(pending, 1)}) {
+		t.Error("Delete = true, want false")
 	}
 }

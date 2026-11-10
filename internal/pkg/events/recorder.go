@@ -1,6 +1,8 @@
 package events
 
 import (
+	"time"
+
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/tools/events"
@@ -16,6 +18,8 @@ const (
 	ReasonReloaded = "Reloaded"
 	// ReasonReloadFailed indicates a workload reload failed.
 	ReasonReloadFailed = "ReloadFailed"
+	// ReasonReloadDeferred indicates a workload reload is waiting for a sync window.
+	ReasonReloadDeferred = "ReloadDeferred"
 
 	// actionReloading is the action reported on reload events.
 	actionReloading = "Reloading"
@@ -61,5 +65,21 @@ func (r *Recorder) ReloadFailed(object runtime.Object, resourceType, resourceNam
 		ReasonReloadFailed,
 		actionReloading,
 		"Failed to reload due to %s %s change: %v", resourceType, resourceName, err,
+	)
+}
+
+// ReloadDeferred records that a reload is waiting for the workload's sync windows to allow it.
+func (r *Recorder) ReloadDeferred(object runtime.Object, resourceType, resourceName string, until time.Time) {
+	if r == nil || r.recorder == nil {
+		return
+	}
+	r.recorder.Eventf(
+		object,
+		nil,
+		EventTypeNormal,
+		ReasonReloadDeferred,
+		actionReloading,
+		"Reload due to %s %s change deferred by sync windows until %s",
+		resourceType, resourceName, until.UTC().Format(time.RFC3339),
 	)
 }

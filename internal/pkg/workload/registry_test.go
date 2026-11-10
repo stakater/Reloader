@@ -364,3 +364,27 @@ func TestKindFromString_DeploymentConfig(t *testing.T) {
 		}
 	}
 }
+
+func TestRegistry_NewObject(t *testing.T) {
+	r := NewRegistry(RegistryOptions{})
+	for _, kind := range r.SupportedKinds() {
+		obj := r.NewObject(kind)
+		if obj == nil {
+			t.Errorf("NewObject(%s) = nil, want an object", kind)
+			continue
+		}
+		if _, err := r.FromObject(obj); err != nil {
+			t.Errorf("NewObject(%s) returned %T, which FromObject rejects: %v", kind, obj, err)
+		}
+	}
+	if obj := r.NewObject(KindArgoRollout); obj != nil {
+		t.Errorf("NewObject(ArgoRollout) = %T with Argo Rollouts disabled, want nil", obj)
+	}
+
+	enabled := NewRegistry(RegistryOptions{ArgoRolloutsEnabled: true, DeploymentConfigEnabled: true})
+	for _, kind := range enabled.SupportedKinds() {
+		if enabled.NewObject(kind) == nil {
+			t.Errorf("NewObject(%s) = nil with the kind enabled, want an object", kind)
+		}
+	}
+}

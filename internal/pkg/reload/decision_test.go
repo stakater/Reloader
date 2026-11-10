@@ -2,6 +2,7 @@ package reload
 
 import (
 	"testing"
+	"time"
 
 	appsv1 "k8s.io/api/apps/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -121,5 +122,14 @@ func TestReloadDecision_Fields(t *testing.T) {
 	}
 	if decision.Hash != "abc123" {
 		t.Errorf("ReloadDecision.Hash = %v, want 'abc123'", decision.Hash)
+	}
+}
+
+func TestReloadDecision_IsDeferred(t *testing.T) {
+	if (ReloadDecision{}).IsDeferred() {
+		t.Error("IsDeferred() = true for a decision without a delay, want false")
+	}
+	if !(ReloadDecision{DeferUntil: time.Now().Add(time.Minute)}).IsDeferred() {
+		t.Error("IsDeferred() = false for a decision with a due time, want true")
 	}
 }
