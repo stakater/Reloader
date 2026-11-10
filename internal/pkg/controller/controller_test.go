@@ -2,9 +2,11 @@ package controller
 
 import (
 	"errors"
+	"fmt"
 	"testing"
 	"time"
 
+	"github.com/prometheus/client_golang/prometheus"
 	"github.com/stretchr/testify/assert"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -809,6 +811,73 @@ func TestProcessNextItem(t *testing.T) {
 			},
 		)
 	}
+}
+
+func TestProcessNextItemRecordsHandlerErrorsOnce(t *testing.T) {
+	tests := []struct {
+		name          string
+		handleErr     error
+		wantErrorType string
+		wantResult    string
+		wantRetries   float64
+		wantRequeues  int
+	}{
+		{
+			name:          "retryable error is requeued",
+			handleErr:     errors.New("webhook returned status 503 Service Unavailable"),
+			wantErrorType: "handler_error",
+			wantRetries:   1,
+			wantRequeues:  1,
+		},
+		{
+			name:          "non-retryable error is dropped",
+			handleErr:     fmt.Errorf("%w: webhook returned status 401 Unauthorized", handler.ErrNotRetryable),
+			wantErrorType: "webhook_non_retryable",
+			wantResult:    "dropped",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			resetGlobalState()
+			c := newTestController([]string{}, "")
+			h := &mockResourceHandler{handleErr: tt.handleErr, enqueueTime: time.Now()}
+			c.queue.Add(h)
+
+			assert.True(t, c.processNextItem())
+
+			for _, errorType := range []string{"handler_error", "webhook_non_retryable"} {
+				want := 0.0
+				if errorType == tt.wantErrorType {
+					want = 1
+				}
+				assert.Equal(t, want, counterValue(t, c.collectors.ErrorsTotal.WithLabelValues(errorType)), errorType)
+			}
+			for _, result := range []string{"success", "dropped"} {
+				want := 0.0
+				if result == tt.wantResult {
+					want = 1
+				}
+				assert.Equal(t, want, counterValue(t, c.collectors.EventsProcessed.WithLabelValues("unknown", "configmaps", result)), result)
+			}
+			assert.Equal(t, 1.0, counterValue(t, c.collectors.ReconcileTotal.WithLabelValues("error")))
+			assert.Equal(t, 0.0, counterValue(t, c.collectors.ReconcileTotal.WithLabelValues("success")))
+			assert.Equal(t, tt.wantRetries, counterValue(t, c.collectors.RetriesTotal))
+			assert.Equal(t, tt.wantRequeues, c.queue.NumRequeues(h))
+		})
+	}
+}
+
+func counterValue(t *testing.T, c prometheus.Counter) float64 {
+	t.Helper()
+	registry := prometheus.NewRegistry()
+	registry.MustRegister(c)
+	families, err := registry.Gather()
+	assert.NoError(t, err)
+	if len(families) == 0 {
+		return 0
+	}
+	return families[0].GetMetric()[0].GetCounter().GetValue()
 }
 
 func TestProcessNextItemQueueShutdown(t *testing.T) {

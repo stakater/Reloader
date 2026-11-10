@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net/http"
 	"os"
 	"strings"
 	"time"
@@ -143,6 +144,10 @@ func GetArgoRolloutRollingUpgradeFuncs() callbacks.RollingUpgradeFuncs {
 	}
 }
 
+// ErrNotRetryable marks a failure that a retry will not fix, such as a
+// webhook 4xx other than 429. The controller drops it instead of requeueing.
+var ErrNotRetryable = errors.New("not retryable")
+
 func sendUpgradeWebhook(config common.Config, webhookUrl string) error {
 	logrus.Infof("Changes detected in '%s' of type '%s' in namespace '%s', Sending webhook to '%s'",
 		config.ResourceName, config.Type, config.Namespace, webhookUrl)
@@ -176,7 +181,13 @@ func sendWebhook(url string) (string, []error) {
 	if bufferErr != nil {
 		logrus.Error(bufferErr)
 	}
-	return buffer.String(), nil
+	if resp.StatusCode >= 200 && resp.StatusCode < 300 {
+		return buffer.String(), nil
+	}
+	if resp.StatusCode >= 500 || resp.StatusCode == http.StatusTooManyRequests {
+		return buffer.String(), []error{fmt.Errorf("webhook returned status %s", resp.Status)}
+	}
+	return buffer.String(), []error{fmt.Errorf("%w: webhook returned status %s", ErrNotRetryable, resp.Status)}
 }
 
 func doRollingUpgrade(config common.Config, collectors metrics.Collectors, recorder record.EventRecorder, invoke invokeStrategy) error {
