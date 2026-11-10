@@ -22,6 +22,7 @@ jobs:
     permissions:
       contents: read
       packages: write # to push artifacts to `ghcr.io`
+      id-token: write # to sign images with Cosign keyless (Sigstore)
 
     name: GoReleaser build
     runs-on: ubuntu-latest
@@ -108,6 +109,7 @@ jobs:
           echo DOCKER_IMAGE_REPOSITORY=$(echo ${{ github.repository }} | tr '[:upper:]' '[:lower:]') >> $GITHUB_ENV
 
       - name: Build and Push Docker Image to Docker registry
+        id: build_docker
         uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
         with:
           context: .
@@ -128,6 +130,7 @@ jobs:
             org.opencontainers.image.revision=${{ github.sha }}
 
       - name: Build and Push Docker UBI Image to Docker registry
+        id: build_docker_ubi
         uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
         with:
           context: .
@@ -160,6 +163,7 @@ jobs:
       # Prereleases publish only their exact version, so `v2` always points at
       # the newest stable v2 build and never at a beta.
       - name: Build and Push Docker Image to ghcr registry
+        id: build_ghcr
         uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
         with:
           context: .
@@ -180,6 +184,7 @@ jobs:
             org.opencontainers.image.revision=${{ github.sha }}
 
       - name: Build and Push Docker UBI Image to ghcr registry
+        id: build_ghcr_ubi
         uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
         with:
           context: .
@@ -195,6 +200,22 @@ jobs:
             org.opencontainers.image.source=${{ github.event.repository.clone_url }}
             org.opencontainers.image.created=${{ steps.prep.outputs.created }}
             org.opencontainers.image.revision=${{ github.sha }}
+
+      - name: Install Cosign
+        uses: sigstore/cosign-installer@faadad0cce49287aee09b3a48701e75088a2c6ad # v4.0.0
+
+      # Docker Hub and ghcr are separate builds with different digests, so each is signed.
+      - name: Sign images with Cosign
+        env:
+          DOCKER_DIGEST: ${{ steps.build_docker.outputs.digest }}
+          DOCKER_UBI_DIGEST: ${{ steps.build_docker_ubi.outputs.digest }}
+          GHCR_DIGEST: ${{ steps.build_ghcr.outputs.digest }}
+          GHCR_UBI_DIGEST: ${{ steps.build_ghcr_ubi.outputs.digest }}
+        run: |
+          cosign sign --yes "docker.io/${DOCKER_IMAGE_REPOSITORY}@${DOCKER_DIGEST}"
+          cosign sign --yes "docker.io/${DOCKER_IMAGE_REPOSITORY}@${DOCKER_UBI_DIGEST}"
+          cosign sign --yes "${GHCR_IMAGE_REPOSITORY}@${GHCR_DIGEST}"
+          cosign sign --yes "${GHCR_IMAGE_REPOSITORY}@${GHCR_UBI_DIGEST}"
 
       ##############################
       ## Add steps to generate required artifacts for a release here(helm chart, operator manifest etc.)
