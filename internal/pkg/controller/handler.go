@@ -2,6 +2,7 @@ package controller
 
 import (
 	"context"
+	"slices"
 	"time"
 
 	"github.com/go-logr/logr"
@@ -54,11 +55,7 @@ func (h *ReloadHandler) Process(
 	}
 
 	all := getDecisions(workloads)
-	for _, d := range all {
-		if d.Suspended {
-			h.Collectors.RecordSkipped("suspended")
-		}
-	}
+	suspended := slices.ContainsFunc(all, func(d reload.ReloadDecision) bool { return d.Suspended })
 	decisions := reload.FilterDecisions(all)
 
 	matchedByKind := make(map[string]int)
@@ -69,7 +66,12 @@ func (h *ReloadHandler) Process(
 		h.Collectors.RecordWorkloadsMatched(kind, count)
 	}
 
-	if len(decisions) == 0 {
+	// Like the other skipped_total reasons, this counts the event, with one reason at most. Each
+	// suspended workload is still named in the "skipping reload of suspended workload" log line.
+	switch {
+	case len(decisions) == 0 && suspended:
+		h.Collectors.RecordSkipped("suspended")
+	case len(decisions) == 0:
 		h.Collectors.RecordSkipped("no_match")
 	}
 
