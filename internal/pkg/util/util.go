@@ -81,6 +81,7 @@ func (l *List) Contains(s string) bool {
 }
 
 func ConfigureReloaderFlags(cmd *cobra.Command) {
+	cmd.PersistentFlags().BoolVar(&options.EnableRestartWindows, "enable-restart-windows", false, "Enable persistent, opt-in restart windows for Deployments, StatefulSets and DaemonSets")
 	cmd.PersistentFlags().BoolVar(&options.AutoReloadAll, "auto-reload-all", false, "Auto reload all resources")
 	cmd.PersistentFlags().StringVar(&options.ConfigmapUpdateOnChangeAnnotation, "configmap-annotation", "configmap.reloader.stakater.com/reload", "annotation to detect changes in configmaps, specified by name")
 	cmd.PersistentFlags().StringVar(&options.SecretUpdateOnChangeAnnotation, "secret-annotation", "secret.reloader.stakater.com/reload", "annotation to detect changes in secrets, specified by name")

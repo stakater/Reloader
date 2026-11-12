@@ -169,6 +169,9 @@ the rule set is defined once. Expects the root context ($) as its argument.
       - daemonsets
       - statefulsets
     verbs:
+{{- if .Values.reloader.enableRestartWindows }}
+      - watch
+{{- end }}
       - list
       - get
       - update
