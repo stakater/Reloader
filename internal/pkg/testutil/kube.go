@@ -3,7 +3,6 @@ package testutil
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"math/rand"
 	"sort"
 	"strconv"
@@ -790,10 +789,7 @@ func GetResourceSHAFromEnvVar(containers []v1.Container, envVar string) string {
 
 // GetResourceSHAFromAnnotation returns the SHA value of given environment variable
 func GetResourceSHAFromAnnotation(podAnnotations map[string]string) string {
-	lastReloadedResourceName := fmt.Sprintf("%s/%s",
-		constants.ReloaderAnnotationPrefix,
-		constants.LastReloadedFromAnnotation,
-	)
+	lastReloadedResourceName := options.LastReloadedFromAnnotation
 
 	annotationJson, ok := podAnnotations[lastReloadedResourceName]
 	if !ok {

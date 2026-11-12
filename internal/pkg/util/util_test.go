@@ -324,3 +324,53 @@ func TestConfigureReloaderFlagsLeaderElectionTimings(t *testing.T) {
 		t.Errorf("retry period: got %s, want 10s", options.LeaderElectionRetryPeriod)
 	}
 }
+
+func TestConfigureReloaderFlagsAnnotationOverrides(t *testing.T) {
+	type annotationFlag struct {
+		name        string
+		defValue    string
+		option      *string
+		overrideVal string
+	}
+
+	flags := []annotationFlag{
+		{"secretproviderclass-annotation", "secretproviderclass.reloader.stakater.com/reload", &options.SecretProviderClassUpdateOnChangeAnnotation, "secretproviderclass.example.com/reload"},
+		{"secretproviderclass-auto-annotation", "secretproviderclass.reloader.stakater.com/auto", &options.SecretProviderClassReloaderAutoAnnotation, "secretproviderclass.example.com/auto"},
+		{"configmap-exclude-annotation", "configmaps.exclude.reloader.stakater.com/reload", &options.ConfigmapExcludeReloaderAnnotation, "configmaps.exclude.example.com/reload"},
+		{"secret-exclude-annotation", "secrets.exclude.reloader.stakater.com/reload", &options.SecretExcludeReloaderAnnotation, "secrets.exclude.example.com/reload"},
+		{"secretproviderclass-exclude-annotation", "secretproviderclasses.exclude.reloader.stakater.com/reload", &options.SecretProviderClassExcludeReloaderAnnotation, "secretproviderclasses.exclude.example.com/reload"},
+		{"rollout-strategy-annotation", "reloader.stakater.com/rollout-strategy", &options.RolloutStrategyAnnotation, "example.com/rollout-strategy"},
+		{"last-reloaded-from-annotation", "reloader.stakater.com/last-reloaded-from", &options.LastReloadedFromAnnotation, "example.com/last-reloaded-from"},
+	}
+
+	for i := range flags {
+		orig := *flags[i].option
+		option := flags[i].option
+		defer func() { *option = orig }()
+	}
+
+	cmd := &cobra.Command{Use: "reloader"}
+	ConfigureReloaderFlags(cmd)
+
+	args := make([]string, 0, len(flags))
+	for _, f := range flags {
+		flag := cmd.PersistentFlags().Lookup(f.name)
+		if flag == nil {
+			t.Fatalf("flag --%s is not registered", f.name)
+		}
+		if flag.DefValue != f.defValue {
+			t.Errorf("flag --%s default: got %s, want %s", f.name, flag.DefValue, f.defValue)
+		}
+		args = append(args, "--"+f.name+"="+f.overrideVal)
+	}
+
+	if err := cmd.PersistentFlags().Parse(args); err != nil {
+		t.Fatalf("failed to parse annotation flags: %v", err)
+	}
+
+	for _, f := range flags {
+		if *f.option != f.overrideVal {
+			t.Errorf("option for --%s: got %s, want %s", f.name, *f.option, f.overrideVal)
+		}
+	}
+}

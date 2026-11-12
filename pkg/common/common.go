@@ -59,6 +59,8 @@ type ReloaderOptions struct {
 	SearchMatchAnnotation string `json:"searchMatchAnnotation"`
 	// RolloutStrategyAnnotation is the annotation key used to define the rollout update strategy for workloads
 	RolloutStrategyAnnotation string `json:"rolloutStrategyAnnotation"`
+	// LastReloadedFromAnnotation is the annotation key set by Reloader to describe the resource that triggered the last reload
+	LastReloadedFromAnnotation string `json:"lastReloadedFromAnnotation"`
 	// PauseDeploymentAnnotation is the annotation key used to define the time period to pause a deployment after
 	PauseDeploymentAnnotation string `json:"pauseDeploymentAnnotation"`
 	// PauseDeploymentTimeAnnotation is the annotation key used to indicate when a deployment was paused by Reloader
@@ -365,6 +367,7 @@ func GetCommandLineOptions() *ReloaderOptions {
 	CommandLineOptions.AutoSearchAnnotation = options.AutoSearchAnnotation
 	CommandLineOptions.SearchMatchAnnotation = options.SearchMatchAnnotation
 	CommandLineOptions.RolloutStrategyAnnotation = options.RolloutStrategyAnnotation
+	CommandLineOptions.LastReloadedFromAnnotation = options.LastReloadedFromAnnotation
 	CommandLineOptions.PauseDeploymentAnnotation = options.PauseDeploymentAnnotation
 	CommandLineOptions.PauseDeploymentTimeAnnotation = options.PauseDeploymentTimeAnnotation
 	CommandLineOptions.LogFormat = options.LogFormat
