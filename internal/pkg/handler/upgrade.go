@@ -191,8 +191,13 @@ func sendWebhook(url string) (string, []error) {
 }
 
 func doRollingUpgrade(config common.Config, collectors metrics.Collectors, recorder record.EventRecorder, invoke invokeStrategy) error {
-	clients := kube.GetClients()
+	return reloadWorkloads(kube.GetClients(), config, collectors, recorder, invoke)
+}
 
+// reloadWorkloads runs the reload for every supported workload type. A failure on
+// one type does not stop the others; all errors are returned joined so the event
+// is still retried.
+func reloadWorkloads(clients kube.Clients, config common.Config, collectors metrics.Collectors, recorder record.EventRecorder, invoke invokeStrategy) error {
 	// Get ignored workload types to avoid listing resources without RBAC permissions
 	ignoredWorkloadTypes, err := util.GetIgnoredWorkloadTypesList()
 	if err != nil {
@@ -200,44 +205,32 @@ func doRollingUpgrade(config common.Config, collectors metrics.Collectors, recor
 		ignoredWorkloadTypes = util.List{} // Continue with empty list if parsing fails
 	}
 
-	err = rollingUpgrade(clients, config, GetDeploymentRollingUpgradeFuncs(), collectors, recorder, invoke)
-	if err != nil {
-		return err
-	}
+	workloadFuncs := []callbacks.RollingUpgradeFuncs{GetDeploymentRollingUpgradeFuncs()}
 
 	// Only process CronJobs if they are not ignored
 	if !ignoredWorkloadTypes.Contains("cronjobs") {
-		err = rollingUpgrade(clients, config, GetCronJobCreateJobFuncs(), collectors, recorder, invoke)
-		if err != nil {
-			return err
-		}
+		workloadFuncs = append(workloadFuncs, GetCronJobCreateJobFuncs())
 	}
 
 	// Only process Jobs if they are not ignored
 	if !ignoredWorkloadTypes.Contains("jobs") {
-		err = rollingUpgrade(clients, config, GetJobCreateJobFuncs(), collectors, recorder, invoke)
-		if err != nil {
-			return err
-		}
+		workloadFuncs = append(workloadFuncs, GetJobCreateJobFuncs())
 	}
 
-	err = rollingUpgrade(clients, config, GetDaemonSetRollingUpgradeFuncs(), collectors, recorder, invoke)
-	if err != nil {
-		return err
-	}
-	err = rollingUpgrade(clients, config, GetStatefulSetRollingUpgradeFuncs(), collectors, recorder, invoke)
-	if err != nil {
-		return err
-	}
+	workloadFuncs = append(workloadFuncs, GetDaemonSetRollingUpgradeFuncs(), GetStatefulSetRollingUpgradeFuncs())
 
 	if options.IsArgoRollouts == "true" {
-		err = rollingUpgrade(clients, config, GetArgoRolloutRollingUpgradeFuncs(), collectors, recorder, invoke)
-		if err != nil {
-			return err
+		workloadFuncs = append(workloadFuncs, GetArgoRolloutRollingUpgradeFuncs())
+	}
+
+	var errs []error
+	for _, upgradeFuncs := range workloadFuncs {
+		if err := rollingUpgrade(clients, config, upgradeFuncs, collectors, recorder, invoke); err != nil {
+			errs = append(errs, err)
 		}
 	}
 
-	return nil
+	return errors.Join(errs...)
 }
 
 func rollingUpgrade(clients kube.Clients, config common.Config, upgradeFuncs callbacks.RollingUpgradeFuncs, collectors metrics.Collectors, recorder record.EventRecorder, strategy invokeStrategy) error {
@@ -255,13 +248,15 @@ func PerformAction(clients kube.Clients, config common.Config, upgradeFuncs call
 	// Record workloads scanned
 	collectors.RecordWorkloadsScanned(upgradeFuncs.ResourceType, len(items))
 
+	var errs []error
 	matchedCount := 0
 	for _, item := range items {
 		matched, err := retryOnConflict(retry.DefaultRetry, func(fetchResource bool) (bool, error) {
 			return upgradeResource(clients, config, upgradeFuncs, collectors, recorder, strategy, item, fetchResource)
 		})
 		if err != nil {
-			return err
+			// Keep going so one workload that cannot be updated does not block the others.
+			errs = append(errs, err)
 		}
 		if matched {
 			matchedCount++
@@ -271,7 +266,7 @@ func PerformAction(clients kube.Clients, config common.Config, upgradeFuncs call
 	// Record workloads matched
 	collectors.RecordWorkloadsMatched(upgradeFuncs.ResourceType, matchedCount)
 
-	return nil
+	return errors.Join(errs...)
 }
 
 func retryOnConflict(backoff wait.Backoff, fn func(_ bool) (bool, error)) (bool, error) {
