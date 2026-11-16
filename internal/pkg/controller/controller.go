@@ -151,7 +151,8 @@ func NewController(client kubernetes.Interface, resource string, namespace strin
 		ListerWatcher: listWatcher,
 		ObjectType:    kube.ResourceMap[resource],
 		ResyncPeriod:  0,
-		Handler: cache.ResourceEventHandlerFuncs{
+		// The detailed handler tells each add whether it belongs to the informer's initial list.
+		Handler: cache.ResourceEventHandlerDetailedFuncs{
 			AddFunc:    c.Add,
 			UpdateFunc: c.Update,
 			DeleteFunc: c.Delete,
@@ -168,7 +169,7 @@ func NewController(client kubernetes.Interface, resource string, namespace strin
 }
 
 // Add function to add a new object to the queue in case of creating a resource
-func (c *Controller) Add(obj interface{}) {
+func (c *Controller) Add(obj interface{}, isInInitialList bool) {
 	c.collectors.RecordEventReceived("add", c.resource)
 
 	switch object := obj.(type) {
@@ -180,6 +181,14 @@ func (c *Controller) Add(obj interface{}) {
 	}
 
 	if options.ReloadOnCreate == "true" {
+		// A resource from the informer's initial list existed before this controller started,
+		// so it was not created now. The initialized flags cannot tell: they are shared by all
+		// controllers of a type, and with --namespaces each namespace has its own controller,
+		// which may sync after another one already set them.
+		if isInInitialList && !options.SyncAfterRestart {
+			c.collectors.RecordSkipped("initial_list")
+			return
+		}
 		if !c.resourceInIgnoredNamespace(obj) && c.resourceInSelectedNamespaces(obj) && secretControllerInitialized.Load() && configmapControllerInitialized.Load() {
 			c.enqueue(handler.ResourceCreatedHandler{
 				Resource:    obj,

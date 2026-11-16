@@ -315,11 +315,45 @@ func TestAddHandler(t *testing.T) {
 	tests := []struct {
 		name              string
 		reloadOnCreate    string
+		syncAfterRestart  bool
 		ignoredNamespaces []string
 		resource          interface{}
 		controllersInit   bool
+		isInInitialList   bool
 		expectQueueItem   bool
 	}{
+		{
+			// With --namespaces, every namespace has its own controller, but the initialized
+			// flags are shared: a controller that syncs after another one already set them
+			// still receives its existing resources as adds from the initial list.
+			name:              "Initial list after another controller initialized - should not queue",
+			reloadOnCreate:    "true",
+			ignoredNamespaces: []string{},
+			resource: &v1.ConfigMap{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-cm",
+					Namespace: "default",
+				},
+			},
+			controllersInit: true,
+			isInInitialList: true,
+			expectQueueItem: false,
+		},
+		{
+			name:              "Initial list with SyncAfterRestart - should queue",
+			reloadOnCreate:    "true",
+			syncAfterRestart:  true,
+			ignoredNamespaces: []string{},
+			resource: &v1.ConfigMap{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-cm",
+					Namespace: "default",
+				},
+			},
+			controllersInit: true,
+			isInInitialList: true,
+			expectQueueItem: true,
+		},
 		{
 			name:              "Namespace resource - should not queue",
 			reloadOnCreate:    "true",
@@ -384,16 +418,20 @@ func TestAddHandler(t *testing.T) {
 		},
 	}
 
+	originalSync := options.SyncAfterRestart
+	defer func() { options.SyncAfterRestart = originalSync }()
+
 	for _, tt := range tests {
 		t.Run(
 			tt.name, func(t *testing.T) {
 				resetGlobalState()
 				options.ReloadOnCreate = tt.reloadOnCreate
+				options.SyncAfterRestart = tt.syncAfterRestart
 				secretControllerInitialized.Store(tt.controllersInit)
 				configmapControllerInitialized.Store(tt.controllersInit)
 
 				c := newTestController(tt.ignoredNamespaces, "")
-				c.Add(tt.resource)
+				c.Add(tt.resource, tt.isInInitialList)
 
 				if tt.expectQueueItem {
 					assert.Equal(t, 1, c.queue.Len(), "Expected queue to have 1 item")
@@ -742,9 +780,25 @@ func TestAddHandlerWithNamespaceEvent(t *testing.T) {
 		ObjectMeta: metav1.ObjectMeta{Name: "new-namespace"},
 	}
 
-	c.Add(ns)
+	c.Add(ns, false)
 
 	assert.Contains(t, loadSelectedNamespaces(), "new-namespace")
+	assert.Equal(t, 0, c.queue.Len(), "Namespace add should not queue anything")
+}
+
+func TestAddHandlerWithNamespaceFromInitialList(t *testing.T) {
+	resetGlobalState()
+
+	c := newTestController([]string{}, "env=prod")
+
+	// Namespaces that already exist arrive in the initial list and must still be cached.
+	ns := &v1.Namespace{
+		ObjectMeta: metav1.ObjectMeta{Name: "existing-namespace"},
+	}
+
+	c.Add(ns, true)
+
+	assert.Contains(t, loadSelectedNamespaces(), "existing-namespace")
 	assert.Equal(t, 0, c.queue.Len(), "Namespace add should not queue anything")
 }
 
@@ -961,7 +1015,7 @@ func TestHandlersWithIgnoredResource(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			for _, handle := range []func(*Controller){
-				func(c *Controller) { c.Add(secret) },
+				func(c *Controller) { c.Add(secret, false) },
 				func(c *Controller) { c.Delete(secret) },
 			} {
 				resetGlobalState()
