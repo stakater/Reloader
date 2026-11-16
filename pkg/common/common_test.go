@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stakater/Reloader/internal/pkg/constants"
 	"github.com/stakater/Reloader/internal/pkg/options"
 )
 
@@ -308,5 +309,83 @@ func TestGetCommandLineOptions_LeaderElectionTimingsAreDurationStrings(t *testin
 		if got := decoded[key]; got != want {
 			t.Errorf("Expected %s=%q, got=%#v", key, want, got)
 		}
+	}
+}
+
+// The auto and exclude annotations can both be set on the pod template instead
+// of the workload. The exclude list there must still skip the excluded
+// resource, and an exclude list on the workload must keep applying when the
+// auto annotation sits on the pod template.
+func TestShouldReload_ExcludeAnnotationOnPodTemplate(t *testing.T) {
+	opts := &ReloaderOptions{
+		ReloaderAutoAnnotation:                       "reloader.stakater.com/auto",
+		ConfigmapExcludeReloaderAnnotation:           "configmaps.exclude.reloader.stakater.com/reload",
+		SecretExcludeReloaderAnnotation:              "secrets.exclude.reloader.stakater.com/reload",
+		SecretProviderClassExcludeReloaderAnnotation: "secretproviderclasses.exclude.reloader.stakater.com/reload",
+	}
+
+	tests := []struct {
+		name           string
+		configType     string
+		resourceName   string
+		annotations    Map
+		podAnnotations Map
+		wantReload     bool
+	}{
+		{
+			name:         "configmap excluded on pod template",
+			configType:   constants.ConfigmapEnvVarPostfix,
+			resourceName: "app-config",
+			podAnnotations: Map{
+				"reloader.stakater.com/auto":                      "true",
+				"configmaps.exclude.reloader.stakater.com/reload": "app-config",
+			},
+			wantReload: false,
+		},
+		{
+			name:         "secret excluded on pod template",
+			configType:   constants.SecretEnvVarPostfix,
+			resourceName: "app-secret",
+			podAnnotations: Map{
+				"reloader.stakater.com/auto":                   "true",
+				"secrets.exclude.reloader.stakater.com/reload": "other, app-secret",
+			},
+			wantReload: false,
+		},
+		{
+			name:         "other configmap still reloads",
+			configType:   constants.ConfigmapEnvVarPostfix,
+			resourceName: "other-config",
+			podAnnotations: Map{
+				"reloader.stakater.com/auto":                      "true",
+				"configmaps.exclude.reloader.stakater.com/reload": "app-config",
+			},
+			wantReload: true,
+		},
+		{
+			name:         "exclude on workload with auto on pod template",
+			configType:   constants.ConfigmapEnvVarPostfix,
+			resourceName: "app-config",
+			annotations: Map{
+				"configmaps.exclude.reloader.stakater.com/reload": "app-config",
+			},
+			podAnnotations: Map{
+				"reloader.stakater.com/auto": "true",
+			},
+			wantReload: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			config := Config{
+				ResourceName: tt.resourceName,
+				Type:         tt.configType,
+			}
+			result := ShouldReload(config, "Deployment", tt.annotations, tt.podAnnotations, opts)
+			if result.ShouldReload != tt.wantReload {
+				t.Errorf("ShouldReload = %v, want %v", result.ShouldReload, tt.wantReload)
+			}
+		})
 	}
 }
