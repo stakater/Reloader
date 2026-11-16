@@ -1,0 +1,71 @@
+suite: ServiceMonitor and PodMonitor
+
+templates:
+  - servicemonitor.yaml
+  - podmonitor.yaml
+
+capabilities:
+  apiVersions:
+    - monitoring.coreos.com/v1
+
+release:
+  namespace: release-ns
+
+tests:
+  - it: ServiceMonitor selects the release namespace by default
+    template: servicemonitor.yaml
+    set:
+      reloader:
+        serviceMonitor:
+          enabled: true
+    asserts:
+      - equal:
+          path: spec.namespaceSelector.matchNames
+          value:
+            - release-ns
+
+  - it: ServiceMonitor selects the namespace value when it is set
+    template: servicemonitor.yaml
+    set:
+      namespace: reloader-ns
+      reloader:
+        serviceMonitor:
+          enabled: true
+          namespace: monitoring
+    asserts:
+      - equal:
+          path: metadata.namespace
+          value: monitoring
+      - equal:
+          path: spec.namespaceSelector.matchNames
+          value:
+            - reloader-ns
+
+  - it: PodMonitor selects the release namespace by default
+    template: podmonitor.yaml
+    set:
+      reloader:
+        podMonitor:
+          enabled: true
+    asserts:
+      - equal:
+          path: spec.namespaceSelector.matchNames
+          value:
+            - release-ns
+
+  - it: PodMonitor selects the namespace value when it is set
+    template: podmonitor.yaml
+    set:
+      namespace: reloader-ns
+      reloader:
+        podMonitor:
+          enabled: true
+          namespace: monitoring
+    asserts:
+      - equal:
+          path: metadata.namespace
+          value: monitoring
+      - equal:
+          path: spec.namespaceSelector.matchNames
+          value:
+            - reloader-ns
