@@ -201,6 +201,8 @@ metadata:
 | `rollout` (default) | Updates pod template metadata to trigger a rollout             |
 | `restart`           | Deletes the pod to restart it without patching the template    |
 
+With `restart`, Reloader sets `spec.restartAt` and, in the same patch, records the SHA of the triggering ConfigMap/Secret in the `reloader.stakater.com/rollout-restart-state` annotation on the Rollout. This lets Reloader skip resources it has already restarted for and catch up on missed changes after a restart or leader failover (with `--sync-after-restart`). Since this is a metadata annotation, it does not change the pod template.
+
 ✅ Use `restart` if:
 
 1. You're using GitOps and want to avoid drift
