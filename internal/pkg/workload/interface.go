@@ -82,6 +82,10 @@ type WorkloadReader interface {
 
 	// GetOwnerReferences returns the owner references of the workload.
 	GetOwnerReferences() []metav1.OwnerReference
+
+	// IsSuspended reports whether the workload is paused, such as a CronJob with spec.suspend
+	// set, so that a reload must not start it.
+	IsSuspended() bool
 }
 
 // WorkloadMatcher provides methods for checking resource usage.

@@ -8,6 +8,7 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/utils/ptr"
 	csiv1 "sigs.k8s.io/secrets-store-csi-driver/apis/v1"
 
 	"github.com/stakater/Reloader/internal/pkg/testutil"
@@ -74,6 +75,45 @@ func TestService_ProcessConfigMap_AutoReload(t *testing.T) {
 
 	if decisions[0].Hash == "" {
 		t.Error("Expected Hash to be non-empty")
+	}
+}
+
+func TestService_ProcessConfigMap_SuspendedCronJob(t *testing.T) {
+	tests := []struct {
+		name          string
+		suspend       *bool
+		wantReload    bool
+		wantSuspended bool
+	}{
+		{name: "suspended", suspend: ptr.To(true), wantReload: false, wantSuspended: true},
+		{name: "not suspended", suspend: ptr.To(false), wantReload: true, wantSuspended: false},
+		{name: "suspend unset", suspend: nil, wantReload: true, wantSuspended: false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			svc := NewService(config.NewDefault(), testr.New(t))
+			cj := testutil.NewCronJobWithAnnotations("test-cj", "default", map[string]string{
+				"configmap.reloader.stakater.com/reload": "test-cm",
+			})
+			cj.Spec.Suspend = tt.suspend
+			cm := &corev1.ConfigMap{
+				ObjectMeta: metav1.ObjectMeta{Name: "test-cm", Namespace: "default"},
+				Data:       map[string]string{"key": "value"},
+			}
+
+			decisions := svc.Process(ConfigMapChange{ConfigMap: cm, EventType: EventTypeUpdate},
+				[]workload.Workload{workload.NewCronJobWorkload(cj)})
+
+			if len(decisions) != 1 {
+				t.Fatalf("Expected 1 decision, got %d", len(decisions))
+			}
+			if decisions[0].ShouldReload != tt.wantReload {
+				t.Errorf("ShouldReload = %v, want %v", decisions[0].ShouldReload, tt.wantReload)
+			}
+			if decisions[0].Suspended != tt.wantSuspended {
+				t.Errorf("Suspended = %v, want %v", decisions[0].Suspended, tt.wantSuspended)
+			}
+		})
 	}
 }
 
