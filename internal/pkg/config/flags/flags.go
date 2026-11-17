@@ -225,6 +225,18 @@ func BindFlags(fs *pflag.FlagSet, cfg *config.Config) {
 		"pause-deployment-time-annotation", cfg.Annotations.PausedAt,
 		"Annotation to indicate when a deployment was paused by Reloader",
 	)
+	fs.Int(
+		"max-concurrent-reloads", cfg.MaxConcurrentReloads,
+		"maximum concurrent workload reload operations cluster-wide (0 disables the limit)",
+	)
+	fs.String(
+		"reload-spread", cfg.GlobalReloadSpread,
+		"default delay between reloading each dependent workload in the same namespace when a configmap/secret changes (e.g. 5s)",
+	)
+	fs.String(
+		"reload-spread-annotation", cfg.Annotations.ReloadSpread,
+		"annotation on configmaps/secrets to delay between reloading dependent workloads in the same namespace",
+	)
 
 	// Watched namespaces (scoped mode). Empty means watch all namespaces;
 	// KUBERNETES_NAMESPACE (env) is used as a single-namespace fallback.
@@ -342,6 +354,10 @@ func ApplyFlags(cfg *config.Config, log logr.Logger) error {
 	cfg.Annotations.Ignore = v.GetString("ignore-annotation")
 	cfg.Annotations.PausePeriod = v.GetString("pause-deployment-annotation")
 	cfg.Annotations.PausedAt = v.GetString("pause-deployment-time-annotation")
+	cfg.Annotations.ReloadSpread = v.GetString("reload-spread-annotation")
+
+	cfg.MaxConcurrentReloads = v.GetInt("max-concurrent-reloads")
+	cfg.GlobalReloadSpread = v.GetString("reload-spread")
 
 	// Alerting
 	cfg.Alerting.Enabled = v.GetBool("alert-on-reload")

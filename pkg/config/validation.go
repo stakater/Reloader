@@ -3,6 +3,7 @@ package config
 import (
 	"fmt"
 	"strings"
+	"time"
 
 	"k8s.io/apimachinery/pkg/labels"
 	apivalidation "k8s.io/apimachinery/pkg/util/validation"
@@ -130,6 +131,22 @@ func (c *Config) Validate() error {
 		}
 	}
 	c.IgnoredWorkloads = normalizedWorkloads
+
+	if c.MaxConcurrentReloads < 0 {
+		errs = append(errs, ValidationError{
+			Field:   "MaxConcurrentReloads",
+			Message: "must be >= 0 (0 disables the limit)",
+		})
+	}
+
+	if c.GlobalReloadSpread != "" {
+		if _, err := time.ParseDuration(c.GlobalReloadSpread); err != nil {
+			errs = append(errs, ValidationError{
+				Field:   "GlobalReloadSpread",
+				Message: fmt.Sprintf("must be a valid duration: %v", err),
+			})
+		}
+	}
 
 	if len(errs) > 0 {
 		return errs

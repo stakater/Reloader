@@ -123,7 +123,7 @@ func (r *ResourceReconciler[T]) Reconcile(ctx context.Context, req ctrl.Request)
 	}
 
 	result, err := r.reloadHandler().Process(
-		ctx, change.GetNamespace(), change.GetName(), r.ResourceType,
+		ctx, change,
 		func(workloads []workload.Workload) []reload.ReloadDecision {
 			return r.ReloadService.Process(change, workloads)
 		}, log,
@@ -175,10 +175,11 @@ func (r *ResourceReconciler[T]) handleDelete(
 	resource.SetName(req.Name)
 	resource.SetNamespace(req.Namespace)
 
+	delChange := r.CreateChange(resource, reload.EventTypeDelete)
 	return r.reloadHandler().Process(
-		ctx, req.Namespace, req.Name, r.ResourceType,
+		ctx, delChange,
 		func(workloads []workload.Workload) []reload.ReloadDecision {
-			return r.ReloadService.Process(r.CreateChange(resource, reload.EventTypeDelete), workloads)
+			return r.ReloadService.Process(delChange, workloads)
 		}, log,
 	)
 }
@@ -194,14 +195,15 @@ func (r *ResourceReconciler[T]) recordReconcile(startTime time.Time, err error) 
 func (r *ResourceReconciler[T]) reloadHandler() *ReloadHandler {
 	if r.handler == nil {
 		r.handler = &ReloadHandler{
-			Client:        r.Client,
-			Lister:        workload.NewLister(r.Client, r.Registry, r.Config),
-			ReloadService: r.ReloadService,
-			WebhookClient: r.WebhookClient,
-			Collectors:    r.Collectors,
-			EventRecorder: r.EventRecorder,
-			Alerter:       r.Alerter,
-			PauseHandler:  r.PauseHandler,
+			Client:          r.Client,
+			Lister:          workload.NewLister(r.Client, r.Registry, r.Config),
+			ReloadService:   r.ReloadService,
+			WebhookClient:   r.WebhookClient,
+			Collectors:      r.Collectors,
+			EventRecorder:   r.EventRecorder,
+			Alerter:         r.Alerter,
+			PauseHandler:    r.PauseHandler,
+			ThrottleHandler: reload.NewThrottleHandler(r.Config, r.Log),
 		}
 	}
 	return r.handler
