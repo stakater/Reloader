@@ -363,7 +363,13 @@ spec:
           {{- end}}
           {{- if eq .Values.reloader.autoReloadAll true }}
           - "--auto-reload-all=true"
-          {{- end -}}
+          {{- end }}
+          {{- if gt (int .Values.reloader.maxConcurrentReloads) 0 }}
+          - "--max-concurrent-reloads={{ .Values.reloader.maxConcurrentReloads }}"
+          {{- end }}
+          {{- with .Values.reloader.reloadSpread }}
+          - "--reload-spread={{ . }}"
+          {{- end }}
       {{- end }}
       {{- if .Values.reloader.deployment.resources }}
         resources:

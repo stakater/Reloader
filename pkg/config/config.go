@@ -39,6 +39,11 @@ type Config struct {
 	EnableHA                bool                `json:"enableHA"`
 	WebhookURL              string              `json:"webhookUrl,omitempty"`
 
+	// MaxConcurrentReloads caps parallel workload reload patches cluster-wide (0 = unlimited).
+	MaxConcurrentReloads int `json:"maxConcurrentReloads"`
+	// GlobalReloadSpread is the default delay between reloading dependents in one namespace (e.g. "5s").
+	GlobalReloadSpread string `json:"globalReloadSpread,omitempty"`
+
 	IgnoredResources         []string          `json:"ignoredResources,omitempty"`
 	IgnoredWorkloads         []string          `json:"ignoredWorkloads,omitempty"`
 	IgnoredNamespaces        []string          `json:"ignoredNamespaces,omitempty"`
@@ -79,6 +84,7 @@ type AnnotationConfig struct {
 	RolloutStrategy            string `json:"rolloutStrategy"`
 	PausePeriod                string `json:"pausePeriod"`
 	PausedAt                   string `json:"pausedAt"`
+	ReloadSpread               string `json:"reloadSpread"`
 	LastReloadedFrom           string `json:"lastReloadedFrom"`
 }
 
@@ -162,6 +168,7 @@ func DefaultAnnotations() AnnotationConfig {
 		RolloutStrategy:            "reloader.stakater.com/rollout-strategy",
 		PausePeriod:                "deployment.reloader.stakater.com/pause-period",
 		PausedAt:                   "deployment.reloader.stakater.com/paused-at",
+		ReloadSpread:               "reloader.stakater.com/reload-spread",
 		LastReloadedFrom:           "reloader.stakater.com/last-reloaded-from",
 	}
 }
