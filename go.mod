@@ -8,7 +8,7 @@ require (
 	github.com/go-logr/zerologr v1.2.3
 	github.com/onsi/ginkgo/v2 v2.27.4
 	github.com/onsi/gomega v1.39.0
-	github.com/openshift/api v0.0.0-20260402111718-ad9eb11110b6
+	github.com/openshift/api 152287f4050b
 	github.com/openshift/client-go v0.0.0-20260330134249-7e1499aaacd7
 	github.com/prometheus/client_golang v1.23.2
 	github.com/prometheus/client_model v0.6.2
