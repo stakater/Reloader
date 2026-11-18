@@ -38,6 +38,8 @@ func NewAlerter(cfg *config.Config) Alerter {
 		return NewTeamsAlerter(alertCfg.WebhookURL, alertCfg.Proxy, alertCfg.Additional)
 	case "gchat":
 		return NewGChatAlerter(alertCfg.WebhookURL, alertCfg.Proxy, alertCfg.Additional)
+	case "webex":
+		return NewWebexAlerter(alertCfg.WebhookURL, alertCfg.Proxy, alertCfg.Additional)
 	default:
 		return NewRawAlerter(alertCfg.WebhookURL, alertCfg.Proxy, alertCfg.Additional, alertCfg.Structured)
 	}
