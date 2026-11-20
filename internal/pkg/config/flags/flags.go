@@ -244,7 +244,7 @@ func BindFlags(fs *pflag.FlagSet, cfg *config.Config) {
 	)
 	fs.String(
 		"alert-sink", cfg.Alerting.Sink,
-		"Alert sink type: 'slack', 'teams', 'gchat', or 'raw' (default)",
+		"Alert sink type: 'slack', 'teams', 'gchat', 'webex', or 'raw' (default)",
 	)
 	fs.String(
 		"alert-proxy", cfg.Alerting.Proxy,

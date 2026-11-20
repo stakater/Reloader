@@ -191,7 +191,7 @@ func (h *ReloadHandler) applyReloads(
 					ResourceKind:      resourceType.Kind(),
 					ResourceName:      resourceName,
 					ResourceNamespace: resourceNamespace,
-					Timestamp:         time.Now(),
+					Timestamp:         time.Now().UTC(),
 				},
 			); err != nil {
 				log.Error(err, "failed to send alert")

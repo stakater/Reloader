@@ -93,6 +93,15 @@ func TestNewAlerter(t *testing.T) {
 			wantType: "*alerting.GChatAlerter",
 		},
 		{
+			name: "webex",
+			setup: func(cfg *config.Config) {
+				cfg.Alerting.Enabled = true
+				cfg.Alerting.WebhookURL = "http://example.com/webhook"
+				cfg.Alerting.Sink = "webex"
+			},
+			wantType: "*alerting.WebexAlerter",
+		},
+		{
 			name: "raw",
 			setup: func(cfg *config.Config) {
 				cfg.Alerting.Enabled = true
@@ -135,6 +144,8 @@ func getTypeName(a Alerter) string {
 		return "*alerting.TeamsAlerter"
 	case *GChatAlerter:
 		return "*alerting.GChatAlerter"
+	case *WebexAlerter:
+		return "*alerting.WebexAlerter"
 	case *RawAlerter:
 		return "*alerting.RawAlerter"
 	default:
@@ -204,6 +215,25 @@ func TestAlerter_Send(t *testing.T) {
 				}
 				if len(msg.Cards) != 1 {
 					t.Errorf("cards = %d, want 1", len(msg.Cards))
+				}
+			},
+		},
+		{
+			name:        "webex",
+			contentType: "application/json",
+			newAlert:    func(url string) Alerter { return NewWebexAlerter(url, "", "Test Cluster") },
+			validate: func(t *testing.T, body []byte) {
+				var msg webexMessage
+				if err := json.Unmarshal(body, &msg); err != nil {
+					t.Fatalf("Failed to unmarshal: %v", err)
+				}
+				for _, want := range []string{"Test Cluster", "default/nginx (Deployment)", "default/nginx-config (ConfigMap)"} {
+					if !strings.Contains(msg.Markdown, want) {
+						t.Errorf("markdown %q does not contain %q", msg.Markdown, want)
+					}
+				}
+				if !strings.Contains(string(body), `"markdown"`) || strings.Contains(string(body), `"text"`) {
+					t.Errorf("payload must use only the markdown key, got %s", body)
 				}
 			},
 		},
