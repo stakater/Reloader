@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strings"
 )
 
 // WebexAlerter sends alerts to Webex incoming webhooks.
@@ -51,8 +52,29 @@ func (a *WebexAlerter) formatMessage(msg AlertMessage) string {
 	)
 
 	if a.additional != "" {
-		text = a.additional + "\n\n" + text
+		text = escapeWebexMarkdown(a.additional) + "\n\n" + text
 	}
 
 	return text
+}
+
+// webexMarkdownEscaper backslash-escapes the characters that start bold,
+// italic, code, link, heading, quote or mention formatting in Webex markdown.
+var webexMarkdownEscaper = strings.NewReplacer(
+	`\`, `\\`,
+	"`", "\\`",
+	"*", `\*`,
+	"_", `\_`,
+	"[", `\[`,
+	"]", `\]`,
+	"<", `\<`,
+	">", `\>`,
+	"#", `\#`,
+)
+
+// escapeWebexMarkdown makes user supplied text render literally in a Webex
+// markdown message. Kubernetes object names cannot contain these characters,
+// so only free text such as ALERT_ADDITIONAL_INFO needs it.
+func escapeWebexMarkdown(s string) string {
+	return webexMarkdownEscaper.Replace(s)
 }

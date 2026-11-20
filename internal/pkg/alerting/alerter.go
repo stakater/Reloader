@@ -15,7 +15,7 @@ type AlertMessage struct {
 	ResourceKind      string
 	ResourceName      string
 	ResourceNamespace string
-	Timestamp         time.Time
+	Timestamp         time.Time // in UTC: the sinks print it with a literal "UTC" label
 }
 
 // Alerter is the interface for sending reload notifications.
