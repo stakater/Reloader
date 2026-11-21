@@ -17,6 +17,8 @@ const (
 	ReloaderAnnotationPrefix = "reloader.stakater.com"
 	// LastReloadedFromAnnotation is an annotation used to describe the last resource that triggered a reload
 	LastReloadedFromAnnotation = "last-reloaded-from"
+	// ReloadTriggerAnnotation records on a Job created by Reloader which resource change created it
+	ReloadTriggerAnnotation = "reload-trigger"
 
 	// 	ReloadStrategyFlag The reload strategy flag name
 	ReloadStrategyFlag = "reload-strategy"
