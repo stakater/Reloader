@@ -2,6 +2,7 @@ package controller
 
 import (
 	"context"
+	"time"
 
 	"github.com/go-logr/logr"
 	appsv1 "k8s.io/api/apps/v1"
@@ -55,10 +56,15 @@ func (r *DeploymentReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 		return ctrl.Result{RequeueAfter: remainingTime}, nil
 	}
 
-	log.Info("Unpausing deployment after pause period expired")
+	var retryAfter time.Duration
 	err = UpdateObjectWithRetry(
 		ctx, r.Client, &deploy, func() (bool, error) {
+			retryAfter = 0
 			if !r.PauseHandler.IsPausedByReloader(&deploy) {
+				return false, nil
+			}
+			if expired, remaining, _ := r.PauseHandler.CheckPauseExpired(&deploy); !expired {
+				retryAfter = remaining
 				return false, nil
 			}
 			r.PauseHandler.ClearPause(&deploy)
@@ -71,7 +77,7 @@ func (r *DeploymentReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 		return ctrl.Result{}, err
 	}
 
-	return ctrl.Result{}, nil
+	return ctrl.Result{RequeueAfter: retryAfter}, nil
 }
 
 // SetupWithManager sets up the DeploymentReconciler with the manager.

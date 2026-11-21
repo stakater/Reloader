@@ -2,6 +2,7 @@ package controller_test
 
 import (
 	"context"
+	"encoding/json"
 	"testing"
 
 	"github.com/go-logr/logr/testr"
@@ -326,6 +327,8 @@ func TestUpdateWorkloadWithRetry_PauseDeployment(t *testing.T) {
 
 	wl := workload.NewDeploymentWorkload(deployment)
 
+	stale := wl.DeepCopy()
+
 	updated, err := controller.UpdateWorkloadWithRetry(
 		context.Background(),
 		fakeClient,
@@ -364,6 +367,29 @@ func TestUpdateWorkloadWithRetry_PauseDeployment(t *testing.T) {
 	pausedAt := result.Annotations[cfg.Annotations.PausedAt]
 	if pausedAt == "" {
 		t.Error("Expected paused-at annotation to be set")
+	}
+
+	// Pass the original workload snapshot to exercise a concurrent reload's stale read.
+	ctx := context.Background()
+	updated, err = controller.UpdateWorkloadWithRetry(
+		ctx, fakeClient, reloadService, pauseHandler, stale,
+		"test-cm", matcher.ResourceTypeConfigMap, "default", "def456", true,
+	)
+	if err != nil || !updated {
+		t.Fatalf("second reload updated = %v, error = %v", updated, err)
+	}
+	if err := fakeClient.Get(ctx, client.ObjectKeyFromObject(&result), &result); err != nil {
+		t.Fatalf("getting Deployment after second reload: %v", err)
+	}
+	if got := result.Annotations[cfg.Annotations.PausedAt]; !result.Spec.Paused || got != pausedAt {
+		t.Errorf("second reload changed pause window: paused = %v, paused-at = %q, want %q", result.Spec.Paused, got, pausedAt)
+	}
+	var source reload.ReloadSource
+	if err := json.Unmarshal([]byte(result.Spec.Template.Annotations[cfg.Annotations.LastReloadedFrom]), &source); err != nil {
+		t.Fatalf("reading reload source: %v", err)
+	}
+	if source.Hash != "def456" {
+		t.Errorf("second reload hash = %q, want def456", source.Hash)
 	}
 }
 
