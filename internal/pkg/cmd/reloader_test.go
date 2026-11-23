@@ -7,10 +7,15 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
+	testclient "k8s.io/client-go/kubernetes/fake"
+	clienttesting "k8s.io/client-go/testing"
 	"k8s.io/client-go/tools/leaderelection"
 	"k8s.io/client-go/tools/leaderelection/resourcelock"
 
+	"github.com/stakater/Reloader/internal/pkg/handler"
 	"github.com/stakater/Reloader/internal/pkg/options"
 )
 
@@ -252,6 +257,46 @@ func TestValidateLeaderElectionTimings(t *testing.T) {
 			})
 			if clientGoErr != nil {
 				assert.Error(t, err, "client-go rejects these timings (%v), so validation must too", clientGoErr)
+			}
+		})
+	}
+}
+
+func TestStartPausedDeploymentRecovery(t *testing.T) {
+	origWebhookURL := options.WebhookUrl
+	t.Cleanup(func() { options.WebhookUrl = origWebhookURL; handler.StopResumeTimers() })
+	newPaused := func(name string, at time.Time, period string) *appsv1.Deployment {
+		return &appsv1.Deployment{
+			ObjectMeta: v1.ObjectMeta{Name: name, Namespace: "default", Annotations: map[string]string{
+				options.PauseDeploymentTimeAnnotation: at.Format(time.RFC3339), options.PauseDeploymentAnnotation: period,
+			}},
+			Spec: appsv1.DeploymentSpec{Paused: true},
+		}
+	}
+	for _, tc := range []struct {
+		name, webhookURL string
+		wantExpired      bool
+	}{
+		{"skips when webhook URL is set", "https://example.invalid/webhook", true},
+		{"recovers expired and keeps unexpired paused", "", false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			options.WebhookUrl = tc.webhookURL
+			fakeClient := testclient.NewClientset(
+				newPaused("expired", time.Now().Add(-6*time.Minute), "5m"),
+				newPaused("unexpired", time.Now(), "10m"),
+			)
+			if tc.webhookURL != "" {
+				fakeClient.PrependReactor("list", "deployments", func(clienttesting.Action) (bool, runtime.Object, error) {
+					t.Fatal("Deployments must not be listed when --webhook-url is set")
+					return true, nil, nil
+				})
+			}
+			startPausedDeploymentRecovery(context.Background(), fakeClient, []string{v1.NamespaceAll}, nil, "")
+			for name, want := range map[string]bool{"expired": tc.wantExpired, "unexpired": true} {
+				got, err := fakeClient.AppsV1().Deployments("default").Get(context.TODO(), name, v1.GetOptions{})
+				assert.NoError(t, err)
+				assert.Equal(t, want, got.Spec.Paused)
 			}
 		})
 	}

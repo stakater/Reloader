@@ -10,7 +10,9 @@ import (
 	"time"
 
 	"github.com/sirupsen/logrus"
+	appsv1 "k8s.io/api/apps/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	testclient "k8s.io/client-go/kubernetes/fake"
 
 	"github.com/stakater/Reloader/internal/pkg/constants"
 	"github.com/stakater/Reloader/internal/pkg/controller"
@@ -295,5 +297,60 @@ func TestRunLeaderElectionUsesConfiguredTimings(t *testing.T) {
 
 	if leaseDurationSeconds != 42 {
 		t.Fatalf("got lease duration: %d seconds, want: 42 seconds", leaseDurationSeconds)
+	}
+}
+
+func TestRunLeaderElectionOnStartedCallbackAndTimerCleanup(t *testing.T) {
+	setHealthy := func() { m.Lock(); healthy = true; m.Unlock() }
+	setHealthy()
+	t.Cleanup(func() { handler.StopResumeTimers(); setHealthy() })
+
+	fakeClient := testclient.NewClientset()
+	createPaused := func(name, pausedAt, period string) {
+		t.Helper()
+		d := &appsv1.Deployment{
+			ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: "default", Annotations: map[string]string{options.PauseDeploymentTimeAnnotation: pausedAt, options.PauseDeploymentAnnotation: period}},
+			Spec:       appsv1.DeploymentSpec{Paused: true},
+		}
+		if _, err := fakeClient.AppsV1().Deployments("default").Create(context.TODO(), d, metav1.CreateOptions{}); err != nil {
+			t.Fatalf("create %s: %v", name, err)
+		}
+	}
+	createPaused("expired-deploy", time.Now().Add(-6*time.Minute).Format(time.RFC3339), "5m")
+	pausedAt := time.Now().UTC().Truncate(time.Second)
+	createPaused("unexpired-deploy", pausedAt.Format(time.RFC3339), (time.Since(pausedAt) + 450*time.Millisecond).Round(time.Millisecond).String())
+
+	lock := GetNewLock(fakeClient.CoordinationV1(), constants.LockName, "reloader-leader", "default")
+	recovered, ctxDone := make(chan struct{}), make(chan struct{})
+	ctx, cancel := context.WithCancel(context.Background())
+	stopped := RunLeaderElection(lock, ctx, cancel, "reloader-leader", []*controller.Controller{}, func(leadCtx context.Context) {
+		_ = handler.RecoverPausedDeployments(leadCtx, kube.Clients{KubernetesClient: fakeClient}, []string{metav1.NamespaceAll}, nil, "")
+		close(recovered)
+		<-leadCtx.Done()
+		close(ctxDone)
+	})
+
+	waitCh := func(ch <-chan struct{}, msg string) {
+		t.Helper()
+		select {
+		case <-ch:
+		case <-time.After(5 * time.Second):
+			t.Fatal(msg)
+		}
+	}
+	waitCh(recovered, "onStarted callback did not run after acquiring leadership")
+	if got, err := fakeClient.AppsV1().Deployments("default").Get(context.TODO(), "expired-deploy", metav1.GetOptions{}); err != nil || got.Spec.Paused {
+		t.Fatalf("expected expired deployment to be resumed, err=%v paused=%v", err, got != nil && got.Spec.Paused)
+	}
+	cancel()
+	waitCh(stopped, "leader election did not stop promptly after cancel")
+	select {
+	case <-ctxDone:
+	default:
+		t.Fatal("expected leadCtx to be cancelled before RunLeaderElection exited")
+	}
+	time.Sleep(650 * time.Millisecond)
+	if got, err := fakeClient.AppsV1().Deployments("default").Get(context.TODO(), "unexpired-deploy", metav1.GetOptions{}); err != nil || !got.Spec.Paused {
+		t.Fatalf("expected resume timer to be stopped after losing leadership, err=%v paused=%v", err, got != nil && got.Spec.Paused)
 	}
 }

@@ -12,9 +12,12 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	appsv1 "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/wait"
 	testclient "k8s.io/client-go/kubernetes/fake"
 	clienttesting "k8s.io/client-go/testing"
@@ -653,4 +656,174 @@ func TestResumeTimersConcurrentAccess(t *testing.T) {
 	activeTimersMu.Lock()
 	defer activeTimersMu.Unlock()
 	assert.Empty(t, activeTimers, "All resume timers should be removed")
+}
+
+func newTestDeployment(ns, name string, paused bool, pausedAt, period string) *appsv1.Deployment {
+	ann := map[string]string{}
+	if pausedAt != "" {
+		ann[options.PauseDeploymentTimeAnnotation] = pausedAt
+	}
+	if period != "" {
+		ann[options.PauseDeploymentAnnotation] = period
+	}
+	return &appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: ns, Annotations: ann}, Spec: appsv1.DeploymentSpec{Paused: paused}}
+}
+
+func assertDeploymentPaused(t *testing.T, client *testclient.Clientset, ns, name string, wantPaused bool) *appsv1.Deployment {
+	t.Helper()
+	got, err := client.AppsV1().Deployments(ns).Get(context.TODO(), name, metav1.GetOptions{})
+	assert.NoError(t, err)
+	assert.Equal(t, wantPaused, got.Spec.Paused, "unexpected paused state for %s/%s", ns, name)
+	return got
+}
+
+func TestRecoverPausedDeployments(t *testing.T) {
+	t.Run("resumes expired or unreadable metadata and skips non-reloader pauses", func(t *testing.T) {
+		resetActiveTimers(t)
+		now, expiredAt := time.Now().Format(time.RFC3339), time.Now().Add(-6*time.Minute).Format(time.RFC3339)
+		fakeClient := testclient.NewClientset(
+			newTestDeployment("default", "expired", true, expiredAt, "5m"),
+			newTestDeployment("default", "manual-paused", true, "", "1s"),
+			newTestDeployment("default", "unpaused", false, "", "1s"),
+			newTestDeployment("default", "missing-period", true, now, ""),
+			newTestDeployment("default", "invalid-period", true, now, "not-a-duration"),
+			newTestDeployment("default", "invalid-timestamp", true, "bad-time", "5m"),
+		)
+		assert.NoError(t, RecoverPausedDeployments(context.Background(), kube.Clients{KubernetesClient: fakeClient}, []string{metav1.NamespaceAll}, nil, ""))
+
+		gotExpired := assertDeploymentPaused(t, fakeClient, "default", "expired", false)
+		assert.NotContains(t, gotExpired.Annotations, options.PauseDeploymentTimeAnnotation)
+		for name, want := range map[string]bool{
+			"manual-paused": true, "unpaused": false, "missing-period": false, "invalid-period": false, "invalid-timestamp": false,
+		} {
+			assertDeploymentPaused(t, fakeClient, "default", name, want)
+		}
+		assert.False(t, hasResumeTimer(getTimerKey("default", "manual-paused")))
+		assert.False(t, hasResumeTimer(getTimerKey("default", "unpaused")))
+	})
+
+	t.Run("recreates timer for unexpired deployment and resumes when it expires", func(t *testing.T) {
+		resetActiveTimers(t)
+		fakeClient := testclient.NewClientset()
+		pausedAt := time.Now().UTC().Truncate(time.Second)
+		dep := newTestDeployment("default", "unexpired", true, pausedAt.Format(time.RFC3339), (time.Since(pausedAt) + 450*time.Millisecond).Round(time.Millisecond).String())
+		_, err := fakeClient.AppsV1().Deployments("default").Create(context.TODO(), dep, metav1.CreateOptions{})
+		assert.NoError(t, err)
+		assert.NoError(t, RecoverPausedDeployments(context.Background(), kube.Clients{KubernetesClient: fakeClient}, []string{metav1.NamespaceAll}, nil, ""))
+		assert.True(t, hasResumeTimer(getTimerKey("default", dep.Name)))
+		assertDeploymentPaused(t, fakeClient, "default", dep.Name, true)
+		assert.Eventually(t, func() bool {
+			u, e := fakeClient.AppsV1().Deployments("default").Get(context.TODO(), dep.Name, metav1.GetOptions{})
+			return e == nil && !u.Spec.Paused
+		}, 5*time.Second, 20*time.Millisecond)
+	})
+
+	t.Run("keeps existing active timer untouched", func(t *testing.T) {
+		resetActiveTimers(t)
+		dep := newExpiredPausedDeployment()
+		fakeClient := testclient.NewClientset(dep)
+		timerKey, existingTimer := getTimerKey("default", dep.Name), time.NewTimer(time.Hour)
+		activeTimersMu.Lock()
+		activeTimers[timerKey] = existingTimer
+		activeTimersMu.Unlock()
+		assert.NoError(t, RecoverPausedDeployments(context.Background(), kube.Clients{KubernetesClient: fakeClient}, []string{metav1.NamespaceAll}, nil, ""))
+		activeTimersMu.Lock()
+		gotTimer := activeTimers[timerKey]
+		activeTimersMu.Unlock()
+		assert.Same(t, existingTimer, gotTimer)
+		assertDeploymentPaused(t, fakeClient, "default", dep.Name, true)
+	})
+}
+
+func TestRecoverPausedDeploymentsRespectsNamespaceScope(t *testing.T) {
+	expiredAt := time.Now().Add(-6 * time.Minute).Format(time.RFC3339)
+	newPaused := func(ns, name string) *appsv1.Deployment { return newTestDeployment(ns, name, true, expiredAt, "5m") }
+	newNS := func(name, env string) *corev1.Namespace {
+		return &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: name, Labels: map[string]string{"env": env}}}
+	}
+	for _, tc := range []struct {
+		name, selector string
+		watch, ignored []string
+		objects        []runtime.Object
+		wantPaused     map[[2]string]bool
+	}{
+		{"ignored namespaces without listing namespaces", "", []string{metav1.NamespaceAll}, []string{"kube-system"},
+			[]runtime.Object{newPaused("app", "watched"), newPaused("kube-system", "ignored")},
+			map[[2]string]bool{{"app", "watched"}: false, {"kube-system", "ignored"}: true}},
+		{"namespace label selector and ignored namespaces", "env=prod", []string{metav1.NamespaceAll}, []string{"prod-ignored"},
+			[]runtime.Object{newNS("prod", "prod"), newNS("prod-ignored", "prod"), newNS("dev", "dev"), newPaused("prod", "d1"), newPaused("prod-ignored", "d2"), newPaused("dev", "d3")},
+			map[[2]string]bool{{"prod", "d1"}: false, {"prod-ignored", "d2"}: true, {"dev", "d3"}: true}},
+		{"scoped namespaces mode only lists watched namespaces", "", []string{"team-a", "team-b"}, nil,
+			[]runtime.Object{newPaused("team-a", "da"), newPaused("team-b", "db"), newPaused("other", "do")},
+			map[[2]string]bool{{"team-a", "da"}: false, {"team-b", "db"}: false, {"other", "do"}: true}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			resetActiveTimers(t)
+			fakeClient := testclient.NewClientset(tc.objects...)
+			fakeClient.PrependReactor("list", "*", func(a clienttesting.Action) (bool, runtime.Object, error) {
+				if a.GetResource().Resource == "namespaces" && tc.selector == "" {
+					t.Fatal("Namespaces().List must not be called when namespaceLabelSelector is empty")
+				}
+				if a.GetResource().Resource == "deployments" && a.GetNamespace() == metav1.NamespaceAll && tc.watch[0] != metav1.NamespaceAll {
+					t.Fatal("Deployments(NamespaceAll).List must not be called in scoped mode")
+				}
+				return false, nil, nil
+			})
+			assert.NoError(t, RecoverPausedDeployments(context.Background(), kube.Clients{KubernetesClient: fakeClient}, tc.watch, tc.ignored, tc.selector))
+			for key, want := range tc.wantPaused {
+				assertDeploymentPaused(t, fakeClient, key[0], key[1], want)
+			}
+		})
+	}
+}
+
+func TestRecoverPausedDeploymentsWithRetry(t *testing.T) {
+	forbiddenErr := apierrors.NewForbidden(schema.GroupResource{Group: "apps", Resource: "deployments"}, "", errors.New("forbidden"))
+	connErr := errors.New("connection refused")
+	for _, tc := range []struct {
+		name                    string
+		failTimes, wantAttempts int32
+		err                     error
+		cancelFirst, wantPaused bool
+	}{
+		{"retries transient list errors until scan succeeds", 2, 3, connErr, false, false},
+		{"stops retrying on forbidden error", 10, 1, forbiddenErr, false, true},
+		{"exits when context is cancelled", 10, 1, connErr, true, true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			resetActiveTimers(t)
+			useShortResumeRetryBackoff(t)
+			dep := newExpiredPausedDeployment()
+			fakeClient := testclient.NewClientset(dep)
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+			var attempts atomic.Int32
+			fakeClient.PrependReactor("list", "deployments", func(clienttesting.Action) (bool, runtime.Object, error) {
+				n := attempts.Add(1)
+				if tc.cancelFirst && n == 1 {
+					cancel()
+				}
+				if n <= tc.failTimes {
+					return true, nil, tc.err
+				}
+				return false, nil, nil
+			})
+			RecoverPausedDeploymentsWithRetry(ctx, kube.Clients{KubernetesClient: fakeClient}, []string{metav1.NamespaceAll}, nil, "")
+			assert.Equal(t, tc.wantAttempts, attempts.Load())
+			assertDeploymentPaused(t, fakeClient, "default", dep.Name, tc.wantPaused)
+		})
+	}
+}
+
+func TestStopResumeTimers(t *testing.T) {
+	resetActiveTimers(t)
+	dep := newExpiredPausedDeployment()
+	fakeClient := testclient.NewClientset(dep)
+	CreateResumeTimer(dep, kube.Clients{KubernetesClient: fakeClient}, "default", 50*time.Millisecond)
+	timerKey := getTimerKey("default", dep.Name)
+	assert.True(t, hasResumeTimer(timerKey))
+	StopResumeTimers()
+	assert.False(t, hasResumeTimer(timerKey))
+	time.Sleep(100 * time.Millisecond)
+	assertDeploymentPaused(t, fakeClient, "default", dep.Name, true)
 }
