@@ -3,6 +3,7 @@ package handler
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"math"
 	"sync"
@@ -16,6 +17,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/wait"
 
 	"github.com/stakater/Reloader/internal/pkg/options"
+	"github.com/stakater/Reloader/internal/pkg/util"
 	"github.com/stakater/Reloader/pkg/kube"
 )
 
@@ -169,6 +171,126 @@ func HandleMissingTimer(deployment *app.Deployment, pauseDuration time.Duration,
 	logrus.Infof("Creating missing timer for already paused deployment '%s' in namespace '%s' with remaining time %s",
 		deploymentName, namespace, remainingPauseTime)
 	CreateResumeTimer(deployment, clients, namespace, remainingPauseTime)
+}
+
+// RecoverPausedDeployments scans watched namespaces for deployments paused by
+// Reloader and resumes expired ones or recreates their resume timers.
+func RecoverPausedDeployments(ctx context.Context, clients kube.Clients, watchNamespaces []string, ignoredNamespaces []string, namespaceLabelSelector string) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+
+	var selectedNamespaces map[string]struct{}
+	if namespaceLabelSelector != "" {
+		nsList, err := clients.KubernetesClient.CoreV1().Namespaces().List(ctx, metav1.ListOptions{LabelSelector: namespaceLabelSelector})
+		if err != nil {
+			logrus.Errorf("Failed to list namespaces matching selector '%s' for paused deployment recovery: %v", namespaceLabelSelector, err)
+			return err
+		}
+		if len(nsList.Items) == 0 {
+			return nil
+		}
+		selectedNamespaces = make(map[string]struct{}, len(nsList.Items))
+		for i := range nsList.Items {
+			selectedNamespaces[nsList.Items[i].Name] = struct{}{}
+		}
+	}
+
+	ignored := util.List(ignoredNamespaces)
+	var listErrs []error
+
+	for _, ns := range watchNamespaces {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
+		deployments, err := clients.KubernetesClient.AppsV1().Deployments(ns).List(ctx, metav1.ListOptions{})
+		if err != nil {
+			logrus.Errorf("Failed to list deployments in namespace '%s' for paused deployment recovery: %v", ns, err)
+			listErrs = append(listErrs, err)
+			continue
+		}
+
+		for i := range deployments.Items {
+			if err := ctx.Err(); err != nil {
+				return err
+			}
+			item := &deployments.Items[i]
+			if ignored.Contains(item.Namespace) || !IsPausedByReloader(item) {
+				continue
+			}
+			if selectedNamespaces != nil {
+				if _, ok := selectedNamespaces[item.Namespace]; !ok {
+					continue
+				}
+			}
+
+			activeTimersMu.Lock()
+			_, timerExists := activeTimers[getTimerKey(item.Namespace, item.Name)]
+			activeTimersMu.Unlock()
+			if timerExists {
+				continue
+			}
+
+			// Copy matched item so timer closures do not pin the full list slice.
+			deployment := item.DeepCopy()
+			pauseInterval := deployment.Annotations[options.PauseDeploymentAnnotation]
+			pauseDuration, err := ParsePauseDuration(pauseInterval)
+			if err != nil {
+				logrus.Warnf("Invalid or missing pause period '%s' for paused deployment '%s' in namespace '%s': %v. Resuming immediately",
+					pauseInterval, deployment.Name, deployment.Namespace, err)
+				ResumeDeployment(deployment, deployment.Namespace, clients)
+				continue
+			}
+			HandleMissingTimer(deployment, pauseDuration, clients, deployment.Namespace)
+		}
+	}
+
+	return errors.Join(listErrs...)
+}
+
+// RecoverPausedDeploymentsWithRetry retries transient RecoverPausedDeployments
+// list failures with exponential backoff until success, all-Forbidden, or ctx cancel.
+func RecoverPausedDeploymentsWithRetry(ctx context.Context, clients kube.Clients, watchNamespaces []string, ignoredNamespaces []string, namespaceLabelSelector string) {
+	backoff := resumeRetryBackoff
+	for {
+		err := RecoverPausedDeployments(ctx, clients, watchNamespaces, ignoredNamespaces, namespaceLabelSelector)
+		if err == nil || ctx.Err() != nil || allForbidden(err) {
+			return
+		}
+		delay := backoff.Step()
+		logrus.Warnf("Paused deployment recovery failed, retrying in %s: %v", delay, err)
+		timer := time.NewTimer(delay)
+		select {
+		case <-ctx.Done():
+			timer.Stop()
+			return
+		case <-timer.C:
+		}
+	}
+}
+
+func allForbidden(err error) bool {
+	var multi interface{ Unwrap() []error }
+	if !errors.As(err, &multi) {
+		return apierrors.IsForbidden(err)
+	}
+	errs := multi.Unwrap()
+	for _, e := range errs {
+		if !apierrors.IsForbidden(e) {
+			return false
+		}
+	}
+	return len(errs) > 0
+}
+
+// StopResumeTimers stops and removes all active deployment resume timers.
+func StopResumeTimers() {
+	activeTimersMu.Lock()
+	defer activeTimersMu.Unlock()
+	for key, timer := range activeTimers {
+		timer.Stop()
+		delete(activeTimers, key)
+	}
 }
 
 // CreateResumeTimer creates a timer to resume the deployment after the specified duration

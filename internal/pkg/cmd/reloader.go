@@ -11,15 +11,16 @@ import (
 	"strings"
 	"time"
 
-	"github.com/stakater/Reloader/internal/pkg/constants"
-	"github.com/stakater/Reloader/internal/pkg/leadership"
-
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/leaderelection"
 
+	"github.com/stakater/Reloader/internal/pkg/constants"
 	"github.com/stakater/Reloader/internal/pkg/controller"
+	"github.com/stakater/Reloader/internal/pkg/handler"
+	"github.com/stakater/Reloader/internal/pkg/leadership"
 	"github.com/stakater/Reloader/internal/pkg/metrics"
 	"github.com/stakater/Reloader/internal/pkg/options"
 	"github.com/stakater/Reloader/internal/pkg/util"
@@ -270,7 +271,11 @@ func startReloader(cmd *cobra.Command, args []string) {
 		lock := leadership.GetNewLock(clientset.CoordinationV1(), constants.LockName, podName, podNamespace)
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
-		leadership.RunLeaderElection(lock, ctx, cancel, podName, controllers)
+		leadership.RunLeaderElection(lock, ctx, cancel, podName, controllers, func(leadCtx context.Context) {
+			startPausedDeploymentRecovery(leadCtx, clientset, watchNamespaces, ignoredNamespacesList, namespaceLabelSelector)
+		})
+	} else {
+		go startPausedDeploymentRecovery(context.Background(), clientset, watchNamespaces, ignoredNamespacesList, namespaceLabelSelector)
 	}
 
 	common.PublishMetaInfoConfigmap(clientset)
@@ -299,6 +304,14 @@ func startPProfServer() {
 	if err := http.ListenAndServe(options.PProfAddr, mux); err != nil {
 		logrus.Errorf("Failed to start pprof server: %v", err)
 	}
+}
+
+func startPausedDeploymentRecovery(ctx context.Context, clientset kubernetes.Interface, watchNamespaces []string, ignoredNamespaces []string, namespaceLabelSelector string) {
+	if options.WebhookUrl != "" {
+		return
+	}
+	clients := kube.Clients{KubernetesClient: clientset}
+	handler.RecoverPausedDeploymentsWithRetry(ctx, clients, watchNamespaces, ignoredNamespaces, namespaceLabelSelector)
 }
 
 func shouldRunCSIController() bool {
