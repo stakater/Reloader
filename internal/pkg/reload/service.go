@@ -116,13 +116,25 @@ func (s *Service) processResource(
 			shouldReload = false
 		}
 
+		// A suspended workload is decided here, before it is counted as matched, logged as
+		// reloading or sent to a webhook (#822).
+		suspended := shouldReload && wl.IsSuspended()
+		reason := matchResult.Reason
+		if suspended {
+			shouldReload = false
+			reason = "workload is suspended"
+			s.log.Info("skipping reload of suspended workload",
+				"kind", wl.Kind(), "workload", wl.GetName(), "namespace", wl.GetNamespace())
+		}
+
 		decisions = append(
 			decisions, ReloadDecision{
 				Workload:     wl,
 				ShouldReload: shouldReload,
 				AutoReload:   matchResult.AutoReload,
-				Reason:       matchResult.Reason,
+				Reason:       reason,
 				Hash:         hash,
+				Suspended:    suspended,
 			},
 		)
 	}

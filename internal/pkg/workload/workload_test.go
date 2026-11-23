@@ -6,6 +6,7 @@ import (
 	argorolloutv1alpha1 "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/utils/ptr"
 
 	"github.com/stakater/Reloader/internal/pkg/testutil"
 )
@@ -1685,6 +1686,31 @@ func TestStatefulSetWorkload_PerformSpecialUpdate(t *testing.T) {
 	}
 	if updated {
 		t.Error("PerformSpecialUpdate() should return false for StatefulSet")
+	}
+}
+
+func TestWorkload_IsSuspended(t *testing.T) {
+	tests := []struct {
+		name    string
+		suspend *bool
+		want    bool
+	}{
+		{name: "suspended", suspend: ptr.To(true), want: true},
+		{name: "not suspended", suspend: ptr.To(false), want: false},
+		{name: "suspend unset", suspend: nil, want: false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cj := testutil.NewCronJob("test", "default")
+			cj.Spec.Suspend = tt.suspend
+			if got := NewCronJobWorkload(cj).IsSuspended(); got != tt.want {
+				t.Errorf("IsSuspended() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+
+	if NewDeploymentWorkload(testutil.NewDeployment("test", "default", nil)).IsSuspended() {
+		t.Error("IsSuspended() should be false for a Deployment")
 	}
 }
 

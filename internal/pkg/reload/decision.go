@@ -17,6 +17,8 @@ type ReloadDecision struct {
 	Reason string
 	// Hash is the computed hash of the resource content.
 	Hash string
+	// Suspended is true when the workload matched but is suspended, so it is not reloaded.
+	Suspended bool
 }
 
 // FilterDecisions returns only decisions where ShouldReload is true.

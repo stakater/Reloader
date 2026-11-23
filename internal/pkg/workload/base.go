@@ -151,6 +151,12 @@ func (b *BaseWorkload[T]) UsesSecret(name string) bool {
 	return SpecUsesSecret(&template.Spec, name)
 }
 
+// IsSuspended reports whether the workload is paused so that Reloader must not start it. Only a
+// suspended CronJob is; every other kind returns false.
+func (b *BaseWorkload[T]) IsSuspended() bool {
+	return false
+}
+
 func (b *BaseWorkload[T]) GetOwnerReferences() []metav1.OwnerReference {
 	return b.accessor.GetObjectMeta().OwnerReferences
 }
