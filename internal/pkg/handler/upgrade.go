@@ -16,6 +16,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/sirupsen/logrus"
 	app "k8s.io/api/apps/v1"
+	batchv1 "k8s.io/api/batch/v1"
 	v1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
@@ -191,8 +192,13 @@ func sendWebhook(url string) (string, []error) {
 }
 
 func doRollingUpgrade(config common.Config, collectors metrics.Collectors, recorder record.EventRecorder, invoke invokeStrategy) error {
-	clients := kube.GetClients()
+	return reloadWorkloads(kube.GetClients(), config, collectors, recorder, invoke)
+}
 
+// reloadWorkloads runs the reload for every supported workload type. A failure on
+// one type does not stop the others; all errors are returned joined so the event
+// is still retried.
+func reloadWorkloads(clients kube.Clients, config common.Config, collectors metrics.Collectors, recorder record.EventRecorder, invoke invokeStrategy) error {
 	// Get ignored workload types to avoid listing resources without RBAC permissions
 	ignoredWorkloadTypes, err := util.GetIgnoredWorkloadTypesList()
 	if err != nil {
@@ -200,52 +206,65 @@ func doRollingUpgrade(config common.Config, collectors metrics.Collectors, recor
 		ignoredWorkloadTypes = util.List{} // Continue with empty list if parsing fails
 	}
 
-	err = rollingUpgrade(clients, config, GetDeploymentRollingUpgradeFuncs(), collectors, recorder, invoke)
-	if err != nil {
-		return err
-	}
+	workloadFuncs := []callbacks.RollingUpgradeFuncs{GetDeploymentRollingUpgradeFuncs()}
 
 	// Only process CronJobs if they are not ignored
 	if !ignoredWorkloadTypes.Contains("cronjobs") {
-		err = rollingUpgrade(clients, config, GetCronJobCreateJobFuncs(), collectors, recorder, invoke)
-		if err != nil {
-			return err
-		}
+		workloadFuncs = append(workloadFuncs, GetCronJobCreateJobFuncs())
 	}
 
 	// Only process Jobs if they are not ignored
 	if !ignoredWorkloadTypes.Contains("jobs") {
-		err = rollingUpgrade(clients, config, GetJobCreateJobFuncs(), collectors, recorder, invoke)
-		if err != nil {
-			return err
-		}
+		workloadFuncs = append(workloadFuncs, GetJobCreateJobFuncs())
 	}
 
-	err = rollingUpgrade(clients, config, GetDaemonSetRollingUpgradeFuncs(), collectors, recorder, invoke)
-	if err != nil {
-		return err
-	}
-	err = rollingUpgrade(clients, config, GetStatefulSetRollingUpgradeFuncs(), collectors, recorder, invoke)
-	if err != nil {
-		return err
-	}
+	workloadFuncs = append(workloadFuncs, GetDaemonSetRollingUpgradeFuncs(), GetStatefulSetRollingUpgradeFuncs())
 
 	if options.IsArgoRollouts == "true" {
-		err = rollingUpgrade(clients, config, GetArgoRolloutRollingUpgradeFuncs(), collectors, recorder, invoke)
-		if err != nil {
-			return err
+		workloadFuncs = append(workloadFuncs, GetArgoRolloutRollingUpgradeFuncs())
+	}
+
+	var errs []error
+	for _, upgradeFuncs := range workloadFuncs {
+		// upgradeResource already logs each failed workload, so the errors are only collected here.
+		if err := PerformAction(clients, config, upgradeFuncs, collectors, recorder, invoke); err != nil {
+			errs = append(errs, err)
 		}
 	}
 
-	return nil
+	return joinErrors(errs)
 }
 
-func rollingUpgrade(clients kube.Clients, config common.Config, upgradeFuncs callbacks.RollingUpgradeFuncs, collectors metrics.Collectors, recorder record.EventRecorder, strategy invokeStrategy) error {
-	err := PerformAction(clients, config, upgradeFuncs, collectors, recorder, strategy)
-	if err != nil {
-		logrus.Errorf("Rolling upgrade for '%s' failed with error = %v", config.ResourceName, err)
+// workloadErrors keeps every workload failure of one event. Unlike errors.Join it
+// prints them on a single line, so handleErr logs one failure as one log line.
+type workloadErrors []error
+
+func (e workloadErrors) Error() string {
+	messages := make([]string, len(e))
+	for i, err := range e {
+		messages[i] = err.Error()
 	}
-	return err
+	return strings.Join(messages, "; ")
+}
+
+func (e workloadErrors) Unwrap() []error {
+	return e
+}
+
+func joinErrors(errs []error) error {
+	var joined workloadErrors
+	for _, err := range errs {
+		if err != nil {
+			joined = append(joined, err)
+		}
+	}
+	switch len(joined) {
+	case 0:
+		return nil
+	case 1:
+		return joined[0]
+	}
+	return joined
 }
 
 // PerformAction invokes the deployment if there is any change in configmap or secret data
@@ -255,13 +274,15 @@ func PerformAction(clients kube.Clients, config common.Config, upgradeFuncs call
 	// Record workloads scanned
 	collectors.RecordWorkloadsScanned(upgradeFuncs.ResourceType, len(items))
 
+	var errs []error
 	matchedCount := 0
 	for _, item := range items {
 		matched, err := retryOnConflict(retry.DefaultRetry, func(fetchResource bool) (bool, error) {
 			return upgradeResource(clients, config, upgradeFuncs, collectors, recorder, strategy, item, fetchResource)
 		})
 		if err != nil {
-			return err
+			// Keep going so one workload that cannot be updated does not block the others.
+			errs = append(errs, err)
 		}
 		if matched {
 			matchedCount++
@@ -271,7 +292,7 @@ func PerformAction(clients kube.Clients, config common.Config, upgradeFuncs call
 	// Record workloads matched
 	collectors.RecordWorkloadsMatched(upgradeFuncs.ResourceType, matchedCount)
 
-	return nil
+	return joinErrors(errs)
 }
 
 func retryOnConflict(backoff wait.Backoff, fn func(_ bool) (bool, error)) (bool, error) {
@@ -337,6 +358,16 @@ func upgradeResource(clients kube.Clients, config common.Config, upgradeFuncs ca
 		return false, nil
 	}
 
+	created, err := jobAlreadyCreated(clients, config, resource)
+	if err != nil {
+		return true, err
+	}
+	if created {
+		logrus.Infof("Skipping %s '%s' in namespace '%s': its Job for this change of '%s' was already created", upgradeFuncs.ResourceType, resourceName, config.Namespace, config.ResourceName)
+		return true, nil
+	}
+	setReloadTrigger(resource, config)
+
 	// find correct annotation and update the resource
 	pauseInterval, foundPauseInterval := annotations[options.PauseDeploymentAnnotation]
 
@@ -394,6 +425,70 @@ func upgradeResource(clients kube.Clients, config common.Config, upgradeFuncs ca
 	}
 
 	return true, nil
+}
+
+func reloadTriggerAnnotationKey() string {
+	return constants.ReloaderAnnotationPrefix + "/" + constants.ReloadTriggerAnnotation
+}
+
+// reloadTriggerSource identifies the resource that triggered a reload and
+// reloadTrigger adds the data hash, so the same change always has the same value.
+func reloadTriggerSource(config common.Config) string {
+	return config.Type + "/" + config.ResourceName + "@"
+}
+
+func reloadTrigger(config common.Config) string {
+	return reloadTriggerSource(config) + config.SHAValue
+}
+
+// setReloadTrigger records the change on the Job that the reload creates. A Job
+// created from a CronJob gets the job template annotations, and a recreated Job
+// keeps its own.
+func setReloadTrigger(resource runtime.Object, config common.Config) {
+	switch obj := resource.(type) {
+	case *batchv1.CronJob:
+		if obj.Spec.JobTemplate.Annotations == nil {
+			obj.Spec.JobTemplate.Annotations = map[string]string{}
+		}
+		obj.Spec.JobTemplate.Annotations[reloadTriggerAnnotationKey()] = reloadTrigger(config)
+	case *batchv1.Job:
+		if obj.Annotations == nil {
+			obj.Annotations = map[string]string{}
+		}
+		obj.Annotations[reloadTriggerAnnotationKey()] = reloadTrigger(config)
+	}
+}
+
+// jobAlreadyCreated reports whether an earlier attempt of the same event already
+// created the Job for resource. Jobs are created instead of patched, so without
+// this check each retry of the event would run them again. For a CronJob only the
+// newest Job created for the same source resource counts, so a later change back
+// to an earlier value still creates a Job.
+func jobAlreadyCreated(clients kube.Clients, config common.Config, resource runtime.Object) (bool, error) {
+	key := reloadTriggerAnnotationKey()
+	trigger := reloadTrigger(config)
+	switch obj := resource.(type) {
+	case *batchv1.Job:
+		return obj.Annotations[key] == trigger, nil
+	case *batchv1.CronJob:
+		jobs, err := clients.KubernetesClient.BatchV1().Jobs(obj.Namespace).List(context.TODO(), metav1.ListOptions{})
+		if err != nil {
+			return false, err
+		}
+		source := reloadTriggerSource(config)
+		var latest *batchv1.Job
+		for i := range jobs.Items {
+			job := &jobs.Items[i]
+			if !metav1.IsControlledBy(job, obj) || !strings.HasPrefix(job.Annotations[key], source) {
+				continue
+			}
+			if latest == nil || latest.CreationTimestamp.Before(&job.CreationTimestamp) {
+				latest = job
+			}
+		}
+		return latest != nil && latest.Annotations[key] == trigger, nil
+	}
+	return false, nil
 }
 
 func getVolumeMountName(volumes []v1.Volume, mountType string, volumeName string) string {
