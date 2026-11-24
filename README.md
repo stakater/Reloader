@@ -3,6 +3,7 @@
 </p>
 
 [![💖 Sponsor Our Work](https://img.shields.io/badge/Sponsor%20Our%20Work-FF8C00?style=flat-square&logo=github-sponsors&logoColor=white)](https://github.com/sponsors/stakater?utm_source=github&utm_medium=readme&utm_campaign=reloader)
+[![🚀 We're Hiring](https://img.shields.io/badge/We%27re%20Hiring-2EA44F?style=flat-square&logo=rocket&logoColor=white)](https://www.stakater.com/careers/?utm_source=github&utm_medium=readme&utm_campaign=reloader)
 [![Go Report Card](https://goreportcard.com/badge/github.com/stakater/reloader?style=flat-square)](https://goreportcard.com/report/github.com/stakater/reloader)
 [![Go Doc](https://img.shields.io/badge/godoc-reference-blue.svg?style=flat-square)](https://godoc.org/github.com/stakater/reloader)
 [![Release](https://img.shields.io/github/release/stakater/reloader.svg?style=flat-square)](https://github.com/stakater/reloader/releases/latest)
