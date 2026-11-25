@@ -80,13 +80,16 @@ func (h *PauseHandler) ApplyPause(wl workload.Workload) error {
 	}
 
 	deploy := deployWl.GetDeployment()
+	if deploy.Spec.Paused {
+		return nil
+	}
 
 	deploy.Spec.Paused = true
 
 	if deploy.Annotations == nil {
 		deploy.Annotations = make(map[string]string)
 	}
-	deploy.Annotations[h.cfg.Annotations.PausedAt] = time.Now().UTC().Format(time.RFC3339)
+	deploy.Annotations[h.cfg.Annotations.PausedAt] = time.Now().UTC().Format(time.RFC3339Nano)
 
 	return nil
 }

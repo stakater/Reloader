@@ -249,8 +249,8 @@ This feature allows you to pause rollouts for a deployment for a specified durat
 #### How it works
 
 1. Add the `deployment.reloader.stakater.com/pause-period` annotation to your Deployment, specifying the pause duration (e.g., `"5m"` for five minutes).
-1. When a watched ConfigMap or Secret changes, Reloader will still trigger a reload event, but if the deployment is paused, the rollout will have no effect until the pause period has elapsed.
-1. This avoids repeated restarts if multiple resources are updated close together.
+1. The first reload pauses the Deployment for the configured duration. Further reloads update the pod template within the same window, and the pause deadline stays fixed.
+1. When the window expires, Reloader resumes the Deployment so Kubernetes can roll out the accumulated changes.
 
 #### Use when
 

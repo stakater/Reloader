@@ -101,6 +101,7 @@ func retryWithReload(
 				key := client.ObjectKeyFromObject(obj)
 				if err := c.Get(ctx, key, obj); err != nil {
 					if errors.IsNotFound(err) {
+						updated = false
 						return nil
 					}
 					return err
@@ -159,28 +160,32 @@ func updateDeploymentWithPause(
 	hash string,
 	autoReload bool,
 ) (bool, error) {
-	shouldPause := false
-	if pauseHandler != nil {
-		var err error
-		shouldPause, err = pauseHandler.ShouldPause(wl)
-		if err != nil {
-			// Reload anyway, but say why the pause was skipped rather than dropping it silently.
-			logf.FromContext(ctx).Error(
-				err, "ignoring pause-period annotation, reloading without pausing",
-				"workload", wl.GetName(), "namespace", namespace,
-			)
-		}
-	}
-
 	return retryWithReload(
 		ctx, c, reloadService, wl, resourceName, resourceType, namespace, hash, autoReload,
 		func() error {
-			if shouldPause {
-				if err := pauseHandler.ApplyPause(wl); err != nil {
-					return err
-				}
+			if pauseHandler == nil {
+				return wl.Update(ctx, c)
 			}
-			return wl.Update(ctx, c)
+
+			shouldPause, err := pauseHandler.ShouldPause(wl)
+			if err != nil {
+				logf.FromContext(ctx).Error(
+					err, "ignoring pause-period annotation, reloading without pausing",
+					"workload", wl.GetName(), "namespace", namespace,
+				)
+			}
+			if !shouldPause {
+				return wl.Update(ctx, c)
+			}
+
+			if err := pauseHandler.ApplyPause(wl); err != nil {
+				return err
+			}
+
+			// A concurrent resume or reload can change which pause window owns this update.
+			deployment := wl.(*workload.DeploymentWorkload)
+			patch := client.StrategicMergeFrom(deployment.Original(), client.MergeFromWithOptimisticLock{})
+			return c.Patch(ctx, deployment.GetObject(), patch, client.FieldOwner(workload.FieldManager))
 		},
 	)
 }
