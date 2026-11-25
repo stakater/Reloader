@@ -257,7 +257,29 @@ This feature allows you to pause rollouts for a deployment for a specified durat
 1. ✅ Your deployment references multiple ConfigMaps or Secrets that may be updated at the same time.
 1. ✅ You want to minimize unnecessary rollouts and reduce downtime caused by back-to-back configuration changes.
 
-### 8. 🔐 CSI Secret Provider Support
+### 8. 🚦 Throttle reload storms
+
+When many workloads reference the same `Secret` or `ConfigMap`, Reloader can trigger a large number of rollouts at once. Two complementary controls help spread load without opting workloads out of reload:
+
+| Mechanism | Scope | Description |
+|-----------|-------|-------------|
+| `--max-concurrent-reloads=N` | Cluster | At most **N** workload reload patches run at the same time (`0` = unlimited, default). |
+| `--reload-spread=5s` | Per namespace, per trigger | Delay between reloading each dependent workload for one config change. |
+| `reloader.stakater.com/reload-spread: "10s"` | Per namespace, per trigger | Same as above; set on the **ConfigMap** or **Secret** that changed. |
+
+`pause-period` (section 7) batches multiple changes for **one** Deployment. **Reload spread** spaces reloads across **many** workloads in a namespace. **Max concurrent reloads** caps how many patches run cluster-wide when many namespaces update together (see [issue #220](https://github.com/stakater/Reloader/issues/220)).
+
+Example Helm values:
+
+```yaml
+reloader:
+  maxConcurrentReloads: 32
+  reloadSpread: "5s"
+```
+
+> **Note:** For secrets that must never trigger rollouts, use `reloader.stakater.com/ignore: "true"` on the ConfigMap or Secret.
+
+### 9. 🔐 CSI Secret Provider Support
 
 Reloader supports the [Secrets Store CSI Driver](https://secrets-store-csi-driver.sigs.k8s.io/), which allows mounting secrets from external secret stores (like AWS Secrets Manager, Azure Key Vault, HashiCorp Vault) directly into pods.
 Unlike Kubernetes Secret objects, CSI-mounted secrets do not always trigger native Kubernetes update events. Reloader solves this by watching CSI status resources and restarting affected workloads when mounted secret versions change.
@@ -451,6 +473,9 @@ These flags allow you to redefine annotation keys used in your workloads or reso
 | `--ignore-annotation` | Overrides `reloader.stakater.com/ignore` |
 | `--pause-deployment-annotation` | Overrides `deployment.reloader.stakater.com/pause-period` |
 | `--pause-deployment-time-annotation` | Overrides `deployment.reloader.stakater.com/paused-at` |
+| `--max-concurrent-reloads` | Maximum concurrent workload reload operations cluster-wide (`0` = unlimited) |
+| `--reload-spread` | Default delay between reloading dependent workloads in the same namespace |
+| `--reload-spread-annotation` | Overrides `reloader.stakater.com/reload-spread` on ConfigMaps and Secrets |
 
 ### 5. 🕷️ Debugging
 

@@ -27,18 +27,22 @@ type ReloadHandler struct {
 	WebhookClient *webhook.Client
 	Collectors    *metrics.Collectors
 	EventRecorder *events.Recorder
-	Alerter       alerting.Alerter
-	PauseHandler  *reload.PauseHandler
+	Alerter         alerting.Alerter
+	PauseHandler    *reload.PauseHandler
+	ThrottleHandler *reload.ThrottleHandler
 }
 
 // Process handles the reload workflow: list workloads, get decisions, webhook or apply.
 func (h *ReloadHandler) Process(
 	ctx context.Context,
-	namespace, resourceName string,
-	resourceType matcher.ResourceType,
+	change reload.ResourceChange,
 	getDecisions func([]workload.Workload) []reload.ReloadDecision,
 	log logr.Logger,
 ) (ctrl.Result, error) {
+	namespace := change.GetNamespace()
+	resourceName := change.GetName()
+	resourceType := change.GetResourceType()
+
 	workloads, err := h.Lister.List(ctx, namespace)
 	if err != nil {
 		log.Error(err, "failed to list workloads")
@@ -79,7 +83,7 @@ func (h *ReloadHandler) Process(
 		return h.sendWebhook(ctx, resourceName, namespace, resourceType, decisions, log)
 	}
 
-	h.applyReloads(ctx, resourceName, namespace, resourceType, decisions, log)
+	h.applyReloads(ctx, change, decisions, log)
 	return ctrl.Result{}, nil
 }
 
@@ -136,14 +140,25 @@ func (h *ReloadHandler) sendWebhook(
 
 func (h *ReloadHandler) applyReloads(
 	ctx context.Context,
-	resourceName, resourceNamespace string,
-	resourceType matcher.ResourceType,
+	change reload.ResourceChange,
 	decisions []reload.ReloadDecision,
 	log logr.Logger,
 ) {
 	// Carry this reconcile's logger, and the resource context it already holds, into
 	// the update helpers rather than letting them pick up the manager's own logger.
 	ctx = logf.IntoContext(ctx, log)
+
+	resourceName := change.GetName()
+	resourceNamespace := change.GetNamespace()
+	resourceType := change.GetResourceType()
+
+	hash := ""
+	if len(decisions) > 0 {
+		hash = decisions[0].Hash
+	}
+	if h.ThrottleHandler != nil {
+		defer h.ThrottleHandler.ResetSpread(resourceNamespace, string(resourceType), resourceName, hash)
+	}
 
 	for _, decision := range decisions {
 		log.Info(
@@ -152,6 +167,17 @@ func (h *ReloadHandler) applyReloads(
 			"kind", decision.Workload.Kind(),
 			"reason", decision.Reason,
 		)
+
+		if h.ThrottleHandler != nil {
+			h.ThrottleHandler.WaitConsumerSpread(
+				change.GetAnnotations(),
+				resourceNamespace,
+				resourceName,
+				string(resourceType),
+				decision.Hash,
+			)
+			h.ThrottleHandler.AcquireSlot()
+		}
 
 		actionStartTime := time.Now()
 		updated, err := UpdateWorkloadWithRetry(
@@ -166,6 +192,10 @@ func (h *ReloadHandler) applyReloads(
 			decision.Hash,
 			decision.AutoReload,
 		)
+
+		if h.ThrottleHandler != nil {
+			h.ThrottleHandler.ReleaseSlot()
+		}
 		actionLatency := time.Since(actionStartTime)
 
 		if err != nil {
