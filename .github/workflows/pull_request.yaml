@@ -27,7 +27,7 @@ jobs:
     permissions:
       contents: read
       pull-requests: write # reusable workflow posts languagetool review comments
-    uses: stakater/.github/.github/workflows/pull_request_doc_qa.yaml@3dfb835dba6b596fe32e1d0f5eadbb4a3a139a1c # v0.0.163
+    uses: stakater/.github/.github/workflows/pull_request_doc_qa.yaml@36e623348c20da24510dfb06bb4a66c73e003c67 # v0.0.222
     with:
       MD_CONFIG: .github/md_config.json
       DOC_SRC: README.md
