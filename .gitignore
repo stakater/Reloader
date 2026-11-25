@@ -14,7 +14,14 @@ dist
 !**/chart/reloader
 !**/internal/reloader
 *.tgz
-styles/
+# vale sync downloads the Stakater package into styles/. Everything except
+# the project vocabulary is generated and ignored.
+styles/*
+!styles/config/
+styles/config/*
+!styles/config/vocabularies/
+styles/config/vocabularies/*
+!styles/config/vocabularies/Project/
 site/
 /mkdocs.yml
 yq
