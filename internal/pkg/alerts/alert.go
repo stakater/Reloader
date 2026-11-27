@@ -94,23 +94,65 @@ func sendSlackAlert(webhookUrl string, proxy string, msg string) []error {
 	return nil
 }
 
+// teamsMessage is a Teams message carrying an Adaptive Card. Teams Workflows
+// (Power Automate) webhooks only accept this format, and the legacy Office 365
+// connector incoming webhooks accept it as well.
+// See https://learn.microsoft.com/en-us/microsoftteams/platform/webhooks-and-connectors/how-to/connectors-using#send-adaptive-cards-using-an-incoming-webhook
+type teamsMessage struct {
+	Type        string            `json:"type"`
+	Attachments []teamsAttachment `json:"attachments"`
+}
+
+type teamsAttachment struct {
+	ContentType string            `json:"contentType"`
+	ContentURL  *string           `json:"contentUrl"`
+	Content     teamsAdaptiveCard `json:"content"`
+}
+
+type teamsAdaptiveCard struct {
+	Schema  string           `json:"$schema"`
+	Type    string           `json:"type"`
+	Version string           `json:"version"`
+	Body    []teamsTextBlock `json:"body"`
+}
+
+type teamsTextBlock struct {
+	Type string `json:"type"`
+	Text string `json:"text"`
+	Wrap bool   `json:"wrap"`
+}
+
 // function to send alert to Microsoft Teams webhook
 func sendTeamsAlert(webhookUrl string, proxy string, msg string) []error {
-	attachment := Attachment{
-		Text: msg,
+	payload := teamsMessage{
+		Type: "message",
+		Attachments: []teamsAttachment{{
+			ContentType: "application/vnd.microsoft.card.adaptive",
+			Content: teamsAdaptiveCard{
+				Schema:  "http://adaptivecards.io/schemas/adaptive-card.json",
+				Type:    "AdaptiveCard",
+				Version: "1.2",
+				Body: []teamsTextBlock{{
+					Type: "TextBlock",
+					Text: msg,
+					Wrap: true,
+				}},
+			},
+		}},
 	}
 
 	request := gorequest.New().Proxy(proxy)
 	resp, _, err := request.
 		Post(webhookUrl).
 		RedirectPolicy(redirectPolicy).
-		Send(attachment).
+		Send(payload).
 		End()
 
 	if err != nil {
 		return err
 	}
-	if resp.StatusCode != 200 {
+	// Workflows webhooks answer 202 Accepted, legacy incoming webhooks 200 OK.
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		return []error{fmt.Errorf("error sending msg. status: %v", resp.Status)}
 	}
 
